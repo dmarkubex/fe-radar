@@ -1,0 +1,5 @@
+# BEGIN AI_HARNESS
+/handoff.md
+/.ai/handoff/*
+!/.ai/handoff/.gitkeep
+# END AI_HARNESS
