@@ -1,1 +1,1 @@
-export const DB_PACKAGE = "@fe-radar/db";
+export * from "./schema";
