@@ -1,16 +1,64 @@
-# FE-Radar — Requirements (v0.1 DRAFT)
+# FE-Radar — Requirements (v0.8 DRAFT)
 
-> **状态**：DRAFT · 待 Human 评审 · **未冻结**
+> **v0.8 changelog (Antigravity 第二轮 Stage 4 Audit fix · 2 Systemic + 1 Edge)**：
+> - **R1**：§10.4 删除 step 2 "钉钉手机号匹配自动合并"（钉钉 OAuth 不返回手机号，原路径自相矛盾）；改为 step 2 = "name+dept 唯一匹配本地账号 → 自动合并；多个候选 → admin manual"
+> - **R2**：design.md §8 `users` 表加 `disabled_at`（软删/停用）；T-M5-03 用此字段实施"删除（停用）"
+> - **E1**：design.md §9 `/api/items/:id` 默认拒绝 quota_state ∈ block / pending / dropped 的 item，避免 detail API PII leak
+
+> **状态**：DRAFT · 所有 §13 决策已 closed · Antigravity DMA-23 评审 fix 已落地（v0.7）· 待 Antigravity 复审
 > **最后更新**：2026-05-08
 > **作者**：Claude Code（Plan Stage 产出）
-> **审阅流程**：Human Review → Antigravity Plan Review → Execute
+> **审阅流程**：Human Review → 产出 spec/tasks.md → Antigravity Plan Review → Fix Plan → Execute
+>
+> **v0.7 changelog (Antigravity DMA-23 Fix · 3 Critical + 3 Edge)**：
+> - R1（外部 LLM 泄密）：§12 新增"调 LLM 前必经 scrubber 脱敏"约束；NFR-04 安全表加敏感数据脱敏行
+> - R2（账号合并）：§10 新增 §10.4 合并策略（dingtalk_id 与本地 username 合并键 + 冲突处理）
+> - R3（爬虫抗封锁）：§11 部署约束加代理池子项（用于 T1 政府类信源失败重试）
+> - E1/E2/E3 在 design.md / tasks.md 落地（embedder 索引选型 / cluster 锁 / priority 饥饿监控）
+>
+> **v0.6 changelog (DMA-20 Symphony 复复复评 fix · 2 Major + 1 Minor)**：
+> - F1 fix：handoff.md §1/§5/§7 残留 v0.4/DMA-19 文本全部刷新到 v0.5/DMA-20，§7 next owner 改为 Claude Code
+> - F2 fix：requirements.md §0 / §13 标题 / 文末后续动作 + design.md §17 全部从"开放问题/必须解决"措辞改写为"决策记录"，体现 Q-A…Q-K 已 closed
+> - F3 fix（minor 占位）：design.md §9 API 表加 admin backlog drill-down endpoint 占位（实际实现并入 M5 admin 后台 task）
+>
+> **v0.5 changelog (DMA-19 Symphony 复复评 fix · 4 Major + 1 Minor)**：
+> - F1 fix：design §8 `feedbacks.item_id` 加 `ON DELETE CASCADE`，使 cleanup 事务不被 FK 阻塞
+> - F2 fix：design §5.1 `admitToScoring()` 改双独立 Redis 计数器（`normal_used`≤1300 + `priority_used`≤200），仅在成功 admit 时 incr，用 Lua 原子化
+> - F3 fix：NFR-01 + design §5.1 加 backlog 老化策略（max_age 7 天 → `dropped_quota_expired` 状态）；§8 `quota_state` CHECK 加新值；§14 Dashboard 加 backlog 行
+> - F4 fix：handoff.md §2/§4/§7 重写消除 v0.1 stale Human-stop block；design §18 next steps 移除"解决 §13 开放问题"
+> - F5 fix：design §8 scoring_config seed 块旁加"insert-only / 不覆盖 admin 配置"说明
+>
+> **v0.4 changelog (DMA-18 Symphony 复评 fix · 6 Major + 2 Minor)**：
+> - F1 fix：design §8 增加 `scoring_config` INSERT seed（权重/阈值/t_coef/c_coef）
+> - F2 fix：§9 policy alert 改用 NER 独立类型 `policy`（不再用错误的 `event_type=政策`）；design §11 computeAlert() 同步
+> - F3 fix：NFR-01 限速器改为**优先级配额**：保留 200/天给 C1/own/safety/policy；普通条目超 1500 标 `pending_over_quota` 进 backlog 下窗口处理（保 "自家公司告警零漏报" 验收）
+> - F4 fix：design §8 `clusters.lead_item_id` 加 `ON DELETE SET NULL`；§14 cleanup job 加 `daily_reports` 90 天清理
+> - F5 fix：design §8 users CHECK 收紧为"完整凭据"约束
+> - F6 fix：design §18 + handoff.md 控制状态更新到 v0.3/DMA-18（移除 v0.2/DMA-17 残留）
+> - F7 fix：design §9 API 表补 `/api/alerts?type=&level=&source=` + `/api/alerts/count`
+> - F8 fix：design changelog 移除 `raw_html` 字面残留
+>
+> **v0.3 changelog (Q-D/E/F/G/H/I/J/K 决策内化 · DMA-7…DMA-16 反馈)**：
+> - Q-K（DMA-16）选 A：1500 = 日上限；调度加日配额限速器
+> - Q-F（DMA-9）+ Q-J（DMA-13）：钉钉 SSO 推后到 M4；M0–M3 用本地账号（用户名+密码）登录；admin 通过 SQL seed 预置
+> - Q-I（DMA-12）：全部数据保留 90 天（含元数据 / content / 分析结果 / 用户反馈）；不引入 DMCA 删除接口
+> - Q-H（DMA-11）选 C：alert_type 字段多通道（own / safety / policy）+ /alerts 页 type 筛选
+> - Q-D（DMA-15）+ Q-E（DMA-8）：接受默认权重与阈值（写入 scoring_config）
+> - Q-G（DMA-10）选 A：MVP 不做营销软文识别
+> - Q-B（DMA-7）：C1/C2 名单暂保持现状
+> - Q-C（DMA-14）：Claude Code 提供候选信源清单 → 用户筛选 → 录入 `sources` 表（仍未 close）
+>
+> **v0.2 changelog (Symphony DMA-6 评审 fix · 历史)**：
+> - Finding 1 fix：§14 后续动作顺序修正（tasks.md 在 Plan Review **之前**，符合 AI_index Full Mode）
+> - Finding 2 fix：NFR-01 吞吐定义澄清；增加 Q-K 开放问题
+> - Finding 3 fix：§10.2 不拉 mobile；§12 移除"原始 HTML 90 天"；NFR-03 与 §12 对齐
 
 ---
 
 ## 0. 评审说明
 
 按 AI Coding Kernel Full Mode 流程，本文档处于 Plan 阶段第一轮人评审。
-- 文末 §13 列出"开放问题"，必须解决后才进入 Antigravity Plan Review。
+- 文末 §13 是 **决策记录（Q-A…Q-K · 历史 · 已全部 closed）**，供后续追溯，不再阻塞 Antigravity Plan Review。
 - 所有数值、阈值、名单均为初稿，可改。
 - 文档约束本项目的 **WHAT**（要做什么）；**HOW**（怎么做）见 `spec/design.md`。
 
@@ -56,7 +104,8 @@
 | FR-05 | 关键词 / 分类筛选 | 按 类型 / 信源 / 关注圈 / 项目类型 过滤 |
 | FR-06 | 全文搜索 | 中英双语；范围 = 标题 + 摘要 + 实体 |
 | FR-07 | 自家公司告警 | "远东"被提及条目置顶高亮，独立告警页 |
-| FR-08 | 钉钉 SSO 登录 | 接入公司现有钉钉开放平台应用 |
+| FR-08 | 本地账号登录（M0–M3）| 用户名+密码登录；admin 账号通过 SQL seed 预置；密码 bcrypt 散列存储 |
+| FR-08a | 钉钉 SSO 登录（M4+） | 接入公司现有钉钉开放平台应用；与本地账号并存 |
 | FR-09 | 信源管理后台 | 信源 CRUD，分级 T1/T2/T3，可启用/禁用 |
 | FR-10 | 实体词典后台 | 维护 C1/C2/C3 公司、产品、政策实体 |
 | FR-11 | 反馈机制 | 用户对单条 +1/-1 + 文本备注；后台可查看 |
@@ -77,9 +126,9 @@
 
 | NFR | 指标 |
 |---|---|
-| NFR-01 性能 | 单轮抓取（≤1500 条）端到端处理 ≤30 分钟 |
+| NFR-01 性能 | **日上限 ≤1500 条 LLM 评分预算**（Q-K 决策 A），分布在 4 轮（00:00 / 06:00 / 12:00 / 18:00 上海时区）；单轮端到端处理 ≤30 分钟。**预算切分**：1300 给普通条目（双独立计数器 `normal_used`），200 保留给"高优先级"（C1 自家命中 / `event_type=事故` / NER `policy` 类型命中，独立计数器 `priority_used`）。**Backlog 老化**：超额条目标 `pending_over_quota` 进 backlog，下个窗口余额优先消化；超过 7 天仍未消化转 `dropped_quota_expired` 终态（避免无限累积爆 PG），并在 admin Dashboard 触发告警。|
 | NFR-02 可用性 | 内部使用，目标 99.5%（不追 4 个 9） |
-| NFR-03 数据保留 | Item 原始数据保留 12 个月，分析结果永久 |
+| NFR-03 数据保留 | **全部数据保留 90 天**（Q-I 决策）：Item 元数据 / content / 分析结果（评分/摘要/实体/embedding）/ 用户反馈数据，过期自动清理；不留原始 HTML 快照（与 FR-12 对齐） |
 | NFR-04 安全 | 仅内网访问，钉钉 SSO，最小权限原则 |
 | NFR-05 成本 | LLM API 月度成本控制在 ≤500 元（DeepSeek/Kimi 计），本地 Qwen 不计 |
 | NFR-06 可观测 | Worker 任务进度、抓取成功率、LLM 调用量、聚类质量四项关键指标可见 |
@@ -199,9 +248,19 @@ quality = (Σ Dᵢ × wᵢ) × T_coef × C_coef
 
 ## 9. 自家公司提及告警
 
-### 9.1 触发条件
+### 9.1 触发条件与 alert_type 多通道（Q-H 决策 C）
 
-任意 Item 经 NER 后命中 C1 中 "远东" 系列实体（远东控股、远东电缆、远东智慧能源、远东股份等同义词组），即触发。
+`item_analysis.alert_type` 字段记录告警类型（可空 = 非告警），共 3 类：
+
+| alert_type | 触发规则 | UI 颜色 |
+|---|---|---|
+| `own` | NER 命中 C1 中"远东"系列实体（远东控股、远东电缆、远东智慧能源、远东股份等同义词组）| 红/橙/黄 三级（按信源 T1/T2/T3）|
+| `safety` | NER `event_type=事故` 且 D5 ≥ 70 | 灰色 |
+| `policy` | NER **`policy` 类型**实体命中（如 "GB/T 12706"、"发改能源〔2024〕XX 号"，见 §8 实体表）且 D1 ≥ 75 | 蓝色 |
+
+> ⚠ `policy` 是 §8 NER 7 类中独立的实体类型（标准/政策编号），不要与 `event_type=政策` 混淆 —— `event_type` 的合法值见 §8（招标/中标/财报/人事/事故/合作/发布），不含"政策"。
+
+`/alerts` 页提供 alert_type 与 alert_level 筛选；后续若需要新告警类型，扩展 alert_type 枚举即可，不新建表。
 
 ### 9.2 告警等级
 
@@ -223,9 +282,14 @@ quality = (Σ Dᵢ × wᵢ) × T_coef × C_coef
 
 ---
 
-## 10. 钉钉 SSO 集成
+## 10. 认证（M0–M3 本地账号 / M4+ 钉钉 SSO）
 
-### 10.1 接入方式
+### 10.0 阶段策略（Q-F + Q-J 决策）
+
+- **M0–M3**：本地账号登录（用户名+密码，bcrypt 散列）。admin 通过 SQL seed 预置（数据库 init 脚本里 INSERT 首批 admin）。M0 起即可使用，不阻塞前端开发与内测。
+- **M4+**：接入钉钉 SSO（按 §10.1）。与本地账号并存：原有本地账号可继续登录，新用户走钉钉。
+
+### 10.1 钉钉接入方式（M4+）
 
 使用**远东集团现有的钉钉开放平台应用**（不新建）。需要管理员提供：
 - AppKey / AppSecret
@@ -234,7 +298,22 @@ quality = (Σ Dᵢ × wᵢ) × T_coef × C_coef
 
 ### 10.2 登录流程
 
-钉钉扫码登录 → 获取 unionid → 后端换 access_token → 拉用户基本信息（name、dept、mobile）→ 写入 `users` 表 → 颁发本站 JWT。
+钉钉扫码登录 → 获取 unionid → 后端换 access_token → 拉用户基本信息（**仅 name、dept**；不拉手机号，遵从 §12 数据最小化）→ 写入 `users` 表 → 颁发本站 JWT。
+
+### 10.4 账号合并策略（v0.7 R2 fix）
+
+钉钉 SSO 上线（M4+）后会出现"同一员工已有 M0–M3 本地账号 + 首次钉钉登录"场景。合并按以下匹配键（优先级顺序，v0.8 简化）：
+
+1. `users.dingtalk_id == unionid` → 直接登录，无合并
+2. `name + dept` 完全匹配且 `dingtalk_id` 为空：
+   - **唯一匹配** → 自动合并到本地账号，保留 role + feedbacks，写 audit log
+   - **多个候选** → 写 `merge_conflicts` 表 + admin Dashboard 通知，同时新建 dingtalk-only 兜底（避免登录卡死），等 admin 在 `/admin/users` 手动 confirm
+3. 其他 → 新建 dingtalk-only 账号，role 默认 viewer
+
+> **v0.8 R1**：删除 v0.7 的 "钉钉手机号 hash 匹配" 路径 —— 钉钉 OAuth 不返回手机号（§10.2 + §12 数据最小化原则），原 mobile_hash 路径理论上永不命中，移除避免实施层误导。
+
+**保留字段**：合并后 role 取 max（避免降权），created_at 取 min，feedbacks / audit log 全保留。
+**实施**：详见 `spec/tasks.md` T-M4-05a + `design.md §10c`。
 
 ### 10.3 权限模型（MVP 简化）
 
@@ -261,30 +340,39 @@ quality = (Σ Dᵢ × wᵢ) × T_coef × C_coef
 
 ---
 
-## 12. 数据保留与合规
+## 12. 数据保留与合规（Q-I 决策）
 
-- 抓取的原始 HTML 保留 90 天后自动清理（节省空间）
-- 分析结果（评分、摘要、实体）永久保留
-- 用户反馈数据永久保留，用于评分系统迭代
-- 不存储任何用户个人敏感信息（仅钉钉 unionid + name + dept）
-- 抓取遵守目标站 robots.txt；禁用任何反爬绕过手段
+- **不存储原始 HTML 快照**（与 FR-12、§3.2 对齐）。抓取流程仅在内存中解析 HTML，提取 `title + content(纯文本)`，原始 HTML 解析后立即丢弃
+- **以下数据统一保留 90 天，过期自动清理**：
+  - Item 元数据（url、title、content、published_at、source_id）
+  - 分析结果（评分、摘要、实体、embedding）
+  - 用户反馈数据（vote、reason）
+- **永久保留**：信源配置（`sources`）、实体词典（`entities`）、评分配置（`scoring_config`）、用户账号（`users`）—— 这些是配置型数据，不属"内容"
+- 不引入"应权利人要求即时删除"接口（DMCA-like）—— Q-I 决策不需要
+- 不存储任何用户个人敏感信息（仅钉钉 unionid + name + dept；不存手机号）
+- 抓取遵守目标站 robots.txt；UA 标识 "FE-Radar Bot"；同站请求间隔 ≥ 1s；禁用任何反爬绕过手段
+- **代理池仅用于绕开 IP 封禁，不用于绕过 robots.txt**（v0.7 R3）：政府类 T1 信源被 IP 限速时切代理重试；robots.txt 解析仍生效；admin 后台 feature flag `PROXY_POOL_ENABLED` 可一键关
+- **公网 LLM 调用前强制脱敏**（v0.7 R1）：所有送 DeepSeek/Kimi/本地 Qwen 的 payload 必经 `packages/core/scrubber.ts` 处理，识别 + 替换手机号 / 身份证 / 邮箱 / 内网 IP / 内部项目代号；命中明确 PII 阈值的条目跳过 LLM，进入 admin 待人工脱敏队列；详见 `spec/tasks.md` T-M2-14/15
 
 ---
 
-## 13. 开放问题（必须解决后再进入 Antigravity 评审）
+## 13. 决策记录（Q-A…Q-K · 历史 · 已全部 closed）
+
+> 本节是已完成决策的历史归档，不再阻塞下游流程。Linear DMA-7…DMA-16 是各条决策的具体讨论 issue。
 
 | # | 问题 | 状态 |
 |---|---|---|
 | Q-A | 产品名最终用 "FE-Radar"，是否同意？ | ✅ 用户已确认 |
-| Q-B | C1 / C2 名单是否完整，缺什么、漏什么 | ⏳ 待用户补充 |
-| Q-C | T1 / T2 / T3 信源 RSS / URL 清单 | ⏳ 待用户提供（Q11） |
-| Q-D | 评分维度权重 w1..w5 默认值是否接受 | ⏳ 待评审 |
-| Q-E | 各类精选阈值默认值是否接受 | ⏳ 待评审 |
-| Q-F | 钉钉应用 AppKey / 回调域名 / 内网部署域名 | ⏳ 待管理员提供 |
-| Q-G | "营销软文识别" / "反向扣分" 是否纳入 MVP | ⏳ 待决策（建议 M5+ 再做） |
-| Q-H | "安全事故" 是否独立告警通道（与远东告警并列） | ⏳ 待决策 |
-| Q-I | 数据保留期 12 个月是否合规要求 / 还是更长 | ⏳ 待决策 |
-| Q-J | 团队 admin 名单（首批管理员的钉钉账号） | ⏳ 待用户提供 |
+| Q-B | C1 / C2 名单是否完整，缺什么、漏什么 | ✅ 暂保持现状（DMA-7） |
+| Q-C | T1 / T2 / T3 信源 RSS / URL 清单 | ✅ 用户确认按 37 条候选清单 v1 全采用（DMA-14 closed）|
+| Q-D | 评分维度权重 w1..w5 默认值是否接受 | ✅ 接受默认（DMA-15）|
+| Q-E | 各类精选阈值默认值是否接受 | ✅ 接受默认（DMA-8）|
+| Q-F | 钉钉应用 AppKey / 回调域名 / 内网部署域名 | ✅ 用缓解方案 · M0–M3 本地账号 / M4+ 钉钉（DMA-9）|
+| Q-G | "营销软文识别" / "反向扣分" 是否纳入 MVP | ✅ A 不做（DMA-10）|
+| Q-H | "安全事故" 是否独立告警通道 | ✅ C 复用 alert_type 多通道（DMA-11）|
+| Q-I | 数据保留期 12 个月是否合规要求 | ✅ 全部 90 天 · 无 DMCA 接口（DMA-12）|
+| Q-J | 团队 admin 名单 | ✅ SQL seed 预置 admin · 与 Q-F 一致（DMA-13）|
+| Q-K | NFR-01 中"1500 条"是单轮峰值还是单日上限 | ✅ A 日上限 · 加日配额限速器（DMA-16）|
 
 ---
 
@@ -301,4 +389,5 @@ quality = (Σ Dᵢ × wᵢ) × T_coef × C_coef
 
 ---
 
-> 本文档由 Claude Code 在 Plan Stage 产出，下一步动作：用户评审 → 解决 §13 开放问题 → 提交 Antigravity Plan Review → 生成 `spec/tasks.md` → Codex 实施。
+> 本文档由 Claude Code 在 Plan Stage 产出，下一步动作（顺序经 Symphony DMA-6/DMA-18/DMA-19/DMA-20 四轮复评修正 · §13 决策已全 closed）：
+> 用户评审 v0.6 → **生成 `spec/tasks.md`（按 task-template）** → 提交 Antigravity Plan Review（含 requirements + design + tasks + sub-agent 分工）→ Fix Plan（如有 Critical）→ Codex 实施。

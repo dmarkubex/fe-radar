@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FE-Radar · Sub-Agent 分工 & 流转图</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --bg-soft: #121935;
+    --card: #161e3d;
+    --card-2: #1d2750;
+    --line: #2a3566;
+    --text: #e7ecff;
+    --text-dim: #9aa6d6;
+    --accent: #7aa2ff;
+    --accent-2: #a78bfa;
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --danger: #f87171;
+
+    --infra: #60a5fa;
+    --db: #34d399;
+    --llm: #a78bfa;
+    --core: #f59e0b;
+    --worker: #f472b6;
+    --webapi: #22d3ee;
+    --webui: #f87171;
+    --auth: #facc15;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(1200px 800px at 10% -10%, #1b2553 0%, transparent 60%),
+                radial-gradient(1000px 600px at 110% 10%, #2a1d4f 0%, transparent 55%),
+                var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+  }
+
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 48px 24px 96px; }
+
+  header.hero {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    flex-wrap: wrap; gap: 16px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 24px; margin-bottom: 40px;
+  }
+  .hero h1 {
+    margin: 0 0 6px 0;
+    font-size: 34px; letter-spacing: 0.5px;
+    background: linear-gradient(90deg, #fff 0%, #a78bfa 50%, #60a5fa 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p { margin: 0; color: var(--text-dim); }
+  .hero .meta {
+    font-size: 13px; color: var(--text-dim);
+    text-align: right;
+  }
+  .badge {
+    display: inline-block;
+    padding: 3px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+    background: rgba(52, 211, 153, 0.12);
+    color: var(--ok);
+    border: 1px solid rgba(52, 211, 153, 0.4);
+    margin-left: 8px;
+  }
+
+  h2.section {
+    font-size: 22px; margin: 56px 0 18px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  h2.section .num {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0b1020; font-size: 14px; font-weight: 800;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  h2.section .hint { color: var(--text-dim); font-size: 13px; font-weight: 400; margin-left: 6px; }
+
+  /* === Agent cards === */
+  .agents { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  @media (max-width: 1024px) { .agents { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px)  { .agents { grid-template-columns: 1fr; } }
+
+  .agent {
+    background: linear-gradient(180deg, var(--card) 0%, var(--card-2) 100%);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    position: relative; overflow: hidden;
+    transition: transform .15s ease, border-color .15s ease;
+  }
+  .agent:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .agent::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    background: var(--col, var(--accent));
+  }
+  .agent .head {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .agent .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--col, var(--accent));
+    box-shadow: 0 0 12px var(--col, var(--accent));
+  }
+  .agent .name { font-weight: 700; font-size: 15px; }
+  .agent .count {
+    margin-left: auto;
+    font-size: 12px; color: var(--text-dim);
+    background: rgba(255,255,255,0.05);
+    padding: 2px 8px; border-radius: 999px;
+  }
+  .agent .role { font-size: 13px; color: var(--text-dim); min-height: 38px; }
+  .agent .scope {
+    margin-top: 10px; font-size: 12px;
+    color: #cdd5ff;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: rgba(0,0,0,0.25);
+    padding: 8px 10px; border-radius: 8px;
+    border: 1px solid var(--line);
+    word-break: break-all;
+  }
+  .agent .tasks {
+    margin-top: 10px;
+    display: flex; flex-wrap: wrap; gap: 4px;
+  }
+  .tag {
+    font-size: 11px;
+    padding: 2px 6px; border-radius: 4px;
+    background: rgba(255,255,255,0.06);
+    color: var(--text);
+    border: 1px solid var(--line);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .tag.m0 { color: #60a5fa; }
+  .tag.m1 { color: #34d399; }
+  .tag.m2 { color: #a78bfa; }
+  .tag.m3 { color: #f59e0b; }
+  .tag.m4 { color: #f472b6; }
+  .tag.m5 { color: #22d3ee; }
+
+  /* === Matrix === */
+  .matrix-wrap { overflow-x: auto; }
+  table.matrix {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    background: var(--card);
+    border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    font-size: 13px;
+  }
+  table.matrix th, table.matrix td {
+    padding: 10px 12px; text-align: center;
+    border-bottom: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+  }
+  table.matrix th { background: var(--card-2); color: var(--text-dim); font-weight: 600; }
+  table.matrix th:last-child, table.matrix td:last-child { border-right: 0; }
+  table.matrix tr:last-child td { border-bottom: 0; }
+  table.matrix td.label { text-align: left; color: var(--text); font-weight: 600; background: var(--card-2); }
+  table.matrix td.cnt { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  table.matrix td.cnt.n0 { color: #4b5680; }
+  table.matrix td.cnt.has {
+    color: #fff;
+    background: linear-gradient(135deg, rgba(122,162,255,0.18), rgba(167,139,250,0.18));
+    font-weight: 700;
+  }
+  table.matrix td.total { font-weight: 800; color: var(--accent); background: rgba(122,162,255,0.08); }
+
+  /* === Milestone timeline === */
+  .timeline { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  @media (max-width: 900px) { .timeline { grid-template-columns: repeat(2, 1fr); } }
+  .ms {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px;
+    position: relative;
+  }
+  .ms .ms-name { font-size: 13px; color: var(--text-dim); }
+  .ms .ms-title { font-size: 16px; font-weight: 700; margin: 4px 0 6px; }
+  .ms .ms-date { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+  .ms .ms-count { font-size: 22px; font-weight: 800; color: var(--accent); }
+  .ms .ms-tasks { font-size: 12px; color: var(--text-dim); }
+  .ms.m0 { border-color: rgba(96,165,250,0.5); }
+  .ms.m1 { border-color: rgba(52,211,153,0.5); }
+  .ms.m2 { border-color: rgba(167,139,250,0.5); }
+  .ms.m3 { border-color: rgba(245,158,11,0.5); }
+  .ms.m4 { border-color: rgba(244,114,182,0.5); }
+  .ms.m5 { border-color: rgba(34,211,238,0.5); }
+
+  /* === Flow / Critical path === */
+  .flow {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px;
+    overflow-x: auto;
+  }
+
+  .lane { display: grid; grid-template-columns: 100px 1fr; gap: 16px; align-items: stretch; margin-bottom: 14px; }
+  .lane-head {
+    font-size: 12px; font-weight: 700;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--card-2);
+    border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim);
+    text-align: center;
+  }
+  .lane-head.m0 { color: #60a5fa; border-color: rgba(96,165,250,0.5); }
+  .lane-head.m1 { color: #34d399; border-color: rgba(52,211,153,0.5); }
+  .lane-head.m2 { color: #a78bfa; border-color: rgba(167,139,250,0.5); }
+  .lane-head.m3 { color: #f59e0b; border-color: rgba(245,158,11,0.5); }
+  .lane-head.m4 { color: #f472b6; border-color: rgba(244,114,182,0.5); }
+  .lane-head.m5 { color: #22d3ee; border-color: rgba(34,211,238,0.5); }
+
+  .nodes { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+  .node {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--line);
+    padding: 6px 10px; border-radius: 8px;
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    display: inline-flex; flex-direction: column; gap: 2px;
+    min-width: 110px;
+  }
+  .node .nid { color: #fff; font-weight: 700; }
+  .node .ndesc { color: var(--text-dim); font-size: 11px; font-family: inherit; font-weight: 400; }
+  .node[data-agent="infra"] { border-color: rgba(96,165,250,0.6); }
+  .node[data-agent="db"] { border-color: rgba(52,211,153,0.6); }
+  .node[data-agent="llm"] { border-color: rgba(167,139,250,0.6); }
+  .node[data-agent="core"] { border-color: rgba(245,158,11,0.6); }
+  .node[data-agent="worker"] { border-color: rgba(244,114,182,0.6); }
+  .node[data-agent="webapi"] { border-color: rgba(34,211,238,0.6); }
+  .node[data-agent="webui"] { border-color: rgba(248,113,113,0.6); }
+  .node[data-agent="auth"] { border-color: rgba(250,204,21,0.6); }
+  .node.crit {
+    box-shadow: 0 0 0 1px rgba(167,139,250,0.5), 0 0 22px rgba(167,139,250,0.15);
+  }
+  .arrow { color: var(--text-dim); font-size: 14px; user-select: none; }
+  .group {
+    border: 1px dashed var(--line);
+    padding: 6px;
+    border-radius: 10px;
+    display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  }
+  .group-label {
+    font-size: 11px; color: var(--text-dim);
+    margin-right: 4px; padding-left: 2px;
+  }
+
+  /* Pipeline */
+  .pipe {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 22px; overflow-x: auto;
+  }
+  .stages {
+    display: flex; gap: 6px; align-items: center;
+    min-width: 880px;
+  }
+  .stage {
+    flex: 1 1 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 10px;
+    text-align: center;
+  }
+  .stage .sname { font-weight: 700; font-size: 13px; }
+  .stage .sowner {
+    margin-top: 4px; font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: var(--text-dim);
+  }
+  .stage .stask { margin-top: 4px; font-size: 11px; color: var(--accent); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .arrow-r { color: var(--text-dim); font-size: 18px; padding: 0 2px; }
+  .pipe-note {
+    margin-top: 12px; padding: 10px 12px;
+    border-left: 3px solid var(--warn); border-radius: 6px;
+    background: rgba(251, 191, 36, 0.06);
+    font-size: 13px; color: #ffe9a8;
+  }
+
+  /* Stages of execution */
+  .stages-of-exec {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  }
+  @media (max-width: 900px) { .stages-of-exec { grid-template-columns: repeat(2, 1fr); } }
+  .pstage {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px;
+  }
+  .pstage h4 { margin: 0 0 6px 0; }
+  .pstage p { margin: 0; color: var(--text-dim); font-size: 13px; }
+
+  /* Footer notes */
+  footer { margin-top: 60px; color: var(--text-dim); font-size: 12px; text-align: center; }
+  a { color: var(--accent); }
+
+  /* Legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 0; }
+  .legend .lg {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-dim);
+  }
+  .legend .lg .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div>
+    <h1>FE-Radar · Sub-Agent 分工 & 流转图</h1>
+    <p>60 个任务 · 8 个 sub-agent · 6 个 milestone &nbsp;·&nbsp; spec/tasks.md v0.3 <span class="badge">DMA-24 APPROVED</span></p>
+  </div>
+  <div class="meta">
+    协调者：Claude Code &nbsp;·&nbsp; 实施者：Codex 多智能体 &nbsp;·&nbsp; 审查者：Antigravity<br/>
+    目标上线：2026-06-30
+  </div>
+</header>
+
+<!-- 1. Sub-agent cards -->
+<h2 class="section"><span class="num">1</span>八个 Sub-Agent 分工 <span class="hint">每个 task 的 scope ≤ 1 个 agent，并行安全</span></h2>
+<div class="agents">
+
+  <div class="agent" style="--col: var(--infra)">
+    <div class="head">
+      <span class="dot"></span><span class="name">agent-infra</span>
+      <span class="count">6 task</span>
+    </div>
+    <div class="role">Monorepo 脚手架 / Docker Swarm / CI / Pino 日志 / E2E / 上线验收</div>
+    <div class="scope">deploy/* · .github/workflows/* · scripts/* · pnpm-workspace.yaml</div>
+    <div class="tasks">
+      <span class="tag m0">T-M0-01</span>
+      <span class="tag m0">T-M0-09</span>
+      <span class="tag m0">T-M0-10</span>
+      <span class="tag m5">T-M5-06</span>
+      <span class="tag m5">T-M5-07</span>
+      <span class="tag m5">T-M5-08</span>
+    </div>
+  </div>
+
+  <div class="agent" style="--col: var(--db)">
+    <div class="head">
+      <span class="dot"></span><span class="name">agent-db</span>
+      <span class="count">5 task</span>
+    </div>
+    <div class="role">Drizzle schema / migration / seed / 索引 / repos</div>
+    <div class="scope">packages/db/**</div>
+    <div class="tasks">
+      <span class="tag m0">T-M0-02</span>
+      <span class="tag m0">T-M0-03</span>
+      <span class="tag m0">T-M0-07</span>
+      <span class="tag m1">T-M1-01</span>
+      <span class="tag m1">T-M1-09</span>
+    </div>
+  </div>
+
+  <div class="agent" style="--col: var(--llm)">
+    <div class="head">
+      <span class="dot"></span><span class="name">agent-llm</span>
+      <span class="count">5 task</span>
+    </div>
+    <div class="role">Qwen / DeepSeek / Kimi 三家 SDK 封装 + scrubber 中间件</div>
+    <div class="scope">packages/llm/**</div>
+    <div class="tasks">
+      <span class="tag m2">T-M2-01</span>
+      <span class="tag m2">T-M2-02</span>
+      <span class="tag m2">T-M2-03</span>
+      <span class="tag m2">T-M2-04</span>
+      <span class="tag m2">T-M2-15</span>
+    </div>
+  </div>
+
+  <div class="agent" style="--col: var(--core)">
+    <div class="head">
+      <span class="dot"></span><span class="name">agent-core</span>
+      <span class="count">7 task</span>
+    </div>
+    <div class="role">业务规则纯函数：scoring / quota / cluster / alert / scrubber / shared 类型与错误层级</div>
+    <div class="scope">packages/core/** · packages/shared/**</div>
+    <div class="tasks">
+      <span class="tag m0">T-M0-04</span>
+      <span class="tag m0">T-M0-05</span>
+      <span class="tag m2">T-M2-10</span>
+      <span class="tag m2">T-M2-11</span>
+      <span class="tag m2">T-M2-12</span>
+      <span class="tag m2">T-M2-13</span>
+      <span class="tag m2">T-M2-14</span>
+    </div>
+  </div>
+
+  <div class="agent" style="--col: var(--worker)">
+    <div class="head">
+      <span class="dot"></span><span class="name">agent-worker</span>
+      <span class="count">13 task</span>
+    </div>
+    <div class="role">BullMQ jobs：fetcher / pipeline / scheduler / cleanup / 代理池 / daily-gen</div>
+    <div class="scope">apps/worker/**</div>
+    <div class="tasks">
+      <span class="tag m1">T-M1-02</span><span class="tag m1">T-M1-03</span><span class="tag m1">T-M1-04</span>
+      <span class="tag m1">T-M1-05</span><span class="tag m1">T-M1-06</span><span class="tag m1">T-M1-10</span>
+      <span class="tag m2">T-M2-05</span><span class="tag m2">T-M2-06</span><span class="tag m2">T-M2-07</span>
+      <span class="tag m2">T-M2-08</span><span class="tag m2">T-M2-09</span>
+      <span class="tag m4">T-M4-03</span><span class="tag m5">T-M5-05</span>
+    </div>
+  </div>
+
+  <div class="agent" style="--col: var(--webapi)">
+    <div class="head">
+      <span class="dot"></span><span class="name">agent-web-api</span>
+      <span class="count">5 task</span>
+    </div>
+    <div class="role">Next.js Route Handlers + 中间件 + Zod schema</div>
+    <div class="scope">apps/web/app/api/** · apps/web/lib/api/** · middleware.ts</div>
+    <div class="tasks">
+      <span class="tag m1">T-M1-07</span>
+      <span class="tag m3">T-M3-01</span>
+      <span class="tag m3">T-M3-06</span>
+      <span class="tag m4">T-M4-01</span>
+      <span class="tag m5">T-M5-04</span>
+    </div>
+  </div>
+
+  <div class="agent" style="--col: var(--webui)">
+    <div class="head">
+      <span class="dot"></span><span class="name">agent-web-ui</span>
+      <span class="count">15 task</span>
+    </div>
+    <div class="role">Next.js 页面 / 组件 / hooks · 时间线 / 精选 / 搜索 / 告警 / 日报 / Admin 后台</div>
+    <div class="scope">apps/web/app/** (除 api/) · components/** · hooks/**</div>
+    <div class="tasks">
+      <span class="tag m0">T-M0-06</span><span class="tag m1">T-M1-08</span>
+      <span class="tag m3">T-M3-02</span><span class="tag m3">T-M3-03</span><span class="tag m3">T-M3-04</span>
+      <span class="tag m3">T-M3-05</span><span class="tag m3">T-M3-07</span><span class="tag m3">T-M3-08</span>
+      <span class="tag m4">T-M4-02</span><span class="tag m4">T-M4-04</span><span class="tag m4">T-M4-06</span><span class="tag m4">T-M4-07</span>
+      <span class="tag m5">T-M5-01</span><span class="tag m5">T-M5-02</span><span class="tag m5">T-M5-03</span>
+    </div>
+  </div>
+
+  <div class="agent" style="--col: var(--auth)">
+    <div class="head">
+      <span class="dot"></span><span class="name">agent-auth</span>
+      <span class="count">4 task</span>
+    </div>
+    <div class="role">本地账号（bcrypt 12）+ 钉钉 OAuth + RBAC 中间件 + 账号合并策略</div>
+    <div class="scope">apps/web/app/api/auth/** · apps/web/lib/auth/**</div>
+    <div class="tasks">
+      <span class="tag m0">T-M0-08</span>
+      <span class="tag m4">T-M4-05</span>
+      <span class="tag m4">T-M4-05a</span>
+      <span class="tag m4">T-M4-08</span>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Milestone overview -->
+<h2 class="section"><span class="num">2</span>Milestone 概览 <span class="hint">M0 → M5 顺序，主要为依赖性串行；同 milestone 内尽可能并行</span></h2>
+<div class="timeline">
+  <div class="ms m0">
+    <div class="ms-name">M0</div>
+    <div class="ms-title">脚手架与基线</div>
+    <div class="ms-date">2026-05-17</div>
+    <div class="ms-count">10</div>
+    <div class="ms-tasks">infra · db · web-ui · auth</div>
+  </div>
+  <div class="ms m1">
+    <div class="ms-name">M1</div>
+    <div class="ms-title">抓取层（含代理池）</div>
+    <div class="ms-date">2026-05-31</div>
+    <div class="ms-count">10</div>
+    <div class="ms-tasks">worker · db · web-api · web-ui · infra</div>
+  </div>
+  <div class="ms m2">
+    <div class="ms-name">M2</div>
+    <div class="ms-title">Pipeline 与评分（含 scrubber）</div>
+    <div class="ms-date">2026-06-14</div>
+    <div class="ms-count">15</div>
+    <div class="ms-tasks">llm · worker · core</div>
+  </div>
+  <div class="ms m3">
+    <div class="ms-name">M3</div>
+    <div class="ms-title">前端核心页面</div>
+    <div class="ms-date">2026-06-22</div>
+    <div class="ms-count">8</div>
+    <div class="ms-tasks">web-ui · web-api</div>
+  </div>
+  <div class="ms m4">
+    <div class="ms-name">M4</div>
+    <div class="ms-title">告警 · 日报 · 钉钉 SSO</div>
+    <div class="ms-date">2026-06-27</div>
+    <div class="ms-count">9</div>
+    <div class="ms-tasks">worker · web-ui · web-api · auth</div>
+  </div>
+  <div class="ms m5">
+    <div class="ms-name">M5</div>
+    <div class="ms-title">后台 · 监控 · 上线</div>
+    <div class="ms-date">2026-06-30</div>
+    <div class="ms-count">8</div>
+    <div class="ms-tasks">web-api · web-ui · worker · infra</div>
+  </div>
+</div>
+
+<!-- 3. Distribution Matrix -->
+<h2 class="section"><span class="num">3</span>Agent × Milestone 任务分布矩阵</h2>
+<div class="matrix-wrap">
+<table class="matrix">
+  <thead>
+    <tr>
+      <th>Agent</th>
+      <th>M0</th><th>M1</th><th>M2</th><th>M3</th><th>M4</th><th>M5</th>
+      <th>合计</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="label">agent-infra</td>
+      <td class="cnt has">3</td><td class="cnt n0">0</td><td class="cnt n0">0</td><td class="cnt n0">0</td><td class="cnt n0">0</td><td class="cnt has">3</td>
+      <td class="cnt total">6</td>
+    </tr>
+    <tr>
+      <td class="label">agent-db</td>
+      <td class="cnt has">3</td><td class="cnt has">2</td><td class="cnt n0">0</td><td class="cnt n0">0</td><td class="cnt n0">0</td><td class="cnt n0">0</td>
+      <td class="cnt total">5</td>
+    </tr>
+    <tr>
+      <td class="label">agent-llm</td>
+      <td class="cnt n0">0</td><td class="cnt n0">0</td><td class="cnt has">5</td><td class="cnt n0">0</td><td class="cnt n0">0</td><td class="cnt n0">0</td>
+      <td class="cnt total">5</td>
+    </tr>
+    <tr>
+      <td class="label">agent-core</td>
+      <td class="cnt has">2</td><td class="cnt n0">0</td><td class="cnt has">5</td><td class="cnt n0">0</td><td class="cnt n0">0</td><td class="cnt n0">0</td>
+      <td class="cnt total">7</td>
+    </tr>
+    <tr>
+      <td class="label">agent-worker</td>
+      <td class="cnt n0">0</td><td class="cnt has">6</td><td class="cnt has">5</td><td class="cnt n0">0</td><td class="cnt has">1</td><td class="cnt has">1</td>
+      <td class="cnt total">13</td>
+    </tr>
+    <tr>
+      <td class="label">agent-web-api</td>
+      <td class="cnt n0">0</td><td class="cnt has">1</td><td class="cnt n0">0</td><td class="cnt has">2</td><td class="cnt has">1</td><td class="cnt has">1</td>
+      <td class="cnt total">5</td>
+    </tr>
+    <tr>
+      <td class="label">agent-web-ui</td>
+      <td class="cnt has">1</td><td class="cnt has">1</td><td class="cnt n0">0</td><td class="cnt has">6</td><td class="cnt has">4</td><td class="cnt has">3</td>
+      <td class="cnt total">15</td>
+    </tr>
+    <tr>
+      <td class="label">agent-auth</td>
+      <td class="cnt has">1</td><td class="cnt n0">0</td><td class="cnt n0">0</td><td class="cnt n0">0</td><td class="cnt has">3</td><td class="cnt n0">0</td>
+      <td class="cnt total">4</td>
+    </tr>
+    <tr style="background: rgba(122,162,255,0.06);">
+      <td class="label" style="color: var(--accent);">合计</td>
+      <td class="cnt total">10</td><td class="cnt total">10</td><td class="cnt total">15</td><td class="cnt total">8</td><td class="cnt total">9</td><td class="cnt total">8</td>
+      <td class="cnt total" style="font-size: 16px;">60</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<div class="legend">
+  <span class="lg"><span class="sw" style="background: var(--infra)"></span>infra</span>
+  <span class="lg"><span class="sw" style="background: var(--db)"></span>db</span>
+  <span class="lg"><span class="sw" style="background: var(--llm)"></span>llm</span>
+  <span class="lg"><span class="sw" style="background: var(--core)"></span>core</span>
+  <span class="lg"><span class="sw" style="background: var(--worker)"></span>worker</span>
+  <span class="lg"><span class="sw" style="background: var(--webapi)"></span>web-api</span>
+  <span class="lg"><span class="sw" style="background: var(--webui)"></span>web-ui</span>
+  <span class="lg"><span class="sw" style="background: var(--auth)"></span>auth</span>
+</div>
+
+<!-- 4. Critical-path swimlanes -->
+<h2 class="section"><span class="num">4</span>跨 Milestone 依赖与流转 <span class="hint">竖排为 milestone（强先后），框内为可并行任务组</span></h2>
+<div class="flow">
+
+  <!-- M0 -->
+  <div class="lane">
+    <div class="lane-head m0">M0<br/>脚手架</div>
+    <div class="nodes">
+      <div class="node crit" data-agent="infra"><span class="nid">T-M0-01</span><span class="ndesc">monorepo 脚手架</span></div>
+      <span class="arrow">→</span>
+      <div class="node crit" data-agent="db"><span class="nid">T-M0-02</span><span class="ndesc">Drizzle schema</span></div>
+      <span class="arrow">→</span>
+      <div class="group">
+        <span class="group-label">并行</span>
+        <div class="node" data-agent="db"><span class="nid">T-M0-03</span><span class="ndesc">scoring seed</span></div>
+        <div class="node" data-agent="db"><span class="nid">T-M0-07</span><span class="ndesc">DB client</span></div>
+        <div class="node" data-agent="core"><span class="nid">T-M0-04</span><span class="ndesc">shared 基础设施</span></div>
+        <div class="node" data-agent="core"><span class="nid">T-M0-05</span><span class="ndesc">core skeleton</span></div>
+        <div class="node" data-agent="webui"><span class="nid">T-M0-06</span><span class="ndesc">Next.js + shadcn</span></div>
+        <div class="node" data-agent="auth"><span class="nid">T-M0-08</span><span class="ndesc">Auth.js 本地登录</span></div>
+        <div class="node" data-agent="infra"><span class="nid">T-M0-09</span><span class="ndesc">Docker Swarm</span></div>
+        <div class="node" data-agent="infra"><span class="nid">T-M0-10</span><span class="ndesc">CI gate</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- M1 -->
+  <div class="lane">
+    <div class="lane-head m1">M1<br/>抓取层</div>
+    <div class="nodes">
+      <div class="node" data-agent="db"><span class="nid">T-M1-01</span><span class="ndesc">sources schema</span></div>
+      <span class="arrow">→</span>
+      <div class="node crit" data-agent="worker"><span class="nid">T-M1-10</span><span class="ndesc">代理池 + UA 轮换</span></div>
+      <span class="arrow">→</span>
+      <div class="group">
+        <span class="group-label">fetcher 并行</span>
+        <div class="node" data-agent="worker"><span class="nid">T-M1-02</span><span class="ndesc">RSS</span></div>
+        <div class="node" data-agent="worker"><span class="nid">T-M1-03</span><span class="ndesc">HTML</span></div>
+        <div class="node" data-agent="worker"><span class="nid">T-M1-04</span><span class="ndesc">Playwright</span></div>
+      </div>
+      <span class="arrow">→</span>
+      <div class="group">
+        <span class="group-label">协同</span>
+        <div class="node" data-agent="worker"><span class="nid">T-M1-05</span><span class="ndesc">cron 调度器</span></div>
+        <div class="node" data-agent="worker"><span class="nid">T-M1-06</span><span class="ndesc">去重</span></div>
+        <div class="node" data-agent="webapi"><span class="nid">T-M1-07</span><span class="ndesc">sources API</span></div>
+        <div class="node" data-agent="webui"><span class="nid">T-M1-08</span><span class="ndesc">sources 后台</span></div>
+        <div class="node" data-agent="db"><span class="nid">T-M1-09</span><span class="ndesc">37 信源 seed</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- M2 -->
+  <div class="lane">
+    <div class="lane-head m2">M2<br/>Pipeline</div>
+    <div class="nodes">
+      <div class="node" data-agent="llm"><span class="nid">T-M2-01</span><span class="ndesc">LLM 接口</span></div>
+      <span class="arrow">→</span>
+      <div class="group">
+        <span class="group-label">三家 LLM 并行</span>
+        <div class="node" data-agent="llm"><span class="nid">T-M2-02</span><span class="ndesc">Qwen</span></div>
+        <div class="node" data-agent="llm"><span class="nid">T-M2-03</span><span class="ndesc">DeepSeek</span></div>
+        <div class="node" data-agent="llm"><span class="nid">T-M2-04</span><span class="ndesc">Kimi</span></div>
+      </div>
+      <span class="arrow">→</span>
+      <div class="node crit" data-agent="core"><span class="nid">T-M2-14</span><span class="ndesc">scrubber 模块</span></div>
+      <span class="arrow">→</span>
+      <div class="node crit" data-agent="llm"><span class="nid">T-M2-15</span><span class="ndesc">scrubber 接 LLM 链</span></div>
+      <span class="arrow">→</span>
+      <div class="node" data-agent="worker"><span class="nid">T-M2-05</span><span class="ndesc">流水线骨架</span></div>
+      <span class="arrow">→</span>
+      <div class="group">
+        <span class="group-label">jobs 并行</span>
+        <div class="node" data-agent="worker"><span class="nid">T-M2-06</span><span class="ndesc">prefilter</span></div>
+        <div class="node" data-agent="worker"><span class="nid">T-M2-07</span><span class="ndesc">NER</span></div>
+        <div class="node" data-agent="worker"><span class="nid">T-M2-08</span><span class="ndesc">scorer</span></div>
+        <div class="node" data-agent="worker"><span class="nid">T-M2-09</span><span class="ndesc">embedder + 索引</span></div>
+        <div class="node" data-agent="core"><span class="nid">T-M2-10</span><span class="ndesc">cluster (+ Redis 锁)</span></div>
+        <div class="node" data-agent="core"><span class="nid">T-M2-11</span><span class="ndesc">curator</span></div>
+        <div class="node" data-agent="core"><span class="nid">T-M2-12</span><span class="ndesc">quota Lua</span></div>
+      </div>
+      <span class="arrow">→</span>
+      <div class="node" data-agent="core"><span class="nid">T-M2-13</span><span class="ndesc">回测脚本</span></div>
+    </div>
+  </div>
+
+  <!-- M3 -->
+  <div class="lane">
+    <div class="lane-head m3">M3<br/>前端核心页</div>
+    <div class="nodes">
+      <div class="node" data-agent="webapi"><span class="nid">T-M3-01</span><span class="ndesc">timeline API</span></div>
+      <span class="arrow">→</span>
+      <div class="group">
+        <span class="group-label">UI 页面并行</span>
+        <div class="node" data-agent="webui"><span class="nid">T-M3-02</span><span class="ndesc">时间线页</span></div>
+        <div class="node" data-agent="webui"><span class="nid">T-M3-03</span><span class="ndesc">精选 Tab</span></div>
+        <div class="node" data-agent="webui"><span class="nid">T-M3-04</span><span class="ndesc">全文搜索</span></div>
+        <div class="node" data-agent="webui"><span class="nid">T-M3-05</span><span class="ndesc">详情弹层</span></div>
+        <div class="node" data-agent="webapi"><span class="nid">T-M3-06</span><span class="ndesc">反馈</span></div>
+        <div class="node" data-agent="webui"><span class="nid">T-M3-07</span><span class="ndesc">来源/色条</span></div>
+        <div class="node" data-agent="webui"><span class="nid">T-M3-08</span><span class="ndesc">全局 layout</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- M4 -->
+  <div class="lane">
+    <div class="lane-head m4">M4<br/>告警 · 日报 · 钉钉</div>
+    <div class="nodes">
+      <div class="group">
+        <span class="group-label">三流并行</span>
+        <div class="node" data-agent="webapi"><span class="nid">T-M4-01</span><span class="ndesc">告警 API</span></div>
+        <div class="node" data-agent="webui"><span class="nid">T-M4-02</span><span class="ndesc">告警页</span></div>
+      </div>
+      <span class="arrow">|</span>
+      <div class="group">
+        <span class="group-label"></span>
+        <div class="node" data-agent="worker"><span class="nid">T-M4-03</span><span class="ndesc">daily-gen (Kimi)</span></div>
+        <div class="node" data-agent="webui"><span class="nid">T-M4-04</span><span class="ndesc">日报展示</span></div>
+      </div>
+      <span class="arrow">|</span>
+      <div class="group">
+        <span class="group-label">合并优先</span>
+        <div class="node crit" data-agent="auth"><span class="nid">T-M4-05a</span><span class="ndesc">合并策略</span></div>
+        <span class="arrow">→</span>
+        <div class="node" data-agent="auth"><span class="nid">T-M4-05</span><span class="ndesc">钉钉 OAuth</span></div>
+        <div class="node" data-agent="auth"><span class="nid">T-M4-08</span><span class="ndesc">钉钉登录 UI</span></div>
+      </div>
+      <span class="arrow">|</span>
+      <div class="group">
+        <span class="group-label"></span>
+        <div class="node" data-agent="webui"><span class="nid">T-M4-06</span><span class="ndesc">实体词典后台</span></div>
+        <div class="node" data-agent="webui"><span class="nid">T-M4-07</span><span class="ndesc">色条统一</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- M5 -->
+  <div class="lane">
+    <div class="lane-head m5">M5<br/>后台 · 监控 · 上线</div>
+    <div class="nodes">
+      <div class="group">
+        <span class="group-label">admin 后台</span>
+        <div class="node" data-agent="webui"><span class="nid">T-M5-01</span><span class="ndesc">Dashboard</span></div>
+        <div class="node" data-agent="webui"><span class="nid">T-M5-02</span><span class="ndesc">评分配置</span></div>
+        <div class="node" data-agent="webui"><span class="nid">T-M5-03</span><span class="ndesc">用户管理</span></div>
+        <div class="node" data-agent="webapi"><span class="nid">T-M5-04</span><span class="ndesc">backlog drilldown</span></div>
+      </div>
+      <span class="arrow">→</span>
+      <div class="group">
+        <span class="group-label">运维</span>
+        <div class="node" data-agent="worker"><span class="nid">T-M5-05</span><span class="ndesc">90 天 cleanup</span></div>
+        <div class="node" data-agent="infra"><span class="nid">T-M5-06</span><span class="ndesc">Pino 日志</span></div>
+        <div class="node" data-agent="infra"><span class="nid">T-M5-07</span><span class="ndesc">E2E Playwright</span></div>
+      </div>
+      <span class="arrow">→</span>
+      <div class="node crit" data-agent="infra"><span class="nid">T-M5-08</span><span class="ndesc">上线 + Code Review 修复</span></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 5. Pipeline of pipeline (8-stage runtime flow) -->
+<h2 class="section"><span class="num">5</span>运行时 Pipeline · 8 阶段流转 <span class="hint">每条 item 抓取后流过此链；阶段间为 BullMQ FlowProducer 串联</span></h2>
+<div class="pipe">
+  <div class="stages">
+    <div class="stage">
+      <div class="sname">fetch</div>
+      <div class="sowner">agent-worker</div>
+      <div class="stask">M1-02/03/04</div>
+    </div><span class="arrow-r">→</span>
+    <div class="stage">
+      <div class="sname">scrubber</div>
+      <div class="sowner">agent-core / llm</div>
+      <div class="stask">M2-14/15</div>
+    </div><span class="arrow-r">→</span>
+    <div class="stage">
+      <div class="sname">prefilter</div>
+      <div class="sowner">agent-worker</div>
+      <div class="stask">M2-06</div>
+    </div><span class="arrow-r">→</span>
+    <div class="stage">
+      <div class="sname">NER</div>
+      <div class="sowner">agent-worker</div>
+      <div class="stask">M2-07</div>
+    </div><span class="arrow-r">→</span>
+    <div class="stage">
+      <div class="sname">scorer</div>
+      <div class="sowner">agent-worker</div>
+      <div class="stask">M2-08</div>
+    </div><span class="arrow-r">→</span>
+    <div class="stage">
+      <div class="sname">embedder</div>
+      <div class="sowner">agent-worker</div>
+      <div class="stask">M2-09</div>
+    </div><span class="arrow-r">→</span>
+    <div class="stage">
+      <div class="sname">cluster</div>
+      <div class="sowner">agent-core (+ Redis 锁)</div>
+      <div class="stask">M2-10</div>
+    </div><span class="arrow-r">→</span>
+    <div class="stage">
+      <div class="sname">curator</div>
+      <div class="sowner">agent-core</div>
+      <div class="stask">M2-11</div>
+    </div>
+  </div>
+  <div class="pipe-note">
+    🔒 <b>合规底线</b>：所有进入 LLM 的文本必经 <code>packages/core/scrubber.ts</code>（手机号 / 身份证 / 内网 IP / 项目代号脱敏）；命中 <code>level=block</code> 直接跳过 LLM 标 <code>summary_zh='[需人工脱敏]'</code>，由 admin Dashboard 待处理表 Pickup。
+  </div>
+  <div class="pipe-note" style="border-left-color: var(--accent); background: rgba(122,162,255,0.07); color: #d8e3ff;">
+    🛰️ <b>D2_chain 评分必由代码计算</b>（NER 命中 + 关注圈），LLM 不参与，保证自家公司零漏报；<code>alert_type</code> 由 <code>packages/core/alert.ts:computeAlert()</code> 单一入口生成。
+  </div>
+</div>
+
+<!-- 6. Stages of execution (project workflow) -->
+<h2 class="section"><span class="num">6</span>项目级阶段流转 <span class="hint">Plan → Code Review → Execute → Release，多智能体角色分工</span></h2>
+<div class="stages-of-exec">
+  <div class="pstage" style="border-left: 4px solid var(--accent);">
+    <h4>① Plan（已完成）</h4>
+    <p><b>Claude Code</b> 产出 spec/requirements / design / tasks（v0.7 / v0.8 / v0.3）</p>
+  </div>
+  <div class="pstage" style="border-left: 4px solid var(--ok);">
+    <h4>② Plan Review（已 APPROVED）</h4>
+    <p><b>Antigravity</b> 三轮 Stage 4 审核：DMA-21 / DMA-23 / DMA-24 / DMA-26 全部通过</p>
+  </div>
+  <div class="pstage" style="border-left: 4px solid var(--warn);">
+    <h4>③ Execute（即将开始）</h4>
+    <p><b>Codex 多智能体</b> 按 Linear DMA-25 拾取任务，8 个 sub-agent 并行实施 M0 → M5</p>
+  </div>
+  <div class="pstage" style="border-left: 4px solid var(--accent-2);">
+    <h4>④ Code Review + Release</h4>
+    <p><b>Antigravity</b> Code Review (Gate 2) → Codex 修 critical/major → release v1.0.0 (T-M5-08)</p>
+  </div>
+</div>
+
+<!-- 7. Parallel-safety guarantees -->
+<h2 class="section"><span class="num">7</span>并行安全保障 <span class="hint">为什么 8 个 agent 同时跑不会撞车</span></h2>
+<div class="flow">
+  <ul style="margin: 0; padding-left: 20px; color: var(--text); line-height: 1.9; font-size: 14px;">
+    <li>每个 task 的 <code>scope</code> 严格 ≤ <b>1 个 agent</b>；多 agent 协作的功能拆为 a/b 子 task（如 T-M4-05a + T-M4-05）</li>
+    <li>跨 agent 接口先由 <code>agent-core</code> / <code>packages/shared</code> 定义类型，再各自实现</li>
+    <li>同一 milestone 内<b>同一文件</b>的修改禁止两个 task 并发；CI 用 <code>git diff --name-only</code> 校验 PR 间 file 重叠</li>
+    <li><code>packages/core</code> <b>不依赖</b> <code>packages/db</code>，业务规则纯函数化便于单测和并行开发</li>
+    <li><code>apps/web</code> 与 <code>apps/worker</code> <b>不互相 import</b>；CI <code>madge --circular</code> 检查循环依赖</li>
+    <li>关键串行点（critical path）用紫色发光标识：<b>T-M0-01 → T-M0-02 → T-M1-10 → T-M2-14 → T-M2-15 → T-M4-05a → T-M5-08</b></li>
+  </ul>
+</div>
+
+<footer>
+  来源：<a href="../spec/tasks.md">spec/tasks.md v0.3</a> · <a href="../spec/design.md">spec/design.md v0.7</a> · <a href="../spec/requirements.md">spec/requirements.md v0.8</a><br/>
+  生成时间：2026-05-09 · 仅供项目内部参考
+</footer>
+
+</div>
+</body>
+</html>
