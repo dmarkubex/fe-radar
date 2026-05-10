@@ -12,6 +12,7 @@
 
 # Node 依赖与早期临时实验产物（M0 monorepo 起步时按 spec/tasks.md T-M0-01 重新建立）
 /node_modules/
-/package.json
+**/node_modules/
 /package-lock.json
-/pnpm-lock.yaml
+/.pnpm-store/
+*.tsbuildinfo

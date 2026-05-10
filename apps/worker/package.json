@@ -1,0 +1,22 @@
+{
+  "name": "@fe-radar/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "lint": "eslint src --max-warnings=0",
+    "start": "node dist/index.js",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fe-radar/core": "workspace:*",
+    "@fe-radar/db": "workspace:*",
+    "@fe-radar/shared": "workspace:*",
+    "bullmq": "^5.65.1",
+    "ioredis": "^5.8.2",
+    "pino": "^10.1.0"
+  }
+}

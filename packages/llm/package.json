@@ -1,0 +1,19 @@
+{
+  "name": "@fe-radar/llm",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src --max-warnings=0",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fe-radar/shared": "workspace:*",
+    "openai": "^6.10.0",
+    "pino": "^10.1.0"
+  }
+}
