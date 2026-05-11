@@ -7,7 +7,10 @@ import type { NextRequest } from "next/server";
 export default async function middleware(request: NextRequest): Promise<NextResponse> {
   const pathname = request.nextUrl.pathname;
 
-  if (pathname.startsWith("/api/admin") || pathname.startsWith("/admin")) {
+  const isAdminPath = pathname.startsWith("/api/admin") || pathname.startsWith("/admin");
+  const isEditorPath = pathname.startsWith("/api/sources");
+
+  if (isAdminPath || isEditorPath) {
     const token = await getToken({
       req: request,
       cookieName: "fe-radar.session-token",
@@ -19,7 +22,8 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     }
 
     const role = token.role;
-    if (!hasRole(role === "admin" || role === "editor" || role === "viewer" ? role : undefined, "admin")) {
+    const requiredRole = isAdminPath ? "admin" : "editor";
+    if (!hasRole(role === "admin" || role === "editor" || role === "viewer" ? role : undefined, requiredRole)) {
       return NextResponse.json({ error: { code: "FORBIDDEN", message: "权限不足" } }, { status: 403 });
     }
   }
@@ -28,5 +32,5 @@ export default async function middleware(request: NextRequest): Promise<NextResp
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/admin/:path*"]
+  matcher: ["/admin/:path*", "/api/admin/:path*", "/api/sources/:path*"]
 };
