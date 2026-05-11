@@ -1,5 +1,6 @@
 import { ExternalLink } from "lucide-react";
-import { alertBarClass, formatAppTime, scoreLabel } from "@/components/timeline/meta";
+import { AlertStrip } from "@/components/shared/alert-strip";
+import { formatAppTime, scoreLabel } from "@/components/timeline/meta";
 
 import type { TimelineItemDto } from "@/lib/api/timeline-query";
 
@@ -12,7 +13,7 @@ export function TimelineCard({
 }): React.JSX.Element {
   return (
     <article className="relative overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
-      <div className={`absolute inset-y-0 left-0 w-1.5 ${alertBarClass(item.alertType, item.topCircle)}`} />
+      <AlertStrip alertType={item.alertType} circle={item.topCircle} />
       <div className="flex flex-col gap-3 p-4 pl-5">
         <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
           <span className="font-medium text-zinc-800">{item.sourceName}</span>

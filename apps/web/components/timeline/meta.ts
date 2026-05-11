@@ -21,19 +21,6 @@ export function formatAppTime(value: string | null): string {
   return dayjs(value).tz(APP_TIMEZONE).format("MM-DD HH:mm");
 }
 
-export function alertBarClass(alertType: string | null, circle: string | null): string {
-  if (alertType === "own") {
-    return circle === "C1" ? "bg-red-600" : circle === "C2" ? "bg-orange-500" : "bg-yellow-500";
-  }
-  if (alertType === "safety") {
-    return "bg-zinc-500";
-  }
-  if (alertType === "policy") {
-    return "bg-blue-600";
-  }
-  return circle === "C1" ? "bg-red-300" : circle === "C2" ? "bg-orange-300" : "bg-zinc-300";
-}
-
 export function scoreLabel(value: number | null): string {
   return value === null ? "-" : value.toFixed(1);
 }
