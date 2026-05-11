@@ -26,7 +26,7 @@ const vector = (name: string, dimensions: number) => {
 export const sources = pgTable("sources", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   name: text("name").notNull(),
-  url: text("url").notNull(),
+  url: text("url").notNull().unique(),
   fetcherType: text("fetcher_type").notNull(),
   config: jsonb("config").notNull(),
   tier: text("tier").notNull(),
@@ -37,7 +37,11 @@ export const sources = pgTable("sources", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 }, (table) => ({
   fetcherTypeCheck: check("sources_fetcher_type_check", sql`${table.fetcherType} IN ('rss', 'html', 'playwright')`),
-  tierCheck: check("sources_tier_check", sql`${table.tier} IN ('T1', 'T2', 'T3')`)
+  tierCheck: check("sources_tier_check", sql`${table.tier} IN ('T1', 'T2', 'T3')`),
+  enabledTierIdx: index("sources_enabled_tier_idx").on(table.enabled, table.tier),
+  categoryIdx: index("sources_category_idx").on(table.category),
+  lastOkAtIdx: index("sources_last_ok_at_idx").on(table.lastOkAt),
+  failCountIdx: index("sources_fail_count_idx").on(table.failCount)
 }));
 
 export const entities = pgTable("entities", {
