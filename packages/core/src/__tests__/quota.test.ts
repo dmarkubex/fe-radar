@@ -39,4 +39,13 @@ describe("quota", () => {
     expect(metrics.priorityBacklogSize).toBe(2);
     expect(metrics.isRed).toBe(true);
   });
+
+  it("rejects the 201st priority item without incrementing past the limit", async () => {
+    const redis = new FakeRedis();
+    let state = "admitted";
+    for (let itemId = 1; itemId <= 201; itemId += 1) {
+      state = (await admitToScoring({ itemId, isPriority: true, businessDate: "2026-05-11" }, redis)).state;
+    }
+    expect(state).toBe("pending_over_quota");
+  });
 });
