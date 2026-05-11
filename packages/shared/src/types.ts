@@ -1,4 +1,4 @@
-import { USER_ROLES } from "./constants";
+import type { USER_ROLES } from "./constants";
 
 export type UserRole = (typeof USER_ROLES)[number];
 export type SourceTier = "T1" | "T2" | "T3";
