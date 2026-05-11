@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { AppShell } from "@/components/layout/app-shell";
+import { auth } from "@/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -6,10 +8,13 @@ export const metadata: Metadata = {
   description: "远东控股产业情报雷达"
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>): React.JSX.Element {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>): Promise<React.JSX.Element> {
+  const session = await auth();
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body>
+        <AppShell user={{ name: session?.user?.name, role: session?.user?.role }}>{children}</AppShell>
+      </body>
     </html>
   );
 }

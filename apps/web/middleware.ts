@@ -10,15 +10,21 @@ export default async function middleware(request: NextRequest): Promise<NextResp
   const isAdminPath = pathname.startsWith("/api/admin") || pathname.startsWith("/admin");
   const isAdminPage = pathname.startsWith("/admin");
   const isEditorPath = pathname.startsWith("/api/sources");
+  const isTimelinePage = pathname === "/" || pathname.startsWith("/curated") || pathname.startsWith("/search");
+  const isTimelineApi =
+    pathname.startsWith("/api/timeline") ||
+    pathname.startsWith("/api/search") ||
+    pathname.startsWith("/api/items") ||
+    pathname.startsWith("/api/alerts/count");
 
-  if (isAdminPath || isEditorPath) {
+  if (isAdminPath || isEditorPath || isTimelinePage || isTimelineApi) {
     const token = await getToken({
       req: request,
       cookieName: "fe-radar.session-token",
       secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
     });
 
-    if (!token && isAdminPage) {
+    if (!token && (isAdminPage || isTimelinePage)) {
       const loginUrl = new URL("/auth/login", request.url);
       loginUrl.searchParams.set("callbackUrl", request.nextUrl.pathname);
       return NextResponse.redirect(loginUrl);
@@ -29,7 +35,7 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     }
 
     const role = token.role;
-    const requiredRole = isAdminPath ? "admin" : "editor";
+    const requiredRole = isAdminPath ? "admin" : isEditorPath ? "editor" : "viewer";
     if (!hasRole(role === "admin" || role === "editor" || role === "viewer" ? role : undefined, requiredRole)) {
       return NextResponse.json({ error: { code: "FORBIDDEN", message: "权限不足" } }, { status: 403 });
     }
@@ -39,5 +45,16 @@ export default async function middleware(request: NextRequest): Promise<NextResp
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/admin/:path*", "/api/sources/:path*"]
+  matcher: [
+    "/",
+    "/curated/:path*",
+    "/search/:path*",
+    "/admin/:path*",
+    "/api/admin/:path*",
+    "/api/sources/:path*",
+    "/api/timeline/:path*",
+    "/api/search/:path*",
+    "/api/items/:path*",
+    "/api/alerts/count"
+  ]
 };
