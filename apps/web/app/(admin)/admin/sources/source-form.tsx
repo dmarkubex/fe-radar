@@ -62,7 +62,7 @@ export function SourceForm({ onSaved }: SourceFormProps): React.JSX.Element {
           <input className="h-10 rounded-md border border-zinc-200 px-3 md:col-span-2" name="category" placeholder="分类" />
           <textarea className="min-h-36 rounded-md border border-zinc-200 p-3 font-mono text-sm md:col-span-2" value={config} onChange={(event) => setConfig(event.target.value)} />
           <div className="md:col-span-2">
-            <Button type="submit">保存</Button>
+            <Button type="submit">新建</Button>
           </div>
           {error ? <p className="text-sm text-red-600 md:col-span-2">{error}</p> : null}
         </form>

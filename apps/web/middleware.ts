@@ -8,6 +8,7 @@ export default async function middleware(request: NextRequest): Promise<NextResp
   const pathname = request.nextUrl.pathname;
 
   const isAdminPath = pathname.startsWith("/api/admin") || pathname.startsWith("/admin");
+  const isAdminPage = pathname.startsWith("/admin");
   const isEditorPath = pathname.startsWith("/api/sources");
 
   if (isAdminPath || isEditorPath) {
@@ -16,6 +17,12 @@ export default async function middleware(request: NextRequest): Promise<NextResp
       cookieName: "fe-radar.session-token",
       secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
     });
+
+    if (!token && isAdminPage) {
+      const loginUrl = new URL("/auth/login", request.url);
+      loginUrl.searchParams.set("callbackUrl", request.nextUrl.pathname);
+      return NextResponse.redirect(loginUrl);
+    }
 
     if (!token) {
       return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "请先登录" } }, { status: 401 });

@@ -18,6 +18,10 @@
 *.tsbuildinfo
 coverage/
 **/coverage/
+test-results/
+**/test-results/
+playwright-report/
+**/playwright-report/
 dist/
 **/dist/
 .next/

@@ -8,12 +8,15 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src --max-warnings=0",
+    "migrate": "tsx scripts/migrate.ts",
+    "seed:admin": "tsx scripts/seed-admin.ts",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "verify:sources": "tsx scripts/verify-sources.ts"
   },
   "dependencies": {
     "@fe-radar/shared": "workspace:*",
+    "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.1",
     "postgres": "^3.4.7"
   },

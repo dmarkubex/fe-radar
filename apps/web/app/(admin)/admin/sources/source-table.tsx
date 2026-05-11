@@ -19,6 +19,8 @@ interface SourceRow {
 export function SourceTable(): React.JSX.Element {
   const [tier, setTier] = useState<"T1" | "T2" | "T3">("T1");
   const [rows, setRows] = useState<SourceRow[]>([]);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const filteredRows = useMemo(() => rows.filter((row) => row.tier === tier), [rows, tier]);
 
@@ -54,6 +56,17 @@ export function SourceTable(): React.JSX.Element {
     await loadRows();
   }
 
+  async function saveName(row: SourceRow): Promise<void> {
+    await fetch(`/api/sources/${row.id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: editingName })
+    });
+    setEditingId(null);
+    setEditingName("");
+    await loadRows();
+  }
+
   return (
     <div className="grid gap-4">
       <div className="flex gap-2">
@@ -76,6 +89,7 @@ export function SourceTable(): React.JSX.Element {
             <table className="w-full border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 text-zinc-500">
+                  <th className="py-2 pr-4">ID</th>
                   <th className="py-2 pr-4">名称</th>
                   <th className="py-2 pr-4">URL</th>
                   <th className="py-2 pr-4">状态</th>
@@ -87,24 +101,53 @@ export function SourceTable(): React.JSX.Element {
               <tbody>
                 {filteredRows.length === 0 ? (
                   <tr>
-                    <td className="py-6 text-zinc-500" colSpan={6}>
+                    <td className="py-6 text-zinc-500" colSpan={7}>
                       暂无信源，使用上方表单新增。
                     </td>
                   </tr>
                 ) : filteredRows.map((row) => (
-                  <tr key={row.id} className={row.failCount >= 7 ? "bg-red-50" : "border-b border-zinc-100"}>
-                    <td className="py-2 pr-4 font-medium">{row.name}</td>
+                  <tr key={row.id} data-testid={`source-row-${row.id}`} className={row.failCount >= 7 ? "bg-red-50" : "border-b border-zinc-100"}>
+                    <td className="py-2 pr-4 text-zinc-500">{row.id}</td>
+                    <td className="py-2 pr-4 font-medium">
+                      {editingId === row.id ? (
+                        <input
+                          aria-label="信源名称"
+                          className="h-9 rounded-md border border-zinc-200 px-2"
+                          value={editingName}
+                          onChange={(event) => setEditingName(event.target.value)}
+                        />
+                      ) : row.name}
+                    </td>
                     <td className="max-w-sm truncate py-2 pr-4">{row.url}</td>
                     <td className="py-2 pr-4">{row.enabled ? "启用" : "停用"}</td>
                     <td className="py-2 pr-4">{row.lastOkAt ?? "-"}</td>
                     <td className="py-2 pr-4">{row.failCount}</td>
                     <td className="flex gap-2 py-2 pr-4">
-                      <Button type="button" variant="outline" onClick={() => void toggleEnabled(row)}>
-                        {row.enabled ? "停用" : "启用"}
-                      </Button>
-                      <Button type="button" variant="outline" onClick={() => void deleteSource(row)}>
-                        删除
-                      </Button>
+                      {editingId === row.id ? (
+                        <>
+                          <Button type="button" variant="outline" onClick={() => void saveName(row)}>
+                            保存编辑
+                          </Button>
+                          <Button type="button" variant="outline" onClick={() => setEditingId(null)}>
+                            取消
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button type="button" variant="outline" onClick={() => {
+                            setEditingId(row.id);
+                            setEditingName(row.name);
+                          }}>
+                            编辑
+                          </Button>
+                          <Button type="button" variant="outline" onClick={() => void toggleEnabled(row)}>
+                            {row.enabled ? "停用" : "启用"}
+                          </Button>
+                          <Button type="button" variant="outline" onClick={() => void deleteSource(row)}>
+                            删除
+                          </Button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}
