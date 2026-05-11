@@ -47,4 +47,13 @@ describe("scoring and curator", () => {
   it("detects priority items from C1 or high policy scores", () => {
     expect(isPriorityItem([], { d1Policy: 90, d2Chain: 0, d3Market: 0, d4Tech: 0, d5Business: 0 })).toBe(true);
   });
+
+  it("maps every C1 sample to own alert", () => {
+    const ownAlerts = Array.from({ length: 10 }, (_, index) => computeAlert({
+      source: { tier: "T2" },
+      scores: { d1Policy: index, d2Chain: 90, d3Market: 0, d4Tech: 0, d5Business: 0 },
+      entities: [{ id: index, type: "company", canonicalName: `C1-${index}`, circle: "C1" }]
+    }));
+    expect(ownAlerts.every((alert) => alert.alertType === "own")).toBe(true);
+  });
 });
