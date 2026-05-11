@@ -1,5 +1,7 @@
 import { OpenAiCompatibleClient, requireEnv } from "../client";
 
+export const DEEPSEEK_SCORING_SCHEMA_NAME = "fe_radar_scoring";
+
 export function createDeepSeekClient(): OpenAiCompatibleClient {
   return new OpenAiCompatibleClient({
     provider: "deepseek",
