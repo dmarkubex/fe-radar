@@ -19,6 +19,10 @@ export interface ScoreAtoms {
   d5Business: number;
 }
 
+export interface ThresholdConfig {
+  [category: string]: Partial<Record<Circle, number>>;
+}
+
 export interface ScoringConfig {
   weights: {
     w1: number;
@@ -29,6 +33,7 @@ export interface ScoringConfig {
   };
   tCoef: Record<SourceTier, number>;
   cCoef: Record<Circle, number>;
+  thresholds?: ThresholdConfig;
 }
 
 export interface QualityScoreResult extends ScoreAtoms {
@@ -51,6 +56,7 @@ export interface AlertInput {
   source: SourceSignal;
   scores: ScoreAtoms;
   entities: EntityHit[];
+  category?: string;
 }
 
 export interface AlertResult {
@@ -61,10 +67,30 @@ export interface AlertResult {
 export interface ClusterInput {
   itemId: number;
   embedding: number[];
+  candidates?: ClusterCandidate[];
+}
+
+export interface ClusterCandidate {
+  clusterId: number;
+  centroid: number[];
 }
 
 export interface ClusterDecision {
   clusterId: number;
   similarity: number;
   shouldCreate: boolean;
+}
+
+export interface CuratorInput {
+  atoms: Omit<ScoreAtoms, "d2Chain">;
+  source: SourceSignal;
+  entities: EntityHit[];
+  config: ScoringConfig;
+  category: string;
+}
+
+export interface CuratorResult extends QualityScoreResult {
+  alertType?: AlertType;
+  alertLevel?: AlertLevel;
+  isCurated: boolean;
 }
