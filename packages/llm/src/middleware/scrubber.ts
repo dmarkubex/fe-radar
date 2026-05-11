@@ -12,9 +12,7 @@ export class ScrubbedLlmClient implements LlmClient {
     private readonly inner: LlmClient,
     private readonly context: ScrubContext = {}
   ) {
-    if (process.env.NODE_ENV === "production" && process.env.SCRUBBER_ENABLED === "false") {
-      throw new LlmError("SCRUBBER_DISABLED", "Scrubber must be enabled in production");
-    }
+    assertScrubberEnabled();
   }
 
   public async chatJson<T>(request: JsonSchemaRequest): Promise<LlmResult<T>> {
@@ -36,6 +34,12 @@ export class ScrubbedLlmClient implements LlmClient {
 
 export function withScrubber(client: LlmClient, context?: ScrubContext): LlmClient {
   return new ScrubbedLlmClient(client, context);
+}
+
+export function assertScrubberEnabled(): void {
+  if (process.env.NODE_ENV === "production" && process.env.SCRUBBER_ENABLED === "false") {
+    throw new LlmError("SCRUBBER_DISABLED", "Scrubber must be enabled in production");
+  }
 }
 
 function safeScrub(input: string, context: ScrubContext): ScrubResult {

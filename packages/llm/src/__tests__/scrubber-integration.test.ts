@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { LlmError } from "@fe-radar/shared";
-import { withScrubber } from "../middleware/scrubber";
+import { assertScrubberEnabled, withScrubber } from "../middleware/scrubber";
 import type { LlmClient } from "../types";
 
 describe("LLM scrubber integration", () => {
@@ -43,6 +43,7 @@ describe("LLM scrubber integration", () => {
     vi.stubEnv("SCRUBBER_ENABLED", "false");
     const inner = { chatJson: vi.fn(), embedding: vi.fn() } as unknown as LlmClient;
     expect(() => withScrubber(inner)).toThrow(LlmError);
+    expect(() => assertScrubberEnabled()).toThrow(LlmError);
     vi.unstubAllEnvs();
   });
 });
