@@ -116,12 +116,11 @@ services:
     environment:
       TZ: Asia/Shanghai
       DATABASE_URL: postgres://fe_radar:${DB_PASSWORD}@postgres:5432/fe_radar
-      MINIO_ALIAS: local
       MINIO_ENDPOINT: http://minio:9000
-      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
-      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
-      MINIO_BUCKET: fe-radar-backup
-      BACKUP_RETENTION_DAYS: "7"
+      MINIO_ACCESS_KEY_FILE: /run/secrets/minio_root_user
+      MINIO_SECRET_KEY_FILE: /run/secrets/minio_root_password
+      MINIO_BUCKET: fe-radar-backups
+      RETENTION_DAYS: "7"
     secrets:
       - db_password
       - minio_root_user
