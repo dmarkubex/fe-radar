@@ -199,6 +199,9 @@ importers:
 
   packages/llm:
     dependencies:
+      '@fe-radar/core':
+        specifier: workspace:*
+        version: link:../core
       '@fe-radar/shared':
         specifier: workspace:*
         version: link:../shared

@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@fe-radar/core": "workspace:*",
     "@fe-radar/shared": "workspace:*",
     "openai": "^6.10.0",
     "pino": "^10.1.0"
