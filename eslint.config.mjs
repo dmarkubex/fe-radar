@@ -4,10 +4,11 @@ import tseslint from "typescript-eslint";
 export default [
   {
     ignores: [
-      ".next/**",
-      "coverage/**",
-      "dist/**",
+      "**/.next/**",
+      "**/coverage/**",
+      "**/dist/**",
       "node_modules/**",
+      "**/node_modules/**",
       "spec/agent-workflow.html"
     ]
   },
