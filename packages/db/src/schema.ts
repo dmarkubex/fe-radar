@@ -168,7 +168,8 @@ export const feedbacks = pgTable("feedbacks", {
   reason: text("reason"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 }, (table) => ({
-  voteCheck: check("feedbacks_vote_check", sql`${table.vote} IN (-1, 0, 1)`)
+  voteCheck: check("feedbacks_vote_check", sql`${table.vote} IN (-1, 0, 1)`),
+  itemUserUnique: unique("feedbacks_item_user_key").on(table.itemId, table.userId)
 }));
 
 export const scoringConfig = pgTable("scoring_config", {
