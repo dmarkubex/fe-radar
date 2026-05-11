@@ -21,6 +21,7 @@ export interface PipelineQueues {
   embedder: Queue<PipelineJob>;
   cluster: Queue<PipelineJob>;
   curator: Queue<PipelineJob>;
+  daily: Queue<Record<string, never>>;
 }
 
 export const DEFAULT_JOB_OPTIONS = {
@@ -52,7 +53,15 @@ export function createPipelineQueues(connection = createRedisConnection()): Pipe
     scorer: createStageQueue("scorer", connection),
     embedder: createStageQueue("embedder", connection),
     cluster: createStageQueue("cluster", connection),
-    curator: createStageQueue("curator", connection)
+    curator: createStageQueue("curator", connection),
+    daily: new Queue<Record<string, never>>(QUEUES.daily, {
+      connection,
+      defaultJobOptions: {
+        ...DEFAULT_JOB_OPTIONS,
+        attempts: 3,
+        backoff: { type: "fixed", delay: 30 * 60 * 1000 }
+      }
+    })
   };
 }
 
@@ -69,3 +78,5 @@ export function createFlowProducer(connection = createRedisConnection()): FlowPr
 
 export const FETCH_SCHEDULE_CRON = "0 */6 * * *";
 export const FETCH_SCHEDULE_TZ = "Asia/Shanghai";
+export const DAILY_REPORT_SCHEDULE_CRON = "0 8 * * *";
+export const DAILY_REPORT_SCHEDULE_TZ = "Asia/Shanghai";

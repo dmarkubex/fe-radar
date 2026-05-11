@@ -153,6 +153,9 @@ importers:
       cheerio:
         specifier: ^1.2.0
         version: 1.2.0
+      drizzle-orm:
+        specifier: ^0.45.1
+        version: 0.45.2(postgres@3.4.9)
       ioredis:
         specifier: ^5.8.2
         version: 5.10.1
