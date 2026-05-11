@@ -61,6 +61,12 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         session.user.role = token.role;
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      }
+      return new URL(url).origin === baseUrl ? url : baseUrl;
     }
   },
   cookies: {
