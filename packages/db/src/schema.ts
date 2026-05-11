@@ -160,6 +160,18 @@ export const mergeConflicts = pgTable("merge_conflicts", {
   statusIdx: index("merge_conflicts_status_idx").on(table.status, table.createdAt)
 }));
 
+export const auditLogs = pgTable("audit_logs", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  action: text("action").notNull(),
+  actorUserId: bigint("actor_user_id", { mode: "number" }).references(() => users.id),
+  targetUserId: bigint("target_user_id", { mode: "number" }).references(() => users.id),
+  meta: jsonb("meta"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => ({
+  actionIdx: index("audit_logs_action_created_at_idx").on(table.action, table.createdAt),
+  targetIdx: index("audit_logs_target_user_idx").on(table.targetUserId)
+}));
+
 export const feedbacks = pgTable("feedbacks", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   itemId: bigint("item_id", { mode: "number" }).references(() => items.id, { onDelete: "cascade" }),
