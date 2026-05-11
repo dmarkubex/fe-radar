@@ -37,4 +37,12 @@ describe("LLM scrubber integration", () => {
     })).rejects.toBeInstanceOf(LlmError);
     expect(inner.chatJson).not.toHaveBeenCalled();
   });
+
+  it("fails fast when production disables scrubber", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("SCRUBBER_ENABLED", "false");
+    const inner = { chatJson: vi.fn(), embedding: vi.fn() } as unknown as LlmClient;
+    expect(() => withScrubber(inner)).toThrow(LlmError);
+    vi.unstubAllEnvs();
+  });
 });
