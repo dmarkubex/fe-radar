@@ -1,4 +1,6 @@
 import { fetchDashboardData } from "@/lib/api/dashboard-query";
+import { listDisabledProxies } from "@/lib/api/proxy-admin";
+import { ProxyPoolPanel } from "@/components/dashboard/proxy-pool-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +15,10 @@ function toneClass(tone: string | undefined): string {
 }
 
 export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
-  const data = await fetchDashboardData();
+  const [data, disabledProxies] = await Promise.all([
+    fetchDashboardData(),
+    Promise.resolve(listDisabledProxies())
+  ]);
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8">
       <header>
@@ -38,6 +43,7 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
             <div className="flex justify-between"><dt>dropped_quota_expired</dt><dd>{data.backlog.droppedExpired}</dd></div>
             <div className="flex justify-between"><dt>超过 24h</dt><dd>{data.backlog.oldPending}</dd></div>
           </dl>
+          <p className="mt-3 text-xs text-zinc-500">阈值：超过 24h 的 priority backlog 比例 &gt; 30% 为警告，&gt; 50% 为紧急。</p>
         </div>
         <div className="rounded-lg border border-zinc-200 bg-white p-5">
           <h2 className="text-base font-semibold text-zinc-950">今日告警</h2>
@@ -54,6 +60,7 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
             <div className="flex justify-between"><dt>停用信源</dt><dd>{data.sources.disabled}</dd></div>
             <div className="flex justify-between"><dt>连续失败 &gt;= 7</dt><dd>{data.sources.failedSevenDays}</dd></div>
           </dl>
+          <ProxyPoolPanel initialItems={disabledProxies} />
         </div>
       </section>
     </main>
