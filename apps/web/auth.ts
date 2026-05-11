@@ -1,6 +1,8 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
+import { DingtalkProvider, isDingtalkEnabled } from "@/lib/auth/dingtalk-provider";
+import { mergeOrCreateUser } from "@/lib/auth/merge";
 import { findUserByUsername } from "@/lib/auth/users";
 import { verifyPassword } from "@/lib/auth/password";
 
@@ -44,12 +46,31 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
           role: user.role
         };
       }
-    })
+    }),
+    ...(isDingtalkEnabled() ? [DingtalkProvider()] : [])
   ],
   pages: {
     signIn: "/auth/login"
   },
   callbacks: {
+    async signIn({ user, account, profile }) {
+      if (account?.provider !== "dingtalk") {
+        return true;
+      }
+      const rawProfile = profile as { unionid?: string; name?: string; dept?: string | null } | undefined;
+      if (!rawProfile?.unionid || !rawProfile.name) {
+        return false;
+      }
+      const merged = await mergeOrCreateUser({
+        unionid: rawProfile.unionid,
+        name: rawProfile.name,
+        dept: rawProfile.dept ?? null
+      });
+      user.id = String(merged.id);
+      user.name = merged.name;
+      user.role = merged.role;
+      return true;
+    },
     jwt({ token, user }) {
       if (user && "role" in user) {
         token.role = user.role;
