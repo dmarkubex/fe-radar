@@ -15,8 +15,7 @@ import {
   smallint,
   text,
   timestamp,
-  unique,
-  uniqueIndex
+  unique
 } from "drizzle-orm/pg-core";
 
 const vector = (name: string, dimensions: number) => {
