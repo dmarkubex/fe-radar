@@ -26,3 +26,13 @@ dist/
 **/dist/
 .next/
 **/.next/
+
+# 凭据 / 密钥（推送到 GitHub 前的硬化 · 任何 .env / 私钥 / 证书都不进版本库）
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
