@@ -9,12 +9,19 @@ export default async function middleware(request: NextRequest): Promise<NextResp
 
   const isAdminPath = pathname.startsWith("/api/admin") || pathname.startsWith("/admin");
   const isAdminPage = pathname.startsWith("/admin");
-  const isEditorPath = pathname.startsWith("/api/sources");
-  const isTimelinePage = pathname === "/" || pathname.startsWith("/curated") || pathname.startsWith("/search");
+  const isEditorPath = pathname.startsWith("/api/sources") || pathname.startsWith("/api/entities");
+  const isTimelinePage =
+    pathname === "/" ||
+    pathname.startsWith("/curated") ||
+    pathname.startsWith("/search") ||
+    pathname.startsWith("/alerts") ||
+    pathname.startsWith("/daily");
   const isTimelineApi =
     pathname.startsWith("/api/timeline") ||
     pathname.startsWith("/api/search") ||
     pathname.startsWith("/api/items") ||
+    pathname.startsWith("/api/alerts") ||
+    pathname.startsWith("/api/daily") ||
     pathname.startsWith("/api/alerts/count");
 
   if (isAdminPath || isEditorPath || isTimelinePage || isTimelineApi) {
@@ -49,12 +56,17 @@ export const config = {
     "/",
     "/curated/:path*",
     "/search/:path*",
+    "/alerts/:path*",
+    "/daily/:path*",
     "/admin/:path*",
     "/api/admin/:path*",
     "/api/sources/:path*",
+    "/api/entities/:path*",
     "/api/timeline/:path*",
     "/api/search/:path*",
     "/api/items/:path*",
+    "/api/alerts/:path*",
+    "/api/daily/:path*",
     "/api/alerts/count"
   ]
 };

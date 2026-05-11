@@ -9,7 +9,7 @@ const NAV = [
   { href: "/curated", label: "精选", icon: Star, minRole: "viewer" },
   { href: "/search", label: "搜索", icon: Search, minRole: "viewer" },
   { href: "/alerts", label: "告警", icon: Bell, minRole: "viewer" },
-  { href: "/reports", label: "日报", icon: FileText, minRole: "viewer" },
+  { href: "/daily", label: "日报", icon: FileText, minRole: "viewer" },
   { href: "/admin/sources", label: "后台", icon: Settings, minRole: "editor" }
 ] as const;
 

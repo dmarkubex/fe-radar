@@ -1,7 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DingtalkButton } from "@/components/auth/dingtalk-button";
+import { isDingtalkEnabled } from "@/lib/auth/dingtalk-provider";
 
 export default function LoginPage(): React.JSX.Element {
+  const dingtalkEnabled = isDingtalkEnabled();
   return (
     <main className="flex min-h-screen items-center justify-center px-6">
       <Card className="w-full max-w-sm">
@@ -20,6 +23,11 @@ export default function LoginPage(): React.JSX.Element {
             </label>
             <Button type="submit">登录</Button>
           </form>
+          {dingtalkEnabled ? (
+            <div className="mt-4 border-t border-zinc-200 pt-4">
+              <DingtalkButton />
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     </main>
