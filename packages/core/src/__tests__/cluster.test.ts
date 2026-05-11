@@ -27,4 +27,13 @@ describe("cluster decisions", () => {
   it("returns zero similarity for incompatible vectors", () => {
     expect(cosineSimilarity([1], [1, 2])).toBe(0);
   });
+
+  it("does not create duplicate clusters for identical candidates", () => {
+    const decisions = Array.from({ length: 100 }, (_, index) => decideCluster({
+      itemId: index,
+      embedding: [1, 0, 0],
+      candidates: [{ clusterId: 1, centroid: [1, 0, 0] }]
+    }));
+    expect(decisions.every((decision) => !decision.shouldCreate && decision.clusterId === 1)).toBe(true);
+  });
 });
