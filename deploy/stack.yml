@@ -111,6 +111,44 @@ services:
       restart_policy:
         condition: on-failure
 
+  backup:
+    image: fe-radar/backup:latest
+    environment:
+      TZ: Asia/Shanghai
+      DATABASE_URL: postgres://fe_radar:${DB_PASSWORD}@postgres:5432/fe_radar
+      MINIO_ALIAS: local
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+      MINIO_BUCKET: fe-radar-backup
+      BACKUP_RETENTION_DAYS: "7"
+    secrets:
+      - db_password
+      - minio_root_user
+      - minio_root_password
+    networks:
+      - internal
+    deploy:
+      replicas: 0
+      restart_policy:
+        condition: none
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    environment:
+      TZ: Asia/Shanghai
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+    secrets:
+      - grafana_admin_password
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - internal
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
 networks:
   internal:
     driver: overlay
@@ -120,6 +158,7 @@ volumes:
   postgres_data:
   redis_data:
   minio_data:
+  grafana_data:
 
 secrets:
   db_password:
@@ -137,4 +176,6 @@ secrets:
   minio_root_password:
     external: true
   proxy_list:
+    external: true
+  grafana_admin_password:
     external: true

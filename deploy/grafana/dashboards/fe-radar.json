@@ -1,0 +1,25 @@
+{
+  "title": "FE-Radar Operations",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Priority backlog >24h ratio",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 4 },
+      "targets": []
+    },
+    {
+      "type": "stat",
+      "title": "Scrubber manual review queue",
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 4 },
+      "targets": []
+    },
+    {
+      "type": "stat",
+      "title": "Merge conflicts pending",
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 4 },
+      "targets": []
+    }
+  ]
+}
