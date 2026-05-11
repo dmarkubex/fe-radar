@@ -19,3 +19,7 @@ export function assertKimiContext(input: string): void {
     throw new Error(`Kimi input exceeds ${KIMI_CONTEXT_LIMIT_TOKENS} tokens`);
   }
 }
+
+export function estimateKimiTokens(input: string): number {
+  return Math.ceil(input.length / 2);
+}
