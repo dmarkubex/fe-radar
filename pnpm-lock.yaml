@@ -165,6 +165,9 @@ importers:
       rss-parser:
         specifier: ^3.13.0
         version: 3.13.0
+      undici:
+        specifier: ^7.25.0
+        version: 7.25.0
 
   packages/core:
     dependencies:

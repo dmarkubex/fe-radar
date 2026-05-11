@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { SourceForm } from "./source-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,11 +16,43 @@ interface SourceRow {
   failCount: number;
 }
 
-const initialRows: SourceRow[] = [];
-
 export function SourceTable(): React.JSX.Element {
   const [tier, setTier] = useState<"T1" | "T2" | "T3">("T1");
-  const rows = useMemo(() => initialRows.filter((row) => row.tier === tier), [tier]);
+  const [rows, setRows] = useState<SourceRow[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const filteredRows = useMemo(() => rows.filter((row) => row.tier === tier), [rows, tier]);
+
+  const loadRows = useCallback(async () => {
+    setError(null);
+    try {
+      const response = await fetch("/api/sources", { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error("信源加载失败");
+      }
+      const payload = await response.json() as { items: SourceRow[] };
+      setRows(payload.items);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "信源加载失败");
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadRows();
+  }, [loadRows]);
+
+  async function toggleEnabled(row: SourceRow): Promise<void> {
+    await fetch(`/api/sources/${row.id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ enabled: !row.enabled })
+    });
+    await loadRows();
+  }
+
+  async function deleteSource(row: SourceRow): Promise<void> {
+    await fetch(`/api/sources/${row.id}`, { method: "DELETE" });
+    await loadRows();
+  }
 
   return (
     <div className="grid gap-4">
@@ -32,7 +64,8 @@ export function SourceTable(): React.JSX.Element {
         ))}
       </div>
 
-      <SourceForm />
+      <SourceForm onSaved={loadRows} />
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <Card>
         <CardHeader>
@@ -48,22 +81,31 @@ export function SourceTable(): React.JSX.Element {
                   <th className="py-2 pr-4">状态</th>
                   <th className="py-2 pr-4">最近成功</th>
                   <th className="py-2 pr-4">失败次数</th>
+                  <th className="py-2 pr-4">操作</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.length === 0 ? (
+                {filteredRows.length === 0 ? (
                   <tr>
-                    <td className="py-6 text-zinc-500" colSpan={5}>
+                    <td className="py-6 text-zinc-500" colSpan={6}>
                       暂无信源，使用上方表单新增。
                     </td>
                   </tr>
-                ) : rows.map((row) => (
+                ) : filteredRows.map((row) => (
                   <tr key={row.id} className={row.failCount >= 7 ? "bg-red-50" : "border-b border-zinc-100"}>
                     <td className="py-2 pr-4 font-medium">{row.name}</td>
                     <td className="max-w-sm truncate py-2 pr-4">{row.url}</td>
                     <td className="py-2 pr-4">{row.enabled ? "启用" : "停用"}</td>
                     <td className="py-2 pr-4">{row.lastOkAt ?? "-"}</td>
                     <td className="py-2 pr-4">{row.failCount}</td>
+                    <td className="flex gap-2 py-2 pr-4">
+                      <Button type="button" variant="outline" onClick={() => void toggleEnabled(row)}>
+                        {row.enabled ? "停用" : "启用"}
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => void deleteSource(row)}>
+                        删除
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

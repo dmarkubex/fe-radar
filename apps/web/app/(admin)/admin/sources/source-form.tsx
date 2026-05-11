@@ -6,24 +6,38 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const defaultConfig = JSON.stringify({ type: "rss", url: "https://news.bjx.com.cn/rss.xml" }, null, 2);
 
-export function SourceForm(): React.JSX.Element {
+interface SourceFormProps {
+  onSaved(): void;
+}
+
+export function SourceForm({ onSaved }: SourceFormProps): React.JSX.Element {
   const [config, setConfig] = useState(defaultConfig);
+  const [error, setError] = useState<string | null>(null);
 
   async function submit(formData: FormData): Promise<void> {
-    const body = {
-      name: String(formData.get("name") ?? ""),
-      url: String(formData.get("url") ?? ""),
-      tier: formData.get("tier"),
-      fetcherType: formData.get("fetcherType"),
-      category: String(formData.get("category") ?? ""),
-      config: JSON.parse(config) as unknown
-    };
+    setError(null);
+    try {
+      const body = {
+        name: String(formData.get("name") ?? ""),
+        url: String(formData.get("url") ?? ""),
+        tier: formData.get("tier"),
+        fetcherType: formData.get("fetcherType"),
+        category: String(formData.get("category") ?? ""),
+        config: JSON.parse(config) as unknown
+      };
 
-    await fetch("/api/sources", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body)
-    });
+      const response = await fetch("/api/sources", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      if (!response.ok) {
+        throw new Error("保存失败，请检查字段和 config JSON。");
+      }
+      onSaved();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "保存失败");
+    }
   }
 
   return (
@@ -50,6 +64,7 @@ export function SourceForm(): React.JSX.Element {
           <div className="md:col-span-2">
             <Button type="submit">保存</Button>
           </div>
+          {error ? <p className="text-sm text-red-600 md:col-span-2">{error}</p> : null}
         </form>
       </CardContent>
     </Card>

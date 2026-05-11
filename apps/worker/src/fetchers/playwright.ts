@@ -1,5 +1,6 @@
 import { SourceFetchError } from "@fe-radar/shared";
 import { acquireUserAgent } from "../lib/ua-pool";
+import { proxyPool } from "../lib/proxy-pool";
 import { assertRobotsAllowed } from "../lib/robots";
 import type { FetchContext, PlaywrightSourceConfig, StandardItem } from "./types";
 
@@ -70,7 +71,8 @@ export async function fetchPlaywright(
 ): Promise<StandardItem[]> {
   const userAgent = acquireUserAgent(context.useRealUa);
   await assertRobotsAllowed(config.listUrl, userAgent, robotsFetch ?? fetch);
-  const browserContext = await pool.acquire(userAgent);
+  const proxy = proxyPool.acquire();
+  const browserContext = await pool.acquire(userAgent, proxy?.server ? { server: proxy.server } : undefined);
   const page = await browserContext.newPage();
 
   try {
@@ -78,12 +80,16 @@ export async function fetchPlaywright(
     await page.waitForSelector(config.waitFor, { timeout: 30000 });
     const extractor = compileExtractor(config.extractor);
     const extracted = await page.evaluate(extractor);
+    proxyPool.release(proxy, true);
     return extracted.map((item) => ({
       title: item.title.trim(),
       url: new URL(item.url, config.listUrl).toString(),
       content: (item.content ?? item.title).trim(),
       publishedAt: item.publishedAt ? new Date(item.publishedAt) : new Date()
     }));
+  } catch (error) {
+    proxyPool.release(proxy, false);
+    throw error;
   } finally {
     await page.close();
   }

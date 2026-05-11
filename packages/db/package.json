@@ -9,7 +9,8 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src --max-warnings=0",
     "test": "vitest run --passWithNoTests",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:sources": "tsx scripts/verify-sources.ts"
   },
   "dependencies": {
     "@fe-radar/shared": "workspace:*",

@@ -1,0 +1,43 @@
+INSERT INTO sources (name, url, fetcher_type, config, tier, category, enabled) VALUES
+('国家能源局', 'https://www.nea.gov.cn/xwzx/zyxw.htm', 'html', '{"type":"html","listUrl":"https://www.nea.gov.cn/xwzx/zyxw.htm","useRealUa":true,"selectors":{"item":"a","title":"a","link":"a","date":".date"}}'::jsonb, 'T1', '政府', true),
+('国家发改委', 'https://www.ndrc.gov.cn/xwdt/xwfb/', 'html', '{"type":"html","listUrl":"https://www.ndrc.gov.cn/xwdt/xwfb/","useRealUa":true,"selectors":{"item":"li","title":"a","link":"a","date":"span"}}'::jsonb, 'T1', '政府', true),
+('工信部', 'https://www.miit.gov.cn/xwdt/gxdt/', 'html', '{"type":"html","listUrl":"https://www.miit.gov.cn/xwdt/gxdt/","useRealUa":true,"selectors":{"item":"li","title":"a","link":"a","date":"span"}}'::jsonb, 'T1', '政府', true),
+('中电联', 'https://www.cec.org.cn/menu/index.html?94', 'html', '{"type":"html","listUrl":"https://www.cec.org.cn/menu/index.html?94","selectors":{"item":"li","title":"a","link":"a","date":"span"}}'::jsonb, 'T1', '协会', true),
+('中国电器工业协会', 'http://www.ceeia.com/news/', 'html', '{"type":"html","listUrl":"http://www.ceeia.com/news/","selectors":{"item":"li","title":"a","link":"a","date":"span"}}'::jsonb, 'T1', '协会', true),
+('中关村储能产业技术联盟 CNESA', 'http://www.cnesa.org/index/news', 'html', '{"type":"html","listUrl":"http://www.cnesa.org/index/news","selectors":{"item":"li","title":"a","link":"a","date":"span"}}'::jsonb, 'T1', '协会', true),
+('中国可再生能源学会风能专业委员会 CWEA', 'http://www.cwea.org.cn/news.html', 'html', '{"type":"html","listUrl":"http://www.cwea.org.cn/news.html","selectors":{"item":"li","title":"a","link":"a","date":"span"}}'::jsonb, 'T1', '协会', true),
+('中国光伏行业协会 CPIA', 'http://www.chinapv.org.cn/news.html', 'html', '{"type":"html","listUrl":"http://www.chinapv.org.cn/news.html","selectors":{"item":"li","title":"a","link":"a","date":"span"}}'::jsonb, 'T1', '协会', true),
+-- verify 2026-05-11: current network request failed; keep seed for admin review, disabled by default.
+('巨潮资讯', 'http://www.cninfo.com.cn/new/disclosure', 'html', '{"type":"html","listUrl":"http://www.cninfo.com.cn/new/disclosure","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb, 'T1', '上市公司公告', false),
+('上交所披露', 'http://www.sse.com.cn/disclosure/listedinfo/announcement/', 'html', '{"type":"html","listUrl":"http://www.sse.com.cn/disclosure/listedinfo/announcement/","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb, 'T1', '上市公司公告', true),
+('深交所披露', 'http://www.szse.cn/disclosure/listed/notice/', 'html', '{"type":"html","listUrl":"http://www.szse.cn/disclosure/listed/notice/","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb, 'T1', '上市公司公告', true),
+('北极星电力新闻网', 'https://news.bjx.com.cn/rss.xml', 'rss', '{"type":"rss","url":"https://news.bjx.com.cn/rss.xml"}'::jsonb, 'T2', '媒体-垂直', true),
+('北极星储能网', 'https://chuneng.bjx.com.cn/rss.xml', 'rss', '{"type":"rss","url":"https://chuneng.bjx.com.cn/rss.xml"}'::jsonb, 'T2', '媒体-垂直', true),
+('北极星输配电网', 'https://shupeidian.bjx.com.cn/rss.xml', 'rss', '{"type":"rss","url":"https://shupeidian.bjx.com.cn/rss.xml"}'::jsonb, 'T2', '媒体-垂直', true),
+('北极星太阳能光伏网', 'https://guangfu.bjx.com.cn/rss.xml', 'rss', '{"type":"rss","url":"https://guangfu.bjx.com.cn/rss.xml"}'::jsonb, 'T2', '媒体-垂直', true),
+('北极星风力发电网', 'https://news.bjx.com.cn/zt/bjxfd/', 'rss', '{"type":"rss","url":"https://news.bjx.com.cn/zt/bjxfd/"}'::jsonb, 'T2', '媒体-垂直', true),
+-- verify 2026-05-11: RSS endpoint currently failed; keep seed for fallback to HTML later, disabled by default.
+('北极星智能电网在线', 'https://smartgrid.bjx.com.cn/rss.xml', 'rss', '{"type":"rss","url":"https://smartgrid.bjx.com.cn/rss.xml"}'::jsonb, 'T2', '媒体-垂直', false),
+('北极星售电网', 'https://shoudian.bjx.com.cn/rss.xml', 'rss', '{"type":"rss","url":"https://shoudian.bjx.com.cn/rss.xml"}'::jsonb, 'T2', '媒体-垂直', true),
+-- verify 2026-05-11: TLS/list page request failed from current network; disabled by default.
+('电缆网 cableabc', 'https://www.cableabc.com/news/', 'html', '{"type":"html","listUrl":"https://www.cableabc.com/news/","selectors":{"item":"li","title":"a","link":"a","date":"span"}}'::jsonb, 'T2', '媒体-垂直', false),
+('中国电力新闻网', 'http://www.cpnn.com.cn/', 'html', '{"type":"html","listUrl":"http://www.cpnn.com.cn/","selectors":{"item":"li","title":"a","link":"a","date":"span"}}'::jsonb, 'T2', '媒体-垂直', true),
+('中国能源报', 'https://paper.people.com.cn/zgnyb/', 'html', '{"type":"html","listUrl":"https://paper.people.com.cn/zgnyb/","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb, 'T2', '媒体-垂直', true),
+('索比光伏网', 'https://www.solarbe.com/news/', 'html', '{"type":"html","listUrl":"https://www.solarbe.com/news/","selectors":{"item":"li","title":"a","link":"a","date":"span"}}'::jsonb, 'T2', '媒体-垂直', true),
+('储能网 escn', 'https://www.escn.com.cn/news/', 'html', '{"type":"html","listUrl":"https://www.escn.com.cn/news/","selectors":{"item":"li","title":"a","link":"a","date":"span"}}'::jsonb, 'T2', '媒体-垂直', true),
+('高工储能', 'https://www.estv.com.cn/zixun/', 'html', '{"type":"html","listUrl":"https://www.estv.com.cn/zixun/","selectors":{"item":"li","title":"a","link":"a","date":"span"}}'::jsonb, 'T2', '媒体-垂直', true),
+('国际能源网', 'https://www.in-en.com/news/', 'html', '{"type":"html","listUrl":"https://www.in-en.com/news/","selectors":{"item":"li","title":"a","link":"a","date":"span"}}'::jsonb, 'T2', '媒体-垂直', true),
+('电缆头条', 'https://weixin.sogou.com/weixin?type=1&query=%E7%94%B5%E7%BC%86%E5%A4%B4%E6%9D%A1', 'playwright', '{"type":"playwright","listUrl":"https://weixin.sogou.com/weixin?type=1&query=%E7%94%B5%E7%BC%86%E5%A4%B4%E6%9D%A1","waitFor":"body","extractor":"() => Array.from(document.querySelectorAll(''a'')).slice(0,10).map(a => ({ title: a.textContent || '''', url: a.href }))"}'::jsonb, 'T2', '媒体-自媒体', true),
+('储能头条', 'https://weixin.sogou.com/weixin?type=1&query=%E5%82%A8%E8%83%BD%E5%A4%B4%E6%9D%A1', 'playwright', '{"type":"playwright","listUrl":"https://weixin.sogou.com/weixin?type=1&query=%E5%82%A8%E8%83%BD%E5%A4%B4%E6%9D%A1","waitFor":"body","extractor":"() => Array.from(document.querySelectorAll(''a'')).slice(0,10).map(a => ({ title: a.textContent || '''', url: a.href }))"}'::jsonb, 'T2', '媒体-自媒体', true),
+('中国电网 china-power', 'http://www.china-power.com.cn/', 'html', '{"type":"html","listUrl":"http://www.china-power.com.cn/","selectors":{"item":"li","title":"a","link":"a","date":"span"}}'::jsonb, 'T2', '媒体-垂直', true),
+('财联社 能源', 'https://www.cls.cn/subject/1066', 'html', '{"type":"html","listUrl":"https://www.cls.cn/subject/1066","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb, 'T3', '综合财经', true),
+('界面新闻 能源', 'https://www.jiemian.com/lists/55.html', 'html', '{"type":"html","listUrl":"https://www.jiemian.com/lists/55.html","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb, 'T3', '综合财经', true),
+('36氪 新能源', 'https://36kr.com/information/web_news/', 'html', '{"type":"html","listUrl":"https://36kr.com/information/web_news/","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb, 'T3', '综合财经', true),
+('第一财经 能源', 'https://www.yicai.com/news/energy/', 'html', '{"type":"html","listUrl":"https://www.yicai.com/news/energy/","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb, 'T3', '综合财经', true),
+('凤凰财经 能源', 'https://finance.ifeng.com/', 'html', '{"type":"html","listUrl":"https://finance.ifeng.com/","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb, 'T3', '综合财经', true),
+('钛媒体 新能源', 'https://www.tmtpost.com/nav/clean', 'html', '{"type":"html","listUrl":"https://www.tmtpost.com/nav/clean","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb, 'T3', '综合财经', true),
+('雪球 行业讨论', 'https://xueqiu.com/k?q=%E7%94%B5%E7%BC%86', 'playwright', '{"type":"playwright","listUrl":"https://xueqiu.com/k?q=%E7%94%B5%E7%BC%86","waitFor":"body","extractor":"() => Array.from(document.querySelectorAll(''a'')).slice(0,10).map(a => ({ title: a.textContent || '''', url: a.href }))"}'::jsonb, 'T3', '自媒体', true),
+-- verify 2026-05-11: anti-bot reachability was unstable; keep seed disabled until proxy policy is tuned.
+('知乎 电力话题', 'https://www.zhihu.com/topic/19577810', 'playwright', '{"type":"playwright","listUrl":"https://www.zhihu.com/topic/19577810","waitFor":"body","extractor":"() => Array.from(document.querySelectorAll(''a'')).slice(0,10).map(a => ({ title: a.textContent || '''', url: a.href }))"}'::jsonb, 'T3', '自媒体', false),
+('网易财经 能源', 'https://money.163.com/special/00251LR5/economy.html', 'html', '{"type":"html","listUrl":"https://money.163.com/special/00251LR5/economy.html","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb, 'T3', '综合财经', true)
+ON CONFLICT (url) DO NOTHING;

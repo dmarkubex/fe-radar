@@ -1,4 +1,5 @@
 import { SourceFetchError } from "@fe-radar/shared";
+import { fetch as undiciFetch, ProxyAgent } from "undici";
 import { proxyPool } from "../lib/proxy-pool";
 import { assertRobotsAllowed } from "../lib/robots";
 import { acquireUserAgent } from "../lib/ua-pool";
@@ -6,21 +7,23 @@ import { acquireUserAgent } from "../lib/ua-pool";
 export interface FetchTextOptions {
   timeoutMs: number;
   useRealUa?: boolean;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: (input: string, init: RequestInit & { dispatcher?: ProxyAgent }) => Promise<Response>;
 }
 
 export async function fetchTextWithPolicy(url: string, options: FetchTextOptions): Promise<string> {
   const userAgent = acquireUserAgent(options.useRealUa);
-  await assertRobotsAllowed(url, userAgent, options.fetchImpl ?? fetch);
+  await assertRobotsAllowed(url, userAgent, (options.fetchImpl ?? fetch) as typeof fetch);
 
   let proxy = proxyPool.acquire();
   let lastError: unknown;
+  const fetchImpl = options.fetchImpl ?? undiciFetch;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const response = await (options.fetchImpl ?? fetch)(url, {
+      const response = await fetchImpl(url, {
         headers: { "user-agent": userAgent },
-        signal: AbortSignal.timeout(options.timeoutMs)
+        signal: AbortSignal.timeout(options.timeoutMs),
+        dispatcher: proxy?.server ? new ProxyAgent(proxy.server) : undefined
       });
 
       if (response.status === 403 || response.status === 429) {
