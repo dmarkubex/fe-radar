@@ -7,7 +7,12 @@ import type { NextRequest } from "next/server";
 export default async function middleware(request: NextRequest): Promise<NextResponse> {
   const pathname = request.nextUrl.pathname;
 
-  const isAdminPath = pathname.startsWith("/api/admin") || pathname.startsWith("/admin");
+  const isAdminPath =
+    pathname.startsWith("/api/admin") ||
+    pathname.startsWith("/api/dashboard") ||
+    pathname.startsWith("/api/scoring-config") ||
+    pathname.startsWith("/api/users") ||
+    pathname.startsWith("/admin");
   const isAdminPage = pathname.startsWith("/admin");
   const isEditorPath = pathname.startsWith("/api/sources") || pathname.startsWith("/api/entities");
   const isTimelinePage =
@@ -60,6 +65,12 @@ export const config = {
     "/daily/:path*",
     "/admin/:path*",
     "/api/admin/:path*",
+    "/api/dashboard",
+    "/api/dashboard/:path*",
+    "/api/scoring-config",
+    "/api/scoring-config/:path*",
+    "/api/users",
+    "/api/users/:path*",
     "/api/sources/:path*",
     "/api/entities/:path*",
     "/api/timeline/:path*",

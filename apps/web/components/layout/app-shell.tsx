@@ -10,7 +10,7 @@ const NAV = [
   { href: "/search", label: "搜索", icon: Search, minRole: "viewer" },
   { href: "/alerts", label: "告警", icon: Bell, minRole: "viewer" },
   { href: "/daily", label: "日报", icon: FileText, minRole: "viewer" },
-  { href: "/admin/sources", label: "后台", icon: Settings, minRole: "editor" }
+  { href: "/admin/dashboard", label: "后台", icon: Settings, minRole: "editor" }
 ] as const;
 
 const ROLE_WEIGHT: Record<UserRole, number> = { viewer: 1, editor: 2, admin: 3 };
