@@ -141,6 +141,9 @@ importers:
       '@fe-radar/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@fe-radar/llm':
+        specifier: workspace:*
+        version: link:../../packages/llm
       '@fe-radar/shared':
         specifier: workspace:*
         version: link:../../packages/shared

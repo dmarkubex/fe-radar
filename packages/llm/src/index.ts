@@ -3,4 +3,8 @@ export * from "./clients/deepseek";
 export * from "./clients/kimi";
 export * from "./clients/qwen";
 export * from "./middleware/scrubber";
+export * from "./prompts/daily-report";
+export * from "./prompts/ner";
+export * from "./prompts/prefilter";
+export * from "./prompts/scoring";
 export * from "./types";
