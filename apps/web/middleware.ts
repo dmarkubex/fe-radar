@@ -54,9 +54,10 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     }
   }
 
-  const response = NextResponse.next();
-  response.headers.set("x-pathname", pathname);
-  return response;
+  // NextResponse.next({ request }) makes header readable via headers() in RSC; see DMA-51
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {
