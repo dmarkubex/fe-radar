@@ -95,3 +95,36 @@ export function createQuotesFetchQueue(connection = createRedisConnection()): Qu
     defaultJobOptions: DEFAULT_JOB_OPTIONS
   });
 }
+
+export const QUEUE_BRIEFING_GEN = "fe:briefing-gen";
+export const BRIEFING_GEN_SCHEDULE_CRON = "0 0 16 * * 1-5";
+export const BRIEFING_GEN_SCHEDULE_TZ = "Asia/Shanghai";
+
+export interface BriefingGenJob {
+  briefingDate?: string; // YYYY-MM-DD; omit to use today
+}
+
+export function createBriefingGenQueue(connection = createRedisConnection()): Queue<BriefingGenJob> {
+  return new Queue<BriefingGenJob>(QUEUE_BRIEFING_GEN, {
+    connection,
+    defaultJobOptions: {
+      ...DEFAULT_JOB_OPTIONS,
+      attempts: 1 // briefing-gen manages its own retries internally
+    }
+  });
+}
+
+export const QUEUE_BRIEFING_PUSH = "fe:briefing-push";
+export const BRIEFING_PUSH_SCHEDULE_CRON = "0 5 16 * * 1-5";
+export const BRIEFING_PUSH_SCHEDULE_TZ = "Asia/Shanghai";
+
+export interface BriefingPushJob {
+  briefingId: number;
+}
+
+export function createBriefingPushQueue(connection = createRedisConnection()): Queue<BriefingPushJob> {
+  return new Queue<BriefingPushJob>(QUEUE_BRIEFING_PUSH, {
+    connection,
+    defaultJobOptions: DEFAULT_JOB_OPTIONS
+  });
+}

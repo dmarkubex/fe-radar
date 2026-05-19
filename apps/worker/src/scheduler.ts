@@ -1,8 +1,8 @@
 import type { SourceRecord } from "@fe-radar/db";
 import { listSources, markSourceFailure, type DbClient } from "@fe-radar/db";
 import type { Queue } from "bullmq";
-import type { FetchSourceJob, QuotesFetchJob } from "./queues";
-import { FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, QUOTES_FETCH_SCHEDULE_CRON, QUOTES_FETCH_SCHEDULE_TZ } from "./queues";
+import type { BriefingPushJob, FetchSourceJob, QuotesFetchJob } from "./queues";
+import { BRIEFING_PUSH_SCHEDULE_CRON, BRIEFING_PUSH_SCHEDULE_TZ, FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, QUOTES_FETCH_SCHEDULE_CRON, QUOTES_FETCH_SCHEDULE_TZ } from "./queues";
 
 export const FETCH_CONCURRENCY = 5;
 export const DISABLE_AFTER_FAIL_DAYS = 7;
@@ -67,5 +67,16 @@ export async function scheduleQuotesFetchCron(queue: Queue<QuotesFetchJob>): Pro
       tz: QUOTES_FETCH_SCHEDULE_TZ
     },
     jobId: "schedule-quotes-fetch"
+  });
+}
+
+export async function scheduleBriefingPushCron(queue: Queue<BriefingPushJob>): Promise<void> {
+  // 工作日 16:05 Asia/Shanghai (cron seconds syntax: 0 5 16 * * 1-5)
+  await queue.add("schedule-briefing-push", { briefingId: 0 }, {
+    repeat: {
+      pattern: BRIEFING_PUSH_SCHEDULE_CRON,
+      tz: BRIEFING_PUSH_SCHEDULE_TZ
+    },
+    jobId: "schedule-briefing-push"
   });
 }

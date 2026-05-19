@@ -9,9 +9,9 @@ import type { LlmClient } from "@fe-radar/llm";
 import { curateItem } from "@fe-radar/core";
 import type { ScoringConfig as CoreScoringConfig, EntityHit } from "@fe-radar/core";
 
-import type { FetchSourceJob, PipelineJob, QuotesFetchJob } from "./queues";
-import { createRedisConnection, FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, DAILY_REPORT_SCHEDULE_CRON, DAILY_REPORT_SCHEDULE_TZ, DEFAULT_JOB_OPTIONS, QUEUE_QUOTES_FETCH } from "./queues";
-import { enqueueEnabledSources, recordSourceFailure, enqueueEnabledQuotesSources, scheduleQuotesFetchCron } from "./scheduler";
+import type { BriefingGenJob, BriefingPushJob, FetchSourceJob, PipelineJob, QuotesFetchJob } from "./queues";
+import { createRedisConnection, FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, DAILY_REPORT_SCHEDULE_CRON, DAILY_REPORT_SCHEDULE_TZ, DEFAULT_JOB_OPTIONS, QUEUE_QUOTES_FETCH, QUEUE_BRIEFING_GEN, BRIEFING_GEN_SCHEDULE_CRON, BRIEFING_GEN_SCHEDULE_TZ, QUEUE_BRIEFING_PUSH } from "./queues";
+import { enqueueEnabledSources, recordSourceFailure, enqueueEnabledQuotesSources, scheduleQuotesFetchCron, scheduleBriefingPushCron } from "./scheduler";
 import { fetchRss, fetchHtml, fetchPlaywright } from "./fetchers";
 import type { SourceConfig, StandardItem, FetchContext } from "./fetchers";
 import { dedupItems, type DedupCandidate, type ExistingItemFingerprint } from "./dedup";
@@ -23,6 +23,8 @@ import { withClusterCreateLock } from "./jobs/cluster";
 import { runDailyGen } from "./jobs/daily-gen";
 import { runCleanup, CLEANUP_SCHEDULE_CRON, CLEANUP_SCHEDULE_TZ } from "./jobs/cleanup";
 import { runQuotesFetch } from "./jobs/quotes-fetch";
+import { runBriefingGen as runBriefingGenJob } from "./jobs/briefing-gen";
+import { runBriefingPush, scheduleLatestBriefingPush } from "./jobs/briefing-push";
 import { EntityDictionary } from "./lib/entities-dict";
 import { FETCH_CONCURRENCY } from "./scheduler";
 import { createPlaywrightPool, type BrowserContextPool } from "./fetchers/playwright";
@@ -524,6 +526,51 @@ export async function startWorker(): Promise<void> {
     { connection, concurrency: FETCH_CONCURRENCY },
   );
   allWorkers.push(quotesFetchWorker);
+
+  const briefingGenQueue = new Queue<BriefingGenJob>(QUEUE_BRIEFING_GEN, {
+    connection,
+    defaultJobOptions: { ...DEFAULT_JOB_OPTIONS, attempts: 1 }
+  });
+  await briefingGenQueue.add("schedule-briefing-gen", {}, {
+    repeat: { pattern: BRIEFING_GEN_SCHEDULE_CRON, tz: BRIEFING_GEN_SCHEDULE_TZ },
+    jobId: "schedule-briefing-gen",
+  });
+
+  const briefingGenWorker = new Worker<BriefingGenJob>(
+    QUEUE_BRIEFING_GEN,
+    async (job) => {
+      logger.info({ jobId: job.id }, "processing briefing-gen job");
+      const result = await runBriefingGenJob({ now: job.data.briefingDate ? new Date(job.data.briefingDate) : undefined });
+      logger.info(result, "briefing-gen completed");
+    },
+    { connection, concurrency: 1 },
+  );
+  allWorkers.push(briefingGenWorker);
+
+  const briefingPushQueue = new Queue<BriefingPushJob>(QUEUE_BRIEFING_PUSH, { connection, defaultJobOptions: DEFAULT_JOB_OPTIONS });
+  await scheduleBriefingPushCron(briefingPushQueue);
+
+  const briefingPushWorker = new Worker<BriefingPushJob>(
+    QUEUE_BRIEFING_PUSH,
+    async (job) => {
+      if (job.data.briefingId === 0) {
+        // cron trigger: find today's briefing and re-enqueue with real id
+        const briefingId = await scheduleLatestBriefingPush();
+        if (briefingId !== null) {
+          await briefingPushQueue.add("briefing-push", { briefingId }, {
+            jobId: `briefing-push:${briefingId}`,
+          });
+          logger.info({ briefingId }, "briefing-push cron: enqueued push job");
+        }
+        return;
+      }
+      logger.info({ jobId: job.id, briefingId: job.data.briefingId }, "processing briefing-push job");
+      const result = await runBriefingPush(job.data.briefingId);
+      logger.info(result, "briefing-push completed");
+    },
+    { connection, concurrency: 1 },
+  );
+  allWorkers.push(briefingPushWorker);
 
   logger.info("all workers and schedulers started");
 
