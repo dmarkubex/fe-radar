@@ -10,6 +10,15 @@
 # OMC 本地状态（每会话生成，非项目资产）
 /.omc/
 
+# 本地 agent / CCB 运行态（非项目资产）
+/AGENTS.md
+/.ccb/
+/.ccb-backups/
+/.ccb-requests/
+
+# 设计稿 / 原型 HTML+PNG（参考资产，避免膨胀仓库）
+/design/
+
 # Node 依赖与早期临时实验产物（M0 monorepo 起步时按 spec/tasks.md T-M0-01 重新建立）
 /node_modules/
 **/node_modules/
