@@ -1,6 +1,6 @@
 import { and, isNull, lt, sql } from "drizzle-orm";
-import { clusterItems, clusters, dailyReports, getDb, items } from "@fe-radar/db";
-import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
+import { clusterItems, clusters, commodityBriefings, commodityQuotes, dailyReports, getDb, items } from "@fe-radar/db";
+import { APP_TIMEZONE, createLogger, dayjs } from "@fe-radar/shared";
 
 import type { DbClient } from "@fe-radar/db";
 
@@ -8,10 +8,14 @@ export const CLEANUP_RETENTION_DAYS = 90;
 export const CLEANUP_SCHEDULE_CRON = "0 3 * * *";
 export const CLEANUP_SCHEDULE_TZ = APP_TIMEZONE;
 
+const logger = createLogger({ service: "cleanup" });
+
 export interface CleanupResult {
   deletedItems: number;
   deletedDailyReports: number;
   deletedStaleClusters: number;
+  deletedCommodityQuotes: number;
+  deletedCommodityBriefings: number;
 }
 
 export function retentionCutoff(now = new Date(), days = CLEANUP_RETENTION_DAYS): { timestamp: Date; date: string } {
@@ -24,7 +28,13 @@ export function retentionCutoff(now = new Date(), days = CLEANUP_RETENTION_DAYS)
 
 export async function runCleanup(db: DbClient = getDb(), now = new Date()): Promise<CleanupResult> {
   const cutoff = retentionCutoff(now);
+
+  // v1.1 retention cutoffs
+  const quotesCutoff = dayjs(now).tz(APP_TIMEZONE).subtract(365, "day").toDate();
+  const briefingsCutoff = dayjs(now).tz(APP_TIMEZONE).subtract(90, "day").format("YYYY-MM-DD");
+
   return db.transaction(async (tx) => {
+    // v1.0 DELETEs (order preserved)
     const deletedDailyReports = await tx.delete(dailyReports).where(lt(dailyReports.date, cutoff.date)).returning({ date: dailyReports.date });
     const deletedItems = await tx.delete(items).where(lt(items.fetchedAt, cutoff.timestamp)).returning({ id: items.id });
     const deletedStaleClusters = await tx
@@ -35,10 +45,28 @@ export async function runCleanup(db: DbClient = getDb(), now = new Date()): Prom
       ))
       .returning({ id: clusters.id });
 
+    // v1.1 DELETEs: commodity_quotes 365d + commodity_briefings 90d
+    // briefing_pushes are deleted automatically via FK ON DELETE CASCADE
+    // MinIO docx files are handled by MinIO bucket lifecycle policy (not here)
+    const deletedCommodityQuotes = await tx
+      .delete(commodityQuotes)
+      .where(lt(commodityQuotes.observedAt, quotesCutoff))
+      .returning({ id: commodityQuotes.id });
+
+    const deletedCommodityBriefings = await tx
+      .delete(commodityBriefings)
+      .where(lt(commodityBriefings.briefingDate, briefingsCutoff))
+      .returning({ id: commodityBriefings.id });
+
+    logger.info({ rowsDeleted: deletedCommodityQuotes.length, table: "commodity_quotes", retentionDays: 365 }, "cleanup");
+    logger.info({ rowsDeleted: deletedCommodityBriefings.length, table: "commodity_briefings", retentionDays: 90 }, "cleanup");
+
     return {
       deletedItems: deletedItems.length,
       deletedDailyReports: deletedDailyReports.length,
-      deletedStaleClusters: deletedStaleClusters.length
+      deletedStaleClusters: deletedStaleClusters.length,
+      deletedCommodityQuotes: deletedCommodityQuotes.length,
+      deletedCommodityBriefings: deletedCommodityBriefings.length
     };
   });
 }
