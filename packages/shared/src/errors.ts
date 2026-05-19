@@ -34,6 +34,23 @@ export class NotImplementedError extends AppError {
   }
 }
 
+export class BriefingRenderError extends AppError {
+  public constructor(code: string, message: string, details?: unknown) {
+    super(code, message, details);
+  }
+}
+
+export class DingtalkBotError extends AppError {
+  public readonly errcode?: number;
+  public readonly errmsg?: string;
+
+  public constructor(code: string, message: string, details?: unknown, errcode?: number, errmsg?: string) {
+    super(code, message, details);
+    this.errcode = errcode;
+    this.errmsg = errmsg;
+  }
+}
+
 export function toAppError(error: unknown): AppError {
   if (error instanceof AppError) {
     return error;
