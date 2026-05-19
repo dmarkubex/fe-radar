@@ -11,13 +11,9 @@ export function AlertBadge(): React.JSX.Element {
     let cancelled = false;
     async function load(): Promise<void> {
       const response = await fetch("/api/alerts/count");
-      if (!response.ok) {
-        return;
-      }
+      if (!response.ok) return;
       const next = (await response.json()) as typeof EMPTY;
-      if (!cancelled) {
-        setCount(next);
-      }
+      if (!cancelled) setCount(next);
     }
     void load();
     const timer = window.setInterval(() => void load(), 60_000);
@@ -27,15 +23,12 @@ export function AlertBadge(): React.JSX.Element {
     };
   }, []);
 
-  return (
-    <div className="flex items-center gap-1 text-xs">
-      <Badge label="own" value={count.own} className="bg-red-50 text-red-700" />
-      <Badge label="safety" value={count.safety} className="bg-zinc-100 text-zinc-700" />
-      <Badge label="policy" value={count.policy} className="bg-blue-50 text-blue-700" />
-    </div>
-  );
-}
+  const total = count.own + count.safety + count.policy;
+  if (total === 0) return <></>;
 
-function Badge({ label, value, className }: { label: string; value: number; className: string }): React.JSX.Element {
-  return <span className={`rounded-md px-2 py-1 font-medium ${className}`}>{label} {value}</span>;
+  return (
+    <span className="font-mono text-[11px] bg-accent text-white px-1.5 py-[1px] tracking-[0.4px]">
+      {total}
+    </span>
+  );
 }

@@ -1,14 +1,14 @@
 export function alertStripClass(alertType: string | null, circle: string | null): string {
   if (alertType === "own") {
-    return circle === "C1" ? "bg-red-600" : circle === "C2" ? "bg-orange-500" : "bg-yellow-500";
+    return circle === "C1" ? "bg-danger" : circle === "C2" ? "bg-accent" : "bg-sunshine-700";
   }
   if (alertType === "safety") {
-    return "bg-zinc-500";
+    return "bg-warn";
   }
   if (alertType === "policy") {
-    return "bg-blue-600";
+    return "bg-accent";
   }
-  return circle === "C1" ? "bg-red-300" : circle === "C2" ? "bg-orange-300" : "bg-zinc-300";
+  return circle === "C1" ? "bg-accent-flame" : circle === "C2" ? "bg-sunshine-700" : "bg-gold";
 }
 
 export function AlertStrip({ alertType, circle }: { alertType: string | null; circle: string | null }): React.JSX.Element {

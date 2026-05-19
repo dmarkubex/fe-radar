@@ -31,7 +31,7 @@ export function FilterBar(): React.JSX.Element {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200 bg-white p-3">
+    <div className="flex flex-wrap items-center gap-2 border border-border bg-surface p-3">
       <FilterGroup label="关注圈" values={CIRCLE_FILTERS} active={params.get("circle")} onPick={(value) => setParam("circle", value)} />
       <FilterGroup label="信源" values={TIERS.map((value) => ({ value, label: value }))} active={params.get("tier")} onPick={(value) => setParam("tier", value)} />
       <FilterGroup label="告警" values={ALERTS} active={params.get("alertType")} onPick={(value) => setParam("alertType", value)} />
@@ -52,10 +52,10 @@ function FilterGroup({
 }): React.JSX.Element {
   return (
     <div className="flex items-center gap-1">
-      <span className="px-1 text-xs font-medium text-zinc-500">{label}</span>
+      <span className="px-1 font-mono text-[10px] tracking-[1.2px] uppercase text-fg-soft">{label}</span>
       {values.map((item) => (
         <button
-          className={`rounded-md px-2.5 py-1 text-xs font-medium ${active === item.value ? "bg-zinc-950 text-white" : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"}`}
+          className={`border px-2.5 py-1 font-mono text-[11px] tracking-[0.4px] ${active === item.value ? "border-fg bg-fg text-white" : "border-border bg-bg text-fg-muted hover:bg-bg-deep"}`}
           key={item.value}
           type="button"
           onClick={() => onPick(active === item.value ? null : item.value)}

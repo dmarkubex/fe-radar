@@ -33,14 +33,59 @@ export default async function HomePage({ searchParams }: { searchParams: PageSea
   };
   const initialData = await fetchTimeline({ filters });
 
+  const totalCount = initialData.items.length;
+  const alertCount = initialData.items.filter((i) => i.alertType === "own").length;
+  const filteredCount = initialData.items.filter((i) => i.topCircle === "C1" || i.topCircle === "C2").length;
+
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-6 md:px-6">
-      <header className="flex flex-col gap-1">
-        <p className="text-sm font-medium text-zinc-500">产业情报雷达</p>
-        <h1 className="text-2xl font-semibold text-zinc-950">时间线</h1>
+    <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 px-5 py-6 md:px-8">
+      <header className="page-head pb-4">
+        <p className="eyebrow font-mono text-[10px] font-medium uppercase tracking-[2px] text-fg-soft">
+          时间线 &middot; TIMELINE
+        </p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-fg">
+          全量信息流
+        </h1>
+        <p className="deck mt-1 text-sm leading-relaxed text-fg-muted">
+          时间倒序排列，每条经 8 阶段 pipeline 处理——去重 · NER · 5 维评分 · 聚簇 · 告警判定。
+          左侧色条 = 关注圈 / 告警类型，右侧评分面板可展开详情。
+        </p>
       </header>
+
+      <div className="stats-bar grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatsCell label="全量" value={String(totalCount)} />
+        <StatsCell label="命中筛选" value={String(filteredCount)} sub="C1+C2" />
+        <StatsCell label="自家告警" value={String(alertCount)} accent />
+        <StatsCell label="下次抓取" value="06:00" sub="CST" />
+      </div>
+
       <FilterBar />
-      <TimelineList endpoint={endpointFromParams(params)} initialData={initialData} />
+
+      <TimelineList endpoint={endpointFromParams(params)} initialData={initialData} variant="timeline" />
     </main>
+  );
+}
+
+function StatsCell({
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  accent?: boolean;
+}): React.JSX.Element {
+  return (
+    <div className="flex flex-col gap-0.5 rounded-none border border-hairline bg-surface px-4 py-3">
+      <span className="font-mono text-[10px] font-medium uppercase tracking-[1.2px] text-fg-soft">
+        {label}
+      </span>
+      <span className={`text-2xl font-semibold tabular-nums ${accent ? "text-danger" : "text-fg"}`}>
+        {value}
+        {sub ? <span className="ml-1 text-xs font-normal text-fg-soft">{sub}</span> : null}
+      </span>
+    </div>
   );
 }

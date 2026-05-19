@@ -20,7 +20,8 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     pathname.startsWith("/curated") ||
     pathname.startsWith("/search") ||
     pathname.startsWith("/alerts") ||
-    pathname.startsWith("/daily");
+    pathname.startsWith("/daily") ||
+    pathname.startsWith("/items");
   const isTimelineApi =
     pathname.startsWith("/api/timeline") ||
     pathname.startsWith("/api/search") ||
@@ -53,16 +54,20 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     }
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  response.headers.set("x-pathname", pathname);
+  return response;
 }
 
 export const config = {
   matcher: [
     "/",
+    "/auth/:path*",
     "/curated/:path*",
     "/search/:path*",
     "/alerts/:path*",
     "/daily/:path*",
+    "/items/:path*",
     "/admin/:path*",
     "/api/admin/:path*",
     "/api/dashboard",
