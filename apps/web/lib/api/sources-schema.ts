@@ -1,7 +1,26 @@
 import { z } from "zod";
 
 const tierSchema = z.enum(["T1", "T2", "T3"]);
-const fetcherTypeSchema = z.enum(["rss", "html", "playwright"]);
+const fetcherTypeSchema = z.enum(["rss", "html", "playwright", "quotes"]);
+
+const quotesAdapterSchema = z.enum([
+  "shfe",
+  "gfex",
+  "lme",
+  "pboc",
+  "chinabond",
+  "rsshub-extract"
+]);
+
+const quotesRetrySchema = z.object({
+  max: z.number().int().min(1),
+  backoffMs: z.number().int().min(0)
+});
+
+const quotesRegexRuleSchema = z.object({
+  pattern: z.string().min(1),
+  key: z.string().min(1)
+});
 
 export const sourceConfigSchema = z.discriminatedUnion("type", [
   z.object({
@@ -26,6 +45,14 @@ export const sourceConfigSchema = z.discriminatedUnion("type", [
     waitFor: z.string().min(1),
     extractor: z.string().startsWith("() =>"),
     useRealUa: z.boolean().optional()
+  }),
+  z.object({
+    type: z.literal("quotes"),
+    adapter: quotesAdapterSchema,
+    metric_keys: z.array(z.string().min(1)).min(1),
+    endpoint: z.string().url(),
+    retry: quotesRetrySchema,
+    regex_rules: z.array(quotesRegexRuleSchema).optional()
   })
 ]);
 

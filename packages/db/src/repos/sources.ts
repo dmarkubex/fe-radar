@@ -3,7 +3,7 @@ import type { DbClient } from "../client";
 import { sources } from "../schema";
 
 export type SourceTier = "T1" | "T2" | "T3";
-export type FetcherType = "rss" | "html" | "playwright";
+export type FetcherType = "rss" | "html" | "playwright" | "quotes";
 
 export interface SourceRecord {
   id: number;
