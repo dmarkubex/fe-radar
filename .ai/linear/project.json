@@ -1,0 +1,1031 @@
+{
+  "project": {
+    "id": "fa1fe194-bc72-457e-a9c0-aa4119732543",
+    "name": "FE-Radar — 远东控股行业情报雷达",
+    "description": "远东控股集团内部使用的电力/电线电缆/储能行业情报雷达，每 6 小时抓取并以时间线+精选+日报呈现",
+    "state": "backlog",
+    "url": "https://linear.app/dmarkubex/project/fe-radar-远东控股行业情报雷达-9536558a9480",
+    "teams": {
+      "nodes": [
+        {
+          "key": "DMA",
+          "name": "Dmarkubex"
+        }
+      ]
+    }
+  },
+  "issues": [
+    {
+      "id": "8894d5f7-b3db-42b7-be0f-4c1b519269c1",
+      "identifier": "DMA-52",
+      "title": "[REVIEW-CHORE] 工作树切原子 commit + 清理 untracked",
+      "description": "## 背景\n\n工作树 41 modified + 14 untracked（+2483 / -551 行）混在一起，跨多个主题，无法整体合并。\n\n## Commit 切分计划（按 CLAUDE.md `[T-Mx-XX]` / `[DMA-XX]` 约定）\n\n1. **抽离共享 API helper**：`lib/api/cursor.ts`、`lib/api/item-visibility.ts` + `timeline-query.ts` / `alerts-query.ts` 去重\n2. **worker 结构化日志**：`apps/worker/src/jobs/prefilter.ts`、`apps/worker/src/lib/robots.ts`、`packages/llm/src/client.ts`\n3. **抽 worker runner**：`apps/worker/src/index.ts` + 新 `runner.ts` + `daily-gen.test.ts` mock 更新（注意：与 \\[REVIEW-M2\\] 协调，可一起做）\n4. **UI 视觉系统大改**：所有 `app/**/page.tsx`、`components/**`、`globals.css`、`tailwind.config.ts`、`layout.tsx`、`middleware.ts`（与 \\[REVIEW-M7\\] 协调）\n   * 建议再拆 3 子 commit：login / app-shell / 内容页（curated/daily/alerts/items）\n5. **mock-mode dev 预览路径**：`lib/mock-mode.ts`、`lib/mock-data.ts`、`packages/db/scripts/seed-mock-data.ts`、`dev.sh`、`docker-compose.dev.yml` —— **依赖 \\[REVIEW-C1+C2\\] 先修完**\n6. **信源 seed v2 新 migration**：由 \\[REVIEW-M4\\] 实施\n\n## untracked 清理\n\n- [ ] `AGENTS.md`（Codex CLI 损坏副本）→ 加 `.gitignore` 并删本地文件（handoff.md §2 已记）\n- [ ] `apps/web/next-env.d.ts` 改动 revert（自动生成文件不该手工 diff）\n- [ ] `design/*.html` + 多张 logo 图：移到 `docs/design/` 或独立分支，**确认** `mp20jvm9-logo_远东控股集团.png` **与** `public/fareast-logo.png` **版权 / 使用范围**后再决定是否入主仓\n- [ ] `apps/web/public/fareast-logo.png`：同上，确认版权\n\n## 验收\n\n- [ ] 工作树空（`git status` clean）或仅剩明确决定保留的 untracked\n- [ ] 每个 commit 单独可过 `pnpm -r typecheck/lint/test/build` + `pnpm madge --circular`\n- [ ] commit message 全部符合 `[T-Mx-XX] 动词 + 范围` 或 `[DMA-XX] 动词 + 范围` 之一（项目内统一一种，见 [DMA-33](https://linear.app/dmarkubex/issue/DMA-33/codex-execute-m5-后台-监控-上线8-tasks) 经验教训）",
+      "priority": 3,
+      "priorityLabel": "Medium",
+      "estimate": null,
+      "state": {
+        "name": "Backlog",
+        "type": "backlog"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-13T00:45:07.409Z",
+      "updatedAt": "2026-05-13T00:45:07.409Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-52/review-chore-工作树切原子-commit-清理-untracked"
+    },
+    {
+      "id": "d577d449-1eb1-4d67-a600-a2b404f7288e",
+      "identifier": "DMA-51",
+      "title": "[REVIEW-M7] 修 middleware x-pathname 经 RSC headers() 的传递链",
+      "description": "## 问题\n\n**位置**：`apps/web/middleware.ts:57` 写 `x-pathname` 到 response header，`app/layout.tsx:14` 用 `headers()` 读取。\n\nNext.js 中 `headers()` 返回的是**请求头**，不是 response header。`NextResponse.next()` 上 set 的 header 进不去 RSC。\n\n后果：`layout.tsx` 里的 login-page-vs-shell 分支永远走不到 login 分支（因为读到的 `x-pathname` 永远为空 / 默认 `/`）。客户端 `AppShell` 通过 `usePathname()` 还能工作，但 RSC 层判断失效。\n\n## 修复\n\n```ts\n// middleware.ts\nconst requestHeaders = new Headers(request.headers);\nrequestHeaders.set('x-pathname', request.nextUrl.pathname);\nreturn NextResponse.next({ request: { headers: requestHeaders } });\n```\n\n## 验收\n\n- [ ] `layout.tsx` 在 `/auth/login` 路径下读到正确的 `x-pathname`\n- [ ] RSC 层 login 分支可达（写单元/集成测试）\n- [ ] 整站手动走一遍 `/`, `/curated`, `/daily`, `/alerts`, `/auth/login`, `/admin/*` 行为正确",
+      "priority": 2,
+      "priorityLabel": "High",
+      "estimate": null,
+      "state": {
+        "name": "Backlog",
+        "type": "backlog"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-13T00:44:54.285Z",
+      "updatedAt": "2026-05-13T00:44:54.285Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-51/review-m7-修-middleware-x-pathname-经-rsc-headers-的传递链"
+    },
+    {
+      "id": "2a0be866-f342-4998-b51e-160ee5230e26",
+      "identifier": "DMA-50",
+      "title": "[REVIEW-M4] 信源 seed v2 改为新 migration（不要修改已落库的 0004）",
+      "description": "## 问题\n\n**位置**：`packages/db/migrations/0004_sources_seed.sql`（已 modified）\n\n直接改动已被环境应用过的 migration 文件违反 \"migrations 不可变\" 原则。任何已跑过 0004 的环境（dev / CI / staging）不会重跑这份 SQL，于是 seed 修订**只对全新环境生效**，老环境与新环境数据漂移。\n\n## 修复\n\n* 将 0004 还原到原始版本（`git checkout HEAD -- packages/db/migrations/0004_sources_seed.sql`）\n* 把修订后的内容写到新 migration：`packages/db/migrations/0011_sources_seed_v2.sql`\n* 用 `INSERT ... ON CONFLICT (url) DO UPDATE SET ... WHERE sources.disabled_at IS NULL` 形式更新已存在源，避免覆盖人工 disable\n* 不可达源带 `disabled_at = NOW(), disabled_reason = '...'`\n\n## 验收\n\n- [ ] `git diff HEAD -- packages/db/migrations/0004_sources_seed.sql` 为空\n- [ ] 新 migration 0011 落地，包含 2026-05-12 校验结果\n- [ ] 在已跑过 0004 的库上跑 0011，结果与全新库一致\n- [ ] admin 后台 disable 过的源不被覆盖",
+      "priority": 2,
+      "priorityLabel": "High",
+      "estimate": null,
+      "state": {
+        "name": "Backlog",
+        "type": "backlog"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-13T00:44:47.736Z",
+      "updatedAt": "2026-05-13T00:44:47.736Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-50/review-m4-信源-seed-v2-改为新-migration不要修改已落库的-0004"
+    },
+    {
+      "id": "a7c72047-fd46-4348-af8f-9cfa6bbf30bf",
+      "identifier": "DMA-49",
+      "title": "[REVIEW-M3] mock 写路径返回稳定语义（去掉伪 id 冲突）",
+      "description": "## 问题\n\n**位置**：`apps/web/app/api/sources/route.ts:32`、`api/sources/[id]/route.ts:17,30`、`api/scoring-config/route.ts:36`\n\nmock 写路径返回 `{ id: mockSources.length + 1, ...parsed.data }`：\n\n* `mockSources.length` 是进程内常量，并发 POST 都拿到同一 id\n* UI mutation 缓存里塞进假 id，重载后再 DELETE 会 404\n* 同理 `PUT /api/scoring-config` 仅 echo body 不落盘，next read 拿到旧数据\n\n## 修复方案（择一）\n\nA. **只读 mock**：所有写路径在 mock 模式下返回 `503 { error: \"MOCK_READONLY\" }`，UI 提示「演示模式不可写」\nB. **进程内 store**：以一份 module-level `Map<string, T>` 持久化 mock 写入，加 `crypto.randomUUID()` 作 id\n\n推荐 A，简单且不会误导真实流程。\n\n## 验收\n\n- [ ] mock 模式下，POST/PUT/DELETE 返回一致的 readonly 错误（或 store 写入正确）\n- [ ] UI 在错误时给出明确提示，不污染 query cache\n- [ ] 不再出现并发 id 冲突测试用例",
+      "priority": 2,
+      "priorityLabel": "High",
+      "estimate": null,
+      "state": {
+        "name": "Backlog",
+        "type": "backlog"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-13T00:44:40.309Z",
+      "updatedAt": "2026-05-13T00:44:40.309Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-49/review-m3-mock-写路径返回稳定语义去掉伪-id-冲突"
+    },
+    {
+      "id": "927244cd-d81f-4416-89b4-365d5a9ce90f",
+      "identifier": "DMA-48",
+      "title": "[REVIEW-M2] worker 启动入口判定改用独立 bin",
+      "description": "## 问题\n\n**位置**：`apps/worker/src/index.ts:11`\n\n当前用 `process.argv[1]?.endsWith(\"worker/src/index.ts\") || endsWith(\"worker/dist/index.js\")` 判定是否启动。\n\n风险：\n\n* Docker `CMD [\"node\",\"/app/dist/index.js\"]`、pm2、符号链接路径下不可靠\n* 把模块导出与启动副作用混在同一文件，任何 `import { ... } from \"./index\"` 都会跑一次 `import(\"./runner\")` 检查\n\n## 修复\n\n* 新建 `apps/worker/src/main.ts`（或 `bin/worker.ts`）作为唯一入口，调用 `startWorker()`\n* `index.ts` 退化为纯 re-export，不带副作用\n* 更新 `package.json` `bin` / Dockerfile CMD\n\n## 验收\n\n- [ ] `node apps/worker/dist/main.js` 启动正常\n- [ ] 在 web 端 `import` worker 任何导出，不再触发启动逻辑\n- [ ] Dockerfile 入口改成新文件\n- [ ] 加 ESLint `no-restricted-imports` 禁止 `apps/web/**` 引用 `apps/worker/**`",
+      "priority": 2,
+      "priorityLabel": "High",
+      "estimate": null,
+      "state": {
+        "name": "Backlog",
+        "type": "backlog"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-13T00:44:35.133Z",
+      "updatedAt": "2026-05-13T00:44:35.133Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-48/review-m2-worker-启动入口判定改用独立-bin"
+    },
+    {
+      "id": "6bb26f0d-8c54-4399-a3c9-8b657bb64bf7",
+      "identifier": "DMA-47",
+      "title": "[REVIEW-M1] health.ts 恢复 pgvector extension probe",
+      "description": "## 问题\n\n**位置**：`packages/db/src/health.ts:22`\n\n工作树改动把 `CREATE EXTENSION IF NOT EXISTS vector` 删了，只剩 `SELECT 1`。\n\n风险：pgvector 未启用时，启动 health check 通过，但 embedder/cluster 在运行时才会爆。\n\n## 修复方案（二选一）\n\nA. 把 `CREATE EXTENSION` 显式写到 migration（`packages/db/migrations/000X_pgvector.sql`），permission 不够时启动失败\nB. 在 `health.ts` 保留独立 probe：`SELECT 1 FROM pg_extension WHERE extname='vector'`，缺失则 health check 返回 unhealthy\n\n## 验收\n\n- [ ] 在缺 vector 扩展的 Postgres 上启动 → 启动期就明确失败（而不是运行时）\n- [ ] 在已有 vector 扩展的 Postgres 上 → 通过\n- [ ] 单测覆盖两种情况",
+      "priority": 2,
+      "priorityLabel": "High",
+      "estimate": null,
+      "state": {
+        "name": "Backlog",
+        "type": "backlog"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-13T00:44:27.207Z",
+      "updatedAt": "2026-05-13T00:44:27.207Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-47/review-m1-healthts-恢复-pgvector-extension-probe"
+    },
+    {
+      "id": "e2c06655-22d5-4a60-93d9-8ee3a0dcdbc1",
+      "identifier": "DMA-46",
+      "title": "[REVIEW-C1+C2] 闭合 mock-mode 安全漏洞（auth 绕过 + 客户端 flag 泄露）",
+      "description": "## 背景\n\n工作树 code review（2026-05-13）发现 mock-mode 实现存在 2 个 Critical 漏洞，**违反硬约束**，阻塞合并。\n\n## 问题\n\n### C1. Auth 绕过 + bcrypt 违规\n\n**位置**：`apps/web/lib/auth/users.ts:17-26`\n\n`findUserByUsername` 在 `isMockMode()` 时返回合成 admin（`admin/admin123456`），并用 `bcrypt.hash(_, 4)`。\n\n* 违反 CLAUDE.md 硬约束：bcrypt(work_factor=12)\n* 若 mock flag 误开到 prod，匿名即可登入 admin\n\n### C2. 服务端 flag 经 `NEXT_PUBLIC_*` 泄露到客户端\n\n**位置**：`apps/web/lib/mock-mode.ts:2`\n\n`isMockMode()` 接受 `NEXT_PUBLIC_APP_DATA_MODE`。`NEXT_PUBLIC_*` 会被 Next.js 注入到客户端 bundle，任何用户在浏览器 DevTools 都可读到。该 flag 在 `api/sources/route.ts`、`api/scoring-config/route.ts`、`api/daily/route.ts`、`lib/auth/users.ts` 等位置被用来 gate **服务端写路径与 auth** —— 权限提升脚枪。\n\n## 验收（Definition of Done）\n\n- [ ] `isMockMode()` 只读 `APP_DATA_MODE`（去掉 `NEXT_PUBLIC_*` 来源）\n- [ ] mock 分支即使开启，bcrypt cost 仍为 12（统一走 `BCRYPT_WORK_FACTOR=12`）\n- [ ] 启动断言：`if (process.env.NODE_ENV === \"production\" && isMockMode()) throw new Error(...)`\n- [ ] mock 用户路径只在 `NODE_ENV !== \"production\"` 时生效\n- [ ] `grep -r \"NEXT_PUBLIC_APP_DATA_MODE\" apps packages` 返回 0\n- [ ] `pnpm -r typecheck/lint/test/build` 全绿\n- [ ] 测试覆盖：mock 关闭时 admin 合成账号不可登录\n\n## Rollback\n\nrevert 本 issue 对应 commit；mock-mode 功能本身可后续通过 server-only flag 重新启用。",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-13T00:44:21.571Z",
+      "updatedAt": "2026-05-13T02:47:04.964Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-46/review-c1c2-闭合-mock-mode-安全漏洞auth-绕过-客户端-flag-泄露"
+    },
+    {
+      "id": "2f444199-bd6f-486c-be34-e04d1baeed21",
+      "identifier": "DMA-34",
+      "title": "[Follow-up] T-M1-08 admin UI Playwright E2E + CI（DMA-29 acceptance gate 7 补缺）",
+      "description": "## 任务\n\n补全 [DMA-29](<https://linear.app/dmarkubex/issue/DMA-29>) M1 抓取层未交付的 **acceptance gate 7 = T-M1-08 admin UI Playwright E2E**。\n\n## 背景：缺什么\n\n[DMA-29](https://linear.app/dmarkubex/issue/DMA-29/codex-execute-m1-抓取层10-tasks-含-t-m1-10-代理池) 评审发现：\n\n* ❌ **测试代码根本没写**：`apps/web` 只有 3 个单测文件（`sources-schema.test.ts` / `password.test.ts` / `rbac.test.ts`），**无 admin sources E2E 测试**\n* ❌ `@playwright/test` 没装在 apps/web；`playwright` 包只在 apps/worker（给 fetcher 用，不是给 UI E2E）\n* ❌ 本地环境也跑不起来（Docker daemon 没启 + psql 没装）\n\nCodex 自报 `review_pending` 没标 Done，回报诚实但 gate 7 真的没过。\n\n本 issue **专门补这一项**，通过后才能解锁 [DMA-30](<https://linear.app/dmarkubex/issue/DMA-30>) M2。\n\n## 任务范围（仅本 issue）\n\n### 1\\. 在 apps/web 装 Playwright E2E 工具链\n\n* 加 devDep：`@playwright/test`\n* 加 `apps/web/playwright.config.ts`（baseURL=`http://localhost:3000` · projects=chromium · webServer=`pnpm --filter @fe-radar/web start`）\n* 加 `apps/web/e2e/` 目录（与 `__tests__/` 区分；vitest 不扫，playwright 扫）\n* 加 `apps/web/package.json` script：`\"e2e\": \"playwright test\"`\n\n### 2\\. 写 admin sources login → CRUD E2E\n\n新增文件 `apps/web/e2e/admin-sources.spec.ts`，覆盖：\n\n1. 未登录访问 `/admin/sources` → 重定向 `/auth/login`\n2. 用 admin 账号登录（用 seed 的 admin 用户 · bcrypt(12) hash）→ 跳回 `/admin/sources`\n3. 看到 sources 表格（[DMA-29](https://linear.app/dmarkubex/issue/DMA-29/codex-execute-m1-抓取层10-tasks-含-t-m1-10-代理池) seed 的 37 条 · 至少能看到 enabled=true 的 34 条）\n4. **Create**：点\"新建\"→ 填表单（name / url / fetcher_type=rss / config JSON）→ 提交 → 表格新增 1 行\n5. **Update**：点编辑 → 改 name → 提交 → 表格行内 name 更新\n6. **Delete (soft)**：点删除 → 确认 → 表格中该行 enabled=false（不真删 · [DMA-29](https://linear.app/dmarkubex/issue/DMA-29/codex-execute-m1-抓取层10-tasks-含-t-m1-10-代理池) 软删约束）\n7. viewer 角色登录 → 访问 `/admin/sources` → 403（middleware 已 enforce）\n\n### 3\\. GitHub Actions E2E workflow\n\n新增 `.github/workflows/e2e.yml`：\n\n* `services.postgres: postgres:16`（不要 pgvector/zhparser，E2E 不需要那俩，简化）\n* `services.redis: redis:7`（如果 Auth.js 不依赖 Redis 可省）\n* step：`pnpm install` / `pnpm --filter @fe-radar/db migrate`（用 drizzle-kit push 或 migrations apply 脚本） / seed admin 用户 / `pnpm --filter @fe-radar/web build` / `pnpm --filter @fe-radar/web e2e`\n* 触发：PR + main push\n\n### 4\\. seed admin 用户脚本\n\n* `packages/db/scripts/seed-admin.ts`（已可能在 T-M0-08/T-M1-08 隐含逻辑里 · 检查 + 复用 / 不存在则新增）\n* 输入 env：`SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD`（CI 用 actions secret）\n* bcrypt(work_factor=12) 生成 hash · ON CONFLICT 幂等\n\n## 强制约束（同 [DMA-29](<https://linear.app/dmarkubex/issue/DMA-29>) · 简化）\n\n1. 可写根 = `/Volumes/Out-Memory/AI-Timeline-web`\n2. **commit 格式** `[T-M1-08-E2E] 动词 + 范围`（继承 T-M1-08 编号 + E2E 后缀，标识是补缺 task）\n3. agent-web-ui scope（apps/web/**）+ agent-infra scope（.github/workflows/** · packages/db/scripts/\\*\\*）\n4. 禁 `--no-verify`\n5. spec frozen 在 v0.8/v0.3，不许改\n\n## 项目级硬约束（违例不接受）\n\n* **CI E2E 必须用真实 Postgres**（GitHub Actions services.postgres）· 不许 mock DB · [DMA-25](https://linear.app/dmarkubex/issue/DMA-25/codex-execute-fe-radar-m0m5-多-agent-实施v07v02-plan-approved) 教训\"mock 与 prod 行为分叉\"\n* **bcrypt(work_factor=12)**（seed-admin 脚本，与 T-M0-08 一致）\n* **soft delete 测试覆盖**（DELETE 后 GET 仍返回该 source · enabled=false · 与 T-M1-07 软删一致）\n* **viewer 403 测试覆盖**（middleware RBAC 必须 enforce · 与 T-M0-08 一致）\n\n## 验收门槛（全部满足才能 Done）\n\n1. `git log --grep '\\[T-M1-08-E2E\\]' --oneline | wc -l` ≥ 1\n2. `apps/web/e2e/admin-sources.spec.ts` 存在 + 7 个 test 全 ✅（本地可选）\n3. `.github/workflows/e2e.yml` 存在 + GitHub Actions 真实跑过一次 ✅（PR 触发）\n4. `apps/web/package.json` 有 `@playwright/test` 在 devDeps + `e2e` script\n5. `apps/web/playwright.config.ts` 存在\n6. `packages/db/scripts/seed-admin.ts` 存在 + 幂等\n7. 现有 `pnpm typecheck` / `pnpm lint` / `pnpm test` / `pnpm build` / `pnpm madge --circular` 仍全绿（不破坏 M0/M1 既有 gate）\n8. handoff.md 更新\n\n## 进度汇报\n\n* 全绿 → `[Codex Dev Result]` block + status `done`\n* 任何 fail → `partial` 或 `blocked`，**不许标 Done**\n* 完成后由 Claude Code 评审；通过即解锁 [DMA-30](<https://linear.app/dmarkubex/issue/DMA-30>) M2\n\n## 不在本 issue 范围\n\n* 写新业务逻辑 / 改 sources schema（M1 已交付）\n* admin 其他页面 E2E（仅 sources · 后续 M3/M5 时再加）\n* M2 task\n\nGo.",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-11T01:07:53.614Z",
+      "updatedAt": "2026-05-11T06:55:27.825Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-34/follow-up-t-m1-08-admin-ui-playwright-e2e-cidma-29-acceptance-gate-7"
+    },
+    {
+      "id": "ca96009d-a43d-415a-824a-dd767c5e45ef",
+      "identifier": "DMA-33",
+      "title": "Codex Execute M5: 后台 / 监控 / 上线（8 tasks）",
+      "description": "## 任务\n\n实施 FE-Radar **M5 · 后台 / 监控 / 上线**（spec/tasks.md §7）。**最终 milestone**，完成后 release v1.0.0。\n\n**前置**：M4 告警 / 日报 / 钉钉 SSO（独立 issue）必须 ✅ 才能开 M5。\n\n**目标日期**：2026-06-30\n\n## Task 清单（8 个 · 详见 [spec/tasks.md](<spec/tasks.md>) §7）\n\n| ID | owner | scope |\n| -- | -- | -- |\n| T-M5-01 | agent-web-ui | /admin/dashboard（fetch 成功率 / 评分覆盖 / **priority backlog 行 ·** [DMA-23](https://linear.app/dmarkubex/issue/DMA-23/对task任务进行评审) **E3** / 代理池 disabled 列表 + re-enable · [DMA-24](https://linear.app/dmarkubex/issue/DMA-24/antigravity-复审-plan-v07-tasksmd-v02dma-23-fix-验证) B3） |\n| T-M5-02 | agent-web-ui | /admin/scoring 评分配置（D 权重 / 阈值矩阵 · 后台编辑 + audit） |\n| T-M5-03 | agent-web-ui | /admin/users 用户管理（角色 / **disabled_at 软删** · [DMA-26](https://linear.app/dmarkubex/issue/DMA-26/antigravity-第三轮复审-plan-v08-tasksmd-v03mobile-hash-disabled-at-detail) R2 / merge_conflicts confirm UI） |\n| T-M5-04 | agent-web-ui | /admin/entities 实体词典（C1/C2/C3 + 别名 · CRUD） |\n| T-M5-05 | agent-worker | cleanup job（90 天数据 · FK 级联 · testcontainers 集成测试） |\n| T-M5-06 | agent-infra | Pino 日志 + OTEL trace + Grafana dashboard（priority backlog 老化告警） |\n| T-M5-07 | agent-infra | MinIO 备份脚本（每日 PG dump + 7 日保留） |\n| T-M5-08 | agent-infra | 上线 release 流程（Docker Swarm deploy + 烟雾测试 + release notes） |\n\n## 执行顺序（依赖图 §8）\n\n```\nM4 完毕后开 · 顺序串行 / 部分并行\nT-M5-01..04 (admin 页 · 并行 · 拆 2 web-ui worker)\nT-M5-05 (cleanup) 独立\nT-M5-06..07 (infra · 并行)\nT-M5-08 (release) 必须最后开\n```\n\n## 强制约束（同 [DMA-28](<https://linear.app/dmarkubex/issue/DMA-28>)）\n\n1. 可写根 = `/Volumes/Out-Memory/AI-Timeline-web`\n2. 每 task `[T-M5-XX]` commit\n3. 8 sub-agent 严守 scope\n4. `partial`/`blocked` 不许 Done\n\n## M5 项目级硬约束（违例不接受）\n\n* **配置必须存数据库**（T-M5-02 scoring_config / T-M5-04 entities），不许硬编码\n* **scoring_config seed 用** `ON CONFLICT DO NOTHING`，重跑 migration 不覆盖 admin 改过的配置（M0 已遵守，本 milestone 后台改写不污染）\n* **数据保留 90 天**（T-M5-05 · items / item_analysis / item_entities / cluster_items / feedbacks / daily_reports）；配置类（sources / entities / scoring_config / users）永久\n* **cleanup 事务 FK**：feedbacks.item_id `ON DELETE CASCADE`、clusters.lead_item_id `ON DELETE SET NULL`（已在 M0 schema · T-M5-05 验证）\n* **users 软删 =** `disabled_at` 时间戳（T-M5-03 · [DMA-26](https://linear.app/dmarkubex/issue/DMA-26/antigravity-第三轮复审-plan-v08-tasksmd-v03mobile-hash-disabled-at-detail) R2 · 不真删）\n* **merge_conflicts 待确认列表**（T-M5-03 · admin 一键 confirm/reject · audit log）\n* **priority backlog 监控**（T-M5-01 · 24h 占比 >30% 红色 / >50% 紧急）\n* **代理池 disabled 列表 + re-enable 按钮**（T-M5-01 · [DMA-24](https://linear.app/dmarkubex/issue/DMA-24/antigravity-复审-plan-v07-tasksmd-v02dma-23-fix-验证) B3）\n* **release 流程**（T-M5-08 · `release tag v1.0.0` 推到内网 registry · release notes）\n\n## M5 验收门槛（最终 release gate）\n\n 1. `git log --grep '\\[T-M5-' --oneline | wc -l` ≥ 8\n 2. CI 全绿\n 3. **12 个 FR 端到端可演示**（requirements.md §3.1）\n 4. **§14 验收清单 8 项 ✅**（requirements.md §14）\n 5. **Antigravity Code Review (Gate 2)** 0 critical\n 6. T-M5-05 cleanup 集成测试：90 天前 item 删除 + feedback 级联删 + cluster.lead_item_id SET NULL（无 FK 卡死）\n 7. T-M5-06 priority backlog >24h >30% → Grafana 红色告警触发\n 8. T-M5-07 MinIO 备份：每日 dump 生成 + 7 日内可恢复\n 9. **T-M5-08 release v1.0.0 tag 推到内网 registry**\n10. handoff.md 标记 Stage = Release Done\n\n## 风险（§9）\n\n* T-M5-05 cleanup 误删活跃 cluster → testcontainers 集成测试 + 双层检查（无 cluster_items）\n\n## 进度汇报\n\n* 全绿 + Antigravity Gate 2 pass + release tag → `done`\n* 任何 acceptance fail → `partial`/`blocked`\n\n## 不在本 issue 范围\n\n* spec 修订（plan stage 已 frozen）\n* M0–M4（已独立 issue 完成）\n\nGo.",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-11T00:20:59.281Z",
+      "updatedAt": "2026-05-13T00:45:07.409Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-33/codex-execute-m5-后台-监控-上线8-tasks"
+    },
+    {
+      "id": "61819b00-e316-463a-9a62-2447ff5a4f3e",
+      "identifier": "DMA-32",
+      "title": "Codex Execute M4: 告警 / 日报 / 钉钉 SSO（9 tasks · 含 T-M4-05a 合并）",
+      "description": "## 任务\n\n实施 FE-Radar **M4 · 告警 / 日报 / 钉钉 SSO（含合并）**（spec/tasks.md §6）。\n\n**前置**：M3 前端核心页面（独立 issue）必须 ✅ 才能开 M4。\n\n**目标日期**：2026-06-27\n\n## Task 清单（9 个 · 详见 [spec/tasks.md](<spec/tasks.md>) §6）\n\n| ID | owner | scope |\n| -- | -- | -- |\n| T-M4-01 | agent-core | alert 计算（packages/core/alert.ts:computeAlert 单一入口） |\n| T-M4-02 | agent-worker | alert 派发（多通道 alert_type · in-app + 钉钉机器人） |\n| T-M4-03 | agent-worker | 日报生成（Kimi · 200K 上下文 · scrubber 前置） |\n| T-M4-04 | agent-web-ui | /daily 日报页 |\n| T-M4-05 | agent-auth | 钉钉 OAuth provider（Auth.js · 仅 unionid + name + dept · 不拉手机号） |\n| T-M4-05a | agent-auth | **mergeOrCreateUser 合并策略**（[DMA-23](https://linear.app/dmarkubex/issue/DMA-23/对task任务进行评审) R2 fix · 决策树 · merge_conflicts） |\n| T-M4-06 | agent-web-ui | /alerts 告警页（type 筛选 · 已读/未读） |\n| T-M4-07 | agent-web-ui | 用户偏好设置页（关注圈勾选 · alert_type 订阅） |\n| T-M4-08 | agent-auth | RBAC 角色升级（admin 后台分配 role） |\n\n## 执行顺序（依赖图 §8）\n\n```\nM3 完毕后开 · 三流并行：\n  告警:   T-M4-01 → T-M4-02 / T-M4-06\n  日报:   T-M4-03 → T-M4-04\n  合并:   T-M4-05a (合并策略) → T-M4-05 (钉钉 provider · 调 mergeOrCreateUser)\n                              → T-M4-08 (RBAC)\nT-M4-07 偏好页：依赖 T-M4-01 + T-M4-05\n```\n\n⚠️ **T-M4-05 必须等 T-M4-05a 完成**（先有合并策略才能调 mergeOrCreateUser · [DMA-23](https://linear.app/dmarkubex/issue/DMA-23/对task任务进行评审) R2 fix）\n\n## 强制约束（同 [DMA-28](<https://linear.app/dmarkubex/issue/DMA-28>)）\n\n1. 可写根 = `/Volumes/Out-Memory/AI-Timeline-web`\n2. 每 task `[T-M4-XX]` commit\n3. 8 sub-agent 严守 scope\n4. `partial`/`blocked` 不许 Done\n\n## M4 项目级硬约束（违例不接受）\n\n* `alert_type` 触发统一在 `packages/core/alert.ts:computeAlert()` 单一入口（T-M4-01）\n* **公网 LLM (Kimi) 调用前必经 scrubber**（T-M4-03 日报生成）\n* **不拉 / 不存用户手机号**（T-M4-05 钉钉仅 unionid + name + dept）\n* **mergeOrCreateUser 决策树**（T-M4-05a · v0.8 R1）：\n  * dingtalk_id 已存在 → 直接登录\n  * username + dingtalk_id 都不存在 → 新建\n  * dingtalk_id 不存在但 name+dept 唯一匹配 → 自动合并\n  * name+dept 多匹配 → 写 merge_conflicts，等 admin confirm（**禁止自动合并**）\n* **bcrypt(work_factor=12) / JWT httpOnly / 2h + 滑动续期**（T-M4-08 已在 M0 实现，复用）\n* **本地账号 + 钉钉 SSO 并存**（M0–M3 用本地，M4+ 钉钉接入 · 已实现的 T-M0-08 不变）\n* **告警 priority backlog 监控**（T-M4-02 · 24h 占比 >30% 红色告警）\n\n## M4 验收门槛\n\n1. `git log --grep '\\[T-M4-' --oneline | wc -l` ≥ 9（含 T-M4-05a）\n2. CI 全绿\n3. T-M4-01 单测：自家公司被提及（含别名 / 子公司）100% 命中\n4. T-M4-02 钉钉机器人：测试群收到告警卡片\n5. T-M4-03 日报：3 天回测，每天 ≤ 1 篇 · ≤ 2000 字 · 5 类分布合理\n6. T-M4-05 钉钉 OAuth：扫码 → 拿到 unionid → 不拉手机号\n7. **T-M4-05a 测试：name+dept 唯一匹配 → 自动合并写 merged_at + merged_from_user_id；多匹配 → merge_conflicts 表新增**（不自动合并）\n8. T-M4-06 admin 后台 alerts/safety 筛选可用\n9. handoff.md 更新\n\n## 风险（§9）\n\n* T-M4-05 钉钉 AppKey 回调白名单未配 → M0–M3 走本地账号，M4 启动前线下补（[DMA-9](<https://linear.app/dmarkubex/issue/DMA-9>) 已 closed）\n* T-M4-05a 合并冲突误判 → 仅自动合并强匹配；name+dept 同名走人工 confirm；audit log 完整\n\n## 进度汇报\n\n* 全绿 → `done`；任何 fail → `partial`/`blocked`\n\n## 不在本 issue 范围\n\n* M5 · spec 修订\n\nGo.",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-11T00:20:24.483Z",
+      "updatedAt": "2026-05-11T05:49:31.449Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-32/codex-execute-m4-告警-日报-钉钉-sso9-tasks-含-t-m4-05a-合并"
+    },
+    {
+      "id": "c0a66fea-c187-42ac-8669-90207b0fbe69",
+      "identifier": "DMA-31",
+      "title": "Codex Execute M3: 前端核心页面（8 tasks）",
+      "description": "## 任务\n\n实施 FE-Radar **M3 · 前端核心页面**（spec/tasks.md §5）。\n\n**前置**：M2 Pipeline 与评分（独立 issue）必须 ✅ 才能开 M3（curator 输出是 timeline 数据源）。\n\n**目标日期**：2026-06-22\n\n## Task 清单（8 个 · 详见 [spec/tasks.md](<spec/tasks.md>) §5）\n\n| ID | owner | scope |\n| -- | -- | -- |\n| T-M3-01 | agent-web-api | timeline GET API（分页 / 关注圈过滤 / 排除 block） |\n| T-M3-02 | agent-web-ui | timeline 页（瀑布流 + 关注圈 Tab） |\n| T-M3-03 | agent-web-api | curated GET API（精选 Tab · 排除 block） |\n| T-M3-04 | agent-web-ui | curated 页（5 类标签筛选） |\n| T-M3-05 | agent-web-api | item detail GET API（**block / pending / dropped 排除** · [DMA-26](https://linear.app/dmarkubex/issue/DMA-26/antigravity-第三轮复审-plan-v08-tasksmd-v03mobile-hash-disabled-at-detail) E1 fix） |\n| T-M3-06 | agent-web-ui | item detail 页（评分卡片 + entity tags + summary + 原文跳转） |\n| T-M3-07 | agent-web-ui | 全局 layout + 顶部导航 + Badge（告警未读数） |\n| T-M3-08 | agent-web-ui | feedback 弹窗（👍/👎 + 文字反馈） |\n\n## 执行顺序（依赖图 §8）\n\n```\nM2 完毕后开\nT-M3-01 → T-M3-02 (timeline)\nT-M3-03 → T-M3-04 (curated)  [并行]\nT-M3-05 → T-M3-06 (detail)   [并行]\nT-M3-07 (layout) [并行]\nT-M3-08 (feedback) 依赖 T-M3-06\n```\n\n## 强制约束（同 [DMA-28](<https://linear.app/dmarkubex/issue/DMA-28>)）\n\n1. 可写根 = `/Volumes/Out-Memory/AI-Timeline-web`\n2. 每 task `[T-M3-XX]` commit\n3. 8 sub-agent 严守 scope\n4. `partial`/`blocked` 不许 Done\n\n## M3 项目级硬约束（违例不接受）\n\n* **detail API 必须排除 block / pending / dropped item**（T-M3-05 · [DMA-26](https://linear.app/dmarkubex/issue/DMA-26/antigravity-第三轮复审-plan-v08-tasksmd-v03mobile-hash-disabled-at-detail) E1 fix · 防 PII leak）\n* **timeline / curated API 默认排除 block 状态 item**（T-M3-01/03/04 · [DMA-24](https://linear.app/dmarkubex/issue/DMA-24/antigravity-复审-plan-v07-tasksmd-v02dma-23-fix-验证) B2）\n* **RSC 拉数据，交互层 client component**；**不允许前端直接访问 DB**\n* **字段命名 camelCase JSON / snake_case DB**\n* **Tailwind + shadcn/ui，不引入第三方 UI 框架**\n* **TZ=Asia/Shanghai，前端展示用 dayjs().tz()**，不许 `new Date().toLocaleString()`\n\n## M3 验收门槛\n\n1. `git log --grep '\\[T-M3-' --oneline | wc -l` ≥ 8\n2. CI 全绿\n3. Playwright E2E：未登录访问 timeline 重定向 /auth/login\n4. Playwright E2E：登录后 timeline 显示 ≥ 20 条 item，关注圈 Tab 切换正确\n5. T-M3-05 detail API 测试：block 状态 item 返回 404（不泄漏内容）\n6. T-M3-08 feedback 提交后 DB feedbacks 表新增 1 条\n7. Lighthouse mobile score ≥ 80（首页）\n8. handoff.md 更新\n\n## 风险（§9）\n\n* T-M3-04 zhparser FTS 性能 → 索引 + ILIKE fallback\n\n## 进度汇报\n\n* 全绿 → `done`；任何 fail → `partial`/`blocked`\n\n## 不在本 issue 范围\n\n* M4 / M5 · spec 修订\n\nGo.",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-11T00:19:56.403Z",
+      "updatedAt": "2026-05-11T05:30:08.466Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-31/codex-execute-m3-前端核心页面8-tasks"
+    },
+    {
+      "id": "2871c5b9-8b2c-4521-bf39-a9aa9a1e2ad2",
+      "identifier": "DMA-30",
+      "title": "Codex Execute M2: Pipeline 与评分（15 tasks · 含 T-M2-14/15 scrubber）",
+      "description": "## 任务\n\n实施 FE-Radar **M2 · Pipeline 与评分**（spec/tasks.md §4）。\n\n**前置**：M1 抓取层（独立 issue · 见 relatedTo）必须 ✅ 才能开 M2。\n\n**目标日期**：2026-06-14\n\n## Task 清单（15 个 · 详见 [spec/tasks.md](<spec/tasks.md>) §4）\n\n| ID | owner | scope |\n| -- | -- | -- |\n| T-M2-01 | agent-llm | packages/llm 共享 SDK 接口 |\n| T-M2-02 | agent-llm | Qwen client（本地 27B） |\n| T-M2-03 | agent-llm | DeepSeek client（5 维评分/摘要/翻译） |\n| T-M2-04 | agent-llm | Kimi client（200K · 日报） |\n| T-M2-05 | agent-worker | BullMQ 流水线骨架（7 queues + FlowProducer） |\n| T-M2-06 | agent-worker | prefilter job（is_industry_related） |\n| T-M2-07 | agent-worker | NER job + entities 词典加载（7 类） |\n| T-M2-08 | agent-worker | scorer job（D1/D3/D4/D5 + summary/translation/category） |\n| T-M2-09 | agent-worker | embedder + 向量索引（HNSW vs ivfflat benchmark · [DMA-23](https://linear.app/dmarkubex/issue/DMA-23/对task任务进行评审) E1） |\n| T-M2-10 | agent-worker | cluster job（Redis 分布式锁 · [DMA-23](https://linear.app/dmarkubex/issue/DMA-23/对task任务进行评审) E2） |\n| T-M2-11 | agent-core | scoring 纯函数（D2_chain 代码计算 + 加权聚合） |\n| T-M2-12 | agent-core | quota Lua 脚本（双计数器 + 陈旧度监控 · [DMA-23](https://linear.app/dmarkubex/issue/DMA-23/对task任务进行评审) E3） |\n| T-M2-13 | agent-worker | 评分回测脚本 + 100 条人工样本 |\n| T-M2-14 | agent-core | **scrubber 模块**（脱敏 + audit log · [DMA-23](https://linear.app/dmarkubex/issue/DMA-23/对task任务进行评审) R1 fix） |\n| T-M2-15 | agent-llm | **scrubber 接 LLM 链**（公网调用强制脱敏前置） |\n\n## 执行顺序（依赖图 §8）\n\n```\nT-M2-01 (LLM 接口)\n  └─ T-M2-02..04 (3 client 完全并行)\nT-M2-14 (scrubber core · 与 LLM clients 并行)\n  └─ T-M2-15 (scrubber 接 LLM 链 · 关卡)\n       └─ T-M2-05 (流水线骨架)\n            └─ T-M2-06..09 (jobs · 部分并行 · 全部走 scrubber)\nT-M2-10..12 (core 纯函数 · 完全并行 · packages/core 不依赖 db)\nT-M2-13 (回测) 依赖 T-M2-11/12\n```\n\n## 强制约束（同 [DMA-28](<https://linear.app/dmarkubex/issue/DMA-28>)）\n\n1. 可写根 = `/Volumes/Out-Memory/AI-Timeline-web`\n2. 每 task `[T-M2-XX]` commit · 禁 `--no-verify`\n3. 8 sub-agent 严守 scope\n4. `partial`/`blocked` 不许 Done\n\n## M2 项目级硬约束（违例不接受）\n\n* **D2_chain 评分必须代码计算**（T-M2-11 · NER 命中 + 关注圈），LLM 不得参与\n* **公网 LLM 调用前必经** `packages/core/scrubber.ts`（T-M2-08 DeepSeek / T-M2-04 Kimi · R1 fix）\n* **scrubber 命中 'block' 等级 → 跳过 LLM 标 admitted + summary='\\[需人工脱敏\\]'**（T-M2-08）\n* **限速器 incr 必经 quota.ts Lua 脚本**（T-M2-12 · 双独立计数器：normal ≤ 1300 + priority ≤ 200）\n* **cluster 创建必带 Redis 分布式锁**（T-M2-10 · 防多 worker 并发建簇）\n* **packages/core 不依赖 packages/db**（业务规则纯函数化便于单测）\n* **scoring_config 配置必须存数据库**，不许硬编码\n* **本地 Qwen 失败 fallback DeepSeek**（T-M2-02/06）\n* **HNSW vs ivfflat 选型**：T-M2-09 实施前必须 50K + 500K benchmark 报告（[DMA-23](https://linear.app/dmarkubex/issue/DMA-23/对task任务进行评审) E1）\n\n## M2 验收门槛\n\n 1. `git log --grep '\\[T-M2-' --oneline | wc -l` ≥ 15\n 2. CI 全绿（typecheck / lint / test / build / madge）\n 3. T-M2-06 prefilter 100 条人工样本 accuracy ≥ 80%\n 4. T-M2-07 NER 50 条样本 entity recall ≥ 75%\n 5. T-M2-08 scorer 100 条人工抽检 score 均方误差 ≤ 15\n 6. T-M2-09 vector benchmark 报告（recall@10 ≥ 0.9 / latency P99 ≤ 200ms）\n 7. T-M2-10 并发 fuzz：10 worker 同时为 100 个相似 item 建簇 → 0 重复簇\n 8. T-M2-12 Lua 100% 单测覆盖 + 并发 fuzz + 陈旧度监控可见\n 9. T-M2-13 回测样本评分 vs 人工评分皮尔逊相关 ≥ 0.7\n10. T-M2-14 scrubber 100 条人工样本召回 ≥ 95% / 假阳性 ≤ 5%\n11. T-M2-15 scrubber 性能基准 1KB < 5ms\n12. handoff.md 更新\n\n## 风险（§9）\n\n* T-M2-02 本地 Qwen GPU 容量不足 → 限速 + fallback DeepSeek\n* T-M2-09 ivfflat / HNSW 选型 → 实施前 benchmark 报告（E1）\n* T-M2-10 并发建簇竞态 → Redis 锁 + Lua 原子（E2）\n* T-M2-12 priority 饥饿 → 100% 测试 + 陈旧度监控（E3）\n* T-M2-14 scrubber 假阳性/假阴性 → 持续迭代词典\n* T-M2-15 scrubber 压垮 LLM 吞吐 → 1KB < 5ms 基准；超阈值告警\n\n## 进度汇报\n\n* 全绿 → `done`；任何 fail → `partial`/`blocked`\n\n## 不在本 issue 范围\n\n* M3–M5 task（独立 issue）· spec 修订\n\nGo.",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-11T00:19:40.825Z",
+      "updatedAt": "2026-05-11T02:50:19.328Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-30/codex-execute-m2-pipeline-与评分15-tasks-含-t-m2-1415-scrubber"
+    },
+    {
+      "id": "8d0607b6-064c-4353-aad3-50a5fb91e55f",
+      "identifier": "DMA-29",
+      "title": "Codex Execute M1: 抓取层（10 tasks · 含 T-M1-10 代理池）",
+      "description": "## 任务\n\n实施 FE-Radar **M1 · 抓取层**（spec/tasks.md §3）。\n\n**前置**：[DMA-28](<https://linear.app/dmarkubex/issue/DMA-28>) M0 已 ✅ APPROVED（13 acceptance gates 全过 / 16 个 \\[T-M0-XX\\] commits 落真仓库 / pnpm install + typecheck + lint + test + madge 全绿）。\n\n**目标日期**：2026-05-31\n\n## Task 清单（10 个 · 详见 [spec/tasks.md](<spec/tasks.md>) §3）\n\n| ID | owner | scope |\n| -- | -- | -- |\n| T-M1-01 | agent-db | sources schema 扩展 + Drizzle ORM |\n| T-M1-02 | agent-worker | RSS fetcher |\n| T-M1-03 | agent-worker | HTML fetcher (cheerio) |\n| T-M1-04 | agent-worker | Playwright fetcher |\n| T-M1-05 | agent-worker | 调度器（cron 6h + retry + 7d disable） |\n| T-M1-06 | agent-worker | 去重逻辑 |\n| T-M1-07 | agent-web-api | 信源 admin API（CRUD） |\n| T-M1-08 | agent-web-ui | 信源后台页 /admin/sources |\n| T-M1-09 | agent-db | 信源 v1 seed（37 条 · [DMA-14](https://linear.app/dmarkubex/issue/DMA-14/q-c-提供-t1-t2-t3-信源-rss-url-清单) 候选） |\n| T-M1-10 | agent-worker | **代理池 + UA 轮换**（[DMA-23](https://linear.app/dmarkubex/issue/DMA-23/对task任务进行评审) R3 fix · M1 入口前置） |\n\n## 执行顺序（依赖图 §8）\n\n```\nT-M1-01 (sources schema)\n  └─ T-M1-10 (代理池前置)\n       └─ T-M1-02..04 (并行 3 fetcher)\n            └─ T-M1-05 / T-M1-06 / T-M1-07 (并行)\n                 └─ T-M1-08 (admin 页)\nT-M1-09 (seed) 依赖 T-M1-01；可与 T-M1-10 并行\n```\n\n## 强制约束（同 [DMA-28](<https://linear.app/dmarkubex/issue/DMA-28>) · 简化）\n\n1. **可写根 =** `/Volumes/Out-Memory/AI-Timeline-web`（禁沙盒外副本）\n2. **每 task 独立 commit** · 格式 `[T-M1-XX] 动词 + 范围` · 禁 `--no-verify`\n3. **8 sub-agent 严守 scope**（跨 scope = code review major）\n4. **acceptance ≥ 全部满足才能标 Done**；`partial`/`blocked` 状态不许 Done\n5. spec 已 frozen 在 v0.8/v0.3，不许在本 issue 修订 spec\n\n## M1 项目级硬约束（违例不接受）\n\n* **代理池仅用于绕 IP 封禁**，**不得绕 robots.txt**（合规底线 · T-M1-10）\n* **不存原始 HTML 快照**（FR-12 · T-M1-03 解析后立即丢弃）\n* **同站 ≥ 1s 间隔**（T-M1-02/03/04 · 用 Bottleneck 或 p-limit）\n* **政府类 T1 信源（国家能源局/发改委/工信部）走代理池 + 真实 UA 轮换**（T-M1-04/10）\n* **playwright BrowserContext 必须池化**（不要每条新建 · T-M1-04）\n* \\**scheduler cron 0 /6 \\* \\* \\* 用 Asia/Shanghai 时区*（T-M1-05）\n* **soft delete only**（T-M1-07 DELETE 软删 enabled=false）\n* **fetcher 失败 429/403/连续超时 → 切代理池下一节点**（T-M1-02/03/04 · R3 fix）\n\n## M1 验收门槛（全部满足才能 Done）\n\n1. `git log --grep '\\[T-M1-' --oneline | wc -l` ≥ 10\n2. `pnpm typecheck` / `pnpm lint` / `pnpm test` / `pnpm build` / `pnpm madge --circular` 全绿\n3. T-M1-09 验证：37 条 seed 全部插入 + verify-sources.ts ≥ 80% 可达\n4. T-M1-10 robots.txt 不绕过验证（测试 User-agent: \\* Disallow: /private 路径不被抓）\n5. T-M1-04 playwright 10 条连续抓取内存稳定（无泄漏）\n6. T-M1-05 模拟 1 条 7 天连续失败 → enabled=false\n7. T-M1-08 Playwright E2E：登录 → CRUD 流程通过\n8. handoff.md 更新（Stage / Owner / Queue / Changes 同步）\n\n## 风险（§9）\n\n* T-M1-04 playwright 内存泄漏 → BrowserContext 池化 + 周期 restart\n* T-M1-10 代理池法务边界（不绕 robots.txt）→ 代码层断言 + admin feature flag\n\n## 进度汇报\n\n* 全绿 → `[Codex Dev Result]` block + status `done`\n* 任何 acceptance fail → `partial` 或 `blocked`，**不许标 Done**\n\n## 不在本 issue 范围\n\n* M2–M5 全部 task（已独立 issue 排期）\n* spec / requirements / design 修订\n\nGo.",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-11T00:19:04.336Z",
+      "updatedAt": "2026-05-11T05:29:40.098Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-29/codex-execute-m1-抓取层10-tasks-含-t-m1-10-代理池"
+    },
+    {
+      "id": "67578e78-b708-45a3-b5b9-9aa62a4c8ad2",
+      "identifier": "DMA-28",
+      "title": "[Re-execute] Codex M0 落地真仓库（DMA-25 REJECTED · 沙盒未同步 + CI gate 全失败）",
+      "description": "## 任务\n\n[DMA-25](https://linear.app/dmarkubex/issue/DMA-25/codex-execute-fe-radar-m0m5-多-agent-实施v07v02-plan-approved) 第一轮 Codex Execute 被 Claude Code 评审 **REJECTED**。本 issue 是 corrective re-run，仅聚焦 M0；M0 全绿后再开新 issue 启 M1–M5。\n\n## [DMA-25](https://linear.app/dmarkubex/issue/DMA-25/codex-execute-fe-radar-m0m5-多-agent-实施v07v02-plan-approved) 失败根因（必读）\n\n| \\# | 失败项 | 根因 |\n| -- | -- | -- |\n| C1 | M0 代码未落到真仓库 | Codex 在沙盒 `/Volumes/Out-Memory/code_projects/workspaces/DMA-25` 里写完，未 propagate 回 `/Volumes/Out-Memory/AI-Timeline-web` |\n| C2 | 0 个 CI gate 通过 | `pnpm install` DNS 失败（`registry.npmmirror.com` 不可达）→ `node_modules` 缺失 → lint/typecheck/test/build/madge 全部 command not found |\n| C3 | Issue 状态机错误关闭 | Codex 自报 `partial`，issue 却被标 `Done` |\n| M1 | spec/handoff 沙盒分叉 | Codex 在沙盒里\"修订\" tasks.md / handoff.md，真仓库未更新，制造未来合并冲突 |\n\n详细评审见 [DMA-25](https://linear.app/dmarkubex/issue/DMA-25/codex-execute-fe-radar-m0m5-多-agent-实施v07v02-plan-approved) 最后一条评论。\n\n## 强制约束（违反即拒收）\n\n### 1\\. 可写根 = 真仓库\n\n* **唯一可写根** = `/Volumes/Out-Memory/AI-Timeline-web`\n* 禁止再用 `/Volumes/Out-Memory/code_projects/workspaces/*` 沙盒策略；如沙箱限制无法解除，必须 STOP 并在评论里求助，**不得绕过**\n* 所有交付物必须以 `git commit` 形式落到真仓库 master（或 PR feature 分支）\n\n### 2\\. 依赖装配先行\n\n* 在写第一行业务代码前，先验证：\n\n  ```bash\n  cd /Volumes/Out-Memory/AI-Timeline-web\n  corepack enable && corepack prepare pnpm@latest --activate\n  pnpm config set registry https://registry.npmjs.org/\n  pnpm install --lockfile-only\n  ```\n* 若公司网络不通 npmjs，改用 `registry.npmmirror.com` 之外的备用 mirror，并在评论里说明换了什么源\n* `pnpm-lock.yaml` 必须 commit\n\n### 3\\. 每 task 一个 commit（不强求 PR）\n\n* commit message 严格：`[T-M0-XX] 动词 + 范围`（参考 CLAUDE.md PROJECT 章节）\n* 禁止 `--no-verify`\n* 禁止跨 task commit；同一 commit 不允许跨 sub-agent scope\n\n### 4\\. M0 验收门槛（全部满足才能标 Done）\n\n 1. `git log --grep '\\[T-M0-' --oneline | wc -l` ≥ 10（10 个 task 各至少一次 commit）\n 2. 真仓库存在以下目录：`apps/web` `apps/worker` `packages/db` `packages/llm` `packages/core` `packages/shared` `deploy` `.github/workflows` `.husky` `scripts`\n 3. 真仓库存在：`pnpm-workspace.yaml` `tsconfig.base.json` `.eslintrc.cjs` `.prettierrc.json` `vitest.config.ts`\n 4. `pnpm install` 一键过\n 5. `pnpm typecheck` 全 package 绿\n 6. `pnpm lint` 全 package 绿\n 7. `pnpm test` 全 package 绿（M0 阶段允许测试基本骨架）\n 8. `pnpm madge --circular packages/ apps/` 0 cycles\n 9. T-M0-02 schema 必须含 `disabled_at` / `merged_at` / `merged_from_user_id`，**必须不含** `mobile_hash`（v0.8 R1）\n10. T-M0-02 必须建 `merge_conflicts` 表\n11. T-M0-03 `scoring_config` seed 用 `ON CONFLICT (key) DO NOTHING`\n12. T-M0-08 本地账号用 `bcrypt(work_factor=12)` + JWT httpOnly cookie + 2h 过期 + 滑动续期\n13. `handoff.md` 在 M0 完成后必须 update（Stage / Owner / Queue / Changes 同步）\n\n### 5\\. 8 个 sub-agent 严守 scope（同 [DMA-25](https://linear.app/dmarkubex/issue/DMA-25/codex-execute-fe-radar-m0m5-多-agent-实施v07v02-plan-approved) 表）\n\n跨 scope = code review major。\n\n### 6\\. 状态机如实回报\n\n* 没装上 → `blocked`\n* 部分完成 → `partial`\n* 全 acceptance ✅ → `done`\n* `partial` / `blocked` 状态下不允许把 issue 标 Done\n\n## M0 执行顺序（spec/tasks.md §8 依赖图）\n\n```\n[1] T-M0-01 monorepo (agent-infra)        ← 关键路径起点\n        ├─[2 并行] T-M0-04 packages/shared (agent-core)\n        ├─[2 并行] T-M0-05 packages/core skeleton (agent-core)\n        ├─[2 并行] T-M0-06 Next.js + shadcn (agent-web-ui)\n        ├─[2 并行] T-M0-09 Docker Swarm stack.yml (agent-infra)\n        ├─[2 并行] T-M0-10 CI + pre-commit (agent-infra)\n        └─[2] T-M0-02 Drizzle schema (agent-db)\n                 ├─[3 并行] T-M0-03 scoring_config seed (agent-db)\n                 ├─[3 并行] T-M0-07 db client (agent-db)\n                 └─[3] T-M0-08 Auth.js + 本地登录 (agent-auth)  ← 也需 T-M0-06\n```\n\n## 必读上下文（同 [DMA-25](https://linear.app/dmarkubex/issue/DMA-25/codex-execute-fe-radar-m0m5-多-agent-实施v07v02-plan-approved)）\n\n仓库根：`/Volumes/Out-Memory/AI-Timeline-web`\n\n1. `CLAUDE.md` PROJECT 章节 — 13 硬约束 / 8 陷阱 / Linear 约定\n2. `AI_index.md` — kernel 规则\n3. `.ai/shared/agreements.md` / `.ai/shared/style-invariants.md` v1.0 / `.ai/shared/task-template.md`\n4. `spec/requirements.md` v0.8 / `spec/design.md` v0.8 / `spec/tasks.md` v0.3（**v0.3 是 APPROVED**）\n5. `handoff.md`（被本 issue 评审后会同步更新）\n\n## 进度汇报\n\n* M0 全绿 → 在本 issue 评论 `[Codex Dev Result]` block + status `done`\n* 任何 task acceptance fail → 评论 `partial` 或 `blocked`，**不许标 Done**\n* M0 通过后由 Claude Code 评审，通过即 close 本 issue 并新建 M1 issue\n\n## 不在本 issue 范围\n\n* M1–M5 全部 task（独立 issue 排期）\n* spec / requirements / design 修订（plan stage 已 frozen 在 v0.8/v0.3）\n\nGo.",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-10T05:39:31.630Z",
+      "updatedAt": "2026-05-11T00:20:59.281Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-28/re-execute-codex-m0-落地真仓库dma-25-rejected-沙盒未同步-ci-gate-全失败"
+    },
+    {
+      "id": "528a4c7d-8afd-49c6-8472-53a1253fa8bc",
+      "identifier": "DMA-27",
+      "title": "Antigravity 第三轮复审 Plan v0.8 + tasks.md v0.3（mobile_hash / disabled_at / detail PII fix 验证）",
+      "description": "## 任务\n\n对 `spec/requirements.md` v0.8 + `spec/design.md` v0.8 + `spec/tasks.md` v0.3 + `handoff.md` 进行第三轮 Stage 4 Audit，验证上一轮 Antigravity 提的 2 Systemic + 1 Edge 是否已闭合。\n\n## 背景\n\n* [DMA-23](https://linear.app/dmarkubex/issue/DMA-23/对task任务进行评审) → v0.7 / v0.2（3 Critical + 3 Edge closed）\n* [DMA-24](https://linear.app/dmarkubex/issue/DMA-24/antigravity-复审-plan-v07-tasksmd-v02dma-23-fix-验证) → APPROVED（4 Minor 内化）\n* 第二轮 Antigravity audit (out-of-band) verdict `REJECTED`：\n  * **R1 · Account Merging Deadlock**：design §10c step 2 用 mobileHash 自动合并，但 requirements §10.2 明说\"不拉手机号\"——路径永不命中\n  * **R2 · Missing Disable State**：T-M5-03 提\"停用\"功能，但 users schema 无 `disabled_at` / `is_enabled`\n  * **E1 · Detail API PII Leak**：T-M3-05 详情 API 未排除 block 状态 item，可被 ID 枚举越权访问\n* Claude Code Plan Stage Fix Plan 已落地到 v0.8 / v0.3\n\n## 评审范围\n\n仓库根：`/Volumes/Out-Memory/AI-Timeline-web`\n\n文件：\n\n* `spec/requirements.md` v0.8\n* `spec/design.md` v0.8\n* `spec/tasks.md` v0.3\n* `handoff.md`\n\n## A. 三项 fix 验证\n\n### A1 (R1 · Merging Deadlock)\n\n* `design.md §8 users` 表 ❌ **不再含** `mobile_hash` 字段；索引 `users_mobile_hash_idx` 已撤\n* `design.md §10c mergeOrCreateUser({ unionid, name, dept })` 函数签名 **不含** mobileHash 参数\n* §10c 决策树 = 3 步：\n  1. dingtalk_id 已存在 → 直接登录\n  2. name+dept 唯一匹配 → 自动合并；多匹配 → 写 merge_conflicts + 兜底新建\n  3. 无匹配 → 新建 dingtalk-only\n* `requirements.md §10.4` 同步说明（v0.8 R1 段）\n* `tasks.md T-M0-02` constraint：\"users **不要** mobile_hash 字段\"\n* `tasks.md T-M4-05a` constraint：禁止用钉钉手机号 / mobile_hash 做匹配\n* `grep -nE \"mobile_hash|mobileHash\" spec/*.md` 应只匹配 changelog / 历史说明 / 禁止性约束\n\n### A2 (R2 · Disable State)\n\n* `design.md §8 users` 含 `disabled_at TIMESTAMPTZ`（NULL = active）+ 部分索引 `users_active_idx ON users (id) WHERE disabled_at IS NULL`\n* `tasks.md T-M0-02` constraint 含 disabled_at + 部分索引\n* `tasks.md T-M5-03` constraint：UPDATE disabled_at 软删 + 登录中间件检查 + 禁止物理 DELETE + 最后一个 admin 不允许停用 + reactivate 路径\n\n### A3 (E1 · Detail API PII Leak)\n\n* `design.md §9 API 表` `/api/items/:id` 含\"默认拒绝 quota_state ∈ pending/dropped/block-summary；admin ?includeBlocked=true 才能看\"\n* `tasks.md T-M3-05` constraint 加 block / pending / dropped 排除（与 T-M3-01 timeline API 一致）\n\n## B. cross-cutting 一致性\n\n1. 三文件版本对齐（requirements v0.8 / design v0.8 / tasks v0.3）\n2. `requirements.md §10.4` 与 `design.md §10c` 决策树步骤一致（3 步）\n3. timeline / curated / search / detail API 的 quota_state 排除规则一致（T-M3-01 / 03 / 04 / 05）\n4. `merge_conflicts` 表清理策略（永久保留，不在 90 天内容类）—— 是否仍合理？\n5. `users.disabled_at` 与 `mergeOrCreateUser` 互动：合并到 disabled 候选应跳过？\n\n## C. 二次审查（v0.8 新引入）\n\n1. **唯一 name+dept 自动合并的边界**：500 人企业里同名同部门的概率？建议 admin Dashboard 显示自动合并 audit log 与可逆性\n2. **disabled_at 与 audit log**：用户停用后历史 feedbacks 是否仍展示？建议明确（保留+灰显 / 隐藏）\n3. **detail API includeBlocked admin 路径**：是否需要 audit log 记录 admin 看 blocked item 的操作？\n\n## 输出格式\n\n按 `.ai/shared/review-protocol.md §3`：每条发现 **Finding / Severity (critical/major/minor) / Why it matters / Required fix**。\n\n## 验收\n\n* 全部闭合且无新 critical/major → verdict: `APPROVED, ready for Codex Execute (M0)` → 解锁 [DMA-25](https://linear.app/dmarkubex/issue/DMA-25/codex-execute-fe-radar-m0m5-多-agent-实施v07v02-plan-approved)\n* 有 critical/major → verdict: `request changes` → Claude Code Fix Plan → v0.9/v0.4\n* 仅 minor → 由 Codex 在 M0 实施时一并处理\n\n## 不在范围\n\n* §13 决策已全部 closed\n* 不评 prompt 文本质量（M0 实施处理）\n* 不评 admin backlog drill-down 实施细节（M5 task 处理）\n* 不评 mergeOrCreateUser 的现实数据准确性（运行时 M4 验证）",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Duplicate",
+        "type": "canceled"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "antigravity"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T15:38:09.862Z",
+      "updatedAt": "2026-05-08T15:41:15.524Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-27/antigravity-第三轮复审-plan-v08-tasksmd-v03mobile-hash-disabled-at-detail"
+    },
+    {
+      "id": "167e8870-13c5-420c-869d-b1bfe3a20be4",
+      "identifier": "DMA-25",
+      "title": "Codex Execute: FE-Radar M0→M5 多 agent 实施（v0.7/v0.2 Plan APPROVED）",
+      "description": "## 任务\n\n按 `spec/tasks.md` v0.2 的 60 task / 8 sub-agent 分工，从 M0 → M5 全程实施 FE-Radar 项目。**调用 Codex 多 agent 并行能力**，按 §8 跨 milestone 依赖图最大化并行度。\n\n## 上下文（必读，按顺序）\n\n仓库根：`/Volumes/Out-Memory/AI-Timeline-web`\n\n1. `CLAUDE.md` — 项目章节含技术栈 / monorepo 结构 / 8 sub-agent 表 / **13 条硬约束** / **8 条陷阱** / Linear 约定\n2. `AI_index.md` — kernel 规则\n3. `.ai/shared/agreements.md` — 跨项目执行约定\n4. `.ai/shared/style-invariants.md` v1.0 — **17 节代码规范**（写代码前必读，违例 = code review major）\n5. `.ai/shared/task-template.md` — 每个 task 字段约定\n6. `spec/requirements.md` v0.7 — WHAT\n7. `spec/design.md` v0.7 — HOW\n8. `spec/tasks.md` v0.2 — 60 task 清单（**主战场**）\n9. `handoff.md` — 当前控制状态（Stage = Execute / Owner = Codex）\n\n## Plan 已通过\n\n* [DMA-6](https://linear.app/dmarkubex/issue/DMA-6/评审项目需求及设计) → [DMA-21](https://linear.app/dmarkubex/issue/DMA-21/第四轮复评-plan-v06dma-20-fix-plan-验证-最终关卡)（Symphony 4 轮 fix + 1 轮 pass）\n* [DMA-23](https://linear.app/dmarkubex/issue/DMA-23/对task任务进行评审) → [DMA-24](https://linear.app/dmarkubex/issue/DMA-24/antigravity-复审-plan-v07-tasksmd-v02dma-23-fix-验证)（Antigravity Stage 4 Audit · **APPROVED**）\n* §13 决策 Q-A…Q-K 全 closed（[DMA-7](https://linear.app/dmarkubex/issue/DMA-7/q-b-补充-c1-c2-关注圈名单)…[DMA-16](https://linear.app/dmarkubex/issue/DMA-16/q-k-nfr-01-中1500-条是单轮峰值还是单日上限)）\n* 信源候选 v1（37 条）已确认全采用（[DMA-14](https://linear.app/dmarkubex/issue/DMA-14/q-c-提供-t1-t2-t3-信源-rss-url-清单)）\n\n## 多 Agent 分工（spec/tasks.md §0）\n\n| Sub-agent | scope | M0 起步任务 |\n| -- | -- | -- |\n| `agent-infra` | `package.json` / `pnpm-workspace.yaml` / `deploy/*` / `.github/workflows/*` / `scripts/*` | T-M0-01 monorepo 脚手架（关键路径起点） |\n| `agent-db` | `packages/db/**` | T-M0-02（必须含 v0.7 字段）/ T-M0-03 / T-M0-07 |\n| `agent-llm` | `packages/llm/**` | M0 不参与；M2 起 T-M2-01..04 |\n| `agent-core` | `packages/core/**` + `packages/shared/**` | T-M0-04 / T-M0-05 |\n| `agent-worker` | `apps/worker/**` | M0 不参与；M1 起 T-M1-10 → T-M1-02..06 |\n| `agent-web-api` | `apps/web/app/api/**` + `apps/web/lib/api/**` + `middleware.ts` | M0 不参与；M1 起 T-M1-07 |\n| `agent-web-ui` | `apps/web/app/**`（除 api/）+ `components/**` + `hooks/**` | T-M0-06 |\n| `agent-auth` | `apps/web/app/api/auth/**` + `apps/web/lib/auth/**` | T-M0-08 |\n\n## Milestone 概览（spec/tasks.md §1）\n\n| M | 主题 | 目标日期 | task 数 |\n| -- | -- | -- | -- |\n| M0 | 脚手架与基线 | 2026-05-17 | 10 |\n| M1 | 抓取层（含 T-M1-10 代理池前置） | 2026-05-31 | 10 |\n| M2 | Pipeline 与评分（含 T-M2-14/15 scrubber） | 2026-06-14 | 15 |\n| M3 | 前端核心页面 | 2026-06-22 | 8 |\n| M4 | 告警 / 日报 / 钉钉 SSO（含 T-M4-05a 合并） | 2026-06-27 | 9 |\n| M5 | 后台 / 监控 / 上线 | 2026-06-30 | 8 |\n\n## M0 关键路径（先开这条线）\n\n```\nT-M0-01 monorepo (agent-infra)\n   ├─ T-M0-02 Drizzle schema (agent-db) ── 必须含 v0.7 字段（mobile_hash / merged_at / merged_from_user_id / merge_conflicts 表）\n   │     ├─ T-M0-03 scoring_config seed (agent-db)\n   │     └─ T-M0-07 db client (agent-db)\n   ├─ T-M0-04 packages/shared (agent-core) [parallel]\n   ├─ T-M0-05 packages/core skeleton (agent-core) [parallel]\n   ├─ T-M0-06 Next.js + shadcn 初始化 (agent-web-ui) [parallel]\n   ├─ T-M0-08 Auth.js + 本地登录 (agent-auth) [需 T-M0-02 + T-M0-06]\n   ├─ T-M0-09 Docker Swarm stack.yml (agent-infra) [parallel]\n   └─ T-M0-10 CI + pre-commit (agent-infra) [parallel]\n```\n\n## 每个 task 的 ask_agent_first 协议\n\n按 `.ai/shared/task-template.md` 第 ask_agent_first 段，**写任何代码前 sub-agent 必须先复述**：\n\n1. restate understanding of current code structure\n2. outline execution steps\n3. list risk points\n4. list tests to add or update\n\n不复述就开干 = code review major。\n\n## 关键硬约束（CLAUDE.md PROJECT 章节有完整 13 条 + 8 陷阱）\n\n强制重申几条最容易踩坑的：\n\n* **D2_chain 评分必须代码计算**（`packages/core/scoring.ts`），LLM 不得参与\n* **公网 LLM 调用前必经** `packages/core/scrubber.ts`（脱敏 + audit log）\n* **代理池不得绕 robots.txt**（合规底线）\n* **不存原始 HTML / 不存手机号**\n* **限速器 incr 必经 Lua 脚本**（双计数器 normal ≤ 1300 + priority ≤ 200）\n* **cluster 创建必带 Redis 分布式锁**\n* `packages/core` 不依赖 `packages/db`（业务规则纯函数化）\n* **bcrypt(work_factor=12) / JWT httpOnly cookie / 2h 过期 + 滑动续期**\n* **TZ=Asia/Shanghai 注入所有 service**\n* **scoring_config seed** `ON CONFLICT DO NOTHING`（不覆盖 admin 改）\n* **commit message 格式** `[T-M*-XX] 动词 + 范围`\n\n## PR 模板（每个 task 一个 PR）\n\n```\n## [T-M*-XX] <task title>\n变更范围:\n风险:\n测试方法:\n回滚方法:\n```\n\nPR 必须可独立 merge；不允许跨 task PR；不允许 `--no-verify` skip hook。\n\n## CI gates（T-M0-10 完成后启用）\n\n* pnpm lint / typecheck / test 全绿\n* madge --circular 无循环\n* file overlap 检查（同 milestone 内同文件不允许两个 task PR 并发）\n\n## 验收（每个 milestone 结束）\n\n* 该 milestone 全部 task 的 acceptance 项满足\n* 集成测试通过\n* 迁移到下一 milestone 前更新 `handoff.md` Queue\n\n## 全程验收（M5 完成后）\n\n* 12 个 FR 端到端可演示（requirements §3.1）\n* §14 验收清单 8 项 ✅\n* Antigravity Code Review (Gate 2) 0 critical\n* release tag v1.0.0 推到内网 registry\n\n## 进度汇报约定\n\n* 每 milestone 完成在本 issue 评论：\"M\\[0-5\\] 完成 · X / X task 通过 · 偏差点 / 待 follow-up\"\n* 阻塞超过 1 天必须评论求助\n* M5 完成后留最终 PR 链接 + release notes\n\n## 下一步\n\n启动 M0 第一波并行 task：T-M0-01 → 并行启 T-M0-04 / 05 / 06 / 09 / 10；T-M0-01 完成后开 T-M0-02 → 解锁 T-M0-03 / 07 / 08。\n\n按 spec/tasks.md §8 依赖图全程最大化并行度。Go.",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T13:25:32.451Z",
+      "updatedAt": "2026-05-11T01:15:06.191Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-25/codex-execute-fe-radar-m0m5-多-agent-实施v07v02-plan-approved"
+    },
+    {
+      "id": "89eef41c-712f-4ad5-a9f3-483e2954aae0",
+      "identifier": "DMA-24",
+      "title": "Antigravity 复审 Plan v0.7 + tasks.md v0.2（DMA-23 Fix 验证）",
+      "description": "## 任务\n\n对 `spec/requirements.md` v0.7 + `spec/design.md` v0.7 + `spec/tasks.md` v0.2 + `handoff.md` 进行第二轮 Stage 4 Audit，验证 [DMA-23](https://linear.app/dmarkubex/issue/DMA-23/对task任务进行评审) 提的 3 Critical + 3 Edge 是否已闭合；这是进入 Codex Execute (M0) 之前的最终关卡。\n\n## 背景\n\n* [DMA-23](https://linear.app/dmarkubex/issue/DMA-23/对task任务进行评审) (v0.1 → v0.2) verdict `REJECTED`：3 Critical（外部 LLM 泄密 / 账号合并 / 爬虫抗封锁）+ 3 Edge（HNSW vs ivfflat / cluster 竞态 / priority 饥饿）\n* Claude Code Plan Stage Fix Plan 已落地到 spec v0.7 + tasks.md v0.2\n* 60 task 分布：M0=10 / M1=10 (+1 R3) / M2=15 (+2 R1) / M3=8 / M4=9 (+1 R2) / M5=8\n\n## 评审范围\n\n仓库根：`/Volumes/Out-Memory/AI-Timeline-web`\n\n文件：\n\n* `spec/requirements.md` v0.7\n* `spec/design.md` v0.7\n* `spec/tasks.md` v0.2\n* `handoff.md`\n\n## A. [DMA-23](https://linear.app/dmarkubex/issue/DMA-23/对task任务进行评审) Fix 6 项验证\n\n### A1 (R1 · 外部 LLM 泄密) Critical\n\n应在以下位置看到 scrubber 强制中间件：\n\n* `tasks.md` 新增 T-M2-14（scrubber 模块）+ T-M2-15（LLM 链集成）\n* `tasks.md` T-M2-06 / T-M2-08 / T-M4-03 constraint 含 \"调 LLM 前必经 T-M2-14 scrubber\"\n* `design.md §5.x` 完整 scrubber 阶段（block / safe / redacted 三状态 + audit log）\n* `requirements.md §12` \"公网 LLM 调用前强制脱敏\" 条款\n* 验证：`grep -n scrubber spec/*.md` 应有多处一致引用\n\n### A2 (R2 · 账号合并) Critical\n\n应在以下位置看到合并策略：\n\n* `tasks.md` 新增 T-M4-05a `mergeOrCreateUser()`\n* `tasks.md` T-M4-05 constraint 强制经合并函数（不直接 INSERT）\n* `design.md §10c` 完整决策树（unionid 已存在 / mobile_hash 自动合并 / name+dept 走人工 / 兜底新建）\n* `design.md §8` schema 扩展（merged_at / merged_from_user_id / mobile_hash / merge_conflicts 表）—— 注：此 schema 改动尚未落到 §8 SQL 块，请验证是否需要补\n* `requirements.md §10.4` 决策树小节\n* 关键检查：合并后 role 取 max（不降权）+ 并发安全（事务 + UNIQUE）\n\n### A3 (R3 · 爬虫抗封锁) Critical\n\n应在以下位置看到代理池：\n\n* `tasks.md` 新增 T-M1-10（代理池 + UA 轮换）\n* `tasks.md` T-M1-02 / T-M1-03 / T-M1-04 constraint 含切代理 fallback\n* `design.md §4.4` 完整代理池方案 + 合规边界\n* `requirements.md §11` 部署约束代理池条款\n* 关键检查：**不绕 robots.txt**（合规底线）；代码层断言 robots.txt 解析仍生效；feature flag `PROXY_POOL_ENABLED` 一键关\n\n### A4 (E1 · ivfflat vs HNSW) Edge\n\n应在 `tasks.md T-M2-09` constraint 看到 \"M2 实施前 benchmark\"，要求在 50K + 500K 数据上对比 recall@10 + build/query 延迟。\n\n### A5 (E2 · cluster 竞态) Edge\n\n应在 `tasks.md T-M2-10` constraint 看到 \"worker 装配层引入 Redis 分布式锁\"（key + TTL + 退避策略）。\n\n### A6 (E3 · priority 饥饿) Edge\n\n应在 `tasks.md T-M2-12` 看到 priority backlog 陈旧度监控指标；`tasks.md T-M5-01` Dashboard 看到 priority backlog 陈旧度行 + 阈值告警。\n\n## B. v0.7 / v0.2 新引入设计的二次审查\n\n1. **scrubber block 类 item 跳过 LLM 后**：在 timeline / curated / search 页是否会被默认排除？UI 显示策略是否清晰（`summary_zh='[需人工脱敏]'`）？\n2. **mergeOrCreateUser 决策树边界**：name+dept 完全匹配但 dingtalk_id 已绑定其他 unionid 的情况是否覆盖？是否仍走\"新建 dingtalk-only\"兜底？\n3. **代理池 health check**：5min 探测周期 + 失败 3 次 disable 是否过于激进？需要 admin 干预手动重新 enable 吗？\n4. **scrubber 词典加载**：内部项目代号词典从哪儿来？env 还是 admin 后台维护？是否需要在 admin Dashboard 暴露 CRUD？\n5. **merge_conflicts 表清理**：v0.5 cleanup job 当前不清理 merge_conflicts 表（不在内容类）；这是有意还是漏项？\n\n## C. 整体一致性 cross-cutting\n\n1. requirements / design / tasks 三文件版本对齐（requirements v0.7 / design v0.7 / tasks v0.2）\n2. tasks.md §8 依赖图与 §1 milestone 表 task 数（60）对账\n3. tasks.md §9 风险登记表覆盖所有新增 task\n4. design.md §16 风险表的 6 条 ✅ 闭合标记是否准确\n5. handoff.md §3 Queue 顺序是否合理（Antigravity Final Pass 在 Codex Execute 前）\n\n## 输出格式\n\n按 `.ai/shared/review-protocol.md §3`：每条发现 **Finding / Severity (critical/major/minor) / Why it matters / Required fix**。\n\n## 验收\n\n* 全部闭合且无新 critical/major → verdict: `APPROVED, ready for Codex Execute (M0)`\n* 有 critical/major → verdict: `request changes` → Claude Code Fix Plan 二轮 → v0.8/v0.3\n* 仅 minor → 由 Codex 在 M0 实施时一并处理\n\n## 不在范围\n\n* §13 决策已全部 closed\n* 不评 prompt 文本质量（M0 实施处理）\n* 不评信源候选清单 v1 的 RSS URL 真实可达性（M1 验证）\n* 不评 admin backlog drill-down 实施细节（M5 task 处理）",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "antigravity"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T12:47:30.935Z",
+      "updatedAt": "2026-05-11T06:30:59.740Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-24/antigravity-复审-plan-v07-tasksmd-v02dma-23-fix-验证"
+    },
+    {
+      "id": "2e3d7758-96a4-439c-8e30-b79a84459a0c",
+      "identifier": "DMA-21",
+      "title": "第四轮复评 Plan v0.6（DMA-20 Fix Plan 验证 · 最终关卡）",
+      "description": "## 任务\n\n对 `spec/requirements.md` v0.6 + `spec/design.md` v0.6 + `handoff.md` 进行第四轮复评，验证 [DMA-20](https://linear.app/dmarkubex/issue/DMA-20/复复复评-plan-v05dma-19-fix-plan-验证-最终关卡) 提的 2 Major + 1 Minor 是否已闭合。**这是进入 tasks.md 产出 + Antigravity Plan Review 之前的最终关卡**。\n\n## 背景\n\n* [DMA-6](https://linear.app/dmarkubex/issue/DMA-6/评审项目需求及设计) (v0.1→v0.2) closed\n* [DMA-18](https://linear.app/dmarkubex/issue/DMA-18/复评-plan-v03q-dq-k-决策内化-symphony-fix-验证) (v0.3→v0.4) closed\n* [DMA-19](https://linear.app/dmarkubex/issue/DMA-19/复复评-plan-v04dma-18-fix-plan-验证) (v0.4→v0.5) closed\n* [DMA-20](https://linear.app/dmarkubex/issue/DMA-20/复复复评-plan-v05dma-19-fix-plan-验证-最终关卡) (v0.5→v0.6) verdict `request changes`（handoff stale + spec open-question 措辞 + admin backlog drill-down 缺）→ Claude Code Fix Plan 落地到 v0.6\n* §13 决策 Q-A…Q-K 全部 closed\n\n## 评审范围\n\n仓库根：`/Volumes/Out-Memory/AI-Timeline-web`\n\n文件：\n\n* `spec/requirements.md` v0.6\n* `spec/design.md` v0.6\n* `handoff.md`\n\n## A. [DMA-20](https://linear.app/dmarkubex/issue/DMA-20/复复复评-plan-v05dma-19-fix-plan-验证-最终关卡) Fix Plan 3 项验证\n\n### A1 (F1) · handoff.md 全部刷新到 v0.6\n\n* §1 State 行说 v0.6 + 四轮复评全 closed\n* §5 Completed 包含 v0.5 / v0.6 / [DMA-19](https://linear.app/dmarkubex/issue/DMA-19/复复评-plan-v04dma-18-fix-plan-验证) / [DMA-20](https://linear.app/dmarkubex/issue/DMA-20/复复复评-plan-v05dma-19-fix-plan-验证-最终关卡) 闭合记录\n* §7 Next Handoff 已不再含 \"Human (review)\" / \"awaiting open-question resolution\" stale 文本\n* §1/§2/§3/§4/§5/§7 全部内部一致\n\n### A2 (F2) · open-question 阻塞措辞清除\n\n* `requirements.md §0` 评审说明里不再说\"必须解决后才进入 Antigravity Plan Review\"\n* `requirements.md §13` 标题已改为\"决策记录（已全部 closed）\"或类似\n* `requirements.md` 文末后续动作不再含\"解决 §13 开放问题\"步骤\n* `design.md §17` 整节重写为\"§13 决策 → 设计模块映射\"历史追溯，无\"阻塞\"语义\n* `grep -nE \"必须解决|开放问题（必须|解决 §13\" spec/*.md handoff.md` 仅匹配 changelog 历史描述\n\n### A3 (F3) · admin backlog drill-down 占位\n\n* `design.md §9 API 表` 包含 `GET /api/admin/backlog?state=...&cursor=`\n* 描述明示实施分配到 M5 admin 后台 task\n\n## B. cross-cutting 一致性\n\n1. 三文件版本号统一 v0.6\n2. NFR-05 月成本估算依然 ≈ ¥150\n3. NFR-03 全部 90 天与 §12 + §14 cleanup 一致\n4. v0.2/v0.3/v0.4/v0.5/v0.6 各 changelog 信息无矛盾\n5. 任意 `mobile` / `event_type=政策` / `raw_html` 字面残留均仅出现在 changelog 历史描述\n\n## 输出格式\n\n按 `.ai/shared/review-protocol.md §3`：每条 **Finding / Severity / Why it matters / Required fix**。\n\n## 验收\n\n* 全部闭合且无新 critical/major → verdict: `pass, ready for tasks.md production + Antigravity Plan Review`\n* 有 critical/major → verdict: `request changes` → Fix Plan 五轮 → v0.7\n* 仅 minor → 由 Claude Code 在产 tasks.md 同时一并处理，不阻塞主流程\n\n## 不在范围\n\n* §13 决策已全部 closed\n* 不评 prompt 文本质量（M0 实施处理）\n* 不评信源候选清单 v1 的 RSS URL 真实可达性（M1 验证）\n* 不评 admin backlog drill-down 的具体实现细节（M5 task 处理）",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T08:07:21.541Z",
+      "updatedAt": "2026-05-08T13:25:32.451Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-21/第四轮复评-plan-v06dma-20-fix-plan-验证-最终关卡"
+    },
+    {
+      "id": "b6ec5d3b-d6c9-401f-946f-8479b2d1425b",
+      "identifier": "DMA-20",
+      "title": "复复复评 Plan v0.5（DMA-19 Fix Plan 验证 + 最终关卡）",
+      "description": "## 任务\n\n对 `spec/requirements.md` v0.5 + `spec/design.md` v0.5 + `handoff.md` 进行**复复复评**，验证 [DMA-19](https://linear.app/dmarkubex/issue/DMA-19/复复评-plan-v04dma-18-fix-plan-验证) Symphony 复复评的 4 Major + 1 Minor 是否已正确闭合。**这是进入 tasks.md 产出 + Antigravity Plan Review 之前的最后自动化关卡**。\n\n## 背景\n\n* [DMA-6](https://linear.app/dmarkubex/issue/DMA-6/评审项目需求及设计) (v0.1 → v0.2)：3 Major closed\n* [DMA-18](https://linear.app/dmarkubex/issue/DMA-18/复评-plan-v03q-dq-k-决策内化-symphony-fix-验证) (v0.3 → v0.4)：6 Major + 2 Minor closed\n* [DMA-19](https://linear.app/dmarkubex/issue/DMA-19/复复评-plan-v04dma-18-fix-plan-验证) (v0.4 → v0.5)：4 Major + 1 Minor verdict `request changes`，Claude Code Fix Plan 落地到 v0.5\n* §13 开放问题 Q-A…Q-K 全部 closed\n\n## 评审范围\n\n仓库根：`/Volumes/Out-Memory/AI-Timeline-web`\n\n文件：\n\n* `spec/requirements.md` v0.5\n* `spec/design.md` v0.5\n* `handoff.md`\n\n## A. [DMA-19](https://linear.app/dmarkubex/issue/DMA-19/复复评-plan-v04dma-18-fix-plan-验证) Fix Plan 5 项验证\n\n### A1 (F1) · feedbacks FK CASCADE\n\n* `design.md §8` `feedbacks.item_id` 应含 `ON DELETE CASCADE`\n* cleanup 4 步事务在 step 1 删 items 时不再被 feedbacks 阻塞\n* 验证：`grep -n \"feedbacks\" spec/design.md` 看到 cascade 子句\n\n### A2 (F2) · 双计数器 Lua 原子化\n\n* `design.md §5.1` 应有 Lua 脚本（`ADMIT_LUA`）\n* 两个独立 Redis key：`scoring:counter:normal:<day>` 和 `scoring:counter:priority:<day>`\n* **仅在 admit 成功时 INCR**（不在 admission 决定前 incr）\n* Lua 保证 GET + 比较 + INCR 原子\n* key TTL 90000s 自动跨日重置\n* 高优先级耗尽 priority 200 后可降级用 normal 余量；都耗尽进 backlog\n\n### A3 (F3) · backlog 老化策略\n\n* `requirements.md NFR-01` 明确 7 天老化 + `dropped_quota_expired` 终态\n* `design.md §5.1` 含 `drainBacklog()` 函数（含 UPDATE WHERE fetched_at < now() - 7 days 转终态）\n* `design.md §8 item_analysis.quota_state` CHECK 含 `'dropped_quota_expired'`\n* `design.md §14` Dashboard 含 backlog 行 + 阈值告警（pending > 1000 或最老 > 5 天）\n\n### A4 (F4) · handoff.md 一致性\n\n* §1 状态行与 §2 / §3 / §4 全部一致（v0.5、所有开放问题 closed、无强制 Human 阻塞）\n* §2 不再有 \"Owner is **Human** — AI agents must stop and wait\" 这种 stale block\n* §4 Pending Decisions 全部 ✅\n* `design.md §18` next steps 不再含\"解决 §13 开放问题\"步骤\n\n### A5 (F5) · scoring_config seed idempotent 文档化\n\n* `design.md §8` seed 块附近有\"insert-only / 不会覆盖 admin 配置\"说明\n* 说明强制升级默认值的正确做法（单写一次性 SQL，不改 seed）\n\n## B. v0.5 新引入设计的二次审查\n\n1. **Lua 脚本边界**：`ADMIT_LUA` 中 priority 耗尽 200 后用 normal 余量是否会挤占普通条目？设计意图是 priority \"至少 200，最多 1500\"，是否符合 Q-K + F2 fix 的精神？\n2. **TTL 90000s** 跨日方案：23:59 的最后一条与 00:00 的第一条之间会不会出现 key 过期但新 key 还没建的窗口期？影响是什么？\n3. **drainBacklog 时机**：scheduler 每 6h 跑一次 → 7×4 = 28 个窗口才到老化阈值，但条目可能在第 28 个窗口前一刻被 admit；逻辑是否正确？\n4. **dropped_quota_expired 是否应保留供 admin 审查**：还是直接删除？当前是软删（终态），UI 默认排除；是否需要 admin Dashboard 看一眼那些被丢的条目？\n\n## C. 整体一致性 cross-cutting\n\n1. 三个文件版本号统一 v0.5\n2. NFR-05 月成本估算依然 ≈ ¥150（未受 v0.5 改动影响）\n3. NFR-03 全部 90 天与 §12 + §14 cleanup 范围一致（feedbacks 现在通过 CASCADE 联动）\n4. design.md 各 changelog 行（v0.2/v0.3/v0.4/v0.5）信息无矛盾\n5. 任意 `mobile` 字段无残留拉/存\n6. 任意 `event_type=政策` 无残留触发逻辑\n\n## 输出格式\n\n按 `.ai/shared/review-protocol.md §3`：每条发现 **Finding / Severity / Why it matters / Required fix**。\n\n## 验收\n\n* 全部闭合且无新 critical/major → verdict: `pass, ready for tasks.md production + Antigravity Plan Review`\n* 有 critical/major → verdict: `request changes`，Claude Code 进入 Fix Plan 四轮 → v0.6\n* 仅 minor → 由 Claude Code 在产 tasks.md 同时一并处理，不阻塞主流程\n\n## 不在范围\n\n* §13 开放问题已全部 closed\n* 不评 prompt 文本质量（M0 实施阶段处理）\n* 不评具体信源清单内容（[DMA-14](https://linear.app/dmarkubex/issue/DMA-14/q-c-提供-t1-t2-t3-信源-rss-url-清单) 已 closed）\n* 不评信源候选清单 v1 的 RSS URL 真实可达性（运行时 M1 验证）",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T07:22:07.646Z",
+      "updatedAt": "2026-05-08T08:07:21.541Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-20/复复复评-plan-v05dma-19-fix-plan-验证-最终关卡"
+    },
+    {
+      "id": "cdc43d2d-e0e7-40f1-9cbf-c8a068048b46",
+      "identifier": "DMA-19",
+      "title": "复复评 Plan v0.4（DMA-18 Fix Plan 验证）",
+      "description": "## 任务\n\n对 `spec/requirements.md` v0.4 + `spec/design.md` v0.4 + `handoff.md` 进行**复复评**，验证 [DMA-18](https://linear.app/dmarkubex/issue/DMA-18/复评-plan-v03q-dq-k-决策内化-symphony-fix-验证) Symphony 复评的 6 Major + 2 Minor 是否已正确闭合。\n\n## 背景\n\n* [DMA-6](https://linear.app/dmarkubex/issue/DMA-6/评审项目需求及设计) (v0.1 → v0.2)：3 Major 已 closed\n* [DMA-18](https://linear.app/dmarkubex/issue/DMA-18/复评-plan-v03q-dq-k-决策内化-symphony-fix-验证) (v0.3 → v0.4)：6 Major + 2 Minor verdict `request changes`，Claude Code Fix Plan 落地到 v0.4\n* 所有 §13 开放问题（Q-A…Q-K）已 closed（[DMA-7](https://linear.app/dmarkubex/issue/DMA-7/q-b-补充-c1-c2-关注圈名单)…[DMA-16](https://linear.app/dmarkubex/issue/DMA-16/q-k-nfr-01-中1500-条是单轮峰值还是单日上限) 全部 Done；信源清单按候选 v1 全采用）\n* 本 issue 是进入 tasks.md 产出 + Antigravity Plan Review 之前的最后自动化关卡\n\n## 评审范围\n\n仓库根：`/Volumes/Out-Memory/AI-Timeline-web`\n\n文件：\n\n* `spec/requirements.md` v0.4\n* `spec/design.md` v0.4\n* `handoff.md`\n\n## A. [DMA-18](https://linear.app/dmarkubex/issue/DMA-18/复评-plan-v03q-dq-k-决策内化-symphony-fix-验证) Fix Plan 8 项验证\n\n### A1 (F1) · scoring_config 默认 seed\n\n应在 `design.md §8` `scoring_config` 表后看到 `INSERT INTO scoring_config ...` 块，覆盖 weights / thresholds / t_coef / c_coef，**值与 requirements §7.2 / §7.3 默认值一致**，并明示放在 `packages/db/migrations/<n>_scoring_config_seed.sql`（入版本控制）。\n\n### A2 (F2) · policy alert NER 类型对齐\n\n* `requirements.md §9` 触发表 policy 行明确 NER `policy` 实体类型（标准号/政策文号），不是 `event_type=政策`\n* `design.md §11 computeAlert()` 用 `entities.some(e => e.type === 'policy')`\n* 文档中无 `event_type=政策` / `event_type === '政策'` 残留（changelog/警示句引述除外）\n\n### A3 (F3) · 优先级配额限速器\n\n* `requirements.md NFR-01` 明确\"1300 普通 + 200 保留\"切分；高优先级定义清晰；`pending_over_quota` 进 backlog 不丢弃\n* `design.md §5.1` 有 `admitToScoring()` 入队逻辑、`packages/core/priority.ts` 词典/正则判断、scheduler backlog 消化策略\n* `design.md §8 item_analysis` 含 `quota_state` 字段且 CHECK 约束完整\n\n### A4 (F4) · cleanup job + cluster FK\n\n* `design.md §8 clusters.lead_item_id` 含 `ON DELETE SET NULL`\n* `design.md §14` cleanup job 是 4 步事务：items → stale clusters → daily_reports → feedbacks\n* `daily_reports` 90 天清理已纳入\n\n### A5 (F5) · users CHECK 收紧\n\n* `design.md §8 users` CHECK = `(username NOT NULL AND password_hash NOT NULL) OR dingtalk_id NOT NULL`\n* 无半残本地账号路径\n\n### A6 (F6) · 控制文档 v0.4/[DMA-18](https://linear.app/dmarkubex/issue/DMA-18/复评-plan-v03q-dq-k-决策内化-symphony-fix-验证) 引用一致\n\n* `design.md §18` 表用 v0.4 + [DMA-18](https://linear.app/dmarkubex/issue/DMA-18/复评-plan-v03q-dq-k-决策内化-symphony-fix-验证)\n* `handoff.md` 无 [DMA-17](https://linear.app/dmarkubex/issue/DMA-17/复评-plan-v02symphony-dma-6-fix-验证) 残留\n\n### A7 (F7) · alerts API 表\n\n* `design.md §9 API 表` 包含 `GET /api/alerts?type=&level=&source=&cursor=` + `GET /api/alerts/count`\n\n### A8 (F8) · raw_html 字面残留\n\n* `spec/*.md` 中除 changelog 描述 fix 内容外，无 `raw_html` 字面量\n\n## B. v0.4 新引入设计的二次审查\n\nF3 是结构性改动，重点审：\n\n1. priority detection 词典（远东系列 / 事故关键词 / 政策号正则）的覆盖率与误报率风险\n2. backlog 消化策略：跨日 backlog 何时丢弃？无限累积会不会爆 Postgres？建议设上限或老化策略\n3. `quota_state='pending_over_quota'` 与 `is_industry_related=null` 是否产生 UI 显示冲突（前者是配额超限，后者是行业相关性未判，语义不同）\n4. 200/天保留预算是否够用：极端日（多个安全事故 + 多个政策发布）会不会 own/safety/policy 也耗尽 200？\n\nF1 + F4 schema 改动重点审：\n5. INSERT seed 的 `ON CONFLICT DO NOTHING` 行为：admin 后台改了配置后再次跑 migration 是否会被 seed 重置？应当是不会（ON CONFLICT），但需文档明示\n6. `clusters` 表 stale 清理逻辑：当 lead_item_id 被 SET NULL 后，cluster_items 仍可能引用其他存活的 items，删除条件 `id NOT IN (SELECT cluster_id FROM cluster_items)` 是否会误删活跃簇？\n\n## C. 整体一致性 cross-cutting\n\n1. 三个文件版本号一致（v0.4）\n2. NFR-05 月成本估算与 §5.1 cost 表自洽（约 ¥150）\n3. NFR-03 全部 90 天与 §12 + §14 cleanup 范围一致\n4. FR-08 / FR-08a 与 §10 阶段策略 + design §8 users + §10a/§10b 流程对齐\n5. 所有 mobile 字段无残留拉/存\n\n## 输出格式\n\n按 `.ai/shared/review-protocol.md §3`：每条发现 **Finding / Severity / Why it matters / Required fix**。\n\n## 验收\n\n* 全部闭合且无新 critical/major → verdict: `pass, ready for tasks.md production + Antigravity Plan Review`\n* 有 critical/major → verdict: `request changes`，Claude Code 进入 Fix Plan 三轮 → v0.5\n\n## 不在范围\n\n* §13 开放问题已全部 closed，不再评审\n* 不评 prompt 文本质量（M0 实施阶段处理）\n* 不评具体信源清单内容（[DMA-14](https://linear.app/dmarkubex/issue/DMA-14/q-c-提供-t1-t2-t3-信源-rss-url-清单) 已 closed）",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T06:55:40.357Z",
+      "updatedAt": "2026-05-08T08:07:21.541Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-19/复复评-plan-v04dma-18-fix-plan-验证"
+    },
+    {
+      "id": "5fc3080d-7709-4ef3-a4b1-d5af7eb350a0",
+      "identifier": "DMA-18",
+      "title": "复评 Plan v0.3（Q-D…Q-K 决策内化 + Symphony fix 验证）",
+      "description": "## 任务\n\n对 `spec/requirements.md` v0.3 + `spec/design.md` v0.3 + `handoff.md` 进行**完整复评**。\n\n## 背景\n\n* v0.1 → v0.2：Claude Code 修了 Symphony [DMA-6](https://linear.app/dmarkubex/issue/DMA-6/评审项目需求及设计) 提的 3 条 Major（流程顺序 / 1500 吞吐歧义 / 快照-保留-隐私冲突）\n* v0.2 → v0.3：用户回复 [DMA-7](https://linear.app/dmarkubex/issue/DMA-7/q-b-补充-c1-c2-关注圈名单)…[DMA-16](https://linear.app/dmarkubex/issue/DMA-16/q-k-nfr-01-中1500-条是单轮峰值还是单日上限)（Q-B…Q-K）后，Claude Code 把 8 条决策内化进 spec，并新增了 alert_type 多通道、本地账号登录、限速器、90 天 cleanup job\n* [DMA-17](https://linear.app/dmarkubex/issue/DMA-17/复评-plan-v02symphony-dma-6-fix-验证)（v0.2 复评任务）实际未被自动化触发，本 issue 取代它对**现行 v0.3** 做完整复评\n\n## 评审范围\n\n仓库根：`/Volumes/Out-Memory/AI-Timeline-web`\n\n文件：\n\n* `spec/requirements.md` v0.3\n* `spec/design.md` v0.3\n* `handoff.md`\n\n## A. Symphony [DMA-6](https://linear.app/dmarkubex/issue/DMA-6/评审项目需求及设计) 3 条 Major（继续验证是否仍闭合）\n\n### A1 · Plan/Tasks 顺序\n\n应在三处一致呈现：`Human Review → 解决开放问题 → 产出 tasks.md → Antigravity Plan Review → Fix Plan → Execute`\n\n* `requirements.md` 顶部审阅流程行 + 文末后续动作段\n* `design.md §18`\n* `handoff.md §3 Queue`\n\n### A2 · 吞吐定义\n\n应锁定为\"**日上限 ≤1500 条**\"：\n\n* `requirements.md NFR-01` 文字\n* `requirements.md §13 Q-K` 状态 = ✅ A\n* `design.md §5.1` 单一成本表（删除场景 B），含限速器实现描述\n\n### A3 · 快照 / 保留 / 隐私\n\n* 不存原始 HTML：`requirements.md §12` + `design.md §1` 架构图 + `design.md §8` items 表无 raw_html 列\n* 不拉 mobile：`requirements.md §10.2` 仅 name/dept；`design.md §10b`\n* 保留期一致：`requirements.md NFR-03` + `§12` + `design.md §8 schema 注释` + `design.md §14 cleanup job` 全部 90 天\n\n## B. Q-D…Q-K 决策内化正确性（v0.3 新增）\n\n| Q | 决策 | 应在 spec 体现 |\n| -- | -- | -- |\n| Q-D 权重 | 接受默认 (0.20/0.25/0.20/0.15/0.20) | requirements §7.2 + design §8 scoring_config seed |\n| Q-E 阈值 | 接受默认（5×3 矩阵） | requirements §7.3 + design §8 |\n| Q-F 钉钉 | 缓解方案：M0–M3 本地 / M4+ 钉钉 | requirements §10 拆分 + design §10a/§10b + users 表 username/password_hash |\n| Q-G 软文 | A 不做 | requirements §13 状态 ✅ |\n| Q-H 安全事故 | C 多通道 alert_type | requirements §9 重写 + design §8 alert_type 列 + design §11 computeAlert() 多通道 |\n| Q-I 保留期 | 全部 90 天 | requirements NFR-03 + §12 + design §14 cleanup job |\n| Q-J admin | SQL seed 预置 | design §10a + seed.local.sql 引用 |\n| Q-K 1500 | A 日上限 + 限速器 | requirements NFR-01 + design §5.1 限速器实现 |\n\n## C. 关键检查项（cross-cutting）\n\n1. `items` 表无 `raw_html` 列且无任何 `raw_html` 引用残留\n2. 用户认证：`users` 表同时支持 `username`/`password_hash` 与 `dingtalk_id`，且有 CHECK 约束至少一种登录方式\n3. `item_analysis` 表既有 `alert_level`（L1/L2/L3）也有 `alert_type`（own/safety/policy），两者职责清晰\n4. cleanup job 范围：内容类（items / item_analysis / item_entities / cluster_items / feedbacks）90 天清理；配置类（sources / entities / scoring_config / users）永久\n5. NFR-05 月成本估算与 §5.1 表格自洽（约 ¥150，余量 350）\n6. 所有 mobile 字段在 spec 中要么不存在要么明确标\"不拉/不存\"\n\n## D. v0.3 新引入设计是否合理\n\n* `alert_type` 触发规则（`safety` 需 D5≥70；`policy` 需 D1≥75）阈值是否合理\n* 限速器实现（`today_count < 1500` else 跳过 LLM 链）是否会丢重要 item\n* 本地账号 + 钉钉账号共存的 RBAC 模型是否清晰\n* 90 天保留期对**评分回测**样本量的影响是否过大（若是，是否需要冷归档机制）\n\n## 输出格式\n\n按 `.ai/shared/review-protocol.md §3`：每条发现 **Finding / Severity (critical/major/minor) / Why it matters / Required fix**。\n\n## 验收\n\n* 全部闭合 → verdict: `pass, ready for tasks.md production + Antigravity Plan Review`\n* 任意 critical / major → verdict: `request changes`，Claude Code 进入 Fix Plan 二轮 → 产 v0.4\n\n## 不在范围\n\n* 不评 §13 开放问题中尚未关的 Q-C（[DMA-14](https://linear.app/dmarkubex/issue/DMA-14/q-c-提供-t1-t2-t3-信源-rss-url-清单) 信源筛选 in progress）\n* 不评是否产出 tasks.md（按 v0.3 §18 流程，tasks.md 在所有开放问题关掉后再产）\n* 不评具体 prompt 文本质量（M0 实施阶段由 Codex 实现 + 调优）",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T05:58:07.299Z",
+      "updatedAt": "2026-05-08T08:07:21.541Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-18/复评-plan-v03q-dq-k-决策内化-symphony-fix-验证"
+    },
+    {
+      "id": "ce9d7bdc-35e9-45d3-bcb9-fb1d64a14d46",
+      "identifier": "DMA-17",
+      "title": "复评 Plan v0.2（Symphony DMA-6 fix 验证）",
+      "description": "## 任务\n\n对 `spec/requirements.md` v0.2 + `spec/design.md` v0.2 + `handoff.md` 进行**复评**，验证 Symphony 在 [DMA-6](https://linear.app/dmarkubex/issue/DMA-6/评审项目需求及设计) 提出的 3 条 Major 是否已正确闭合。\n\n## 评审范围\n\n仓库根：`/Volumes/Out-Memory/AI-Timeline-web`\n\n需对照 [DMA-6](https://linear.app/dmarkubex/issue/DMA-6/评审项目需求及设计) 评论中的 3 条 Major 逐条确认：\n\n### Finding 1 · Plan/Tasks 顺序\n\n**v0.1 问题**：tasks.md 排在 Antigravity Plan Review 之后，违反 `AI_index.md:127-133, 169` 与 `.ai/shared/review-protocol.md §1.Gate1`。\n**v0.2 fix 应在**：\n\n* `spec/requirements.md` 文末 §14 后的\"下一步动作\"段\n* `spec/design.md §18` 表格\n* `handoff.md §3 Queue`\n\n→ 验证：三处顺序是否一致 = \"Human Review → 解决开放问题 → 产出 tasks.md → Antigravity Plan Review → Fix Plan → Execute\"\n\n### Finding 2 · 1500 条/轮 vs 1500 条/天\n\n**v0.1 问题**：NFR-01 说\"单轮 ≤1500\"，design §5.1 按\"1500/天\"算成本，含义不一致。\n**v0.2 fix 应在**：\n\n* `requirements.md` NFR-01 改为参数化（待 Q-K）\n* `requirements.md` §13 新增 Q-K 开放问题\n* `design.md §5.1` 成本表改为两场景（A 1500/天、B 1500/轮）\n\n→ 验证：是否消除了硬编码 ¥120/月，是否给出 NFR-05 风险标注。\n\n### Finding 3 · 快照 / 保留 / 隐私三处冲突\n\n**v0.1 问题**：\n\n* \"MVP 不抓快照\" (FR-12) ↔ MinIO 存\"原文 HTML/截图\" + items.raw_html 列\n* NFR-03 12 个月 ↔ §12 90 天\n* §10.2 拉 mobile ↔ §12 仅存 unionid+name+dept\n\n**v0.2 fix 应在**：\n\n* `requirements.md` NFR-03 重新表述\n* `requirements.md` §10.2 移除 mobile\n* `requirements.md` §12 移除\"原始 HTML 90 天\"\n* `design.md §1` 架构图 MinIO 描述更新\n* `design.md §8` items 表删除 raw_html 列\n* `design.md §13` 安全表新增\"数据最小化\"行\n\n→ 验证：是否还有任何对 raw_html 的残留引用；是否还有任何拉/存 mobile 的痕迹；保留期表述是否前后一致。\n\n## 复评补充\n\n**v0.2 还引入了 Claude Code 复核时发现的 3 个补充修复**：\n\n* stack.yml 全 service 注入 `TZ=Asia/Shanghai`\n* §13 新增\"数据最小化\"安全行\n* §16 风险表新增 zhparser pgvector 镜像检查 + 容器时区项\n\n→ 验证：这些是否合理、是否过度。\n\n## 输出格式\n\n按 `.ai/shared/review-protocol.md §3 Review Output Shape`：每条发现包含 **Finding / Severity / Why it matters / Required fix**。\n\n## 验收\n\n* 3 条 Major 全部 closed → verdict: `pass, ready for Antigravity Plan Review (after open questions Q-B…Q-K resolved + tasks.md produced)`\n* 任意 Major 未闭合 → verdict: `request changes`，Claude Code 进入 Fix Plan 二轮\n\n## 不在范围\n\n* 不评 §13 开放问题（Q-B…Q-K 由人决策，复评不替人拍板）\n* 不评是否产出 tasks.md（v0.2 暂未产 tasks.md，按流程在解决开放问题之后产）",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": [
+          {
+            "name": "codex"
+          }
+        ]
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T03:50:14.372Z",
+      "updatedAt": "2026-05-08T06:55:40.357Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-17/复评-plan-v02symphony-dma-6-fix-验证"
+    },
+    {
+      "id": "db7aafec-85d8-4dd3-8360-42bf9ccc912b",
+      "identifier": "DMA-16",
+      "title": "[Q-K] NFR-01 中\"1500 条\"是单轮峰值还是单日上限？",
+      "description": "## 背景\n\nSymphony [DMA-6](https://linear.app/dmarkubex/issue/DMA-6/评审项目需求及设计) 评审发现 `spec/requirements.md` v0.1 与 `spec/design.md` v0.1 对吞吐量定义不一致：\n\n* requirements.md NFR-01：`单轮抓取（≤1500 条）端到端处理 ≤30 分钟`\n* requirements.md §1：`每 6 小时抓一遍`（即每天 4 轮）\n* design.md §5.1（v0.1）：DeepSeek 月成本按 `1500 条/天` 计算，得 ¥120/月\n\n如果 1500 是单轮峰值 → 实际日均 6000 条 → DeepSeek 月成本 ≈ ¥480/月，**超过 NFR-05 ≤500 元/月预算上限**，且 worker 并发、Postgres 写入压力同步翻 4 倍。\n\n## 需要决策\n\n请明确以下两选一：\n\n* **A · 1500 是日上限**（实际 ≈ 375 条/轮 × 4 轮）\n  * 月成本 ≈ ¥150（NFR-05 余量大）\n  * worker 默认并发够用（3 replicas × 0.5 CPU）\n  * 建议：保持现 NFR-01 文字不变，把\"单轮\"改为\"日上限\"\n* **B · 1500 是单轮峰值**（日总量 6000）\n  * 月成本 ≈ ¥510（**超 NFR-05 上限**）→ 需要二选一缓解：\n    * B1：本地 Qwen3.6 接管 D1/D5 评分（D3/D4 留 DeepSeek），月成本回落到 ≈ ¥250\n    * B2：上调 NFR-05 上限到 ¥800/月\n  * worker 并发需扩容到 6 replicas，或缩短 SLA 到\"单轮 ≤45 分钟\"\n\n## 影响\n\n* requirements.md NFR-01 / NFR-05 表述\n* design.md §5.1 LLM 成本表（v0.2 已改成参数化两列）\n* design.md §12 资源估算（worker replicas / postgres 卷大小）\n* 抓取 fetcher 并发上限设计\n\n## 决策格式\n\n评论里写：\"A\" 或 \"B1\" 或 \"B2\"，附简短理由（如有）。",
+      "priority": 2,
+      "priorityLabel": "High",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": []
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T03:49:50.303Z",
+      "updatedAt": "2026-05-08T13:25:32.451Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-16/q-k-nfr-01-中1500-条是单轮峰值还是单日上限"
+    },
+    {
+      "id": "eb0fae42-8456-419c-bdea-89af74459009",
+      "identifier": "DMA-15",
+      "title": "[Q-D] 评分权重 w1..w5 默认值确认",
+      "description": "## 背景\n\n`spec/requirements.md §7.2` 默认权重：\n\n| 权重 | 维度 | 默认 |\n| -- | -- | -- |\n| w1 | D1 政策法规 | 0.20 |\n| w2 | D2 产业链关联 | 0.25 |\n| w3 | D3 市场/价格 | 0.20 |\n| w4 | D4 技术/标准 | 0.15 |\n| w5 | D5 商业机会/风险 | 0.20 |\n\n## 是否接受默认值？\n\n* ✅ 接受 → 写入 `scoring_config` 初始值\n* ❌ 调整 → 提供新权重组（和必须为 1.00）\n\n## 备注\n\n权重存数据库，admin 可后台调整无需发版。回测时可再 A/B 调优。",
+      "priority": 3,
+      "priorityLabel": "Medium",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": []
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T03:11:31.813Z",
+      "updatedAt": "2026-05-08T05:58:49.051Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-15/q-d-评分权重-w1w5-默认值确认"
+    },
+    {
+      "id": "130645fe-8a93-4944-b70e-993a15730a23",
+      "identifier": "DMA-14",
+      "title": "[Q-C] 提供 T1 / T2 / T3 信源 RSS / URL 清单",
+      "description": "## 背景\n\n`spec/requirements.md §6` 列了 T1 / T2 / T3 类型与示例，但实际 RSS / URL 清单缺失。M1 抓取层无信源即无法运行。\n\n## 需要交付\n\n每条信源至少含：\n\n* `name`：站点名\n* `tier`：T1 / T2 / T3\n* `category`：政策 / 媒体 / 协会 / 公告 / 综合\n* `fetcher_type`：rss / html / playwright\n* `url`（rss）或 `listUrl + selectors`（html / playwright）\n\n## 数量目标\n\n* T1 ≥ 10（政府 + 协会 + 上市公司公告）\n* T2 ≥ 15（专业媒体 + Wind 行业号）\n* T3 ≥ 10（综合财经 + 自媒体 + 社交）\n* 总计 ≥ 35，便于 M1 验收\"30 信源 7 天成功率 ≥ 95%\"\n\n## 阻塞\n\n* 阻塞 M1 全部验收\n* 阻塞 M2 评分回测样本\n\n## 决策格式\n\n评论贴 CSV 或 Notion / 飞书表格链接。",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": []
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T03:11:26.817Z",
+      "updatedAt": "2026-05-11T00:19:04.336Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-14/q-c-提供-t1-t2-t3-信源-rss-url-清单"
+    },
+    {
+      "id": "45e1d330-ec9a-455a-858a-c78ff0feafe1",
+      "identifier": "DMA-13",
+      "title": "[Q-J] 首批 admin 名单（钉钉账号）",
+      "description": "## 背景\n\n钉钉 SSO 后所有用户默认 `viewer`，需要 admin 在后台手动升级。首批 admin 必须在数据库里预置（dingtalk_id 已知），否则没人能进后台。\n\n## 需要提供\n\n首批 admin（建议 2–3 人）的：\n\n* 姓名\n* 钉钉手机号或 unionid（unionid 可在 SSO 第一次登录后取，但首批要预置就需手机号映射）\n* 部门\n\n## 推荐\n\n* 1 名战略口（高层代理）\n* 1 名信息中心 / IT（运维）\n* 1 名市场或品牌（业务侧）\n\n## 决策格式\n\n凭据/隐私走安全渠道；可在评论 ack 已私下提供。",
+      "priority": 3,
+      "priorityLabel": "Medium",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": []
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T03:11:09.940Z",
+      "updatedAt": "2026-05-08T05:58:38.091Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-13/q-j-首批-admin-名单钉钉账号"
+    },
+    {
+      "id": "fd557775-4f35-4aa0-8e6f-346027d0351b",
+      "identifier": "DMA-12",
+      "title": "[Q-I] 数据保留期：12 个月是否合规要求",
+      "description": "## 背景\n\n`spec/requirements.md §12` 当前规则：\n\n* 原始 HTML 保留 90 天\n* Item 元数据保留 12 个月\n* 分析结果（评分、摘要、实体）永久保留\n\n## 需要确认\n\n* 远东法务 / 信息安全部门对**第三方内容缓存**是否有更短的保留要求？\n* 是否需要\"应权利人要求即时删除\"的接口（DMCA-like）？\n* 用户反馈数据是否涉及个保法（含钉钉 unionid + name + dept）？保留多久？\n\n## 影响\n\n* 缩短 → 减小存储压力，但回测样本变小\n* 加严删除接口 → 后台需多一个\"按 url 删除 item + 关联表级联\"功能\n\n## 阻塞\n\n* 阻塞 §12 数据保留实现细节\n* 不阻塞 M0–M2 编码（先按当前规则实现，到 M5 验收前再调）",
+      "priority": 3,
+      "priorityLabel": "Medium",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": []
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T03:11:08.217Z",
+      "updatedAt": "2026-05-08T05:59:18.831Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-12/q-i-数据保留期12-个月是否合规要求"
+    },
+    {
+      "id": "6f70feba-946d-4185-8a57-7d72bd998094",
+      "identifier": "DMA-11",
+      "title": "[Q-H] \"安全事故\"是否独立告警通道",
+      "description": "## 背景\n\n当前告警仅针对\"自家公司被提及\"。行业内重大安全事故（火灾、爆炸、电网故障）对远东也是重要信号，但与\"自家\"独立。\n\n## 选项\n\n* **A 不独立**（默认）：靠 NER `event_type=事故` + D1/D5 高分进精选 Tab\n* **B 独立通道**：新增 `/alerts/safety` 页 + 全局 Badge 第二个数字\n* **C 复用现 alert_level + 标签**：在 `/alerts` 页加 type 筛选（自家 / 安全事故 / 政策突发）\n\n## 推荐\n\nC — 复用现页面，零新表，灵活扩展（未来还可加\"政策突发\"\"价格剧变\"）。\n\n## 决策需要\n\n确认走 A / B / C 哪个。",
+      "priority": 3,
+      "priorityLabel": "Medium",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": []
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T03:10:56.065Z",
+      "updatedAt": "2026-05-08T05:59:45.823Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-11/q-h-安全事故是否独立告警通道"
+    },
+    {
+      "id": "f0809485-cc0d-4d20-9f2d-e4791afe1d7e",
+      "identifier": "DMA-10",
+      "title": "[Q-G] \"营销软文识别 / 反向扣分\"是否纳入 MVP",
+      "description": "## 背景\n\nT3 信源（自媒体、综合财经）易混入营销软文，可能污染精选与日报。\n\n## 选项\n\n* **A 不做**（建议，M5+ 再评估）：相信信源分级 + 阈值能压住大多数\n* **B 新增 D6 维度**：让 LLM 输出\"软文倾向\"分（0–100），最终分公式扣减\n* **C 黑名单关键词**：维护\"软广特征词\"列表，命中即扣 20\n\n## 影响\n\n* 选 A：MVP 不变\n* 选 B：+ 1 LLM 调用 / 条 → 月成本 +约 ¥80\n* 选 C：维护成本中等，假阳性高\n\n## 推荐\n\nA — 上线后跟踪 1 周精选投诉率，按需引入。",
+      "priority": 4,
+      "priorityLabel": "Low",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": []
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T03:10:48.762Z",
+      "updatedAt": "2026-05-08T05:58:15.141Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-10/q-g-营销软文识别-反向扣分是否纳入-mvp"
+    },
+    {
+      "id": "3f0efcdc-8a0e-4789-9eed-bc2832002963",
+      "identifier": "DMA-9",
+      "title": "[Q-F] 钉钉应用 AppKey / 回调域名 / 内网部署域名",
+      "description": "## 背景\n\n`spec/requirements.md §10` 钉钉 SSO 接入沿用远东集团**现有的钉钉开放平台应用**（不新建）。\n\n## 需要管理员提供\n\n* `DINGTALK_APP_KEY`\n* `DINGTALK_APP_SECRET`\n* 企业 `CorpID`\n* 内网部署域名（用于钉钉应用回调白名单），例 `feradar.fe.local`\n* 当前钉钉应用是否已开启\"扫码登录\"能力；若否，需联系管理员开启\n\n## 阻塞\n\n* 阻塞 M4 SSO 验收\n* 缓解方案：M0–M3 先用本地用户名/密码占位登录\n\n## 决策格式\n\n凭据走安全渠道（不要贴在评论里）。可在评论里 ack 已私下提供。",
+      "priority": 1,
+      "priorityLabel": "Urgent",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": []
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T03:10:43.973Z",
+      "updatedAt": "2026-05-11T05:49:25.517Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-9/q-f-钉钉应用-appkey-回调域名-内网部署域名"
+    },
+    {
+      "id": "1f717063-b927-45fc-85c8-f66450cfcae2",
+      "identifier": "DMA-8",
+      "title": "[Q-E] 各类精选阈值默认值确认",
+      "description": "## 背景\n\n`spec/requirements.md §7.3` 阈值表（命中即进精选 Tab）：\n\n| 大类 | C1 | C2 | C3 |\n| -- | -- | -- | -- |\n| 政策与标准 | 55 | 60 | 65 |\n| 市场与价格 | 55 | 60 | 70 |\n| 技术与产品 | 55 | 65 | 75 |\n| 项目与招投标 | 50 | 60 | 70 |\n| 公司与资本 | 55 | 65 | 75 |\n\n## 是否接受默认值？\n\n* ✅ 接受 → 写入 `scoring_config`\n* ❌ 调整 → 提供新阈值矩阵\n\n## 备注\n\n阈值存数据库，可后台调整。建议上线后 1 周内根据精选 Tab 主观满意度回调。",
+      "priority": 3,
+      "priorityLabel": "Medium",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": []
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T03:10:42.293Z",
+      "updatedAt": "2026-05-08T05:59:32.094Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-8/q-e-各类精选阈值默认值确认"
+    },
+    {
+      "id": "43b04d7a-6b14-44c7-a299-bc7510c272d7",
+      "identifier": "DMA-7",
+      "title": "[Q-B] 补充 C1 / C2 关注圈名单",
+      "description": "## 背景\n\n`spec/requirements.md §5` 的 C1 / C2 名单为初稿，需要补充完整后录入 `entities` 表（可后台编辑）。\n\n## 需要确认\n\n* C1 自家公司：远东控股集团 / 远东电缆 / 远东智慧能源 / 远东股份 — 是否还有别名或子公司需补\n* C1 核心客户：国家电网（含 27 家省网）/ 南方电网 / 国家能源局 / 发改委 / 工信部 / 五大发电集团 — 是否完整\n* C2 主要竞品（电缆）：宝胜、江南、中天、亨通、起帆、金杯 — 是否需要增补/删除\n* C2 关键上游（铜杆 + 电芯）/ 关键下游（房企 + EPC + 储能集成商） — 名单是否合理\n* 海外公司是否纳入 C2（如 Prysmian / Nexans / Sumitomo 等）\n\n## 阻塞\n\n* 阻塞 D2_chain 评分准确率\n* 阻塞 §11 自家公司告警的命中范围\n\n## 决策格式\n\n请直接在评论里贴最终名单（按 C1 / C2 分组、含别名），或上传 CSV。",
+      "priority": 2,
+      "priorityLabel": "High",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": []
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T03:10:18.858Z",
+      "updatedAt": "2026-05-08T13:25:32.451Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-7/q-b-补充-c1-c2-关注圈名单"
+    },
+    {
+      "id": "1e48d0c3-f137-4a23-ad19-8cc6ebd33680",
+      "identifier": "DMA-6",
+      "title": "评审项目需求及设计",
+      "description": "针对claude给出的项目需求和设计进行评审，给出评审意见",
+      "priority": 0,
+      "priorityLabel": "No priority",
+      "estimate": null,
+      "state": {
+        "name": "Done",
+        "type": "completed"
+      },
+      "assignee": null,
+      "team": {
+        "key": "DMA",
+        "name": "Dmarkubex"
+      },
+      "labels": {
+        "nodes": []
+      },
+      "parent": null,
+      "children": {
+        "nodes": []
+      },
+      "createdAt": "2026-05-08T02:02:31.774Z",
+      "updatedAt": "2026-05-08T13:25:32.451Z",
+      "url": "https://linear.app/dmarkubex/issue/DMA-6/评审项目需求及设计"
+    }
+  ]
+}
