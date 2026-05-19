@@ -80,3 +80,18 @@ export const FETCH_SCHEDULE_CRON = "0 */6 * * *";
 export const FETCH_SCHEDULE_TZ = "Asia/Shanghai";
 export const DAILY_REPORT_SCHEDULE_CRON = "0 8 * * *";
 export const DAILY_REPORT_SCHEDULE_TZ = "Asia/Shanghai";
+
+export const QUEUE_QUOTES_FETCH = "fe:quotes-fetch";
+export const QUOTES_FETCH_SCHEDULE_CRON = "0 30 15 * * 1-5";
+export const QUOTES_FETCH_SCHEDULE_TZ = "Asia/Shanghai";
+
+export interface QuotesFetchJob {
+  sourceId: number;
+}
+
+export function createQuotesFetchQueue(connection = createRedisConnection()): Queue<QuotesFetchJob> {
+  return new Queue<QuotesFetchJob>(QUEUE_QUOTES_FETCH, {
+    connection,
+    defaultJobOptions: DEFAULT_JOB_OPTIONS
+  });
+}

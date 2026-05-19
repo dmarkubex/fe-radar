@@ -9,9 +9,9 @@ import type { LlmClient } from "@fe-radar/llm";
 import { curateItem } from "@fe-radar/core";
 import type { ScoringConfig as CoreScoringConfig, EntityHit } from "@fe-radar/core";
 
-import type { FetchSourceJob, PipelineJob } from "./queues";
-import { createRedisConnection, FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, DAILY_REPORT_SCHEDULE_CRON, DAILY_REPORT_SCHEDULE_TZ, DEFAULT_JOB_OPTIONS } from "./queues";
-import { enqueueEnabledSources, recordSourceFailure } from "./scheduler";
+import type { FetchSourceJob, PipelineJob, QuotesFetchJob } from "./queues";
+import { createRedisConnection, FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, DAILY_REPORT_SCHEDULE_CRON, DAILY_REPORT_SCHEDULE_TZ, DEFAULT_JOB_OPTIONS, QUEUE_QUOTES_FETCH } from "./queues";
+import { enqueueEnabledSources, recordSourceFailure, enqueueEnabledQuotesSources, scheduleQuotesFetchCron } from "./scheduler";
 import { fetchRss, fetchHtml, fetchPlaywright } from "./fetchers";
 import type { SourceConfig, StandardItem, FetchContext } from "./fetchers";
 import { dedupItems, type DedupCandidate, type ExistingItemFingerprint } from "./dedup";
@@ -22,6 +22,7 @@ import { runEmbedder } from "./jobs/embedder";
 import { withClusterCreateLock } from "./jobs/cluster";
 import { runDailyGen } from "./jobs/daily-gen";
 import { runCleanup, CLEANUP_SCHEDULE_CRON, CLEANUP_SCHEDULE_TZ } from "./jobs/cleanup";
+import { runQuotesFetch } from "./jobs/quotes-fetch";
 import { EntityDictionary } from "./lib/entities-dict";
 import { FETCH_CONCURRENCY } from "./scheduler";
 import { createPlaywrightPool, type BrowserContextPool } from "./fetchers/playwright";
@@ -505,6 +506,24 @@ export async function startWorker(): Promise<void> {
     { connection, concurrency: 1 },
   );
   allWorkers.push(cleanupWorker);
+
+  const quotesFetchQueue = new Queue<QuotesFetchJob>(QUEUE_QUOTES_FETCH, { connection, defaultJobOptions: DEFAULT_JOB_OPTIONS });
+  await scheduleQuotesFetchCron(quotesFetchQueue);
+
+  const quotesFetchWorker = new Worker<QuotesFetchJob>(
+    QUEUE_QUOTES_FETCH,
+    async (job) => {
+      if (job.data.sourceId === 0) {
+        const count = await enqueueEnabledQuotesSources(getDb(), quotesFetchQueue);
+        logger.info({ count }, "scheduled quotes-fetch cycle");
+        return;
+      }
+      logger.info({ jobId: job.id, sourceId: job.data.sourceId }, "processing quotes-fetch job");
+      await runQuotesFetch(job.data.sourceId);
+    },
+    { connection, concurrency: FETCH_CONCURRENCY },
+  );
+  allWorkers.push(quotesFetchWorker);
 
   logger.info("all workers and schedulers started");
 
