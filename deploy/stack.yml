@@ -32,6 +32,7 @@ services:
       PROXY_LIST_FILE: /run/secrets/proxy_list
       DEEPSEEK_API_KEY_FILE: /run/secrets/deepseek_api_key
       KIMI_API_KEY_FILE: /run/secrets/kimi_api_key
+      RSSHUB_BASE_URL: http://rsshub:1200
     secrets:
       - db_password
       - deepseek_api_key
@@ -148,6 +149,32 @@ services:
       replicas: 1
       restart_policy:
         condition: on-failure
+
+  # v1.1 commodity-briefing: RSSHub 内网自部署（供 rsshub-extract adapter 使用）
+  # digest pin TODO: 在 build server 上执行 `docker pull diygod/rsshub:2026-05-14 && docker inspect --format='{{index .RepoDigests 0}}' diygod/rsshub:2026-05-14` 后将 tag 替换为 sha256 digest
+  rsshub:
+    image: diygod/rsshub:2026-05-14
+    environment:
+      TZ: Asia/Shanghai
+      NODE_ENV: production
+      CACHE_EXPIRE: "3600"
+      REDIS_URL: redis://redis:6379
+    networks:
+      - internal
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.10"
+      restart_policy:
+        condition: any
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1200/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
 networks:
   internal:
