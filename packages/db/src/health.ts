@@ -18,11 +18,24 @@ export async function health(options: HealthOptions = {}): Promise<HealthCheckRe
     });
 
     const timeoutMs = options.timeoutMs ?? 5000;
-    await Promise.race([
-      sql`CREATE EXTENSION IF NOT EXISTS vector`,
-      new Promise((_, reject) => setTimeout(() => reject(new Error("DB health check timeout")), timeoutMs))
-    ]);
-    await sql`SELECT 1`;
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("DB health check timeout")), timeoutMs)
+    );
+
+    await Promise.race([sql`SELECT 1`, timeout]);
+
+    const rows = (await Promise.race([
+      sql`SELECT 1 FROM pg_extension WHERE extname = 'vector'`,
+      timeout
+    ])) as ReadonlyArray<unknown>;
+
+    if (rows.length === 0) {
+      return {
+        ok: false,
+        latencyMs: Date.now() - startedAt,
+        error: "pgvector extension not installed (run CREATE EXTENSION vector as a superuser via migration)"
+      };
+    }
 
     return { ok: true, latencyMs: Date.now() - startedAt };
   } catch (error) {

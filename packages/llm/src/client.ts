@@ -56,6 +56,9 @@ export class OpenAiCompatibleClient implements LlmClient {
         return { value, usage, provider: this.options.provider };
       } catch (error) {
         lastError = error;
+        if (attempt < 2) {
+          logger.warn({ provider: this.options.provider, attempt: attempt + 1, error }, "llm chat_json attempt failed, retrying");
+        }
       }
     }
 

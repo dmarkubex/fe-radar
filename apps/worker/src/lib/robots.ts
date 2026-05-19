@@ -1,5 +1,8 @@
 import robotsParser from "robots-parser";
+import { createLogger } from "@fe-radar/shared";
 import { DEFAULT_USER_AGENT } from "./ua-pool";
+
+const logger = createLogger({ service: "robots" });
 
 interface RobotsCacheEntry {
   expiresAt: number;
@@ -29,7 +32,8 @@ async function getRobotsParser(target: URL, fetchImpl: typeof fetch): Promise<Re
   try {
     const response = await fetchImpl(robotsUrl, { signal: AbortSignal.timeout(3000) });
     body = response.ok ? await response.text() : "";
-  } catch {
+  } catch (error) {
+    logger.debug({ error, origin }, "robots.txt fetch failed, treating as empty");
     body = "";
   }
 

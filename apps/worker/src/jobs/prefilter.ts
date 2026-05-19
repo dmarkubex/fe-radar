@@ -1,4 +1,7 @@
 import { PREFILTER_SYSTEM_PROMPT, prefilterUserPrompt, type IndustryPrefilterResult, type LlmClient } from "@fe-radar/llm";
+import { createLogger } from "@fe-radar/shared";
+
+const logger = createLogger({ service: "prefilter" });
 
 export interface PrefilterInput {
   title: string;
@@ -23,7 +26,8 @@ export async function runPrefilter(input: PrefilterInput, qwen: LlmClient, fallb
       schemaName: "prefilter",
       schema
     })).value;
-  } catch {
+  } catch (error) {
+    logger.warn({ error, title: input.title }, "prefilter primary failed, trying fallback");
     try {
       return (await fallback.chatJson<IndustryPrefilterResult>({
         system: PREFILTER_SYSTEM_PROMPT,
@@ -31,7 +35,8 @@ export async function runPrefilter(input: PrefilterInput, qwen: LlmClient, fallb
         schemaName: "prefilter",
         schema
       })).value;
-    } catch {
+    } catch (fallbackError) {
+      logger.warn({ error: fallbackError, title: input.title }, "prefilter fallback also failed, returning unknown");
       return { isIndustryRelated: "unknown", reason: "prefilter fallback failed" };
     }
   }
