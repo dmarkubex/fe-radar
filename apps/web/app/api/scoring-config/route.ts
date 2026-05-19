@@ -3,6 +3,7 @@ import { getRequestUser } from "@/lib/api/authz";
 import { scoringConfigSchema, validationError } from "@/lib/api/scoring-config-schema";
 import { isMockMode } from "@/lib/mock-mode";
 import { mockScoringConfig } from "@/lib/mock-data";
+import { mockReadonlyResponse } from "@/lib/api/mock-readonly";
 
 import type { NextRequest } from "next/server";
 
@@ -35,7 +36,7 @@ export async function PUT(request: NextRequest): Promise<Response> {
   }
 
   if (isMockMode()) {
-    return Response.json(parsed.data);
+    return mockReadonlyResponse();
   }
 
   const db = getDb();

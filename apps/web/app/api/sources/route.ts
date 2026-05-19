@@ -2,6 +2,7 @@ import { createSource, getDb, listSources } from "@fe-radar/db";
 import { createSourceSchema, validationError } from "@/lib/api/sources-schema";
 import { isMockMode } from "@/lib/mock-mode";
 import { mockSources } from "@/lib/mock-data";
+import { mockReadonlyResponse } from "@/lib/api/mock-readonly";
 
 export async function GET(request: Request): Promise<Response> {
   if (isMockMode()) {
@@ -27,7 +28,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   if (isMockMode()) {
-    return Response.json({ id: mockSources.length + 1, ...parsed.data }, { status: 201 });
+    return mockReadonlyResponse();
   }
 
   const source = await createSource(getDb(), parsed.data);
