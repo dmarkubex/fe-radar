@@ -155,4 +155,40 @@ DMA-6 (3 Major) → v0.2 → DMA-18 (6 Major + 2 Minor) → v0.4 → DMA-19 (4 M
 - **issue label 规则**：人决策 → **不打 label**；agent 自动处理（评审 / 编程） → 打 `codex` 或 `antigravity` label
 - 实施 task 进 Linear 时一律打 `codex` label，由用户 Codex 自动化拾取
 
+## v1.1 — Commodity Briefing
+
+### 背景
+
+FE-Radar v1.1 在 v1.0 产业情报雷达基础上新增**原料价格视角**：每个工作日 **16:00 Asia/Shanghai** 自动生成"铜锂大宗商品·每日行情简报"（电解铜 CU + 电池级碳酸锂 LC），通过钉钉群机器人 actionCard + 站内深链推送，辅助采购、成本预判、销售报价决策。v1.0 是"看新闻"，v1.1 是"看价格"；两者共用 sources / pipeline / 关注圈 / LLM / 推送通道。**本模块只增不改**，禁止修改 v1.0 已交付字段与表。
+
+规格文档：`spec/v1.1-commodity-briefing/requirements.md` v0.3 / `design.md` v0.4 / `tasks.md` v0.4（22 task · 3 Phase · Antigravity DMA-153 APPROVED-with-conditions）
+
+### 技术栈差异（v1.1 新增依赖，不替换 v1.0）
+
+| 依赖 | 用途 | 固定版本约束 |
+|---|---|---|
+| `diygod/rsshub` Docker image | 自部署内网 RSSHub，包装 SMM / 生意社 / 长江有色 / 中汽协 RSS 源 | pin 到 digest，不用 `:latest` |
+| `docxtemplater` + `pizzip` | Worker 端 docx 模板渲染（`{{placeholder}}` 填充） | 不替换为其他模板引擎 |
+| `sanitize-html` | quotes adapter raw_text strip HTML 标签（NFR-102 审计用） | 已在 packages/llm，复用 |
+| `minio` JS SDK | Worker 端上传渲染后 docx 到 `fe-radar-briefings` bucket | 复用 v1.0 MinIO 实例 |
+
+新增环境变量（worker + stack.yml）：`RSSHUB_BASE_URL=http://rsshub:1200`，`BRIEFING_TEMPLATE_PATH=/app/design/templates/briefing.docx`，`BRIEFING_MINIO_BUCKET=fe-radar-briefings`。
+
+### v1.1 硬约束
+
+- **NFR-102 数值精度**：价格数值**禁止 LLM 抽取**；只允许交易所接口 + 正则（`rsshub-extract.ts` regex_rules 数组，admin 可后台维护）；LLM 只生成"行情逻辑总结""走势预判"等语言段落（7 段 BRIEFING_SCHEMA，不含任何数值字段）
+- **withScrubber 强制**：briefing-gen job 调 Kimi K2.6 前必经 `packages/core/scrubber.ts`（同 v1.0 日报约束，无例外）
+- **template_version 必填**：`commodity_briefings.template_version INT NOT NULL`，模板改版必须 bump，便于历史回看时正确关联渲染版本
+- **disabled_at 软删**：`briefing_targets` 删除走 `UPDATE disabled_at=now() + enabled=false`，保留 `briefing_pushes` 审计链（不物理删除）
+- **节假日跳过**：`briefing_holidays` 表 admin 一年一次手工维护；三个 BullMQ job（quotes-fetch / briefing-gen / briefing-push）入口统一调 `packages/core isBusinessDay()` 判断，命中节假日直接 return（结构化日志，零 DB 写入）
+- **quotes seed 默认 disabled**：`fetcher_type='quotes'` 信源 seed 默认 `enabled=false`，等 adapter 上线后 admin 手动启用
+- **seed ON CONFLICT DO NOTHING**：`briefing_template_fields` / `briefing_holidays` seed 仅首次初始化，admin 后台修改不被 reseed 覆盖；新增字段须走新 migration（0010+），禁止直接改 0009 文件
+
+### 关键陷阱（v1.1 新增）
+
+9. **quotes-fetch 与 briefing-gen 竞态**：`briefing-gen` 在 16:00 启动时，15:30 的 `quotes-fetch` 可能因代理池故障仍在队列中积压。precheck 第一步必须先查 BullMQ `queue.getJobCounts('waiting','active','delayed')`，非空延迟 5min ×2 → 仍非空 abort（`gen_status='failed'` + 红色告警），不能把"队列积压"误判为"字段覆盖率不足 → degraded"（design.md §5.2 step 1 / tasks.md T-CB-13 E1 fix）
+10. **docx 模板 lint 不可跳过**：`briefing-render.ts` 渲染前必须校验模板中所有 `{{key}}` 都能在 `briefing_template_fields` 表找到；模板纳入 git（`design/templates/briefing.docx`），不允许运行时上传；改版走 PR + lint（tasks.md T-CB-11 / T-CB-09 风险 R9）
+11. **钉钉凭据三层 redact**：`briefing_targets.sign_secret` 在 API 响应中必须 mask 为 `***`（non-admin 路径）；Pino logger redact 配置必须含 `webhook_url` + `sign_secret`；Admin UI 输入框 `type=password`（tasks.md T-CB-12 / T-CB-18 / requirements §12 验收第 10 项）
+12. **90 天 docx retention**：`commodity_briefings` 元数据保留 90 天（cleanup job DELETE）；docx 文件由 MinIO bucket lifecycle policy 清理（不在 cleanup job 里删 MinIO 对象）；超期下载必须返回 **410 Gone**（不是 404），code=`BRIEFING_DOCX_EXPIRED`（FR-110 / design.md §8）
+
 # END PROJECT
