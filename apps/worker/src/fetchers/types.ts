@@ -8,6 +8,8 @@ export interface StandardItem {
 export interface FetchContext {
   sourceName: string;
   useRealUa?: boolean;
+  /** Optional per-source configuration passed from the job layer to adapters. */
+  sourceConfig?: Record<string, unknown>;
 }
 
 export interface RssSourceConfig {
