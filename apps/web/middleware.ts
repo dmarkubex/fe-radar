@@ -12,6 +12,7 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     pathname.startsWith("/api/dashboard") ||
     pathname.startsWith("/api/scoring-config") ||
     pathname.startsWith("/api/users") ||
+    pathname.startsWith("/api/briefing/targets") ||
     pathname.startsWith("/admin");
   const isAdminPage = pathname.startsWith("/admin");
   const isEditorPath = pathname.startsWith("/api/sources") || pathname.startsWith("/api/entities");
@@ -21,14 +22,17 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     pathname.startsWith("/search") ||
     pathname.startsWith("/alerts") ||
     pathname.startsWith("/daily") ||
-    pathname.startsWith("/items");
+    pathname.startsWith("/items") ||
+    pathname.startsWith("/briefing");
   const isTimelineApi =
     pathname.startsWith("/api/timeline") ||
     pathname.startsWith("/api/search") ||
     pathname.startsWith("/api/items") ||
     pathname.startsWith("/api/alerts") ||
     pathname.startsWith("/api/daily") ||
-    pathname.startsWith("/api/alerts/count");
+    pathname.startsWith("/api/alerts/count") ||
+    pathname.startsWith("/api/briefing") ||
+    pathname.startsWith("/api/quotes");
 
   if (isAdminPath || isEditorPath || isTimelinePage || isTimelineApi) {
     const token = await getToken({
@@ -84,6 +88,13 @@ export const config = {
     "/api/items/:path*",
     "/api/alerts/:path*",
     "/api/daily/:path*",
-    "/api/alerts/count"
+    "/api/alerts/count",
+    "/api/briefing/targets",
+    "/api/briefing/targets/:path*",
+    "/api/briefing",
+    "/api/briefing/:path*",
+    "/api/quotes/:path*",
+    "/briefing",
+    "/briefing/:path*"
   ]
 };

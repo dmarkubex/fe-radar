@@ -18,6 +18,7 @@ const MONITOR_NAV = [
   { href: "/curated", label: "精选 Curated", minRole: "viewer" as UserRole, badge: "count" },
   { href: "/alerts", label: "告警 Alerts", minRole: "viewer" as UserRole, badge: "alert" },
   { href: "/daily", label: "日报 Digest", minRole: "viewer" as UserRole },
+  { href: "/briefing", label: "每日简报 Briefing", minRole: "viewer" as UserRole },
 ];
 
 const DATA_NAV = [
@@ -167,5 +168,6 @@ function getBreadcrumb(path?: string): string {
   if (path.startsWith("/admin/scoring-config")) return "管理 / 评分配置";
   if (path.startsWith("/admin/users")) return "管理 / 用户";
   if (path.startsWith("/admin/entities")) return "数据 / 实体";
+  if (path.startsWith("/briefing")) return "监测 / 简报";
   return "";
 }
