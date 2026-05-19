@@ -14,18 +14,33 @@ export interface AuthUser {
   disabledAt?: Date | null;
 }
 
+type MockUsername = "admin" | "viewer";
+
+const MOCK_PASSWORDS: Record<MockUsername, string> = {
+  admin: "admin123456",
+  viewer: "viewer123456"
+};
+
+const mockPasswordHashPromises: Partial<Record<MockUsername, Promise<string>>> = {};
+
+function isMockUsername(username: string): username is MockUsername {
+  return username === "admin" || username === "viewer";
+}
+
+function getMockPasswordHash(username: MockUsername): Promise<string> {
+  mockPasswordHashPromises[username] ??= bcrypt.hash(MOCK_PASSWORDS[username], BCRYPT_WORK_FACTOR);
+  return mockPasswordHashPromises[username];
+}
+
 export async function findUserByUsername(username: string): Promise<AuthUser | null> {
-  if (isMockMode()) {
-    if (username !== "admin" && username !== "viewer") return null;
+  if (process.env.NODE_ENV !== "production" && isMockMode()) {
+    if (!isMockUsername(username)) return null;
     return {
       id: username === "admin" ? "1" : "2",
       username,
       name: username === "admin" ? "Mock 管理员" : "Mock 访客",
       role: username === "admin" ? "admin" : "viewer",
-      passwordHash: await bcrypt.hash(
-        username === "admin" ? "admin123456" : "viewer123456",
-        BCRYPT_WORK_FACTOR
-      ),
+      passwordHash: await getMockPasswordHash(username),
       disabledAt: null
     };
   }

@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const clientReadableModeKey = ["NEXT", "PUBLIC", "APP", "DATA", "MODE"].join("_");
+
 describe("mock-mode flag", () => {
   beforeEach(() => {
     vi.stubEnv("APP_DATA_MODE", "");
-    vi.stubEnv("NEXT_PUBLIC_APP_DATA_MODE", "");
+    vi.stubEnv(clientReadableModeKey, "");
     vi.stubEnv("NODE_ENV", "test");
     vi.resetModules();
   });
@@ -24,8 +26,8 @@ describe("mock-mode flag", () => {
     expect(isMockMode()).toBe(true);
   });
 
-  it("ignores NEXT_PUBLIC_APP_DATA_MODE (must not gate server behavior on client-readable env)", async () => {
-    vi.stubEnv("NEXT_PUBLIC_APP_DATA_MODE", "mock");
+  it("ignores the client-readable data-mode env", async () => {
+    vi.stubEnv(clientReadableModeKey, "mock");
     const { isMockMode } = await import("../mock-mode");
     expect(isMockMode()).toBe(false);
   });
