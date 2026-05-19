@@ -2,6 +2,13 @@ import { SourceFetchError } from "@fe-radar/shared";
 import type { FetchContext } from "../types";
 import type { QuotesAdapter, QuoteSample } from "./types";
 
+import { shfeAdapter } from "./shfe";
+import { gfexAdapter } from "./gfex";
+import { lmeAdapter } from "./lme";
+import { pbocAdapter } from "./pboc";
+import { chinabondAdapter } from "./chinabond";
+import { rsshubExtractAdapter } from "./rsshub-extract";
+
 /**
  * Registry of quotes adapters keyed by adapter name.
  *
@@ -61,3 +68,8 @@ export async function fetchQuotes(
   const adapter = adapterRegistry[adapterName]!;
   return adapter.fetch(ctx);
 }
+
+// T-CB-07 + T-CB-08 wire: 6 个 adapter 在 module load 时一次性注册
+[shfeAdapter, gfexAdapter, lmeAdapter, pbocAdapter, chinabondAdapter, rsshubExtractAdapter].forEach(
+  registerAdapter
+);
