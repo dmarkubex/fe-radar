@@ -1,0 +1,209 @@
+{
+  "title": "FE-Radar v1.1 Commodity Briefing",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": ["v1.1"],
+  "uid": "commodity-briefing-v11",
+  "refresh": "5m",
+  "time": { "from": "now-7d", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Briefing Gen 成功率（7d）",
+      "description": "commodity_briefings gen_status=succeeded / total，近 7 日滚动",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 6 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.8 },
+              { "color": "green", "value": 0.95 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT\n  date_trunc('day', created_at) AS time,\n  CASE WHEN COUNT(*) = 0 THEN NULL\n       ELSE COUNT(*) FILTER (WHERE gen_status = 'succeeded')::float / COUNT(*)\n  END AS value\nFROM commodity_briefings\nWHERE created_at >= now() - INTERVAL '7 days'\nGROUP BY 1\nORDER BY 1",
+          "format": "time_series",
+          "datasource": { "type": "postgres", "uid": "fe-radar-postgres" }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Briefing Push 成功率（24h）",
+      "description": "briefing_pushes push_status=succeeded / total，近 24 小时滚动",
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 6 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "green", "value": 0.95 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT\n  date_trunc('hour', pushed_at) AS time,\n  CASE WHEN COUNT(*) = 0 THEN NULL\n       ELSE COUNT(*) FILTER (WHERE push_status = 'succeeded')::float / COUNT(*)\n  END AS value\nFROM briefing_pushes\nWHERE pushed_at >= now() - INTERVAL '24 hours'\nGROUP BY 1\nORDER BY 1",
+          "format": "time_series",
+          "datasource": { "type": "postgres", "uid": "fe-radar-postgres" }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "gauge",
+      "title": "Briefing 字段覆盖率（当日均值）",
+      "description": "commodity_briefings payload_json 第一层 9 字段完整度均值；null / '—' 计为缺失",
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 6 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "green", "value": 0.9 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT\n  now() AS time,\n  AVG(\n    (\n      CASE WHEN payload_json->>'cu'        IS NOT NULL AND payload_json->>'cu'        != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'lc'        IS NOT NULL AND payload_json->>'lc'        != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'al'        IS NOT NULL AND payload_json->>'al'        != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'zn'        IS NOT NULL AND payload_json->>'zn'        != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'ni'        IS NOT NULL AND payload_json->>'ni'        != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'fe'        IS NOT NULL AND payload_json->>'fe'        != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'coal'      IS NOT NULL AND payload_json->>'coal'      != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'lithium'   IS NOT NULL AND payload_json->>'lithium'   != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'overview'  IS NOT NULL AND payload_json->>'overview'  != '—' THEN 1 ELSE 0 END\n    )::float / 9\n  ) AS value\nFROM commodity_briefings\nWHERE briefing_date = CURRENT_DATE",
+          "format": "time_series",
+          "datasource": { "type": "postgres", "uid": "fe-radar-postgres" }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Quotes Fetch 时延（P50 / P95）",
+      "description": "commodity_quotes fetched_at - observed_at 的中位数与 p95，按小时聚合",
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 8 },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "p95" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "dash": [4, 4], "fill": "dash" } },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "p50" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT\n  date_trunc('hour', fetched_at) AS time,\n  PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (fetched_at - observed_at))) AS p50,\n  PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (fetched_at - observed_at))) AS p95\nFROM commodity_quotes\nWHERE fetched_at >= now() - INTERVAL '7 days'\n  AND observed_at IS NOT NULL\n  AND fetched_at > observed_at\nGROUP BY 1\nORDER BY 1",
+          "format": "time_series",
+          "datasource": { "type": "postgres", "uid": "fe-radar-postgres" }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Kimi 月度成本估算（CNY）",
+      "description": "briefing-gen Kimi token 用量 × 单价（input: ¥0.015/1K token, output: ¥0.06/1K token）；仅当月累计",
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 8 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyCNY",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 80 },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT\n  date_trunc('day', created_at) AS time,\n  SUM(\n    (COALESCE((meta->>'kimi_input_tokens')::bigint, 0) * 0.015 / 1000.0) +\n    (COALESCE((meta->>'kimi_output_tokens')::bigint, 0) * 0.06 / 1000.0)\n  ) AS daily_cost\nFROM commodity_briefings\nWHERE created_at >= date_trunc('month', now())\n  AND gen_status = 'succeeded'\nGROUP BY 1\nORDER BY 1",
+          "format": "time_series",
+          "datasource": { "type": "postgres", "uid": "fe-radar-postgres" }
+        },
+        {
+          "refId": "B",
+          "rawSql": "SELECT\n  now() AS time,\n  SUM(\n    (COALESCE((meta->>'kimi_input_tokens')::bigint, 0) * 0.015 / 1000.0) +\n    (COALESCE((meta->>'kimi_output_tokens')::bigint, 0) * 0.06 / 1000.0)\n  ) AS monthly_total\nFROM commodity_briefings\nWHERE created_at >= date_trunc('month', now())\n  AND gen_status = 'succeeded'",
+          "format": "time_series",
+          "datasource": { "type": "postgres", "uid": "fe-radar-postgres" }
+        }
+      ]
+    }
+  ]
+}

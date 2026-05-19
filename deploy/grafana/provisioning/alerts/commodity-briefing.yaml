@@ -1,0 +1,224 @@
+# Grafana Unified Alerting — v1.1 Commodity Briefing
+# 4 告警规则：gen 连续失败 / push 失败率 / source fail_count / Kimi 月度成本
+# schemaVersion: grafana/alerting v1
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: commodity-briefing
+    folder: FE-Radar v1.1
+    interval: 5m
+    rules:
+
+      # ── 规则 1：briefing-gen 连续 2 工作日失败 ─────────────────────────────
+      - uid: cb-gen-consec-fail
+        title: "Briefing-Gen 连续 2 工作日失败"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 172800   # 48h
+              to: 0
+            datasourceUid: fe-radar-postgres
+            model:
+              rawSql: |
+                SELECT
+                  briefing_date AS time,
+                  CASE WHEN gen_status = 'failed' THEN 1 ELSE 0 END AS failed
+                FROM commodity_briefings
+                WHERE briefing_date >= CURRENT_DATE - INTERVAL '2 days'
+                  AND briefing_date NOT IN (
+                    SELECT holiday_date FROM briefing_holidays
+                    WHERE holiday_date >= CURRENT_DATE - INTERVAL '2 days'
+                  )
+                ORDER BY briefing_date DESC
+              format: table
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              type: reduce
+              refId: C
+              expression: A
+              reducer: sum
+              conditions:
+                - evaluator:
+                    params: [2]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+        noDataState: NoData
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "Briefing-Gen 已连续 2 个工作日失败"
+          description: "commodity_briefings.gen_status=failed 连续 2 个工作日；请检查 Kimi API 连通性与 quotes 入库状态。"
+          runbook_url: "https://fe-radar.internal/runbook/briefing-gen-failure"
+        labels:
+          severity: critical
+          team: infra
+          version: v1.1
+
+      # ── 规则 2：briefing-push 失败率 > 50%（rolling 1h）────────────────────
+      - uid: cb-push-fail-rate
+        title: "Briefing-Push 失败率 > 50%（1h）"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600   # 1h
+              to: 0
+            datasourceUid: fe-radar-postgres
+            model:
+              rawSql: |
+                SELECT
+                  CASE
+                    WHEN COUNT(*) = 0 THEN 0
+                    ELSE COUNT(*) FILTER (WHERE push_status = 'failed')::float / COUNT(*)
+                  END AS fail_rate
+                FROM briefing_pushes
+                WHERE pushed_at >= now() - INTERVAL '1 hour'
+              format: table
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              type: reduce
+              refId: C
+              expression: A
+              reducer: last
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+        noDataState: NoData
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "Briefing-Push 失败率超过 50%（近 1 小时）"
+          description: "briefing_pushes 近 1 小时失败率 > 50%；请检查钉钉 webhook 凭据有效性与网络连通性。"
+          runbook_url: "https://fe-radar.internal/runbook/briefing-push-failure"
+        labels:
+          severity: critical
+          team: infra
+          version: v1.1
+
+      # ── 规则 3：单 source fail_count ≥ 7（commodity quotes 信源）──────────
+      - uid: cb-source-fail-count
+        title: "Quotes 信源 fail_count ≥ 7"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 86400   # 24h
+              to: 0
+            datasourceUid: fe-radar-postgres
+            model:
+              rawSql: |
+                SELECT
+                  id            AS time,
+                  name          AS metric,
+                  fail_count    AS value
+                FROM sources
+                WHERE fetcher_type = 'commodity_exchange'
+                  AND fail_count >= 7
+                  AND disabled_at IS NULL
+                ORDER BY fail_count DESC
+              format: table
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              type: reduce
+              refId: C
+              expression: A
+              reducer: count
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "Quotes 信源 fail_count ≥ 7（{{ $labels.metric }}）"
+          description: "sources 表中 fetcher_type=commodity_exchange 的信源 fail_count 达到 7，抓取持续失败。请检查信源 URL / 反爬策略 / 代理池状态。"
+          runbook_url: "https://fe-radar.internal/runbook/source-fail-count"
+        labels:
+          severity: warning
+          team: infra
+          version: v1.1
+
+      # ── 规则 4：Kimi 月度成本超预算阈值（NFR-105，admin 可配置）────────────
+      - uid: cb-kimi-monthly-cost
+        title: "Kimi 月度成本超预算（NFR-105）"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 2592000   # ~30d，取月初到当前
+              to: 0
+            datasourceUid: fe-radar-postgres
+            model:
+              rawSql: |
+                SELECT
+                  now() AS time,
+                  SUM(
+                    (COALESCE((meta->>'kimi_input_tokens')::bigint, 0) * 0.015 / 1000.0) +
+                    (COALESCE((meta->>'kimi_output_tokens')::bigint, 0) * 0.06 / 1000.0)
+                  ) AS monthly_cost_cny
+                FROM commodity_briefings
+                WHERE created_at >= date_trunc('month', now())
+                  AND gen_status = 'succeeded'
+              format: table
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              type: reduce
+              refId: C
+              expression: A
+              reducer: last
+              conditions:
+                # 阈值 100 CNY（NFR-105；admin 可在 Grafana UI 中调整此值）
+                - evaluator:
+                    params: [100]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+        noDataState: NoData
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "Kimi 月度成本已超 ¥100（NFR-105 预算上限）"
+          description: "当月 briefing-gen Kimi token 消耗折算成本超过 ¥100 CNY。请检查 token 用量是否异常，或联系 admin 调整预算阈值。"
+          runbook_url: "https://fe-radar.internal/runbook/kimi-cost-overrun"
+        labels:
+          severity: warning
+          team: infra
+          version: v1.1
