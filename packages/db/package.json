@@ -10,6 +10,7 @@
     "lint": "eslint src --max-warnings=0",
     "migrate": "tsx scripts/migrate.ts",
     "seed:admin": "tsx scripts/seed-admin.ts",
+    "seed:mock": "tsx scripts/seed-mock-data.ts",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "verify:sources": "tsx scripts/verify-sources.ts"

@@ -12,10 +12,12 @@ import {
 
 import type { DbClient } from "@fe-radar/db";
 import type { TimelineFilters } from "@/lib/api/timeline-schema";
+import { BLOCKED_QUOTA_STATES, MANUAL_SCRUB_SUMMARY } from "@/lib/api/item-visibility";
+import { decodeCursor, encodeCursor } from "@/lib/api/cursor";
+import { isMockMode } from "@/lib/mock-mode";
+import { mockFetchItemDetail, mockFetchTimeline } from "@/lib/mock-data";
 
 const DEFAULT_LIMIT = 50;
-const BLOCKED_QUOTA_STATES = ["pending_over_quota", "dropped_quota_expired", "dropped_filter"] as const;
-const MANUAL_SCRUB_SUMMARY = "[需人工脱敏]";
 
 export interface TimelineItemDto {
   id: number;
@@ -67,30 +69,6 @@ export interface ItemDetailDto extends TimelineItemDto {
     publishedAt: string;
     similarity: number | null;
   }>;
-}
-
-interface CursorPayload {
-  scoredAt: string;
-  id: number;
-}
-
-function encodeCursor(payload: CursorPayload): string {
-  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
-}
-
-function decodeCursor(cursor: string | undefined): CursorPayload | null {
-  if (!cursor) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as Partial<CursorPayload>;
-    if (!parsed.scoredAt || typeof parsed.id !== "number") {
-      return null;
-    }
-    return { scoredAt: parsed.scoredAt, id: parsed.id };
-  } catch {
-    return null;
-  }
 }
 
 function visibleItemConditions(filters: TimelineFilters, includeBlocked: boolean, cursor?: string, search?: string, useFts = true) {
@@ -201,6 +179,9 @@ export async function fetchTimeline(options: {
   search?: string;
   db?: DbClient;
 }): Promise<TimelineResult> {
+  if (isMockMode()) {
+    return mockFetchTimeline(options);
+  }
   const db = options.db ?? getDb();
   const filters = options.filters ?? {};
   const limit = options.limit ?? DEFAULT_LIMIT;
@@ -242,6 +223,9 @@ export async function fetchItemDetail(
   id: number,
   options: { includeBlocked?: boolean; db?: DbClient } = {}
 ): Promise<ItemDetailDto | null> {
+  if (isMockMode()) {
+    return mockFetchItemDetail(id);
+  }
   const db = options.db ?? getDb();
   const rows = await db
     .select({

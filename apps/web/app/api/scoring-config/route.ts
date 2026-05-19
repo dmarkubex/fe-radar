@@ -1,6 +1,8 @@
 import { getDb, scoringConfig } from "@fe-radar/db";
 import { getRequestUser } from "@/lib/api/authz";
 import { scoringConfigSchema, validationError } from "@/lib/api/scoring-config-schema";
+import { isMockMode } from "@/lib/mock-mode";
+import { mockScoringConfig } from "@/lib/mock-data";
 
 import type { NextRequest } from "next/server";
 
@@ -12,6 +14,9 @@ const KEY_MAP = {
 } as const;
 
 export async function GET(): Promise<Response> {
+  if (isMockMode()) {
+    return Response.json(mockScoringConfig);
+  }
   const rows = await getDb().select().from(scoringConfig);
   const byKey = Object.fromEntries(rows.map((row) => [row.key, row.value]));
   return Response.json({
@@ -27,6 +32,10 @@ export async function PUT(request: NextRequest): Promise<Response> {
   const parsed = scoringConfigSchema.safeParse(await request.json());
   if (!parsed.success) {
     return validationError(parsed.error.flatten());
+  }
+
+  if (isMockMode()) {
+    return Response.json(parsed.data);
   }
 
   const db = getDb();

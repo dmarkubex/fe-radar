@@ -11,6 +11,8 @@ import {
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
 
 import type { DbClient } from "@fe-radar/db";
+import { isMockMode } from "@/lib/mock-mode";
+import { mockFetchDashboardData } from "@/lib/mock-data";
 
 const MANUAL_SCRUB_SUMMARY = "[需人工脱敏]";
 
@@ -44,7 +46,11 @@ export interface DashboardData {
   recentAuditCount: number;
 }
 
-export async function fetchDashboardData(db: DbClient = getDb()): Promise<DashboardData> {
+export async function fetchDashboardData(db?: DbClient): Promise<DashboardData> {
+  if (isMockMode()) {
+    return mockFetchDashboardData();
+  }
+  db ??= getDb();
   const now = dayjs().tz(APP_TIMEZONE);
   const startOfDay = now.startOf("day").toDate();
   const oldCutoff = now.subtract(24, "hour").toDate();

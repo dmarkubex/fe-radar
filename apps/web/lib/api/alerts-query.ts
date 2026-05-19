@@ -5,30 +5,10 @@ import { clusterItems, clusters, getDb, itemAnalysis, items, sources } from "@fe
 import type { DbClient } from "@fe-radar/db";
 import type { AlertQuery } from "@/lib/api/alerts-schema";
 import type { TimelineItemDto } from "@/lib/api/timeline-query";
-
-const BLOCKED_QUOTA_STATES = ["pending_over_quota", "dropped_quota_expired", "dropped_filter"] as const;
-const MANUAL_SCRUB_SUMMARY = "[需人工脱敏]";
-
-interface CursorPayload {
-  scoredAt: string;
-  id: number;
-}
-
-function encodeCursor(payload: CursorPayload): string {
-  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
-}
-
-function decodeCursor(cursor?: string): CursorPayload | null {
-  if (!cursor) {
-    return null;
-  }
-  try {
-    const value = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as Partial<CursorPayload>;
-    return value.scoredAt && typeof value.id === "number" ? { scoredAt: value.scoredAt, id: value.id } : null;
-  } catch {
-    return null;
-  }
-}
+import { BLOCKED_QUOTA_STATES, MANUAL_SCRUB_SUMMARY } from "@/lib/api/item-visibility";
+import { decodeCursor, encodeCursor } from "@/lib/api/cursor";
+import { isMockMode } from "@/lib/mock-mode";
+import { mockFetchAlertCount, mockFetchAlerts } from "@/lib/mock-data";
 
 function baseAlertConditions(query: Pick<AlertQuery, "type" | "level" | "source" | "cursor">, fromStartOfDay = false) {
   const cursor = decodeCursor(query.cursor);
@@ -46,7 +26,11 @@ function baseAlertConditions(query: Pick<AlertQuery, "type" | "level" | "source"
   );
 }
 
-export async function fetchAlerts(query: AlertQuery, db: DbClient = getDb()): Promise<{ items: TimelineItemDto[]; nextCursor: string | null }> {
+export async function fetchAlerts(query: AlertQuery, db?: DbClient): Promise<{ items: TimelineItemDto[]; nextCursor: string | null }> {
+  if (isMockMode()) {
+    return mockFetchAlerts(query);
+  }
+  db ??= getDb();
   const rows = await db
     .select({
       id: items.id,
@@ -102,7 +86,11 @@ export async function fetchAlerts(query: AlertQuery, db: DbClient = getDb()): Pr
   };
 }
 
-export async function fetchAlertCount(db: DbClient = getDb()): Promise<{ own: number; safety: number; policy: number }> {
+export async function fetchAlertCount(db?: DbClient): Promise<{ own: number; safety: number; policy: number }> {
+  if (isMockMode()) {
+    return mockFetchAlertCount();
+  }
+  db ??= getDb();
   const rows = await db
     .select({ alertType: itemAnalysis.alertType })
     .from(items)
