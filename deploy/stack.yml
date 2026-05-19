@@ -22,6 +22,7 @@ services:
 
   worker:
     image: fe-radar/worker:latest
+    command: ["node", "dist/main.js"]
     environment:
       NODE_ENV: production
       TZ: Asia/Shanghai
