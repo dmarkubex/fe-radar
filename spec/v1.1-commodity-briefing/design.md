@@ -6,14 +6,15 @@
 > **依赖**：v1.0 `spec/design.md` v0.8 已读；本文档**只描述增量**
 > **引用规范**：v1.0 章节引用为 `design §X`；本文档章节引用为 `§X`
 > **v0.3 → v0.4 修复点**（DMA-153 review report `.ai/linear/v11-plan-review-report.md`）：
->   - **M1**：`commodity_briefings` 新增 `template_version INT NOT NULL` + 索引（§7.1）
->   - **M2**：`briefing_targets` 新增 `disabled_at TIMESTAMPTZ` + 软删 partial index（§7.1）
->   - **E1**：§5.2 step 1 precheck 增加 `quotes-fetch` 队列陈旧度检查（队列非空 → 延长等待 ×2）
->   - **E2**：`raw_text` 单位口径统一为 **2000 字符**（Unicode code points），与 requirements §9.2 / tasks T-CB-01 一致（§7.1）
->   - **E3**：§6.5 增 UI 降级提示约定（样本 < 10 时 `/briefing/[id]` 必须显示「近期数据样本不足，支撑/压力位计算已降级」）
->   - M3 / E4 修复点详见 `tasks.md` v0.4（T-CB-09 / T-CB-03）
-> **v0.2 → v0.3 变更**：内化 Q-11G/H/I/J/L 5 项 Human-decision（详见 requirements §11.1）· 风险 R5（16:00 夜盘）措辞对齐 · 后续动作清单更新
-> **v0.1 → v0.2 修复点**：6 张新表口径统一 / raw_text 边界（不存全 HTML）/ BRIEFING_SCHEMA 去除 LLM support/resistance / download API 端点 / actionCard 默认 + file 推送移至 v1.2
+>
+> - **M1**：`commodity_briefings` 新增 `template_version INT NOT NULL` + 索引（§7.1）
+> - **M2**：`briefing_targets` 新增 `disabled_at TIMESTAMPTZ` + 软删 partial index（§7.1）
+> - **E1**：§5.2 step 1 precheck 增加 `quotes-fetch` 队列陈旧度检查（队列非空 → 延长等待 ×2）
+> - **E2**：`raw_text` 单位口径统一为 **2000 字符**（Unicode code points），与 requirements §9.2 / tasks T-CB-01 一致（§7.1）
+> - **E3**：§6.5 增 UI 降级提示约定（样本 < 10 时 `/briefing/[id]` 必须显示「近期数据样本不足，支撑/压力位计算已降级」）
+> - M3 / E4 修复点详见 `tasks.md` v0.4（T-CB-09 / T-CB-03）
+>   **v0.2 → v0.3 变更**：内化 Q-11G/H/I/J/L 5 项 Human-decision（详见 requirements §11.1）· 风险 R5（16:00 夜盘）措辞对齐 · 后续动作清单更新
+>   **v0.1 → v0.2 修复点**：6 张新表口径统一 / raw_text 边界（不存全 HTML）/ BRIEFING_SCHEMA 去除 LLM support/resistance / download API 端点 / actionCard 默认 + file 推送移至 v1.2
 
 ---
 
@@ -74,6 +75,7 @@ v1.1 在 v1.0 架构（`design §1`）基础上**新增 5 个组件**（图中�
 ```
 
 **变更原则**：
+
 - 不新增进程，只新增 Worker 内的 BullMQ jobs（沿用 v1.0 进程模型）
 - 新增 1 个 docker service（RSSHub），不动 v1.0 stack 其他服务
 - 复用 v1.0 LLM / scrubber / Pino / Grafana / MinIO / cron 基础设施
@@ -82,20 +84,20 @@ v1.1 在 v1.0 架构（`design §1`）基础上**新增 5 个组件**（图中�
 
 ## 2. 复用 v1.0 的模块清单
 
-| v1.0 模块 | 复用方式 | v1.1 是否动它 |
-|---|---|---|
-| `packages/db` schema（sources / entities）| 追加行 / 追加 entity 类型 | 不修改 v1.0 列；仅 `sources.fetcher_type` CHECK 扩展（§7） |
-| `packages/db` schema（其他表）| 不读不写 | 不修改 |
-| `apps/worker/fetchers/{rss,html,playwright}` | RSSHub 走 rss fetcher / 央行走 html fetcher | 不修改 |
-| `apps/worker/lib/{proxy-pool,ua-pool,robots}` | quotes fetcher 复用 | 不修改 |
-| `apps/worker/scheduler` | 新增 cron 项 | 仅追加新 cron entry，不改现有 |
-| `apps/worker/jobs/daily-gen` | 不读不写 | 不修改 |
-| `packages/llm/{client,scrubber}` | Kimi client + scrubber middleware 复用 | 不修改；新增 `briefing-schema.ts` |
-| `packages/core/scrubber.ts` | 简报 LLM 调用前必经 | 不修改 |
-| `packages/shared/{dayjs,errors,constants}` | dayjs Asia/Shanghai / AppError 子类 / cron 常量 | 仅追加常量，不修改已有 |
-| `apps/web/middleware.ts` | RBAC editor+/admin 守卫 | 不修改 |
-| `apps/web/lib/auth` | 钉钉 OAuth provider | 不修改 |
-| Pino logger / Grafana dashboard / MinIO backup | 沿用 | 仅追加面板行 |
+| v1.0 模块                                      | 复用方式                                        | v1.1 是否动它                                              |
+| ---------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------- |
+| `packages/db` schema（sources / entities）     | 追加行 / 追加 entity 类型                       | 不修改 v1.0 列；仅 `sources.fetcher_type` CHECK 扩展（§7） |
+| `packages/db` schema（其他表）                 | 不读不写                                        | 不修改                                                     |
+| `apps/worker/fetchers/{rss,html,playwright}`   | RSSHub 走 rss fetcher / 央行走 html fetcher     | 不修改                                                     |
+| `apps/worker/lib/{proxy-pool,ua-pool,robots}`  | quotes fetcher 复用                             | 不修改                                                     |
+| `apps/worker/scheduler`                        | 新增 cron 项                                    | 仅追加新 cron entry，不改现有                              |
+| `apps/worker/jobs/daily-gen`                   | 不读不写                                        | 不修改                                                     |
+| `packages/llm/{client,scrubber}`               | Kimi client + scrubber middleware 复用          | 不修改；新增 `briefing-schema.ts`                          |
+| `packages/core/scrubber.ts`                    | 简报 LLM 调用前必经                             | 不修改                                                     |
+| `packages/shared/{dayjs,errors,constants}`     | dayjs Asia/Shanghai / AppError 子类 / cron 常量 | 仅追加常量，不修改已有                                     |
+| `apps/web/middleware.ts`                       | RBAC editor+/admin 守卫                         | 不修改                                                     |
+| `apps/web/lib/auth`                            | 钉钉 OAuth provider                             | 不修改                                                     |
+| Pino logger / Grafana dashboard / MinIO backup | 沿用                                            | 仅追加面板行                                               |
 
 ---
 
@@ -159,6 +161,7 @@ design/templates/
 ```
 
 **模块边界**（与 base `design §3` 一致）：
+
 - `apps/web` 与 `apps/worker` 仍**不互相 import**
 - 跨 package 经 `index.ts` 公共出口
 - `packages/core/briefing.ts` 仍**不依赖** `packages/db`
@@ -174,6 +177,7 @@ design/templates/
 
 ```json
 {
+  "type": "quotes",
   "adapter": "shfe",
   "metric_keys": ["cu_main_close", "cu_main_change_pct"],
   "endpoint": "http://www.shfe.com.cn/data/dailydata/kx/kx{YYYYMMDD}.dat",
@@ -187,12 +191,12 @@ design/templates/
 ```ts
 // apps/worker/src/fetchers/quotes/types.ts
 export interface QuoteSample {
-  metricKey: string;            // 例如 "cu_main_close"
-  value: number | null;         // 失败时 null
+  metricKey: string; // 例如 "cu_main_close"
+  value: number | null; // 失败时 null
   changePct: number | null;
-  observedAt: Date;             // 数据指向的时间点（交易日收盘）
-  rawText: string;              // 原始文本快照（NFR-102 审计用）
-  sourceId: number;             // sources.id
+  observedAt: Date; // 数据指向的时间点（交易日收盘）
+  rawText: string; // 原始文本快照（NFR-102 审计用）
+  sourceId: number; // sources.id
 }
 
 export interface QuotesAdapter {
@@ -206,26 +210,28 @@ export interface QuotesAdapter {
 ### 4.3 RSSHub 数值抽取
 
 RSSHub 返回的 RSS item 通常是"标题 + HTML 摘要"。`rsshub-extract.ts` 走三步：
+
 1. **strip HTML**：先用 `sanitize-html` 剥离全部标签 → 纯文本（保留行内空白）
 2. **regex match**：用预编译正则提取首个浮点数（如 "电池级碳酸锂今日均价 6.82 万元/吨" → 提取 `6.82` × 单位换算）
 3. **失败兜底**：命中失败 → 标 `value=null` + `rawText=<纯文本，maxLength=2000 字符（Unicode code points · v0.4 fix E2）>` + 入 admin Dashboard 黄色告警 backlog；**绝不调 LLM 抽取**（NFR-102）
 
 **raw_text 边界硬约束**（沿用 v1.0 FR-12 / requirements.md §9.2）：
+
 - 必须先 strip HTML（不存原始 HTML 快照）
 - 长度截断 ≤ 2000 字符（Unicode code points · v0.4 fix E2；仅保留与数值相关的最小上下文）
 - 该约束对所有 quotes adapter（shfe / gfex / lme / pboc / chinabond / rsshub-extract）一致
 
-正则规则放在 `sources.config.regex_rules` 数组里，admin 可后台维护；初始 seed 见 T-CB-09。
+正则规则放在 `sources.config.regex_rules` 数组里，统一使用 snake_case：`{ pattern, metric_key, unit_multiplier?, group? }`；admin 可后台维护；初始 seed 见 T-CB-09。
 
 ### 4.4 cron 调度
 
 新增在 `apps/worker/src/scheduler.ts`（追加，不动现有）：
 
-| Job | Cron | TZ | 备注 |
-|---|---|---|---|
-| `quotes-fetch` | `30 15 * * 1-5` | Asia/Shanghai | 工作日 15:30，紧跟上期所收盘 |
-| `briefing-gen` | `0 16 * * 1-5` | Asia/Shanghai | 工作日 16:00，依赖 quotes 已入库 |
-| `briefing-push` | `5 16 * * 1-5` | Asia/Shanghai | 工作日 16:05 |
+| Job             | Cron            | TZ            | 备注                             |
+| --------------- | --------------- | ------------- | -------------------------------- |
+| `quotes-fetch`  | `30 15 * * 1-5` | Asia/Shanghai | 工作日 15:30，紧跟上期所收盘     |
+| `briefing-gen`  | `0 16 * * 1-5`  | Asia/Shanghai | 工作日 16:00，依赖 quotes 已入库 |
+| `briefing-push` | `5 16 * * 1-5`  | Asia/Shanghai | 工作日 16:05                     |
 
 **Job 间依赖**：`briefing-gen` 启动时检查当日 `commodity_quotes` 第一层字段（§6.1）入库行数 ≥ 5 才执行，否则延迟 5 分钟重试，最多 2 次，全失败则降级（缺失字段标 "—"，简报照常生成 + 黄色告警）。
 
@@ -299,12 +305,12 @@ RSSHub 返回的 RSS item 通常是"标题 + HTML 摘要"。`rsshub-extract.ts` 
 
 ### 5.4 失败重试 / 兜底
 
-| 阶段 | 重试 | 兜底 |
-|---|---|---|
-| quotes-fetch 单 source 失败 | 3 次（v1.0 默认） | 该字段标 null，不阻塞其他 source |
-| briefing-gen Kimi 调用失败 | 2 次 | 整个 briefing 标 `gen_status=failed` + admin 红色告警；不推送 |
-| briefing-gen docx 渲染失败 | 不重试 | 同上 |
-| briefing-push 钉钉失败 | 3 次指数退避 | push_status=failed + admin 红色告警；保留 briefing 数据可重新推送 |
+| 阶段                        | 重试              | 兜底                                                              |
+| --------------------------- | ----------------- | ----------------------------------------------------------------- |
+| quotes-fetch 单 source 失败 | 3 次（v1.0 默认） | 该字段标 null，不阻塞其他 source                                  |
+| briefing-gen Kimi 调用失败  | 2 次              | 整个 briefing 标 `gen_status=failed` + admin 红色告警；不推送     |
+| briefing-gen docx 渲染失败  | 不重试            | 同上                                                              |
+| briefing-push 钉钉失败      | 3 次指数退避      | push_status=failed + admin 红色告警；保留 briefing 数据可重新推送 |
 
 ---
 
@@ -325,7 +331,7 @@ export const BRIEFING_SCHEMA = {
         logic_summary: { type: "string", maxLength: 400 },
         outlook: {
           type: "object",
-          required: ["trend"],                    // 仅 trend 由 LLM 出
+          required: ["trend"], // 仅 trend 由 LLM 出
           properties: {
             trend: { enum: ["偏多", "区间震荡", "偏弱"] }
             // support/resistance 不在 LLM schema —— 由 packages/core/briefing.ts 代码计算后
@@ -334,9 +340,15 @@ export const BRIEFING_SCHEMA = {
         }
       }
     },
-    lc: { /* 同上结构：logic_summary + outlook.trend */ },
+    lc: {
+      /* 同上结构：logic_summary + outlook.trend */
+    },
     macro_summary: { type: "string", maxLength: 300 },
-    risk_notes: { type: "array", items: { type: "string", maxLength: 100 }, maxItems: 5 },
+    risk_notes: {
+      type: "array",
+      items: { type: "string", maxLength: 100 },
+      maxItems: 5
+    },
     procurement_advice: {
       enum: [
         "全面观望，等待价格回落",
@@ -350,6 +362,7 @@ export const BRIEFING_SCHEMA = {
 ```
 
 **LLM 产出 7 段**（与 `requirements.md §7.2` / §12 验收抽检对齐）：
+
 1. `cu.logic_summary` · 2. `cu.outlook.trend` · 3. `lc.logic_summary` · 4. `lc.outlook.trend` · 5. `macro_summary` · 6. `risk_notes[]` · 7. `procurement_advice`
 
 **代码计算 4 段**（不入 LLM schema）：`cu.outlook.support` / `cu.outlook.resistance` / `lc.outlook.support` / `lc.outlook.resistance`，见 §6.5 公式与注入流程。
@@ -368,13 +381,13 @@ export const BRIEFING_SCHEMA = {
 
 ### 6.3 上下文 token 预算
 
-| 字段 | 估算 |
-|---|---|
-| 当日 + 近 5 日 quotes 序列 | ~ 1.5K tokens |
-| 24h 内铜锂相关 items 摘要（≤ 30 条 × ~80 字） | ~ 3.5K tokens |
-| System prompt + schema | ~ 1K tokens |
-| **合计 input** | **~ 6K tokens** |
-| Kimi K2.6 200K 上限 | 充裕 |
+| 字段                                          | 估算            |
+| --------------------------------------------- | --------------- |
+| 当日 + 近 5 日 quotes 序列                    | ~ 1.5K tokens   |
+| 24h 内铜锂相关 items 摘要（≤ 30 条 × ~80 字） | ~ 3.5K tokens   |
+| System prompt + schema                        | ~ 1K tokens     |
+| **合计 input**                                | **~ 6K tokens** |
+| Kimi K2.6 200K 上限                           | 充裕            |
 
 ### 6.4 scrubber 集成
 
@@ -515,26 +528,28 @@ ALTER TABLE sources
 
 ## 8. API 端点（增量）
 
-| Method | Path | 说明 | 权限 |
-|---|---|---|---|
-| GET  | `/api/briefing?cursor=` | 列表（按 briefing_date desc） | viewer+ |
-| GET  | `/api/briefing/:id` | 详情（含 payload_json + 推送状态） | viewer+ |
-| GET  | `/api/briefing/:id/download` | 下载 docx 二进制流；MinIO 已 retention 清理（briefing_date < now-90d 或 docx_path 取不到对象）→ **410 Gone**（不返 404，对齐 FR-110）；briefing 不存在 → 404 | viewer+ |
-| POST | `/api/briefing/:id/regenerate` | 重新生成（触发 briefing-gen） | editor+ |
-| POST | `/api/briefing/:id/repush` | 重新推送 | admin |
-| GET  | `/api/briefing/targets` | 列出推送目标 | admin |
-| POST | `/api/briefing/targets` | 新增目标 | admin |
-| PUT  | `/api/briefing/targets/:id` | 改目标 | admin |
-| DELETE | `/api/briefing/targets/:id` | 删目标 | admin |
-| POST | `/api/briefing/targets/:id/test` | 测试推送（发一条测试消息） | admin |
+| Method | Path                             | 说明                                                                                                                                                         | 权限    |
+| ------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
+| GET    | `/api/briefing?cursor=`          | 列表（按 briefing_date desc）                                                                                                                                | viewer+ |
+| GET    | `/api/briefing/:id`              | 详情（含 payload_json + 推送状态）                                                                                                                           | viewer+ |
+| GET    | `/api/briefing/:id/download`     | 下载 docx 二进制流；MinIO 已 retention 清理（briefing_date < now-90d 或 docx_path 取不到对象）→ **410 Gone**（不返 404，对齐 FR-110）；briefing 不存在 → 404 | viewer+ |
+| POST   | `/api/briefing/:id/regenerate`   | 重新生成（触发 briefing-gen）                                                                                                                                | editor+ |
+| POST   | `/api/briefing/:id/repush`       | 重新推送                                                                                                                                                     | admin   |
+| GET    | `/api/briefing/targets`          | 列出推送目标                                                                                                                                                 | admin   |
+| POST   | `/api/briefing/targets`          | 新增目标                                                                                                                                                     | admin   |
+| PUT    | `/api/briefing/targets/:id`      | 改目标                                                                                                                                                       | admin   |
+| DELETE | `/api/briefing/targets/:id`      | 删目标                                                                                                                                                       | admin   |
+| POST   | `/api/briefing/targets/:id/test` | 测试推送（发一条测试消息）                                                                                                                                   | admin   |
 
 **FR-110 / 410 Gone 实现要点**：
+
 - handler 先查 `commodity_briefings WHERE id=?` → 不存在返 404（沿用 v1.0 详情防枚举 pattern，不区分"不存在"和"被清"）
 - 命中后判 `briefing_date < now() - INTERVAL '90 days'` 或 MinIO `headObject(docx_path)` 404 → 返 **410 Gone** + `{ error: { code: 'BRIEFING_DOCX_EXPIRED', message: '简报已过保留期' } }`
 - 站内详情页 `/briefing/[id]` 同样区分：≤90 天显示"下载 docx"按钮；>90 天显示"已过保留期"灰态文案
 - 该端点为公开下载入口，actionCard 站内深链最终跳转点；不走 MinIO 直连 URL（避免凭据/穿透问题）
 
 约定（沿用 v1.0 §9）：
+
 - JSON 字段 camelCase
 - 错误结构 `{ error: { code, message, details? } }`
 - 分页 `cursor`
@@ -545,7 +560,7 @@ ALTER TABLE sources
 
 ### 9.1 模板放置
 
-`design/templates/briefing.docx`（与 v1.0 design/*.html 同目录，纳入 git；模板是配置，不是生成产物）。
+`design/templates/briefing.docx`（与 v1.0 design/\*.html 同目录，纳入 git；模板是配置，不是生成产物）。
 
 ### 9.2 占位符语法
 
@@ -570,7 +585,7 @@ ALTER TABLE sources
 
 ```ts
 export interface DingtalkBotMessage {
-  msgType: 'actionCard' | 'text' | 'markdown';
+  msgType: "actionCard" | "text" | "markdown";
   title: string;
   text: string;
   singleTitle?: string;
@@ -640,12 +655,12 @@ services:
 worker / web 已有的 environment 追加：
 
 ```yaml
-  worker:
-    environment:
-      # ... v1.0 已有 ...
-      RSSHUB_BASE_URL: http://rsshub:1200
-      BRIEFING_TEMPLATE_PATH: /app/design/templates/briefing.docx
-      BRIEFING_MINIO_BUCKET: fe-radar-briefings
+worker:
+  environment:
+    # ... v1.0 已有 ...
+    RSSHUB_BASE_URL: http://rsshub:1200
+    BRIEFING_TEMPLATE_PATH: /app/design/templates/briefing.docx
+    BRIEFING_MINIO_BUCKET: fe-radar-briefings
 ```
 
 资源补充：rsshub 256 MB / 0.1 核（与 redis 同级）。
@@ -654,31 +669,31 @@ worker / web 已有的 environment 追加：
 
 ## 12. 测试策略
 
-| 层 | 测试 | 工具 |
-|---|---|---|
-| 单元 | `briefing-render` / `dingtalk-bot` 加签 / `briefing.ts` 涨跌计算 | Vitest（沿用 v1.0） |
-| 单元 | 每个 adapter（shfe/gfex/lme/pboc/chinabond/rsshub-extract）正常 + 异常 fixture | Vitest + 真实响应 fixture |
-| 集成 | quotes-fetch job 全链：mock adapter → commodity_quotes 入库 | Vitest + 测试 Postgres |
-| 集成 | briefing-gen job：mock Kimi → docx 渲染 → MinIO（用 minio test 容器） | Vitest |
-| E2E | `/briefing` 列表 + `/briefing/[id]` 详情 + admin targets CRUD | Playwright（沿用 v1.0 e2e/） |
-| 端到端烟雾 | 节假日跳过 / 字段缺失降级 / 推送失败重试 | release smoke spec 追加 |
+| 层         | 测试                                                                           | 工具                         |
+| ---------- | ------------------------------------------------------------------------------ | ---------------------------- |
+| 单元       | `briefing-render` / `dingtalk-bot` 加签 / `briefing.ts` 涨跌计算               | Vitest（沿用 v1.0）          |
+| 单元       | 每个 adapter（shfe/gfex/lme/pboc/chinabond/rsshub-extract）正常 + 异常 fixture | Vitest + 真实响应 fixture    |
+| 集成       | quotes-fetch job 全链：mock adapter → commodity_quotes 入库                    | Vitest + 测试 Postgres       |
+| 集成       | briefing-gen job：mock Kimi → docx 渲染 → MinIO（用 minio test 容器）          | Vitest                       |
+| E2E        | `/briefing` 列表 + `/briefing/[id]` 详情 + admin targets CRUD                  | Playwright（沿用 v1.0 e2e/） |
+| 端到端烟雾 | 节假日跳过 / 字段缺失降级 / 推送失败重试                                       | release smoke spec 追加      |
 
 ---
 
 ## 13. 关键风险与缓解
 
-| # | 风险 | 缓解 |
-|---|---|---|
-| 1 | 上期所 / 广期所页面改版导致 adapter 失效 | 每 adapter 单测 fixture + 失败连续 3 日触发红色告警；admin 可禁用单 source 不阻塞简报 |
-| 2 | RSSHub 公共 route 失效或被目标站封锁 | 自部署 + Redis 缓存（CACHE_EXPIRE=3600）；关键 route 在 PR 中 pin 镜像版本 |
-| 3 | LLM 输出 schema 不合规 / 出现幻觉数值 | structured output + JSON schema 强制；解析失败丢弃整次生成 + 黄色告警 |
-| 4 | 钉钉机器人 webhook 凭据泄漏 | `briefing_targets.sign_secret` 字段在 `users.role != admin` 时 API 返回 mask；audit log 写入 access |
-| 5 | 16:00 推送时上期所夜盘未收，价格不完整 | Q-11I v0.3 决策**接受 16:00 日盘版**；模板字段加注"日盘收盘价 · 夜盘见次日简报"；夜盘版（21:30）推迟到 v1.2 评估 |
-| 6 | 节假日表手工维护漏录 → 节假日推送了"空"简报 | gen 前检查当日 quotes 入库行数 < 5 → 直接 abort + 告警；不发空简报 |
-| 7 | docx 模板被 admin 误改导致渲染失败 | 启动期 lint 校验占位符 vs briefing_template_fields；模板纳入 git 不允许运行时上传 |
-| 8 | Kimi 月度成本超 100 元 | 接 v1.0 NFR-05 总预算监控；单次 token 上限 8K input + 1K output |
-| 9 | sources.fetcher_type CHECK 扩展失败（rollback 风险）| migration 用 `ALTER ... DROP/ADD CONSTRAINT`；rollback 路径在 T-CB-02 acceptance 已定义 |
-| 10 | quotes 365 天保留导致表膨胀 | 估算：~30 metric × 250 工作日 = 7500 行/年；index 命中良好，不需要分区 |
+| #   | 风险                                                 | 缓解                                                                                                             |
+| --- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 1   | 上期所 / 广期所页面改版导致 adapter 失效             | 每 adapter 单测 fixture + 失败连续 3 日触发红色告警；admin 可禁用单 source 不阻塞简报                            |
+| 2   | RSSHub 公共 route 失效或被目标站封锁                 | 自部署 + Redis 缓存（CACHE_EXPIRE=3600）；关键 route 在 PR 中 pin 镜像版本                                       |
+| 3   | LLM 输出 schema 不合规 / 出现幻觉数值                | structured output + JSON schema 强制；解析失败丢弃整次生成 + 黄色告警                                            |
+| 4   | 钉钉机器人 webhook 凭据泄漏                          | `briefing_targets.sign_secret` 字段在 `users.role != admin` 时 API 返回 mask；audit log 写入 access              |
+| 5   | 16:00 推送时上期所夜盘未收，价格不完整               | Q-11I v0.3 决策**接受 16:00 日盘版**；模板字段加注"日盘收盘价 · 夜盘见次日简报"；夜盘版（21:30）推迟到 v1.2 评估 |
+| 6   | 节假日表手工维护漏录 → 节假日推送了"空"简报          | gen 前检查当日 quotes 入库行数 < 5 → 直接 abort + 告警；不发空简报                                               |
+| 7   | docx 模板被 admin 误改导致渲染失败                   | 启动期 lint 校验占位符 vs briefing_template_fields；模板纳入 git 不允许运行时上传                                |
+| 8   | Kimi 月度成本超 100 元                               | 接 v1.0 NFR-05 总预算监控；单次 token 上限 8K input + 1K output                                                  |
+| 9   | sources.fetcher_type CHECK 扩展失败（rollback 风险） | migration 用 `ALTER ... DROP/ADD CONSTRAINT`；rollback 路径在 T-CB-02 acceptance 已定义                          |
+| 10  | quotes 365 天保留导致表膨胀                          | 估算：~30 metric × 250 工作日 = 7500 行/年；index 命中良好，不需要分区                                           |
 
 ---
 
@@ -695,13 +710,15 @@ worker / web 已有的 environment 追加：
 ## 15. 监控与运维（沿用 v1.0 §14 Grafana）
 
 Dashboard 新增面板：
+
 - briefing-gen 成功率（24h）
 - briefing-push 成功率（24h）
-- 第一层 9 字段当日覆盖率
+- BRIEFING_SCHEMA 7 段当日覆盖率（cu/lc logic_summary + trend、macro_summary、risk_notes、procurement_advice）
 - quotes-fetch P50/P99 时延
 - Kimi 月度调用量与成本
 
 告警规则：
+
 - briefing-gen 连续 2 日失败 → 红色
 - briefing-push 当日失败率 > 50% → 红色
 - 第一层字段连续 3 工作日缺失 → 红色

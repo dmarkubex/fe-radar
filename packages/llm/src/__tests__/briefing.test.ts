@@ -4,7 +4,6 @@ import {
   BRIEFING_SCHEMA,
   KIMI_BRIEFING_SYSTEM_PROMPT,
   buildBriefingInput,
-  runBriefingGen,
   type BriefingOutput,
   type NewsItem
 } from "../briefing";
@@ -89,6 +88,13 @@ describe("BRIEFING_SCHEMA validation", () => {
 
   it("has additionalProperties false at top level", () => {
     expect(BRIEFING_SCHEMA.additionalProperties).toBe(false);
+  });
+
+  it("uses procurement_advice as the canonical seventh segment, not next_day_focus", () => {
+    expect(BRIEFING_SCHEMA.required).toContain("procurement_advice");
+    expect(BRIEFING_SCHEMA.required).not.toContain("next_day_focus");
+    expect(Object.keys(BRIEFING_SCHEMA.properties)).toContain("procurement_advice");
+    expect(Object.keys(BRIEFING_SCHEMA.properties)).not.toContain("next_day_focus");
   });
 });
 
