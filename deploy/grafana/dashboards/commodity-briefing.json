@@ -87,7 +87,7 @@
       "id": 3,
       "type": "gauge",
       "title": "Briefing 字段覆盖率（当日均值）",
-      "description": "commodity_briefings payload_json 第一层 9 字段完整度均值；null / '—' 计为缺失",
+      "description": "commodity_briefings payload_json 中 BRIEFING_SCHEMA 7 段完整度均值；null / '—' / [] 计为缺失",
       "gridPos": { "x": 16, "y": 0, "w": 8, "h": 6 },
       "options": {
         "reduceOptions": { "calcs": ["lastNotNull"] },
@@ -113,7 +113,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT\n  now() AS time,\n  AVG(\n    (\n      CASE WHEN payload_json->>'cu'        IS NOT NULL AND payload_json->>'cu'        != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'lc'        IS NOT NULL AND payload_json->>'lc'        != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'al'        IS NOT NULL AND payload_json->>'al'        != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'zn'        IS NOT NULL AND payload_json->>'zn'        != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'ni'        IS NOT NULL AND payload_json->>'ni'        != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'fe'        IS NOT NULL AND payload_json->>'fe'        != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'coal'      IS NOT NULL AND payload_json->>'coal'      != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'lithium'   IS NOT NULL AND payload_json->>'lithium'   != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'overview'  IS NOT NULL AND payload_json->>'overview'  != '—' THEN 1 ELSE 0 END\n    )::float / 9\n  ) AS value\nFROM commodity_briefings\nWHERE briefing_date = CURRENT_DATE",
+          "rawSql": "SELECT\n  now() AS time,\n  AVG(\n    (\n      CASE WHEN payload_json#>>'{cu,logic_summary}'        IS NOT NULL AND payload_json#>>'{cu,logic_summary}'        != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json#>>'{cu,outlook,trend}'        IS NOT NULL AND payload_json#>>'{cu,outlook,trend}'        != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json#>>'{lc,logic_summary}'        IS NOT NULL AND payload_json#>>'{lc,logic_summary}'        != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json#>>'{lc,outlook,trend}'        IS NOT NULL AND payload_json#>>'{lc,outlook,trend}'        != '—' THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'macro_summary'             IS NOT NULL AND payload_json->>'macro_summary'             != '—' THEN 1 ELSE 0 END +\n      CASE WHEN jsonb_typeof(payload_json->'risk_notes') = 'array' AND jsonb_array_length(payload_json->'risk_notes') > 0 THEN 1 ELSE 0 END +\n      CASE WHEN payload_json->>'procurement_advice'        IS NOT NULL AND payload_json->>'procurement_advice'        != '—' THEN 1 ELSE 0 END\n    )::float / 7\n  ) AS value\nFROM commodity_briefings\nWHERE briefing_date = CURRENT_DATE",
           "format": "time_series",
           "datasource": { "type": "postgres", "uid": "fe-radar-postgres" }
         }
@@ -141,14 +141,23 @@
           {
             "matcher": { "id": "byName", "options": "p95" },
             "properties": [
-              { "id": "custom.lineStyle", "value": { "dash": [4, 4], "fill": "dash" } },
-              { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }
+              {
+                "id": "custom.lineStyle",
+                "value": { "dash": [4, 4], "fill": "dash" }
+              },
+              {
+                "id": "color",
+                "value": { "mode": "fixed", "fixedColor": "orange" }
+              }
             ]
           },
           {
             "matcher": { "id": "byName", "options": "p50" },
             "properties": [
-              { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }
+              {
+                "id": "color",
+                "value": { "mode": "fixed", "fixedColor": "blue" }
+              }
             ]
           }
         ]

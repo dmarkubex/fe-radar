@@ -10,7 +10,6 @@ groups:
     folder: FE-Radar v1.1
     interval: 5m
     rules:
-
       # ── 规则 1：briefing-gen 连续 2 工作日失败 ─────────────────────────────
       - uid: cb-gen-consec-fail
         title: "Briefing-Gen 连续 2 工作日失败"
@@ -18,7 +17,7 @@ groups:
         data:
           - refId: A
             relativeTimeRange:
-              from: 172800   # 48h
+              from: 172800 # 48h
               to: 0
             datasourceUid: fe-radar-postgres
             model:
@@ -72,7 +71,7 @@ groups:
         data:
           - refId: A
             relativeTimeRange:
-              from: 3600   # 1h
+              from: 3600 # 1h
               to: 0
             datasourceUid: fe-radar-postgres
             model:
@@ -123,7 +122,7 @@ groups:
         data:
           - refId: A
             relativeTimeRange:
-              from: 86400   # 24h
+              from: 86400 # 24h
               to: 0
             datasourceUid: fe-radar-postgres
             model:
@@ -133,7 +132,7 @@ groups:
                   name          AS metric,
                   fail_count    AS value
                 FROM sources
-                WHERE fetcher_type = 'commodity_exchange'
+                WHERE fetcher_type = 'quotes'
                   AND fail_count >= 7
                   AND disabled_at IS NULL
                 ORDER BY fail_count DESC
@@ -162,7 +161,7 @@ groups:
         for: 0s
         annotations:
           summary: "Quotes 信源 fail_count ≥ 7（{{ $labels.metric }}）"
-          description: "sources 表中 fetcher_type=commodity_exchange 的信源 fail_count 达到 7，抓取持续失败。请检查信源 URL / 反爬策略 / 代理池状态。"
+          description: "sources 表中 fetcher_type=quotes 的信源 fail_count 达到 7，抓取持续失败。请检查信源 URL / 反爬策略 / 代理池状态。"
           runbook_url: "https://fe-radar.internal/runbook/source-fail-count"
         labels:
           severity: warning
@@ -176,7 +175,7 @@ groups:
         data:
           - refId: A
             relativeTimeRange:
-              from: 2592000   # ~30d，取月初到当前
+              from: 2592000 # ~30d，取月初到当前
               to: 0
             datasourceUid: fe-radar-postgres
             model:
