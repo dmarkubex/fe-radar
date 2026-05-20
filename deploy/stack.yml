@@ -151,9 +151,8 @@ services:
         condition: on-failure
 
   # v1.1 commodity-briefing: RSSHub 内网自部署（供 rsshub-extract adapter 使用）
-  # digest pin TODO: 在 build server 上执行 `docker pull diygod/rsshub:2026-05-14 && docker inspect --format='{{index .RepoDigests 0}}' diygod/rsshub:2026-05-14` 后将 tag 替换为 sha256 digest
   rsshub:
-    image: diygod/rsshub:2026-05-14
+    image: diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3df98bab0f979c03059
     environment:
       TZ: Asia/Shanghai
       NODE_ENV: production

@@ -66,7 +66,7 @@ curl http://rsshub:1200/smm/news/cu
 
 ### 镜像版本管理
 
-当前 pin 到 `diygod/rsshub:2026-05-14`。**升级步骤**：
+当前 pin 到 `diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3df98bab0f979c03059`（对应 2026-05-14 镜像）。**升级步骤**：
 
 ```bash
 # 1. 在 build server 上拉取目标 tag
@@ -77,8 +77,6 @@ docker inspect --format='{{index .RepoDigests 0}}' diygod/rsshub:<new-tag>
 #    例：diygod/rsshub@sha256:abc123...
 # 4. docker stack deploy -c deploy/stack.yml fe-radar
 ```
-
-**digest pin TODO**：在 build server 完成首次 `docker pull diygod/rsshub:2026-05-14` 后，按上述步骤将 tag 替换为完整 sha256 digest，提交 `[T-CB-04-FIX] pin rsshub digest sha256`。
 
 ### Redis 缓存
 
