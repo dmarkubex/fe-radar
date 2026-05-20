@@ -68,7 +68,7 @@ vi.mock("drizzle-orm", () => ({
         return (target as unknown as Record<string | symbol, unknown>)[prop];
       },
       apply(target, _thisArg, args) {
-        return (target as Function)(...args);
+        return (target as (...fnArgs: unknown[]) => string)(...args);
       },
     }
   ),
@@ -225,5 +225,27 @@ describe("runQuotesFetch", () => {
       7,    // nextFail = 6+1
       true  // disable=true at threshold
     );
+  });
+
+  it("all-null quote samples are upserted but counted as source failure for NFR-104", async () => {
+    makeDbWithHolidays([]);
+    mockIsBusinessDay.mockReturnValue(true);
+    const source = makeSource({ failCount: 2 });
+    mockListSources.mockResolvedValue([source]);
+    mockFetchQuotes.mockResolvedValue([
+      makeSample({ metricKey: "lc_spot_smm", value: null, rawText: "今日未命中价格" }),
+    ]);
+
+    const result = await runQuotesFetch(1);
+
+    expect(result.upserted).toBe(1);
+    expect(mockExecute).toHaveBeenCalledTimes(1);
+    expect(mockMarkSourceFailure).toHaveBeenCalledWith(
+      expect.anything(),
+      1,
+      3,
+      false
+    );
+    expect(mockMarkSourceSuccess).not.toHaveBeenCalled();
   });
 });

@@ -26,7 +26,7 @@ const CU_REGEX_RULES = [
   {
     pattern: "(\\d[\\d,]*)\\s*元/吨",
     group: 1,
-    metricKey: "cu_main_close",
+    metric_key: "cu_main_close",
   },
 ];
 
@@ -35,8 +35,8 @@ const LC_REGEX_RULES = [
   {
     pattern: "([\\d.]+)\\s*万元/吨",
     group: 1,
-    metricKey: "lc_main_avg",
-    multiplier: 10000,
+    metric_key: "lc_main_avg",
+    unit_multiplier: 10000,
   },
 ];
 
@@ -45,7 +45,7 @@ const SODA_REGEX_RULES = [
   {
     pattern: "(\\d[\\d,]*)\\s*元/吨",
     group: 1,
-    metricKey: "soda_ash_price",
+    metric_key: "soda_ash_price",
   },
 ];
 
@@ -142,7 +142,7 @@ describe("rsshubExtractAdapter", () => {
             {
               pattern: "(\\d+\\.\\d+)\\s*美元/吨",
               group: 1,
-              metricKey: "cu_lme_close",
+              metric_key: "cu_lme_close",
             },
           ],
         },
@@ -168,7 +168,7 @@ describe("rsshubExtractAdapter", () => {
         sourceName: "nomatch-source",
         sourceConfig: {
           endpoint: "/feed",
-          regex_rules: [{ pattern: "NEVER_MATCHES_XYZ", group: 1, metricKey: "test" }],
+          regex_rules: [{ pattern: "NEVER_MATCHES_XYZ", group: 1, metric_key: "test" }],
         },
       };
 
@@ -215,6 +215,48 @@ describe("rsshubExtractAdapter", () => {
       "http://internal-rsshub:1200/smm/news/cu",
       expect.any(Object)
     );
+  });
+
+  it("uses absolute endpoint without prefixing RSSHUB_BASE_URL", async () => {
+    process.env["RSSHUB_BASE_URL"] = "http://internal-rsshub:1200";
+    mockFetchText.mockResolvedValueOnce(loadFixture("rsshub-smm-cu.xml"));
+
+    const ctx = {
+      sourceName: "smm-cu",
+      sourceConfig: {
+        endpoint: "http://rsshub:1200/smm/news/cu",
+        regex_rules: CU_REGEX_RULES,
+      },
+    };
+    await rsshubExtractAdapter.fetch(ctx);
+
+    expect(mockFetchText).toHaveBeenCalledWith(
+      "http://rsshub:1200/smm/news/cu",
+      expect.any(Object)
+    );
+  });
+
+  it("keeps backward-compatible reads for legacy camelCase rules", async () => {
+    mockFetchText.mockResolvedValueOnce(loadFixture("rsshub-smm-lc.xml"));
+
+    const ctx = {
+      sourceName: "legacy-lc",
+      sourceConfig: {
+        endpoint: "/smm/news/lc",
+        regex_rules: [
+          {
+            pattern: "([\\d.]+)\\s*万元/吨",
+            group: 1,
+            metricKey: "lc_legacy",
+            multiplier: 10000,
+          },
+        ],
+      },
+    };
+
+    const results = await rsshubExtractAdapter.fetch(ctx);
+    expect(results[0]?.metricKey).toBe("lc_legacy");
+    expect(results[0]?.value).toBeCloseTo(68200);
   });
 
   it("rawText is truncated to ≤2000 Unicode code points for very long descriptions", async () => {

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { getDb, listSources, markSourceFailure, markSourceSuccess, commodityQuotes, briefingHolidays } from "@fe-radar/db";
+import { getDb, listSources, markSourceFailure, markSourceSuccess, briefingHolidays } from "@fe-radar/db";
 import { isBusinessDay } from "@fe-radar/core";
 import { createLogger } from "@fe-radar/shared";
 import { fetchQuotes } from "../fetchers/quotes";
@@ -12,6 +12,7 @@ const logger = createLogger({ service: "quotes-fetch" });
 const TIER_PRIORITY: Record<string, number> = { T1: 1, T2: 2, T3: 3 };
 
 const DISABLE_AFTER_FAIL_COUNT = 7;
+const WARN_AFTER_NULL_VALUE_DAYS = 3;
 
 async function loadHolidaySet(): Promise<Set<string>> {
   const db = getDb();
@@ -119,6 +120,19 @@ export async function runQuotesFetch(sourceId: number): Promise<QuotesFetchResul
   }
 
   const upserted = await upsertQuoteSamples(source.id, source.tier, samples);
+  const hasNonNullValue = samples.some((sample) => sample.value !== null);
+  if (!hasNonNullValue) {
+    const nextFail = source.failCount + 1;
+    await markSourceFailure(db, source.id, nextFail, nextFail >= DISABLE_AFTER_FAIL_COUNT);
+    if (nextFail >= WARN_AFTER_NULL_VALUE_DAYS) {
+      logger.warn(
+        { sourceId, sourceName: source.name, failCount: nextFail },
+        "quotes fetch returned only null values; admin dashboard warning threshold reached"
+      );
+    }
+    return { sourceId, upserted, skipped: false };
+  }
+
   await markSourceSuccess(db, source.id);
 
   logger.info({ sourceId, sourceName: source.name, upserted }, "quotes-fetch completed");

@@ -19,8 +19,23 @@ const quotesRetrySchema = z.object({
 
 const quotesRegexRuleSchema = z.object({
   pattern: z.string().min(1),
-  key: z.string().min(1)
+  metric_key: z.string().min(1),
+  unit_multiplier: z.number().positive().optional(),
+  group: z.number().int().min(1).optional()
 });
+
+const endpointSchema = z.string().min(1).refine(
+  (value) => {
+    if (value.startsWith("/")) return true;
+    try {
+      new URL(value);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  { message: "endpoint must be an absolute URL or a relative path beginning with /" }
+);
 
 export const sourceConfigSchema = z.discriminatedUnion("type", [
   z.object({
@@ -50,7 +65,7 @@ export const sourceConfigSchema = z.discriminatedUnion("type", [
     type: z.literal("quotes"),
     adapter: quotesAdapterSchema,
     metric_keys: z.array(z.string().min(1)).min(1),
-    endpoint: z.string().url(),
+    endpoint: endpointSchema,
     retry: quotesRetrySchema,
     regex_rules: z.array(quotesRegexRuleSchema).optional()
   })
