@@ -259,6 +259,76 @@ describe("rsshubExtractAdapter", () => {
     expect(results[0]?.value).toBeCloseTo(68200);
   });
 
+  describe("single-sample emission (T-CB-08-FIX2 · DMA-163)", () => {
+    it("emits exactly 1 sample even when feed has many items", async () => {
+      // Build a feed with 5 items, only the 3rd contains a copper price.
+      const items = [
+        `<item><title>会议预告</title><description>SMM 行业会议</description><pubDate>Tue, 20 May 2026 09:00:00 +0800</pubDate></item>`,
+        `<item><title>市场点评</title><description>宏观面影响</description><pubDate>Tue, 20 May 2026 10:00:00 +0800</pubDate></item>`,
+        `<item><title>铜价行情</title><description><![CDATA[<p>今日均价 78500 元/吨</p>]]></description><pubDate>Tue, 20 May 2026 15:30:00 +0800</pubDate></item>`,
+        `<item><title>下游需求</title><description>线缆需求平稳</description><pubDate>Tue, 20 May 2026 16:00:00 +0800</pubDate></item>`,
+        `<item><title>库存动态</title><description>仓单减少</description><pubDate>Tue, 20 May 2026 17:00:00 +0800</pubDate></item>`,
+      ].join("");
+      const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>SMM Cu</title>${items}</channel></rss>`;
+      mockFetchText.mockResolvedValueOnce(xml);
+
+      const ctx = {
+        sourceName: "smm-cu",
+        sourceConfig: { endpoint: "/smm/news/cu", regex_rules: CU_REGEX_RULES },
+      };
+
+      const results = await rsshubExtractAdapter.fetch(ctx);
+
+      // Exactly 1 sample — no pollution from non-price items
+      expect(results).toHaveLength(1);
+      expect(results[0]!.metricKey).toBe("cu_main_close");
+      expect(results[0]!.value).toBe(78500);
+      // observedAt comes from the winner item (15:30), not the 1st item (09:00)
+      expect(results[0]!.observedAt.toISOString()).toBe(
+        new Date("Tue, 20 May 2026 15:30:00 +0800").toISOString()
+      );
+    });
+
+    it("emits exactly 1 null sample when no item matches, anchored to items[0]", async () => {
+      const items = [
+        `<item><title>会议预告</title><description>SMM 行业会议</description><pubDate>Tue, 20 May 2026 09:00:00 +0800</pubDate></item>`,
+        `<item><title>市场点评</title><description>宏观面影响</description><pubDate>Tue, 20 May 2026 10:00:00 +0800</pubDate></item>`,
+      ].join("");
+      const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>SMM Cu</title>${items}</channel></rss>`;
+      mockFetchText.mockResolvedValueOnce(xml);
+
+      const ctx = {
+        sourceName: "smm-cu",
+        sourceConfig: { endpoint: "/smm/news/cu", regex_rules: CU_REGEX_RULES },
+      };
+
+      const results = await rsshubExtractAdapter.fetch(ctx);
+
+      expect(results).toHaveLength(1);
+      expect(results[0]!.value).toBeNull();
+      // metricKey falls back to firstMetricKey resolution
+      expect(results[0]!.metricKey).toBe("cu_main_close");
+      // rawText anchored to items[0] (会议预告)
+      expect(results[0]!.rawText).toContain("会议预告");
+      expect(results[0]!.observedAt.toISOString()).toBe(
+        new Date("Tue, 20 May 2026 09:00:00 +0800").toISOString()
+      );
+    });
+
+    it("emits [] on empty RSS feed", async () => {
+      const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>Empty</title></channel></rss>`;
+      mockFetchText.mockResolvedValueOnce(xml);
+
+      const ctx = {
+        sourceName: "empty-source",
+        sourceConfig: { endpoint: "/empty", regex_rules: CU_REGEX_RULES },
+      };
+
+      const results = await rsshubExtractAdapter.fetch(ctx);
+      expect(results).toEqual([]);
+    });
+  });
+
   it("rawText is truncated to ≤2000 Unicode code points for very long descriptions", async () => {
     const longDesc = "价格数据".repeat(1000);
     const longXml = `<?xml version="1.0"?><rss version="2.0"><channel><title>Test</title><item><title>价格行情</title><description><![CDATA[<p>${longDesc}</p>]]></description><pubDate>Tue, 20 May 2026 15:30:00 +0800</pubDate></item></channel></rss>`;

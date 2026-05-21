@@ -2,7 +2,8 @@
  * RSSHub numeric-extract quotes adapter
  *
  * 通用 RSSHub 数值抽取 adapter：
- * - 从 RSSHub RSS XML 的第一条 item description / title 用正则提取数值
+ * - 遍历 RSS feed.items，找第一个 regex 命中的 item 作为 winner，emit 单一 QuoteSample
+ * - 全部 item 未命中 → emit 单一 null 样本（保留 items[0] 的 raw_text 给审计）
  * - 配置驱动：sourceConfig.regex_rules 数组，逐条尝试匹配
  * - 正则未命中 → value=null + rawText 保留，禁止 LLM fallback（NFR-102）
  * - raw_text strip HTML + 截断 ≤2000 字符
@@ -10,6 +11,9 @@
  *
  * NFR-102 硬约束：禁止 LLM 调用；未命中 value=null
  * NFR-104：命中失败连续 3 日 → 由上层 quotes-fetch 计入 fail_count/admin 告警入口
+ *
+ * 单样本策略（[T-CB-08-FIX2] 修正全 item 遍历污染 commodity_quotes，DMA-163 + Antigravity REJECTED）：
+ * 不取 feed.items[0]（首条可能是非价格突发新闻），改用首匹配 winner，跳过无关 item。
  */
 
 import * as cheerio from "cheerio";
@@ -131,47 +135,67 @@ export const rsshubExtractAdapter: QuotesAdapter = {
       });
 
       const feed = await rssParser.parseString(xml);
-      const results: QuoteSample[] = [];
 
-      for (const item of feed.items) {
-        // Build the combined text to search: description (HTML) + title
-        const descriptionHtml = item.content ?? item.contentSnippet ?? item["content:encoded"] ?? "";
-        const titleText = item.title ?? "";
-        const combinedHtml = `${descriptionHtml} ${titleText}`;
+      // Empty feed → no sample
+      if (!feed.items || feed.items.length === 0) {
+        return [];
+      }
 
-        // Strip HTML for rawText (also used for regex matching)
-        const plainText = stripAndTruncate(combinedHtml);
-        const rawText = plainText;
-
-        // Try to extract value via regex_rules
-        const observedAt = item.isoDate
+      const itemObservedAt = (item: (typeof feed.items)[number]): Date => {
+        return item.isoDate
           ? new Date(item.isoDate)
           : item.pubDate
             ? new Date(item.pubDate)
             : new Date();
+      };
 
-        if (regexRules.length === 0) {
-          // No rules configured — emit null value sample
-          results.push({
+      const itemPlainText = (item: (typeof feed.items)[number]): string => {
+        const descriptionHtml =
+          item.content ?? item.contentSnippet ?? item["content:encoded"] ?? "";
+        const titleText = item.title ?? "";
+        return stripAndTruncate(`${descriptionHtml} ${titleText}`);
+      };
+
+      // Single-sample emission: scan items for the first regex winner.
+      // If no rules configured OR no items match, emit one null sample using
+      // feed.items[0]'s rawText for audit (NFR-102 raw_text 保留契约)。
+      if (regexRules.length === 0) {
+        const firstItem = feed.items[0]!;
+        return [
+          {
             metricKey: firstMetricKey(config, regexRules),
             value: null,
-            observedAt,
-            rawText,
-          });
-          continue;
-        }
-
-        const matched = applyRegexRules(plainText, regexRules);
-
-        results.push({
-          metricKey: matched?.metricKey ?? firstMetricKey(config, regexRules),
-          value: matched?.value ?? null,
-          observedAt,
-          rawText,
-        });
+            observedAt: itemObservedAt(firstItem),
+            rawText: itemPlainText(firstItem),
+          },
+        ];
       }
 
-      return results;
+      for (const item of feed.items) {
+        const plainText = itemPlainText(item);
+        const matched = applyRegexRules(plainText, regexRules);
+        if (matched) {
+          return [
+            {
+              metricKey: matched.metricKey,
+              value: matched.value,
+              observedAt: itemObservedAt(item),
+              rawText: plainText,
+            },
+          ];
+        }
+      }
+
+      // No item matched — emit one null sample anchored to items[0]
+      const firstItem = feed.items[0]!;
+      return [
+        {
+          metricKey: firstMetricKey(config, regexRules),
+          value: null,
+          observedAt: itemObservedAt(firstItem),
+          rawText: itemPlainText(firstItem),
+        },
+      ];
     } catch {
       // Adapter must return [] on failure, never throw (QuotesAdapter contract)
       return [];
