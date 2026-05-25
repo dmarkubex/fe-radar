@@ -13,19 +13,19 @@ This project uses the AI coding kernel. Before starting any substantive work, re
 
 ### Agents
 
-| Agent | Role |
-|-------|------|
+| Agent       | Role                                   |
+| ----------- | -------------------------------------- |
 | Claude Code | Coordinator + Planner + Plan-Fix (you) |
-| Codex | Parallel Executor + Code-Fix |
-| Antigravity | Independent Reviewer (Google) |
+| Codex       | Parallel Executor + Code-Fix           |
+| Antigravity | Independent Reviewer (Google)          |
 
 ### Three Operating Modes
 
-| Mode | When | Stages |
-|------|------|--------|
-| Lite | small fixes, single file, low risk | Plan(guard+restate) → Execute → Review → Close |
-| Standard | cross-module, low-medium risk, single agent | Plan(guard+restate+tasks) → Execute → Code Review → Fix → Close |
-| Full | high risk, multi-agent parallel, core systems | Plan → Review Plan → Fix Plan → Execute → Review Code → Fix Code → Release → Retro |
+| Mode     | When                                          | Stages                                                                             |
+| -------- | --------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Lite     | small fixes, single file, low risk            | Plan(guard+restate) → Execute → Review → Close                                     |
+| Standard | cross-module, low-medium risk, single agent   | Plan(guard+restate+tasks) → Execute → Code Review → Fix → Close                    |
+| Full     | high risk, multi-agent parallel, core systems | Plan → Review Plan → Fix Plan → Execute → Review Code → Fix Code → Release → Retro |
 
 Default to Lite. Escalate based on risk and scope.
 
@@ -50,18 +50,19 @@ Default to Lite. Escalate based on risk and scope.
 500 人内部使用的电力 / 电线电缆 / 储能 / 能源行业产业情报雷达。每 6 小时抓取行业动态 → 过滤 / 评分 / 聚类 / 告警 → 时间线 + 精选 + 日报呈现。
 
 **两条产品哲学**：
+
 1. **信源比信息重要** — 先精选信源，再处理信息（T1/T2/T3 分级 + C1/C2/C3 关注圈）
 2. **能用脚本就别用 Agent** — LLM 只做语言任务，规则 / 阈值 / 聚类用代码控制
 
 ## 文档入口（必读）
 
-| 文件 | 内容 |
-|---|---|
-| [spec/requirements.md](spec/requirements.md) v0.7 | WHAT — 12 FR / 7 NFR / 关注圈 / 信源分级 / 5 维评分 / NER 7 类 / 告警 / 认证 / 数据合规 |
-| [spec/design.md](spec/design.md) v0.7 | HOW — 架构 / 模块拆分 / 抓取层（含代理池） / 8 阶段 pipeline（含 scrubber） / 评分 / 聚类 / 数据 schema / API / 认证（含合并） / 部署 / 监控 / 风险 |
-| [spec/tasks.md](spec/tasks.md) v0.2 | 60 task / 8 sub-agent / 跨 milestone 依赖 / 风险登记（**Antigravity DMA-24 APPROVED**） |
-| [.ai/shared/style-invariants.md](.ai/shared/style-invariants.md) v1.0 | 17 节代码规范（结构 / 命名 / TS / DB / API / 错误 / 日志 / 认证 / 时区 / BullMQ / LLM / FE / 测试 / 依赖 / Commit / 安全 / 项目专属）|
-| [handoff.md](handoff.md) | 当前控制 token（当前 Stage = Execute / Owner = Codex）|
+| 文件                                                                  | 内容                                                                                                                                                |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [spec/requirements.md](spec/requirements.md) v0.7                     | WHAT — 12 FR / 7 NFR / 关注圈 / 信源分级 / 5 维评分 / NER 7 类 / 告警 / 认证 / 数据合规                                                             |
+| [spec/design.md](spec/design.md) v0.7                                 | HOW — 架构 / 模块拆分 / 抓取层（含代理池） / 8 阶段 pipeline（含 scrubber） / 评分 / 聚类 / 数据 schema / API / 认证（含合并） / 部署 / 监控 / 风险 |
+| [spec/tasks.md](spec/tasks.md) v0.2                                   | 60 task / 8 sub-agent / 跨 milestone 依赖 / 风险登记（**Antigravity DMA-24 APPROVED**）                                                             |
+| [.ai/shared/style-invariants.md](.ai/shared/style-invariants.md) v1.0 | 17 节代码规范（结构 / 命名 / TS / DB / API / 错误 / 日志 / 认证 / 时区 / BullMQ / LLM / FE / 测试 / 依赖 / Commit / 安全 / 项目专属）               |
+| [handoff.md](handoff.md)                                              | 当前控制 token（当前 Stage = Execute / Owner = Codex）                                                                                              |
 
 ## 技术栈（不许换）
 
@@ -88,6 +89,7 @@ scripts/          # 评分回测 / 信源验证
 ```
 
 **模块边界**（违例 = code review major）：
+
 - `apps/web` 与 `apps/worker` **不互相 import**
 - 跨 package 必须经 `index.ts` 公共出口
 - `packages/core` **不依赖** `packages/db`（业务规则纯函数化便于单测）
@@ -95,27 +97,27 @@ scripts/          # 评分回测 / 信源验证
 
 ## 8 个 Sub-Agent（Codex Execute 用）
 
-| Agent | scope |
-|---|---|
-| `agent-infra` | monorepo / docker / CI / 监控 / `deploy/*` / `scripts/*` |
-| `agent-db` | `packages/db/**`（schema / migration / seed / repos）|
-| `agent-llm` | `packages/llm/**`（Qwen / DeepSeek / Kimi clients + scrubber 中间件）|
-| `agent-core` | `packages/core/**` + `packages/shared/**`（业务规则纯函数）|
-| `agent-worker` | `apps/worker/**`（fetcher / pipeline jobs / scheduler / cleanup）|
-| `agent-web-api` | `apps/web/app/api/**` + `apps/web/lib/api/**` + `middleware.ts` |
-| `agent-web-ui` | `apps/web/app/**`（除 api/）+ `components/**` + `hooks/**` |
-| `agent-auth` | `apps/web/app/api/auth/**` + `apps/web/lib/auth/**` + users 表协作 |
+| Agent           | scope                                                                 |
+| --------------- | --------------------------------------------------------------------- |
+| `agent-infra`   | monorepo / docker / CI / 监控 / `deploy/*` / `scripts/*`              |
+| `agent-db`      | `packages/db/**`（schema / migration / seed / repos）                 |
+| `agent-llm`     | `packages/llm/**`（Qwen / DeepSeek / Kimi clients + scrubber 中间件） |
+| `agent-core`    | `packages/core/**` + `packages/shared/**`（业务规则纯函数）           |
+| `agent-worker`  | `apps/worker/**`（fetcher / pipeline jobs / scheduler / cleanup）     |
+| `agent-web-api` | `apps/web/app/api/**` + `apps/web/lib/api/**` + `middleware.ts`       |
+| `agent-web-ui`  | `apps/web/app/**`（除 api/）+ `components/**` + `hooks/**`            |
+| `agent-auth`    | `apps/web/app/api/auth/**` + `apps/web/lib/auth/**` + users 表协作    |
 
 ## Milestone 计划
 
-| M | 主题 | 目标日期 | task |
-|---|---|---|---|
-| M0 | 脚手架与基线 | 2026-05-17 | 10 |
-| M1 | 抓取层（含代理池）| 2026-05-31 | 10 |
-| M2 | Pipeline 与评分（含 scrubber）| 2026-06-14 | 15 |
-| M3 | 前端核心页面 | 2026-06-22 | 8 |
-| M4 | 告警 / 日报 / 钉钉 SSO（含合并）| 2026-06-27 | 9 |
-| M5 | 后台 / 监控 / 上线 | 2026-06-30 | 8 |
+| M   | 主题                             | 目标日期   | task |
+| --- | -------------------------------- | ---------- | ---- |
+| M0  | 脚手架与基线                     | 2026-05-17 | 10   |
+| M1  | 抓取层（含代理池）               | 2026-05-31 | 10   |
+| M2  | Pipeline 与评分（含 scrubber）   | 2026-06-14 | 15   |
+| M3  | 前端核心页面                     | 2026-06-22 | 8    |
+| M4  | 告警 / 日报 / 钉钉 SSO（含合并） | 2026-06-27 | 9    |
+| M5  | 后台 / 监控 / 上线               | 2026-06-30 | 8    |
 
 ## 项目专属硬约束（违例不接受）
 
@@ -165,12 +167,12 @@ FE-Radar v1.1 在 v1.0 产业情报雷达基础上新增**原料价格视角**�
 
 ### 技术栈差异（v1.1 新增依赖，不替换 v1.0）
 
-| 依赖 | 用途 | 固定版本约束 |
-|---|---|---|
+| 依赖                         | 用途                                                            | 固定版本约束                  |
+| ---------------------------- | --------------------------------------------------------------- | ----------------------------- |
 | `diygod/rsshub` Docker image | 自部署内网 RSSHub，包装 SMM / 生意社 / 长江有色 / 中汽协 RSS 源 | pin 到 digest，不用 `:latest` |
-| `docxtemplater` + `pizzip` | Worker 端 docx 模板渲染（`{{placeholder}}` 填充） | 不替换为其他模板引擎 |
-| `sanitize-html` | quotes adapter raw_text strip HTML 标签（NFR-102 审计用） | 已在 packages/llm，复用 |
-| `minio` JS SDK | Worker 端上传渲染后 docx 到 `fe-radar-briefings` bucket | 复用 v1.0 MinIO 实例 |
+| `docxtemplater` + `pizzip`   | Worker 端 docx 模板渲染（`{{placeholder}}` 填充）               | 不替换为其他模板引擎          |
+| `sanitize-html`              | quotes adapter raw_text strip HTML 标签（NFR-102 审计用）       | 已在 packages/llm，复用       |
+| `minio` JS SDK               | Worker 端上传渲染后 docx 到 `fe-radar-briefings` bucket         | 复用 v1.0 MinIO 实例          |
 
 新增环境变量（worker + stack.yml）：`RSSHUB_BASE_URL=http://rsshub:1200`，`BRIEFING_TEMPLATE_PATH=/app/design/templates/briefing.docx`，`BRIEFING_MINIO_BUCKET=fe-radar-briefings`。
 
