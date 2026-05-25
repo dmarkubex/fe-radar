@@ -134,7 +134,7 @@ scripts/          # 评分回测 / 信源验证
 - **scoring_config seed 用 `ON CONFLICT DO NOTHING`**，重跑 migration 不覆盖 admin 后台改过的配置
 - **限速器 incr 必经 `packages/core/quota.ts` Lua 脚本**（双独立计数器：normal ≤ 1300 + priority ≤ 200）
 - **cluster 创建必带 Redis 分布式锁**（worker 装配层；防多 worker 并发建簇）
-- **commit message 格式**：`[DMA-XX] 动词 + 范围`；`/init` 不要重写本文件而是 append project section
+- **commit message 格式**：`[T-<阶段>-XX] 动词 + 范围`（如 `[T-M2-08]` / `[T-CB-04-FIX]`）；可选尾缀 Linear 引用 `(DMA-XX)`；`/init` 不要重写本文件而是 append project section
 
 ## 关键陷阱（已踩过的坑）
 
