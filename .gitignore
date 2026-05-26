@@ -33,6 +33,9 @@ playwright-report/
 **/playwright-report/
 dist/
 **/dist/
+
+# KYO-54 embedding benchmark datasets (regenerate via scripts/seed/generate-embedding-dataset.ts)
+generated/embedding/
 .next/
 **/.next/
 

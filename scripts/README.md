@@ -1,5 +1,15 @@
 # FE-Radar Scripts
 
+## seed / dataset (KYO-54)
+
+Release v1.0 B 类合成数据见 `scripts/seed/README.md`。
+
+```bash
+pnpm --filter @fe-radar/db seed:release
+pnpm exec tsx scripts/seed/generate-embedding-dataset.ts
+pnpm exec tsx scripts/seed/generate-backtest-samples.ts
+```
+
 ## scoring-backtest
 
 `scripts/scoring-backtest.ts` compares human-labeled historical samples with the

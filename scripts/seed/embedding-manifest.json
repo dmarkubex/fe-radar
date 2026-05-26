@@ -1,0 +1,23 @@
+{
+  "seed": 54001,
+  "dimensions": 1024,
+  "datasets": [
+    {
+      "name": "vectors-50k.jsonl",
+      "rows": 50000,
+      "path": "generated/embedding/vectors-50k.jsonl",
+      "sha256": null
+    },
+    {
+      "name": "vectors-500k.jsonl",
+      "rows": 500000,
+      "path": "generated/embedding/vectors-500k.jsonl",
+      "sha256": null
+    }
+  ],
+  "vectorBenchmark": {
+    "command50k": "VECTOR_BENCH_ROWS=50000 VECTOR_BENCH_DIMENSIONS=1024 pnpm exec tsx scripts/vector-benchmark.ts",
+    "command500k": "VECTOR_BENCH_ROWS=500000 VECTOR_BENCH_DIMENSIONS=1024 pnpm exec tsx scripts/vector-benchmark.ts",
+    "note": "vector-benchmark.ts uses in-memory cosine search; row counts mirror generated dataset sizes."
+  }
+}
