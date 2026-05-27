@@ -12,7 +12,7 @@ import type { ScoringConfig as CoreScoringConfig, EntityHit } from "@fe-radar/co
 import type { BriefingGenJob, BriefingPushJob, FetchSourceJob, PipelineJob, QuotesFetchJob } from "./queues";
 import { createRedisConnection, FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, DAILY_REPORT_SCHEDULE_CRON, DAILY_REPORT_SCHEDULE_TZ, DEFAULT_JOB_OPTIONS, QUEUE_QUOTES_FETCH, QUEUE_BRIEFING_GEN, BRIEFING_GEN_SCHEDULE_CRON, BRIEFING_GEN_SCHEDULE_TZ, QUEUE_BRIEFING_PUSH } from "./queues";
 import { enqueueEnabledSources, recordSourceFailure, enqueueEnabledQuotesSources, scheduleQuotesFetchCron, scheduleBriefingPushCron } from "./scheduler";
-import { fetchRss, fetchHtml, fetchPlaywright } from "./fetchers";
+import { fetchRss, fetchHtml, fetchPlaywright, fetchAnnouncements } from "./fetchers";
 import type { SourceConfig, StandardItem, FetchContext } from "./fetchers";
 import { dedupItems, type DedupCandidate, type ExistingItemFingerprint } from "./dedup";
 import { runPrefilter } from "./jobs/prefilter";
@@ -106,6 +106,9 @@ async function handleFetchJob(job: { data: FetchSourceJob }): Promise<void> {
           playwrightPool = await createPlaywrightPool();
         }
         rawItems = await fetchPlaywright(config, context, playwrightPool);
+        break;
+      case "announcement":
+        rawItems = await fetchAnnouncements(config, context);
         break;
       default:
         throw new Error(`Unknown fetcher type: ${(config as { type: string }).type}`);
@@ -589,3 +592,4 @@ export async function startWorker(): Promise<void> {
 }
 
 export { workerName } from "./index";
+export const __testables = { handleFetchJob };

@@ -4,3 +4,5 @@ export * from "./rss";
 export * from "./types";
 export * from "./quotes/types";
 export { fetchQuotes, registerAdapter } from "./quotes/index";
+export * from "./announcements/types";
+export { fetchAnnouncements, registerAnnouncementAdapter } from "./announcements/index";

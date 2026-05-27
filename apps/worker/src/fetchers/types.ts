@@ -36,4 +36,10 @@ export interface PlaywrightSourceConfig {
   extractor: string;
 }
 
-export type SourceConfig = RssSourceConfig | HtmlSourceConfig | PlaywrightSourceConfig;
+export interface AnnouncementSourceConfig {
+  type: "announcement";
+  adapter: string;
+  [key: string]: unknown;
+}
+
+export type SourceConfig = RssSourceConfig | HtmlSourceConfig | PlaywrightSourceConfig | AnnouncementSourceConfig;
