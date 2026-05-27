@@ -7,13 +7,13 @@ BEGIN;
 
 -- ============================================================
 -- B 组：HTML → RSS（RSSHub 输出当普通 RSS）
--- UPDATE WHERE name + 旧 url 保证幂等
+-- 不改顶层 sources.url（0004 ON CONFLICT key；worker 读 config.url）
+-- UPDATE WHERE name + 旧 url 保证幂等（可重复 pnpm migrate）
 -- ============================================================
 
 -- ✅ smoke 2026-05-27: /jiemian/lists/856 → 12 items（lists/55 在 RSSHub 503）
 UPDATE sources
-SET url          = 'http://rsshub:1200/jiemian/lists/856',
-    fetcher_type = 'rss',
+SET fetcher_type = 'rss',
     config       = '{"type":"rss","url":"http://rsshub:1200/jiemian/lists/856"}'::jsonb,
     enabled      = true
 WHERE name = '界面新闻 能源'
@@ -21,8 +21,7 @@ WHERE name = '界面新闻 能源'
 
 -- ✅ smoke 2026-05-27: /yicai/headline → 20 items（yicai.com/news/energy 已 404，无专属 route）
 UPDATE sources
-SET url          = 'http://rsshub:1200/yicai/headline',
-    fetcher_type = 'rss',
+SET fetcher_type = 'rss',
     config       = '{"type":"rss","url":"http://rsshub:1200/yicai/headline"}'::jsonb,
     enabled      = true
 WHERE name = '第一财经 能源'
@@ -30,8 +29,7 @@ WHERE name = '第一财经 能源'
 
 -- ✅ smoke 2026-05-27: /36kr/information/web_news → 30 items（search/新能源 仅 1 条）
 UPDATE sources
-SET url          = 'http://rsshub:1200/36kr/information/web_news',
-    fetcher_type = 'rss',
+SET fetcher_type = 'rss',
     config       = '{"type":"rss","url":"http://rsshub:1200/36kr/information/web_news"}'::jsonb,
     enabled      = true
 WHERE name = '36氪 新能源'
@@ -50,7 +48,7 @@ WHERE name = '36氪 新能源'
 
 COMMIT;
 
--- Rollback (manual):
--- UPDATE sources SET url='https://www.jiemian.com/lists/55.html', fetcher_type='html', config='{"type":"html","listUrl":"https://www.jiemian.com/lists/55.html","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb WHERE name='界面新闻 能源';
--- UPDATE sources SET url='https://www.yicai.com/news/energy/', fetcher_type='html', config='{"type":"html","listUrl":"https://www.yicai.com/news/energy/","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb WHERE name='第一财经 能源';
--- UPDATE sources SET url='https://36kr.com/information/web_news/', fetcher_type='html', config='{"type":"html","listUrl":"https://36kr.com/information/web_news/","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb WHERE name='36氪 新能源';
+-- Rollback (manual; top-level url unchanged):
+-- UPDATE sources SET fetcher_type='html', config='{"type":"html","listUrl":"https://www.jiemian.com/lists/55.html","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb WHERE name='界面新闻 能源' AND url='https://www.jiemian.com/lists/55.html';
+-- UPDATE sources SET fetcher_type='html', config='{"type":"html","listUrl":"https://www.yicai.com/news/energy/","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb WHERE name='第一财经 能源' AND url='https://www.yicai.com/news/energy/';
+-- UPDATE sources SET fetcher_type='html', config='{"type":"html","listUrl":"https://36kr.com/information/web_news/","selectors":{"item":"a","title":"a","link":"a","date":"span"}}'::jsonb WHERE name='36氪 新能源' AND url='https://36kr.com/information/web_news/';

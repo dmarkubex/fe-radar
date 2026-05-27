@@ -40,7 +40,7 @@ curl -sS 'http://rsshub:1200/jiemian/lists/856' | grep -c '<item>'
 
 说明：
 
-- **rsshub→rss**：DB `fetcher_type='rss'`，`config.url` 为 `http://rsshub:1200/...` 绝对地址；worker `apps/worker/src/fetchers/rss.ts` 直接抓取，**不**走 `rsshub-extract`。
+- **rsshub→rss**：DB `fetcher_type='rss'`，`config.url` 为 `http://rsshub:1200/...` 绝对地址；顶层 `sources.url` 保留 0004 原 HTML URL（`ON CONFLICT` 幂等 key，不参与抓取）；worker `apps/worker/src/fetchers/rss.ts` 直接抓取 `config.url`，**不**走 `rsshub-extract`。
 - 本轮 **未** 新增 `${RSSHUB_BASE_URL}` 模板、未改 fetcher 协议（Reviewer-Plan 裁决）。
 - 已接入 RSS 的 3 源见 migration `0013_sources_rsshub_finance.sql`。
 

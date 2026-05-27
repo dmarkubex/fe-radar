@@ -11,14 +11,15 @@ describe("0013 RSSHub finance migration", () => {
     expect(sql).toContain("第一财经 能源");
     expect(sql).toContain("36氪 新能源");
     expect(sql).toMatch(/fetcher_type = 'rss'/g);
-    expect(sql.match(/http:\/\/rsshub:1200\//g)?.length).toBeGreaterThanOrEqual(6);
+    expect(sql.match(/http:\/\/rsshub:1200\//g)?.length).toBeGreaterThanOrEqual(3);
+    expect(sql).not.toMatch(/SET\s+url\s*=\s*'http:\/\/rsshub:1200\//);
     expect(sql).not.toContain("rsshub-extract");
     expect(sql).not.toContain("${RSSHUB_BASE_URL}");
   });
 
   it("documents manual rollback for the three updates", () => {
     const sql = readFileSync(migrationPath, "utf8");
-    expect(sql).toContain("Rollback (manual)");
+    expect(sql).toContain("Rollback (manual; top-level url unchanged)");
     expect(sql).toContain("jiemian.com/lists/55.html");
     expect(sql).toContain("yicai.com/news/energy");
     expect(sql).toContain("36kr.com/information/web_news");
