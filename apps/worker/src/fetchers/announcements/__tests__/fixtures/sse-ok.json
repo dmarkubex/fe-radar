@@ -1,0 +1,74 @@
+{
+  "pageHelp": {
+    "total": 3,
+    "page": 1,
+    "data": [
+      {
+        "bulletinId": "1234567890",
+        "title": "远东股份：关于项目中标的公告",
+        "securityCode": "600869",
+        "securityAbbrev": "远东股份",
+        "adjunctUrl": "/disclosure/bulletin/detail/bulletinId/1234567890/",
+        "adjunctType": "PDF",
+        "adjunctSize": 256,
+        "bulletinType": "0101",
+        "sseDate": "2026-05-27"
+      },
+      {
+        "bulletinId": "1234567891",
+        "title": "远东股份：2025年年度股东大会决议公告",
+        "securityCode": "600869",
+        "securityAbbrev": "远东股份",
+        "adjunctUrl": "/disclosure/bulletin/detail/bulletinId/1234567891/",
+        "adjunctType": "PDF",
+        "adjunctSize": 180,
+        "bulletinType": "0101",
+        "sseDate": "2026-05-26"
+      },
+      {
+        "bulletinId": "1234567892",
+        "title": "远东股份：关于控股股东增持股份计划的公告",
+        "securityCode": "600869",
+        "securityAbbrev": "远东股份",
+        "adjunctUrl": "/disclosure/bulletin/detail/bulletinId/1234567892/",
+        "adjunctType": "PDF",
+        "adjunctSize": 320,
+        "bulletinType": "0103",
+        "sseDate": "2026-05-25"
+      },
+      {
+        "bulletinId": "1234567893",
+        "title": "浦发银行：关于发行金融债券获准的公告",
+        "securityCode": "600000",
+        "securityAbbrev": "浦发银行",
+        "adjunctUrl": "/disclosure/bulletin/detail/bulletinId/1234567893/",
+        "adjunctType": "PDF",
+        "adjunctSize": 150,
+        "bulletinType": "0101",
+        "sseDate": "2026-05-27"
+      },
+      {
+        "bulletinId": "1234567894",
+        "title": "中国石化：2025年年度利润分配方案公告",
+        "securityCode": "600028",
+        "securityAbbrev": "中国石化",
+        "adjunctUrl": "/disclosure/bulletin/detail/bulletinId/1234567894/",
+        "adjunctType": "PDF",
+        "adjunctSize": 200,
+        "bulletinType": "0101",
+        "sseDate": "2026-05-27"
+      },
+      {
+        "bulletinId": "1234567895",
+        "title": "贵州茅台：关于回购公司股份的进展公告",
+        "securityCode": "600519",
+        "securityAbbrev": "贵州茅台",
+        "adjunctUrl": "/disclosure/bulletin/detail/bulletinId/1234567895/",
+        "adjunctType": "PDF",
+        "adjunctSize": 100,
+        "bulletinType": "0103",
+        "sseDate": "2026-05-26"
+      }
+    ]
+  }
+}

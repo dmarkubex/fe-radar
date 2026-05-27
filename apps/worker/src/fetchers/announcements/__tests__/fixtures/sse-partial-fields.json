@@ -1,0 +1,31 @@
+{
+  "pageHelp": {
+    "total": 4,
+    "page": 1,
+    "data": [
+      {
+        "bulletinId": "valid-item-id",
+        "title": "远东股份：关于项目中标的公告",
+        "securityCode": "600869",
+        "securityAbbrev": "远东股份",
+        "adjunctUrl": "/disclosure/bulletin/detail/bulletinId/valid-item-id/",
+        "sseDate": "2026-05-20"
+      },
+      {
+        "bulletinId": "missing-title-id",
+        "sseDate": "2026-05-20"
+      },
+      {
+        "title": "缺少链接字段",
+        "securityCode": "600000",
+        "sseDate": "2026-05-20"
+      },
+      {
+        "bulletinId": "bad-date-id",
+        "title": "日期无效应丢弃",
+        "adjunctUrl": "/disclosure/bulletin/detail/bulletinId/bad-date-id/",
+        "sseDate": "not-a-date"
+      }
+    ]
+  }
+}
