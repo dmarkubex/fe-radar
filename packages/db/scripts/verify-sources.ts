@@ -1,7 +1,7 @@
 import { createDbClient } from "../src/client";
 import { listSources, type SourceRecord, type FetcherType } from "../src/repos/sources";
 
-interface VerifyResult {
+export interface VerifyResult {
   name: string;
   fetcherType: FetcherType;
   url: string;
@@ -12,22 +12,24 @@ interface VerifyResult {
 }
 
 const TIMEOUT_MS = 10_000;
+const PLAYWRIGHT_SELECTOR_TIMEOUT_MS = 5_000;
 const USER_AGENT = "FE-Radar Verify Bot (+https://fe-radar.internal/bot)";
 
-function suggestionFor(result: VerifyResult): string {
+export function suggestionFor(result: VerifyResult): string {
   if (result.ok) return "";
   if (result.status === 403) return "Access denied (403). Consider disabling source or switching to playwright with proxy.";
   if (result.status === 404) return "URL not found (404). Verify URL or disable source.";
   if (result.status === 405) return "Method not allowed (405). Check if URL is correct.";
   if (result.status === 429) return "Rate limited (429). Consider increasing interval or using proxy.";
   if (result.error?.includes("fetch failed") || result.error?.includes("ECONNREFUSED")) return "Network unreachable. Check DNS/firewall or disable source.";
-  if (result.error?.includes("timeout")) return "Connection timed out. Server may be down or blocking.";
   if (result.error?.includes("SSL") || result.error?.includes("TLS") || result.error?.includes("certificate")) return "TLS/SSL error. Check cert validity or disable source.";
-  if (result.fetcherType === "playwright") return "Playwright source unreachable. Verify URL works in browser.";
+  if (result.fetcherType === "playwright" && result.error?.includes("selector")) return "Selector did not match any elements. Update waitFor/extractor selectors or verify page structure changed.";
+  if (result.fetcherType === "playwright") return "Playwright source unreachable or selector failed. Verify URL works in browser.";
+  if (result.error?.includes("timeout")) return "Connection timed out. Server may be down or blocking.";
   return "Investigate error and fix URL/config or disable source.";
 }
 
-async function checkHtmlOrRss(url: string): Promise<Pick<VerifyResult, "ok" | "status" | "error">> {
+export async function checkHtmlOrRss(url: string): Promise<Pick<VerifyResult, "ok" | "status" | "error">> {
   try {
     const response = await fetch(url, {
       method: "GET",
@@ -44,7 +46,7 @@ async function checkHtmlOrRss(url: string): Promise<Pick<VerifyResult, "ok" | "s
   }
 }
 
-async function checkPlaywright(source: SourceRecord): Promise<Pick<VerifyResult, "ok" | "status" | "error">> {
+export async function checkPlaywright(source: SourceRecord): Promise<Pick<VerifyResult, "ok" | "status" | "error">> {
   const config = source.config as Record<string, unknown> | null;
   const waitFor = config?.waitFor as string | undefined;
   const extractor = config?.extractor as string | undefined;
@@ -53,15 +55,46 @@ async function checkPlaywright(source: SourceRecord): Promise<Pick<VerifyResult,
     return { ok: false, error: `Playwright config missing waitFor or extractor (waitFor=${String(waitFor)}, extractor=${String(extractor)})` };
   }
 
-  const urlCheck = await checkHtmlOrRss(source.url);
+  const targetUrl = (config?.listUrl as string) || source.url;
+
+  const urlCheck = await checkHtmlOrRss(targetUrl);
   if (!urlCheck.ok) {
     return urlCheck;
   }
 
-  return { ok: true, status: urlCheck.status };
+  let browser: { newPage: () => Promise<{ goto: (u: string, o: { timeout: number; waitUntil: string }) => Promise<void>; waitForSelector: (s: string, o: { timeout: number }) => Promise<void>; $$eval: (s: string, fn: (els: Element[]) => number) => Promise<number>; close: () => Promise<void> }>; close: () => Promise<void> } | undefined;
+  try {
+    // @ts-expect-error -- playwright is a workspace-level dep (apps/worker), not declared in @fe-radar/db
+    const pw = await import("playwright");
+    browser = await pw.chromium.launch({ headless: true });
+    const page = await browser!.newPage();
+    await page.goto(targetUrl, { timeout: TIMEOUT_MS, waitUntil: "domcontentloaded" });
+
+    try {
+      await page.waitForSelector(waitFor, { timeout: PLAYWRIGHT_SELECTOR_TIMEOUT_MS });
+    } catch (selectorErr) {
+      const msg = selectorErr instanceof Error ? selectorErr.message : String(selectorErr);
+      return { ok: false, error: `selector timeout for '${waitFor}': ${msg}` };
+    }
+
+    const itemCount = await page.$$eval(waitFor, (els: Element[]) => els.length).catch(() => 0);
+    if (itemCount === 0) {
+      return { ok: false, error: `selector '${waitFor}' matched 0 items on page` };
+    }
+
+    return { ok: true, status: 200 };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("Cannot find module") || msg.includes("playwright")) {
+      return { ok: false, error: "playwright package not available. Install playwright or skip playwright smoke check." };
+    }
+    return { ok: false, error: msg };
+  } finally {
+    await browser?.close().catch(() => {});
+  }
 }
 
-async function verifySource(source: SourceRecord): Promise<VerifyResult> {
+export async function verifySource(source: SourceRecord): Promise<VerifyResult> {
   if (source.fetcherType === "html" || source.fetcherType === "rss") {
     const config = source.config as Record<string, unknown> | null;
     const targetUrl = (config?.listUrl as string) || (config?.url as string) || source.url;
@@ -70,8 +103,10 @@ async function verifySource(source: SourceRecord): Promise<VerifyResult> {
   }
 
   if (source.fetcherType === "playwright") {
+    const config = source.config as Record<string, unknown> | null;
+    const targetUrl = (config?.listUrl as string) || source.url;
     const check = await checkPlaywright(source);
-    return { name: source.name, fetcherType: source.fetcherType, url: source.url, ...check, suggestion: "" };
+    return { name: source.name, fetcherType: source.fetcherType, url: targetUrl, ...check, suggestion: "" };
   }
 
   return {
@@ -155,7 +190,10 @@ async function main(): Promise<void> {
   process.exit(0);
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
-});
+const isMain = process.argv[1]?.endsWith("verify-sources.ts");
+if (isMain) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  });
+}

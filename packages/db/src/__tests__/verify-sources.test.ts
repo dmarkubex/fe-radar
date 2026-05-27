@@ -1,47 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { SourceRecord, FetcherType } from "../repos/sources";
-
-interface VerifyResult {
-  name: string;
-  fetcherType: FetcherType;
-  url: string;
-  ok: boolean;
-  status?: number;
-  error?: string;
-  suggestion: string;
-}
-
-const TIMEOUT_MS = 10_000;
-
-function suggestionFor(result: VerifyResult): string {
-  if (result.ok) return "";
-  if (result.status === 403) return "Access denied (403). Consider disabling source or switching to playwright with proxy.";
-  if (result.status === 404) return "URL not found (404). Verify URL or disable source.";
-  if (result.status === 405) return "Method not allowed (405). Check if URL is correct.";
-  if (result.status === 429) return "Rate limited (429). Consider increasing interval or using proxy.";
-  if (result.error?.includes("fetch failed") || result.error?.includes("ECONNREFUSED")) return "Network unreachable. Check DNS/firewall or disable source.";
-  if (result.error?.includes("timeout")) return "Connection timed out. Server may be down or blocking.";
-  if (result.error?.includes("SSL") || result.error?.includes("TLS") || result.error?.includes("certificate")) return "TLS/SSL error. Check cert validity or disable source.";
-  if (result.fetcherType === "playwright") return "Playwright source unreachable. Verify URL works in browser.";
-  return "Investigate error and fix URL/config or disable source.";
-}
-
-async function checkHtmlOrRss(url: string): Promise<Pick<VerifyResult, "ok" | "status" | "error">> {
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-      headers: { "user-agent": "FE-Radar Verify Bot (+https://fe-radar.internal/bot)" }
-    });
-    if (!response.ok) {
-      return { ok: false, status: response.status, error: `HTTP ${response.status}` };
-    }
-    return { ok: true, status: response.status };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: message };
-  }
-}
+import {
+  suggestionFor,
+  checkHtmlOrRss,
+  checkPlaywright,
+  verifySource,
+  type VerifyResult
+} from "../../scripts/verify-sources";
 
 function makeSource(overrides: Partial<SourceRecord> & { name: string; url: string; fetcherType: FetcherType }): SourceRecord {
   return {
@@ -57,69 +22,77 @@ function makeSource(overrides: Partial<SourceRecord> & { name: string; url: stri
   };
 }
 
-describe("verify-sources logic", () => {
+describe("verify-sources", () => {
   describe("checkHtmlOrRss (2xx gate)", () => {
+    let originalFetch: typeof globalThis.fetch;
+
+    beforeEach(() => {
+      originalFetch = globalThis.fetch;
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+    });
+
     it("passes on HTTP 200", async () => {
-      const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
       const result = await checkHtmlOrRss("https://example.com");
       expect(result.ok).toBe(true);
       expect(result.status).toBe(200);
-      globalThis.fetch = originalFetch;
     });
 
     it("fails on HTTP 403", async () => {
-      const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 403 });
       const result = await checkHtmlOrRss("https://example.com");
       expect(result.ok).toBe(false);
       expect(result.status).toBe(403);
-      globalThis.fetch = originalFetch;
     });
 
     it("fails on HTTP 404", async () => {
-      const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 });
       const result = await checkHtmlOrRss("https://example.com");
       expect(result.ok).toBe(false);
       expect(result.status).toBe(404);
-      globalThis.fetch = originalFetch;
     });
 
     it("fails on HTTP 405", async () => {
-      const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 405 });
       const result = await checkHtmlOrRss("https://example.com");
       expect(result.ok).toBe(false);
       expect(result.status).toBe(405);
-      globalThis.fetch = originalFetch;
     });
 
     it("fails on HTTP 500", async () => {
-      const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
       const result = await checkHtmlOrRss("https://example.com");
       expect(result.ok).toBe(false);
       expect(result.status).toBe(500);
-      globalThis.fetch = originalFetch;
     });
 
-    it("fails on network error (timeout, DNS)", async () => {
-      const originalFetch = globalThis.fetch;
+    it("fails on network error (ECONNREFUSED)", async () => {
       globalThis.fetch = vi.fn().mockRejectedValue(new Error("fetch failed: ECONNREFUSED"));
       const result = await checkHtmlOrRss("https://example.com");
       expect(result.ok).toBe(false);
       expect(result.error).toContain("ECONNREFUSED");
-      globalThis.fetch = originalFetch;
     });
 
     it("fails on TLS/SSL error", async () => {
-      const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockRejectedValue(new Error("SSL certificate verification failed"));
       const result = await checkHtmlOrRss("https://example.com");
       expect(result.ok).toBe(false);
       expect(result.error).toContain("SSL");
-      globalThis.fetch = originalFetch;
+    });
+
+    it("fails on HTTP 301 (redirect without ok)", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 301 });
+      const result = await checkHtmlOrRss("https://example.com");
+      expect(result.ok).toBe(false);
+    });
+
+    it("fails on HTTP 302 (redirect without ok)", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 302 });
+      const result = await checkHtmlOrRss("https://example.com");
+      expect(result.ok).toBe(false);
     });
   });
 
@@ -129,7 +102,7 @@ describe("verify-sources logic", () => {
       expect(suggestionFor(result)).toBe("");
     });
 
-    it("suggests disabling for 403", () => {
+    it("suggests disabling/proxy for 403", () => {
       const result: VerifyResult = { name: "test", fetcherType: "html", url: "https://example.com", ok: false, status: 403, suggestion: "" };
       expect(suggestionFor(result)).toContain("403");
     });
@@ -148,10 +121,252 @@ describe("verify-sources logic", () => {
       const result: VerifyResult = { name: "test", fetcherType: "html", url: "https://example.com", ok: false, error: "Connection timeout", suggestion: "" };
       expect(suggestionFor(result)).toContain("timed out");
     });
+
+    it("suggests selector fix for playwright selector errors", () => {
+      const result: VerifyResult = { name: "test", fetcherType: "playwright", url: "https://example.com", ok: false, error: "selector timeout for '.news-list': waiting failed", suggestion: "" };
+      expect(suggestionFor(result)).toContain("selector");
+    });
+  });
+
+  describe("verifySource", () => {
+    let originalFetch: typeof globalThis.fetch;
+
+    beforeEach(() => {
+      originalFetch = globalThis.fetch;
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+    });
+
+    it("html source uses config.listUrl as target", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+      const source = makeSource({
+        name: "test-html",
+        url: "https://example.com",
+        fetcherType: "html",
+        config: { listUrl: "https://example.com/news" }
+      });
+      const result = await verifySource(source);
+      expect(result.ok).toBe(true);
+      expect(result.url).toBe("https://example.com/news");
+      expect(globalThis.fetch).toHaveBeenCalledWith("https://example.com/news", expect.anything());
+    });
+
+    it("html source falls back to source.url when no config URLs", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+      const source = makeSource({
+        name: "test-html",
+        url: "https://example.com",
+        fetcherType: "html",
+        config: {}
+      });
+      const result = await verifySource(source);
+      expect(result.ok).toBe(true);
+      expect(result.url).toBe("https://example.com");
+    });
+
+    it("html source fails on non-2xx", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 });
+      const source = makeSource({
+        name: "test-html-404",
+        url: "https://example.com",
+        fetcherType: "html"
+      });
+      const result = await verifySource(source);
+      expect(result.ok).toBe(false);
+      expect(result.status).toBe(404);
+    });
+
+    it("unsupported fetcherType returns failure", async () => {
+      const source = makeSource({
+        name: "test-unknown",
+        url: "https://example.com",
+        fetcherType: "quotes"
+      });
+      const result = await verifySource(source);
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain("Unsupported fetcher_type");
+    });
+
+    it("rss source passes on 200", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+      const source = makeSource({
+        name: "test-rss",
+        url: "https://example.com/rss.xml",
+        fetcherType: "rss"
+      });
+      const result = await verifySource(source);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("checkPlaywright", () => {
+    let originalFetch: typeof globalThis.fetch;
+
+    beforeEach(() => {
+      originalFetch = globalThis.fetch;
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+    });
+
+    it("fails when waitFor is missing", async () => {
+      const source = makeSource({
+        name: "bad-pw-no-wait",
+        url: "https://example.com",
+        fetcherType: "playwright",
+        config: { extractor: "() => []" }
+      });
+      const result = await checkPlaywright(source);
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain("missing waitFor");
+    });
+
+    it("fails when extractor is missing", async () => {
+      const source = makeSource({
+        name: "bad-pw-no-ext",
+        url: "https://example.com",
+        fetcherType: "playwright",
+        config: { waitFor: "body" }
+      });
+      const result = await checkPlaywright(source);
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain("missing waitFor or extractor");
+    });
+
+    it("fails when URL is unreachable (non-2xx)", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 403 });
+      const source = makeSource({
+        name: "pw-403",
+        url: "https://example.com",
+        fetcherType: "playwright",
+        config: { waitFor: ".news-list", extractor: "() => []" }
+      });
+      const result = await checkPlaywright(source);
+      expect(result.ok).toBe(false);
+      expect(result.status).toBe(403);
+    });
+
+    it("uses config.listUrl instead of source.url", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+      const source = makeSource({
+        name: "pw-listurl",
+        url: "https://example.com",
+        fetcherType: "playwright",
+        config: { listUrl: "https://example.com/news", waitFor: ".news-list", extractor: "() => []" }
+      });
+
+      const mockBrowser = {
+        newPage: vi.fn().mockResolvedValue({
+          goto: vi.fn().mockResolvedValue(undefined),
+          waitForSelector: vi.fn().mockResolvedValue(undefined),
+          $$eval: vi.fn().mockResolvedValue(5)
+        }),
+        close: vi.fn().mockResolvedValue(undefined)
+      };
+      const mockChromium = { launch: vi.fn().mockResolvedValue(mockBrowser) };
+
+      vi.doMock("playwright", () => ({ chromium: mockChromium }));
+
+      const result = await checkPlaywright(source);
+      expect(result.ok).toBe(true);
+      expect(globalThis.fetch).toHaveBeenCalledWith("https://example.com/news", expect.anything());
+
+      vi.doUnmock("playwright");
+    });
+
+    it("fails when selector matches 0 items", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+      const source = makeSource({
+        name: "pw-zero-items",
+        url: "https://example.com",
+        fetcherType: "playwright",
+        config: { waitFor: ".nonexistent", extractor: "() => []" }
+      });
+
+      const mockPage = {
+        goto: vi.fn().mockResolvedValue(undefined),
+        waitForSelector: vi.fn().mockResolvedValue(undefined),
+        $$eval: vi.fn().mockResolvedValue(0)
+      };
+      const mockBrowser = {
+        newPage: vi.fn().mockResolvedValue(mockPage),
+        close: vi.fn().mockResolvedValue(undefined)
+      };
+      const mockChromium = { launch: vi.fn().mockResolvedValue(mockBrowser) };
+
+      vi.doMock("playwright", () => ({ chromium: mockChromium }));
+
+      const result = await checkPlaywright(source);
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain("0 items");
+
+      vi.doUnmock("playwright");
+    });
+
+    it("fails when selector times out", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+      const source = makeSource({
+        name: "pw-selector-timeout",
+        url: "https://example.com",
+        fetcherType: "playwright",
+        config: { waitFor: ".slow-selector", extractor: "() => []" }
+      });
+
+      const mockPage = {
+        goto: vi.fn().mockResolvedValue(undefined),
+        waitForSelector: vi.fn().mockRejectedValue(new Error("waiting for selector '.slow-selector' timed out")),
+        $$eval: vi.fn().mockResolvedValue(0)
+      };
+      const mockBrowser = {
+        newPage: vi.fn().mockResolvedValue(mockPage),
+        close: vi.fn().mockResolvedValue(undefined)
+      };
+      const mockChromium = { launch: vi.fn().mockResolvedValue(mockBrowser) };
+
+      vi.doMock("playwright", () => ({ chromium: mockChromium }));
+
+      const result = await checkPlaywright(source);
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain("selector timeout");
+
+      vi.doUnmock("playwright");
+    });
+
+    it("passes when URL is reachable and selector matches items", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+      const source = makeSource({
+        name: "pw-ok",
+        url: "https://example.com",
+        fetcherType: "playwright",
+        config: { waitFor: ".news-list", extractor: "() => []" }
+      });
+
+      const mockPage = {
+        goto: vi.fn().mockResolvedValue(undefined),
+        waitForSelector: vi.fn().mockResolvedValue(undefined),
+        $$eval: vi.fn().mockResolvedValue(10)
+      };
+      const mockBrowser = {
+        newPage: vi.fn().mockResolvedValue(mockPage),
+        close: vi.fn().mockResolvedValue(undefined)
+      };
+      const mockChromium = { launch: vi.fn().mockResolvedValue(mockBrowser) };
+
+      vi.doMock("playwright", () => ({ chromium: mockChromium }));
+
+      const result = await checkPlaywright(source);
+      expect(result.ok).toBe(true);
+      expect(result.status).toBe(200);
+
+      vi.doUnmock("playwright");
+    });
   });
 
   describe("disabled sources are not verified", () => {
-    it("listSources filters to enabled=true, so disabled sources are excluded from verification", () => {
+    it("listSources filters to enabled=true, so disabled sources are excluded", () => {
       const enabledSource = makeSource({ name: "enabled-src", url: "https://enabled.example.com", fetcherType: "html", enabled: true });
       const disabledSource = makeSource({ name: "disabled-src", url: "https://disabled.example.com", fetcherType: "html", enabled: false });
       const toVerify = [enabledSource, disabledSource].filter((s) => s.enabled);
@@ -196,30 +411,6 @@ describe("verify-sources logic", () => {
     });
   });
 
-  describe("playwright config validation", () => {
-    it("fails if waitFor is missing", () => {
-      const source = makeSource({
-        name: "bad-pw",
-        url: "https://example.com",
-        fetcherType: "playwright",
-        config: { extractor: "() => []" }
-      });
-      const config = source.config as Record<string, unknown>;
-      expect(config.waitFor).toBeUndefined();
-    });
-
-    it("fails if extractor is missing", () => {
-      const source = makeSource({
-        name: "bad-pw",
-        url: "https://example.com",
-        fetcherType: "playwright",
-        config: { waitFor: "body" }
-      });
-      const config = source.config as Record<string, unknown>;
-      expect(config.extractor).toBeUndefined();
-    });
-  });
-
   describe("quotes sources excluded from v1.0 news gate", () => {
     it("quotes fetcherType is filtered out from news verification", () => {
       const sources = [
@@ -251,24 +442,6 @@ describe("verify-sources logic", () => {
       const scriptContent = readFileSync(scriptPath, "utf8");
       expect(scriptContent).toContain("DATABASE_URL");
       expect(scriptContent).toMatch(/Cannot verify|not set/);
-    });
-  });
-
-  describe("non-2xx responses are failures", () => {
-    it("HTTP 301 without response.ok is a failure", async () => {
-      const originalFetch = globalThis.fetch;
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 301 });
-      const result = await checkHtmlOrRss("https://example.com");
-      expect(result.ok).toBe(false);
-      globalThis.fetch = originalFetch;
-    });
-
-    it("HTTP 302 without response.ok is a failure", async () => {
-      const originalFetch = globalThis.fetch;
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 302 });
-      const result = await checkHtmlOrRss("https://example.com");
-      expect(result.ok).toBe(false);
-      globalThis.fetch = originalFetch;
     });
   });
 });
