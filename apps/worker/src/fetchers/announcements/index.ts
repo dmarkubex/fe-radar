@@ -1,6 +1,7 @@
 import { SourceFetchError } from "@fe-radar/shared";
 import type { AnnouncementSourceConfig, FetchContext, StandardItem } from "../types";
 import type { AnnouncementAdapter } from "./types";
+import { cninfoAdapter } from "./cninfo";
 import { sseAdapter } from "./sse";
 import { szseAdapter } from "./szse";
 
@@ -34,3 +35,4 @@ export async function fetchAnnouncements(
 
 registerAnnouncementAdapter(sseAdapter);
 registerAnnouncementAdapter(szseAdapter);
+registerAnnouncementAdapter(cninfoAdapter);

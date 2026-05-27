@@ -1,0 +1,82 @@
+{
+  "announcements": [
+    {
+      "id": "1",
+      "secCode": "600869",
+      "secName": "远东股份",
+      "announcementId": "1234567890",
+      "announcementTitle": "远东股份：关于项目中标的公告",
+      "announcementTypeName": "重大项目",
+      "adjunctUrl": "/finalpage/2026-05-27/AAAA_BBBB_CCCC_DDDD_EEEE.PDF",
+      "adjunctSize": 123456,
+      "adjunctType": "PDF",
+      "announcementTime": 1748304000000,
+      "columnId": "szse_disc",
+      "pageRow": 1,
+      "tileLink": null
+    },
+    {
+      "id": "2",
+      "secCode": "600519",
+      "secName": "贵州茅台",
+      "announcementId": "1234567891",
+      "announcementTitle": "贵州茅台：2025年年度股东大会决议公告",
+      "announcementTypeName": "股东大会",
+      "adjunctUrl": "/finalpage/2026-05-26/FFFF_GGGG_HHHH_IIII_JJJJ.PDF",
+      "adjunctSize": 234567,
+      "adjunctType": "PDF",
+      "announcementTime": 1748217600000,
+      "columnId": "sse_disc",
+      "pageRow": 2,
+      "tileLink": null
+    },
+    {
+      "id": "3",
+      "secCode": "000001",
+      "secName": "平安银行",
+      "announcementId": "1234567892",
+      "announcementTitle": "平安银行：2025年年度报告",
+      "announcementTypeName": "定期报告",
+      "adjunctUrl": "/finalpage/2026-05-25/KKKK_LLLL_MMMM_NNNN_OOOO.PDF",
+      "adjunctSize": 345678,
+      "adjunctType": "PDF",
+      "announcementTime": 1748131200000,
+      "columnId": "szse_disc",
+      "pageRow": 3,
+      "tileLink": null
+    },
+    {
+      "id": "4",
+      "secCode": "002603",
+      "secName": "以岭药业",
+      "announcementId": "1234567893",
+      "announcementTitle": "以岭药业：关于使用闲置募集资金进行现金管理的进展公告",
+      "announcementTypeName": "募集资金",
+      "adjunctUrl": "/finalpage/2026-05-24/PPPP_QQQQ_RRRR_SSSS_TTTT.PDF",
+      "adjunctSize": 456789,
+      "adjunctType": "PDF",
+      "announcementTime": 1748044800000,
+      "columnId": "szse_disc",
+      "pageRow": 4,
+      "tileLink": null
+    },
+    {
+      "id": "5",
+      "secCode": "300750",
+      "secName": "宁德时代",
+      "announcementId": "1234567894",
+      "announcementTitle": "宁德时代：关于签订重大合同的公告",
+      "announcementTypeName": "重大合同",
+      "adjunctUrl": "/finalpage/2026-05-23/UUUU_VVVV_WWWW_XXXX_YYYY.ZZZZ.PDF",
+      "adjunctSize": 567890,
+      "adjunctType": "PDF",
+      "announcementTime": 1747958400000,
+      "columnId": "szse_disc",
+      "pageRow": 5,
+      "tileLink": null
+    }
+  ],
+  "totalAnnouncement": 5,
+  "totalRecordNum": 5,
+  "hasMore": false
+}
