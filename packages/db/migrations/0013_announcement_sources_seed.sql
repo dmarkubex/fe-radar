@@ -8,13 +8,13 @@ BEGIN;
 
 INSERT INTO sources (name, url, fetcher_type, config, tier, category, enabled)
 VALUES
-    -- SSE 上交所公告 — smoke 验证通过（2026-05-27 片2 KyO-62 返回 ≥5 条）
-    ('上交所公告',
+    -- SSE 上交所公告 — smoke 不稳定（2026-05-28 返回 "系统繁忙"，0 条可映射公告）
+    -- 原因：上交所 JSONP 接口间歇性返回 success:false，待内网/代理环境稳定后 admin 改 true
+     ('上交所公告',
      'http://www.sse.com.cn/disclosure/listedinfo/announcement/',
      'announcement',
      '{"type":"announcement","adapter":"sse","endpoint":"http://query.sse.com.cn/security/stock/queryCompanyBulletin.do","useRealUa":true}'::jsonb,
-     'T1', '上市公司公告', true),
-
+     'T1', '上市公司公告', false),
     -- SZSE 深交所公告 — smoke 验证通过（2026-05-27 片3 KyO-63 返回 ≥5 条）
     ('深交所公告',
      'http://www.szse.cn/disclosure/listed/notice/',
