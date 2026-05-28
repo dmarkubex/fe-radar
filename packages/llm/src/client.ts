@@ -11,6 +11,8 @@ export interface OpenAiCompatibleOptions {
   apiKey: string;
   baseURL: string;
   model: string;
+  embeddingBaseURL?: string;
+  embeddingApiKey?: string;
   embeddingModel?: string;
   inputTokenCostCny?: number;
   outputTokenCostCny?: number;
@@ -18,9 +20,14 @@ export interface OpenAiCompatibleOptions {
 
 export class OpenAiCompatibleClient implements LlmClient {
   private readonly client: OpenAI;
+  private readonly embeddingClient: OpenAI;
 
   public constructor(private readonly options: OpenAiCompatibleOptions) {
     this.client = new OpenAI({ apiKey: options.apiKey, baseURL: options.baseURL });
+    this.embeddingClient = new OpenAI({
+      apiKey: options.embeddingApiKey ?? options.apiKey,
+      baseURL: options.embeddingBaseURL ?? options.baseURL
+    });
   }
 
   public async chatJson<T>(request: JsonSchemaRequest): Promise<LlmResult<T>> {
@@ -97,8 +104,9 @@ export class OpenAiCompatibleClient implements LlmClient {
 
   public async embedding(request: EmbeddingRequest): Promise<LlmResult<number[]>> {
     const startedAt = Date.now();
-    const response = await this.client.embeddings.create({
+    const response = await this.embeddingClient.embeddings.create({
       model: this.options.embeddingModel ?? this.options.model,
+      encoding_format: "float",
       input: request.input
     });
     const embedding = response.data[0]?.embedding;

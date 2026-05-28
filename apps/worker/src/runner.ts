@@ -3,7 +3,7 @@ import pino from "pino";
 
 import { QUEUES } from "@fe-radar/shared";
 import { getDb, items, itemAnalysis, itemEntities, clusterItems, clusters, entities, scoringConfig, sources, markSourceSuccess } from "@fe-radar/db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, type SQL } from "drizzle-orm";
 import { createQwenClient, createDeepSeekClient, createKimiClient, withScrubber } from "@fe-radar/llm";
 import type { LlmClient } from "@fe-radar/llm";
 import { curateItem } from "@fe-radar/core";
@@ -260,7 +260,7 @@ async function handleEmbedderJob(job: { data: PipelineJob }): Promise<void> {
   if (!row) return;
 
   const embedding = await runEmbedder(row.title, row.summaryZh ?? row.title, qwen);
-  await db.update(itemAnalysis).set({ embedding: JSON.stringify(embedding) as unknown as number[] }).where(eq(itemAnalysis.itemId, itemId));
+  await db.update(itemAnalysis).set({ embedding: vectorDbValue(embedding) }).where(eq(itemAnalysis.itemId, itemId));
 }
 
 async function handleClusterJob(job: { data: PipelineJob }): Promise<void> {
@@ -306,7 +306,7 @@ async function handleClusterJob(job: { data: PipelineJob }): Promise<void> {
   } else {
     await withClusterCreateLock(redis, async () => {
       const [newCluster] = await db.insert(clusters).values({
-        centroid: JSON.stringify(embedding) as unknown as number[],
+        centroid: vectorDbValue(embedding),
         leadItemId: itemId,
       }).returning({ id: clusters.id });
 
@@ -398,6 +398,12 @@ function cosineSimilarity(a: number[], b: number[]): number {
   }
   const denom = Math.sqrt(normA) * Math.sqrt(normB);
   return denom === 0 ? 0 : dot / denom;
+}
+
+function vectorDbValue(embedding: number[]): SQL<unknown> | number[] {
+  return process.env["MIGRATION_PROFILE"] === "e2e"
+    ? sql`ARRAY[${sql.join(embedding.map((value) => sql`${value}`), sql`, `)}]::real[]`
+    : JSON.stringify(embedding) as unknown as number[];
 }
 
 export async function startWorker(): Promise<void> {
