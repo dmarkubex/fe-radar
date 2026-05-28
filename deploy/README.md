@@ -39,7 +39,7 @@ docker exec <web-container> date
 
 ### 概述
 
-`rsshub` 服务（`diygod/rsshub`）为 v1.1 commodity-briefing 模块的 `rsshub-extract` adapter 提供 RSS feed。该服务仅挂载内网 overlay（`internal: true`），**不向主机映射任何端口**，只能由同一 swarm stack 内的 worker 容器通过服务名访问。
+`rsshub` 服务（`diygod/rsshub`）为 v1.1 commodity-briefing 模块的 `rsshub-extract` adapter 提供 RSS feed；v1.0 财经/自媒体 news 源（`fetcher_type=rss`）亦通过同一内网实例抓取 RSSHub 输出的绝对 URL（见 `docs/sources-rsshub-finance-matrix.md`，migration `0013_sources_rsshub_finance.sql`）。该服务仅挂载内网 overlay（`internal: true`），**不向主机映射任何端口**，只能由同一 swarm stack 内的 worker 容器通过服务名访问。
 
 ### 端口与访问
 
