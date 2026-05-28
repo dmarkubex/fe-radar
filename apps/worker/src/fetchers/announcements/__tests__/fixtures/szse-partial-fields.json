@@ -1,0 +1,25 @@
+{
+  "announceCount": 4,
+  "data": [
+    {
+      "id": "valid-item-id",
+      "title": "远东股份：关于项目中标的公告",
+      "summary": "项目中标摘要",
+      "publishTime": "2026-05-20 09:30:00",
+      "attachPath": "/disc/disk03/finalpage/2026-05-20/sample.PDF"
+    },
+    {
+      "id": "missing-title-id",
+      "publishTime": "2026-05-20 09:30:00"
+    },
+    {
+      "title": "缺少链接字段",
+      "publishTime": "2026-05-20 09:30:00"
+    },
+    {
+      "id": "bad-date-id",
+      "title": "日期无效应丢弃",
+      "publishTime": "not-a-date"
+    }
+  ]
+}
