@@ -29,23 +29,7 @@ export class OpenAiCompatibleClient implements LlmClient {
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        const params: ChatCompletionCreateParamsNonStreaming = {
-          model: this.options.model,
-          temperature: request.temperature ?? 0.2,
-          messages: [
-            { role: "system", content: request.system },
-            { role: "user", content: request.user }
-          ],
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: request.schemaName,
-              strict: true,
-              schema: request.schema
-            }
-          }
-        };
-        const response = await this.client.chat.completions.create(params);
+        const response = await this.createChatJsonCompletion(request);
         const content = response.choices[0]?.message.content;
         if (!content) {
           throw new LlmError("LLM_EMPTY", "LLM returned empty content");
@@ -63,6 +47,52 @@ export class OpenAiCompatibleClient implements LlmClient {
     }
 
     throw new LlmError("LLM_JSON_INVALID", "LLM JSON schema request failed after retries", { cause: lastError });
+  }
+
+  private async createChatJsonCompletion(request: JsonSchemaRequest) {
+    const params = this.chatJsonParams(request, "json_schema");
+    try {
+      return await this.client.chat.completions.create(params);
+    } catch (error) {
+      if (!this.isJsonSchemaUnsupported(error)) {
+        throw error;
+      }
+
+      logger.warn({ provider: this.options.provider, error }, "llm json_schema unsupported, retrying with json_object");
+      return this.client.chat.completions.create(this.chatJsonParams(request, "json_object"));
+    }
+  }
+
+  private chatJsonParams(request: JsonSchemaRequest, responseFormat: "json_schema" | "json_object"): ChatCompletionCreateParamsNonStreaming {
+    const system =
+      responseFormat === "json_schema"
+        ? request.system
+        : `${request.system}\n\nReturn one valid JSON object only. It must satisfy this JSON Schema: ${JSON.stringify(request.schema)}`;
+
+    return {
+      model: this.options.model,
+      temperature: request.temperature ?? 0.2,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: request.user }
+      ],
+      response_format:
+        responseFormat === "json_schema"
+          ? {
+              type: "json_schema",
+              json_schema: {
+                name: request.schemaName,
+                strict: true,
+                schema: request.schema
+              }
+            }
+          : { type: "json_object" }
+    };
+  }
+
+  private isJsonSchemaUnsupported(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return message.includes("response_format") && (message.includes("unavailable") || message.includes("unsupported"));
   }
 
   public async embedding(request: EmbeddingRequest): Promise<LlmResult<number[]>> {

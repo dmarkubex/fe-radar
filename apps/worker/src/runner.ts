@@ -203,7 +203,13 @@ async function handleNerJob(job: { data: PipelineJob }): Promise<void> {
 
   const text = `${row.title}\n${row.content ?? ""}`;
   const dict = await loadEntityDictionary();
-  const result = await runNer(text, dict, withScrubber(qwen));
+  let result: Awaited<ReturnType<typeof runNer>>;
+  try {
+    result = await runNer(text, dict, withScrubber(qwen));
+  } catch (error) {
+    logger.warn({ error, itemId }, "ner primary failed, trying fallback");
+    result = await runNer(text, dict, withScrubber(deepSeek));
+  }
 
   for (const entity of result.entities) {
     if (entity.canonicalName) {
