@@ -1,0 +1,47 @@
+{
+  "announcements": [
+    {
+      "id": "valid-1",
+      "secCode": "600869",
+      "secName": "远东股份",
+      "announcementId": "valid-ann-id",
+      "announcementTitle": "远东股份：关于项目中标的公告",
+      "announcementTypeName": "重大项目",
+      "adjunctUrl": "/finalpage/2026-05-27/VALID.PDF",
+      "adjunctSize": 12345,
+      "adjunctType": "PDF",
+      "announcementTime": 1748304000000,
+      "columnId": "szse_disc",
+      "pageRow": 1,
+      "tileLink": null
+    },
+    {
+      "id": "no-url",
+      "secCode": "000001",
+      "secName": "平安银行",
+      "announcementTitle": "这条没有 adjunctUrl 也没有 announcementId",
+      "announcementTypeName": "定期报告",
+      "announcementTime": 1748131200000
+    },
+    {
+      "id": "no-time",
+      "secCode": "300750",
+      "secName": "宁德时代",
+      "announcementId": "no-time-id",
+      "announcementTitle": "这条没有时间戳",
+      "adjunctUrl": "/some/path.pdf",
+      "announcementTime": null
+    },
+    {
+      "id": "no-title",
+      "secCode": "002603",
+      "secName": "以岭药业",
+      "announcementId": "no-title-id",
+      "adjunctUrl": "/some/other.pdf",
+      "announcementTime": 1747958400000
+    }
+  ],
+  "totalAnnouncement": 4,
+  "totalRecordNum": 4,
+  "hasMore": false
+}

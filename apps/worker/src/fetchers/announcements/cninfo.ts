@@ -1,0 +1,278 @@
+/**
+ * CNINFO 巨潮资讯上市公司公告 adapter
+ *
+ * Endpoint: POST http://www.cninfo.com.cn/new/hisAnnouncement/query
+ * POST form-urlencoded API，不使用 Playwright。
+ *
+ * NFR: 禁止 LLM；失败返回 []。
+ */
+
+import { SourceFetchError } from "@fe-radar/shared";
+import { fetch as undiciFetch, ProxyAgent } from "undici";
+import { proxyPool } from "../../lib/proxy-pool";
+import { assertRobotsAllowed } from "../../lib/robots";
+import { acquireUserAgent } from "../../lib/ua-pool";
+import type { AnnouncementSourceConfig, FetchContext, StandardItem } from "../types";
+import type { AnnouncementAdapter } from "./types";
+
+const DEFAULT_ENDPOINT = "http://www.cninfo.com.cn/new/hisAnnouncement/query";
+const BASE_URL = "http://www.cninfo.com.cn";
+const STATIC_BASE_URL = "http://static.cninfo.com.cn";
+const DEFAULT_PAGE_SIZE = 30;
+const DEFAULT_PAGE_NUM = 1;
+const DEFAULT_LOOKBACK_DAYS = 7;
+
+export interface CninfoAnnouncementRecord {
+  id?: string;
+  secCode?: string;
+  secName?: string;
+  announcementId?: string;
+  announcementTitle?: string;
+  announcementTypeName?: string;
+  adjunctUrl?: string;
+  adjunctSize?: number;
+  adjunctType?: string;
+  announcementTime?: number;
+  columnId?: string;
+  pageRow?: number;
+  tileLink?: string | null;
+}
+
+export interface CninfoAnnouncementResponse {
+  announcements?: CninfoAnnouncementRecord[];
+  totalAnnouncement?: number;
+  totalRecordNum?: number;
+  hasMore?: boolean;
+}
+
+interface FetchFormPostOptions {
+  timeoutMs: number;
+  useRealUa?: boolean;
+  fetchImpl?: typeof undiciFetch;
+}
+
+function formatShanghaiDate(date: Date): string {
+  const offsetMs = 8 * 60 * 60 * 1000;
+  const local = new Date(date.getTime() + offsetMs);
+  const y = local.getUTCFullYear();
+  const m = String(local.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(local.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function defaultDateRange(now = new Date()): string {
+  const end = formatShanghaiDate(now);
+  const startDate = new Date(now.getTime() - DEFAULT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+  const start = formatShanghaiDate(startDate);
+  return `${start}~${end}`;
+}
+
+export function resolveCninfoDateRange(config: AnnouncementSourceConfig): string {
+  if (typeof config.seDate === "string" && config.seDate.trim()) {
+    return config.seDate.trim();
+  }
+
+  const beginDate = typeof config.beginDate === "string" ? config.beginDate.trim() : "";
+  const endDate = typeof config.endDate === "string" ? config.endDate.trim() : "";
+  if (beginDate && endDate) {
+    return `${beginDate}~${endDate}`;
+  }
+  if (beginDate) {
+    return `${beginDate}~${beginDate}`;
+  }
+
+  return defaultDateRange();
+}
+
+export function buildCninfoFormParams(config: AnnouncementSourceConfig): Record<string, string> {
+  const params: Record<string, string> = {
+    pageNum: String(typeof config.pageNum === "number" ? config.pageNum : DEFAULT_PAGE_NUM),
+    pageSize: String(typeof config.pageSize === "number" ? config.pageSize : DEFAULT_PAGE_SIZE),
+    seDate: resolveCninfoDateRange(config),
+  };
+
+  const column = typeof config.column === "string" ? config.column.trim() : "";
+  if (column) {
+    params.column = column;
+  }
+
+  const tabName = typeof config.tabName === "string" ? config.tabName.trim() : "";
+  if (tabName) {
+    params.tabName = tabName;
+  }
+
+  const stock = typeof config.stock === "string" ? config.stock.trim() : "";
+  if (stock) {
+    params.stock = stock;
+  }
+
+  const searchkey = typeof config.searchkey === "string" ? config.searchkey.trim() : "";
+  if (searchkey) {
+    params.searchkey = searchkey;
+  }
+
+  const category = typeof config.category === "string" ? config.category.trim() : "";
+  if (category) {
+    params.category = category;
+  }
+
+  const plate = typeof config.plate === "string" ? config.plate.trim() : "";
+  if (plate) {
+    params.plate = plate;
+  }
+
+  const trade = typeof config.trade === "string" ? config.trade.trim() : "";
+  if (trade) {
+    params.trade = trade;
+  }
+
+  return params;
+}
+
+export function buildCninfoFormBody(params: Record<string, string>): string {
+  return new URLSearchParams(params).toString();
+}
+
+export function parseCninfoTimestamp(value: number | undefined): Date | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+  const ts = value > 1e12 ? value : value * 1000;
+  const parsed = new Date(ts);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function buildCninfoDetailUrl(announcementId: string | undefined, adjunctUrl?: string): string | null {
+  if (adjunctUrl?.trim()) {
+    const normalized = adjunctUrl.trim();
+    if (normalized.startsWith("http")) {
+      return normalized;
+    }
+    const prefix = normalized.startsWith("/") ? "" : "/";
+    return `${STATIC_BASE_URL}${prefix}${normalized}`;
+  }
+  if (announcementId?.trim()) {
+    return `${BASE_URL}/new/disclosure/detail?announcementId=${encodeURIComponent(announcementId.trim())}&orgId=&announcementTime=`;
+  }
+  return null;
+}
+
+export function resolveCninfoItemContent(record: CninfoAnnouncementRecord): string {
+  return record.announcementTitle?.trim() ?? record.secName?.trim() ?? "";
+}
+
+export function mapCninfoRecordToStandardItem(record: CninfoAnnouncementRecord): StandardItem | null {
+  const title = record.announcementTitle?.trim();
+  const url = buildCninfoDetailUrl(
+    typeof record.announcementId === "string" ? record.announcementId : undefined,
+    record.adjunctUrl
+  );
+  const publishedAt = parseCninfoTimestamp(record.announcementTime);
+
+  if (!title || !url || !publishedAt) {
+    return null;
+  }
+
+  return {
+    title,
+    url,
+    content: resolveCninfoItemContent(record),
+    publishedAt,
+  };
+}
+
+export function mapCninfoResponseToStandardItems(response: CninfoAnnouncementResponse): StandardItem[] {
+  if (!Array.isArray(response.announcements) || response.announcements.length === 0) {
+    return [];
+  }
+  return response.announcements
+    .map((record) => mapCninfoRecordToStandardItem(record))
+    .filter((item): item is StandardItem => item !== null);
+}
+
+export async function fetchFormPostWithPolicy(
+  url: string,
+  params: Record<string, string>,
+  options: FetchFormPostOptions
+): Promise<CninfoAnnouncementResponse> {
+  const userAgent = acquireUserAgent(options.useRealUa);
+  const fetchImpl = options.fetchImpl ?? undiciFetch;
+  await assertRobotsAllowed(url, userAgent, fetchImpl as unknown as typeof fetch);
+
+  const body = buildCninfoFormBody(params);
+  let proxy = proxyPool.acquire();
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetchImpl(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+          accept: "application/json, text/javascript, */*; q=0.01",
+          "user-agent": userAgent,
+          referer: `${BASE_URL}/new/disclosure`,
+          origin: BASE_URL,
+          "x-requested-with": "XMLHttpRequest",
+        },
+        body,
+        signal: AbortSignal.timeout(options.timeoutMs),
+        dispatcher: proxy?.server ? new ProxyAgent(proxy.server) : undefined,
+      });
+
+      if (response.status === 403 || response.status === 429) {
+        proxyPool.release(proxy, false);
+        proxy = proxyPool.acquire({ retry: true });
+        lastError = new SourceFetchError(
+          `FETCH_${response.status}`,
+          `CNINFO request rejected with ${response.status}`,
+          { url }
+        );
+        continue;
+      }
+
+      if (!response.ok) {
+        throw new SourceFetchError(
+          "FETCH_HTTP_ERROR",
+          `CNINFO request failed with ${response.status}`,
+          { url }
+        );
+      }
+
+      proxyPool.release(proxy, true);
+      return (await response.json()) as CninfoAnnouncementResponse;
+    } catch (error) {
+      proxyPool.release(proxy, false);
+      proxy = proxyPool.acquire({ retry: true });
+      lastError = error;
+    }
+  }
+
+  if (lastError instanceof SourceFetchError) {
+    throw lastError;
+  }
+  throw new SourceFetchError("FETCH_TIMEOUT", "CNINFO request failed after retries", {
+    url,
+    cause: lastError,
+  });
+}
+
+export const cninfoAdapter: AnnouncementAdapter = {
+  name: "cninfo",
+
+  async fetch(ctx: FetchContext): Promise<StandardItem[]> {
+    const config = (ctx.sourceConfig ?? {}) as AnnouncementSourceConfig;
+    const endpoint =
+      (typeof config.endpoint === "string" && config.endpoint.trim()) || DEFAULT_ENDPOINT;
+
+    try {
+      const response = await fetchFormPostWithPolicy(endpoint, buildCninfoFormParams(config), {
+        timeoutMs: 8000,
+        useRealUa: ctx.useRealUa ?? true,
+      });
+      return mapCninfoResponseToStandardItems(response);
+    } catch {
+      return [];
+    }
+  },
+};
