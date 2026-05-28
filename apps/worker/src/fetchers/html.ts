@@ -1,7 +1,15 @@
 import * as cheerio from "cheerio";
+import type { Cheerio } from "cheerio";
+import type { Element } from "domhandler";
 import { SourceFetchError } from "@fe-radar/shared";
 import { fetchTextWithPolicy } from "./http";
 import type { FetchContext, HtmlSourceConfig, StandardItem } from "./types";
+
+function firstSelectorMatch(root: Cheerio<Element>, selector: string): Cheerio<Element> {
+  const nested = root.find(selector).first();
+  if (nested.length > 0) return nested;
+  return root.is(selector) ? root : nested;
+}
 
 export async function fetchHtml(config: HtmlSourceConfig, context: FetchContext, fetchImpl?: typeof fetch): Promise<StandardItem[]> {
   const html = await fetchTextWithPolicy(config.listUrl, { timeoutMs: 5000, useRealUa: context.useRealUa, fetchImpl });
@@ -9,9 +17,9 @@ export async function fetchHtml(config: HtmlSourceConfig, context: FetchContext,
   const items: StandardItem[] = [];
 
   $(config.selectors.item).each((_, element) => {
-    const root = $(element);
-    const titleElement = root.find(config.selectors.title).first();
-    const linkElement = root.find(config.selectors.link).first();
+    const root = $(element) as Cheerio<Element>;
+    const titleElement = firstSelectorMatch(root, config.selectors.title);
+    const linkElement = firstSelectorMatch(root, config.selectors.link);
     const title = titleElement.text().trim();
     const href = linkElement.attr("href");
     const dateText = root.find(config.selectors.date).first().text().trim();

@@ -13,4 +13,27 @@ describe("html fetcher", () => {
     expect(items[0]?.content).toBe("新闻 A");
     expect(items[0]?.url).toBe("https://example.com/a");
   });
+
+  it("matches title and link selectors on anchor items themselves", async () => {
+    const html = `<div class="xNews_left">
+      <a href="https://news.solarbe.com/202605/001.html">索比新闻一</a>
+      <a href="https://news.solarbe.com/202605/002.html">索比新闻二</a>
+      <a href="https://news.solarbe.com/202605/003.html">索比新闻三</a>
+    </div>`;
+    const fetchImpl = async (url: string) => url.endsWith("/robots.txt") ? new Response("") : new Response(html);
+    const items = await fetchHtml({
+      type: "html",
+      listUrl: "https://www.solarbe.com/news/",
+      selectors: {
+        item: '.xNews_left a[href*="news.solarbe.com/20"]',
+        title: "a",
+        link: "a",
+        date: "span"
+      }
+    }, { sourceName: "solarbe-anchor", useRealUa: true }, fetchImpl as typeof fetch);
+
+    expect(items.length).toBeGreaterThanOrEqual(3);
+    expect(items[0]?.title).toBe("索比新闻一");
+    expect(items[0]?.url).toBe("https://news.solarbe.com/202605/001.html");
+  });
 });
