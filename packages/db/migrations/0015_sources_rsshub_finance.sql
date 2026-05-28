@@ -1,4 +1,4 @@
--- 0013_sources_rsshub_finance.sql
+-- 0015_sources_rsshub_finance.sql
 -- KYO-60: 财经/自媒体候选源 RSSHub 迁移（仅 fetcher_type=rss + 绝对 URL，无模板插值）
 -- smoke 基准：自部署 RSSHub @ diygod/rsshub@sha256:0d40e1c9…（2026-05-27 本地 docker :1200）
 -- 决策矩阵：docs/sources-rsshub-finance-matrix.md

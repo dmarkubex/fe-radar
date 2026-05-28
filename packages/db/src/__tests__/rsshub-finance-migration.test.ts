@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const migrationPath = resolve(__dirname, "../../migrations/0013_sources_rsshub_finance.sql");
+const migrationPath = resolve(__dirname, "../../migrations/0015_sources_rsshub_finance.sql");
 
-describe("0013 RSSHub finance migration", () => {
+describe("0015 RSSHub finance migration", () => {
   it("migrates exactly three finance sources to rss with rsshub absolute URLs", () => {
     const sql = readFileSync(migrationPath, "utf8");
     expect(sql).toContain("界面新闻 能源");
