@@ -30,4 +30,13 @@ describe("0014_sources_seed_v3 migration", () => {
     expect(sql).toMatch(/\.xNews_left a\[href\*=\\"news\.solarbe\.com\/20\\"\]/);
     expect(sql).toContain(".listTxt h5 a");
   });
+
+  it("keeps unstable live-smoke sources disabled with verify comments", () => {
+    expect(sql).toContain("❌ verify 2026-05-28: current agent network cannot reach ndrc.gov.cn");
+    expect(sql).toContain("❌ verify 2026-05-28: current agent network cannot reach .gov.cn");
+    expect(sql).toContain("❌ verify 2026-05-28: Planner smoke reached HTTP 200 but selector matched 0 items");
+    expect(sql).toContain("❌ verify 2026-05-28: smoke regressed from 72 items to 0 across environments");
+    expect(sql).toMatch(/enabled\s+= false[\s\S]*?WHERE name = '工信部'/);
+    expect(sql).toMatch(/enabled\s+= false[\s\S]*?WHERE name = '中电联'/);
+  });
 });

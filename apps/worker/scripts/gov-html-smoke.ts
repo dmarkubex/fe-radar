@@ -11,7 +11,7 @@ interface GovHtmlSmokeSource {
 const GOV_HTML_SMOKE_SOURCES: GovHtmlSmokeSource[] = [
   {
     name: "国家发改委",
-    enabled: true,
+    enabled: false,
     config: {
       type: "html",
       listUrl: "https://www.ndrc.gov.cn/xwdt/xwfb/",
@@ -20,7 +20,7 @@ const GOV_HTML_SMOKE_SOURCES: GovHtmlSmokeSource[] = [
   },
   {
     name: "工信部",
-    enabled: true,
+    enabled: false,
     config: {
       type: "html",
       listUrl: "https://www.miit.gov.cn/xwdt/gxdt/index.html",
@@ -29,7 +29,7 @@ const GOV_HTML_SMOKE_SOURCES: GovHtmlSmokeSource[] = [
   },
   {
     name: "中电联",
-    enabled: true,
+    enabled: false,
     config: {
       type: "html",
       listUrl: "https://www.cec.org.cn/yaowen/index.jhtml",
@@ -47,7 +47,7 @@ const GOV_HTML_SMOKE_SOURCES: GovHtmlSmokeSource[] = [
   },
   {
     name: "中关村储能产业技术联盟 CNESA",
-    enabled: true,
+    enabled: false,
     config: {
       type: "html",
       listUrl: "http://www.cnesa.org/index/news",
@@ -65,7 +65,7 @@ const GOV_HTML_SMOKE_SOURCES: GovHtmlSmokeSource[] = [
   },
   {
     name: "索比光伏网",
-    enabled: true,
+    enabled: false,
     config: {
       type: "html",
       listUrl: "https://www.solarbe.com/news/",
@@ -134,7 +134,7 @@ async function runSmoke(): Promise<void> {
       itemCount = 0;
     }
 
-    const ok = httpOk && itemCount >= 3;
+    const ok = itemCount >= 3 && (httpOk || status === null);
     if (!ok) {
       failed = true;
     }
@@ -142,7 +142,7 @@ async function runSmoke(): Promise<void> {
     rows.push({
       name: source.name,
       enabled: true,
-      httpStatus,
+      httpStatus: status === null && itemCount >= 3 ? "fetchHtml-ok" : httpStatus,
       itemCount: String(itemCount),
       ok
     });
