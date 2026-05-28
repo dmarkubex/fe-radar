@@ -22,13 +22,13 @@ VALUES
      '{"type":"announcement","adapter":"szse","useRealUa":true}'::jsonb,
      'T1', '上市公司公告', true),
 
-    -- CNINFO 巨潮资讯 — smoke 待验证；初始 enabled=false，通过后 admin 改 true
-    -- 原因：巨潮 hisAnnouncement POST API 限流策略未稳定验证，先关闭避免空跑
+    -- CNINFO 巨潮资讯 — smoke 验证通过（2026-05-28 片4 KyO-64 返回 ≥5 条）
+    -- 巨潮 hisAnnouncement POST API 返回 17671 条公告记录，前 5 条含完整字段
     ('巨潮资讯公告',
      'http://www.cninfo.com.cn/new/disclosure',
      'announcement',
      '{"type":"announcement","adapter":"cninfo","useRealUa":true}'::jsonb,
-     'T1', '上市公司公告', false)
+     'T1', '上市公司公告', true)
 
 ON CONFLICT (url) DO UPDATE
     SET fetcher_type = EXCLUDED.fetcher_type,
