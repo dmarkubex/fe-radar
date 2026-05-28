@@ -1,0 +1,6327 @@
+[
+  {
+    "id": "55",
+    "title": "硅谷观察｜ AI的尽头：不是模型，而是电厂",
+    "content": "碳基需求正让位于硅基需求，电力已成为 AI 规模化最硬的瓶颈，迫使科技巨头从单纯购买芯片转向大规模投资自建电厂与重构能源基础设施以突破电网限制。\n碳基需求正在给硅基需求让步，硅基不光需要GPU，而且对电力胃口已经超过碳基需求,从过去两周最新消息来看，“电力”以前所未有的密度涌进硅谷AI行业头版。\n5月11日，Blackstone以10亿美元入股发电商VoltaGrid，同日英伟达以最高21亿美元的5年期股权期权入股AI数据中心运营商IREN；5月6日，比特币矿企转型的Hut 8在得克萨斯州Beacon Point签下98亿美元、15年、352MW的take-or-pay租约，股价当天涨近30%。\n4月20日，Anthropic与亚马逊扩大合作：Anthropic承诺未来十年在AWS技术上投入超过1000亿美元，并获得最高5GW的新算力容量，用于训练和运行Claude。 5GW约相当于数座大型核电机组的装机容量。\n这一系列交易最值得注意的不是价格，而是亚马逊公告中那个词——“binding constraint”。这说明，不是芯片、不是人才、不是算法，是电，成为AI规模化最硬的瓶颈。\n这",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 85.0,
+      "d3Market": 90.0,
+      "d4Tech": 80.0,
+      "d5Business": 85.0,
+      "qualityScore": 38.08
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "27",
+    "title": "京东次日达杀进欧洲，然后呢？",
+    "content": "你的强来了。\n据外媒 5 月 25 日报道，京东正计划以约 20 亿英镑收购英国在线零售巨头 The Very Group。若交易完成，将成为京东切入英国电商市场的关键一步。截至发稿，双方均不予置评。\n京东 Joybuy 已经带着他的“次日达”杀到了欧洲，杀进了比利时、德国、法国、荷兰、卢森堡、英国。\n据称，欧洲电商市场长久苦于履约缓慢、快递服务差、时常罢工；东西运上一两个月杳无音讯，两个月后告知丢件的事情常有。\n京东瞄准的就是这个痛点，十年自建仓库，一年 beta，想打一场持久战。\n但当 Joybuy 把货送到欧洲之后，用户还没来。\nLSA 报道过法国金融科技公司 Joko 针对京东做的一份分析，给出了Joybuy 试运营期间的数据。数据并不健康，优惠活动期间用户涌入，活动结束后粘性骤降，四周左右基本打回原形。欧洲人知道亚马逊、知道 Temu 和Shein，不知道Joybuy。\n而且Joybuy 可能在很长一段时间都无法回答这个问题。\nSuperHeroes Amsterdam 是一家创立于阿姆斯特丹的全球独立创意广告公司，以“拯救世界，远离无聊广告”为使命，客户包括 Netflix",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 80.0,
+      "d4Tech": 70.0,
+      "d5Business": 85.0,
+      "qualityScore": 25.88
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "156",
+    "title": "投资观察观投资动态，察行业乱象",
+    "content": "投资观察观投资动态，察行业乱象",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 50.0,
+      "d3Market": 50.0,
+      "d4Tech": 50.0,
+      "d5Business": 50.0,
+      "qualityScore": 22.31
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "10",
+    "title": "能源早报 | 湖南裕能拟筹划发行H股并在港股上市；阳光电源中标阿联酋7.5GWh储能订单",
+    "content": "美能能源拟终止神木市LNG应急调峰储配站工程项目；京东方A称，预计未来2-3年内，玻璃基封装载板等业务无法对经营业绩产生重大影响。美能能源拟终止神木市LNG应急调峰储配站工程项目；京东方A称，预计未来2-3年内，玻璃基封装载板等业务无法对经营业绩产生重大影响。\n湖南裕能拟筹划发行H股并在港股上市\n湖南裕能5月21日公告称，公司为进一步推进全球化战略布局，打造国际化资本运作平台，拟筹划发行H股股票并申请在香港联交所上市。该事项尚需提交董事会和股东会审议，并需获得中国证监会、香港联交所等监管机构的备案、批准或核准，最终实施存在不确定性。\n阳光电源中标阿联酋7.5GWh储能订单\n阳光电源5月21日宣布，公司中标阿联酋7.5GWh储能订单，与国际可再生能源公司Masdar合作，为阿联酋RTC1Plant(North)项目供应7.5GWh PowerTitan3.0液冷储能系统及2.6GW逆变器。该项目是全球最大规模684Ah叠片电芯应用项目，预计2027年并网。\n神马电力股东陈小琴拟减持不超3%股份\n神马电力5月21日公告称，持股5%以上股东陈小琴计划自2026年6月12日至2026年9月11",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 30.0,
+      "d3Market": 40.0,
+      "d4Tech": 50.0,
+      "d5Business": 80.0,
+      "qualityScore": 22.31
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "268",
+    "title": "【10-24】中国共产党第二十届中央委员会第四次全体会议公报",
+    "content": "【10-24】中国共产党第二十届中央委员会第四次全体会议公报",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 95.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 16.15
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "113",
+    "title": "高志凯：目前人民币全球交易结算占比只有2.5%-3% 建议提高至30%",
+    "content": "高志凯：目前人民币全球交易结算占比只有2.5%-3% 建议提高至30%",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 90.0,
+      "d3Market": 30.0,
+      "d4Tech": 5.0,
+      "d5Business": 10.0,
+      "qualityScore": 15.92
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "187",
+    "title": "把烟花秀搬进直播间，艺术家蔡国强首个线上展于抖音独家上线",
+    "content": "把烟花秀搬进直播间，艺术家蔡国强首个线上展于抖音独家上线",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 20.0,
+      "d4Tech": 30.0,
+      "d5Business": 10.0,
+      "qualityScore": 6.25
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "249",
+    "title": "“十五五”时期我国新型电网投资预计将超过5万亿元",
+    "content": "“十五五”时期我国新型电网投资预计将超过5万亿元",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 9.0,
+      "d3Market": 6.0,
+      "d4Tech": 5.0,
+      "d5Business": 7.0,
+      "qualityScore": 3.72
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "262",
+    "title": "【05-13】李强主持召开国务院常务会议",
+    "content": "【05-13】李强主持召开国务院常务会议",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 9.0,
+      "d3Market": 5.0,
+      "d4Tech": 2.0,
+      "d5Business": 6.0,
+      "qualityScore": 3.66
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "1",
+    "title": "能源早报 | 国务院成立留神峪煤矿事故调查组；世界规模最大海上换流站在南通正式启运",
+    "content": "我国海上最大规模浅层岩性油田一期开发项目全面投产；恩捷股份子公司拟收购江苏爱思开100%股权，基础购买价款为4亿元。我国海上最大规模浅层岩性油田一期开发项目全面投产；恩捷股份子公司拟收购江苏爱思开100%股权，基础购买价款为4亿元。\n国务院成立山西留神峪煤矿特别重大瓦斯爆炸事故调查组\n据央视新闻5月27日晚间报道，5月22日19时29分许，山西省长治市沁源县山西通洲集团留神峪煤业有限公司井下发生瓦斯爆炸事故，造成重大人员伤亡。为认真贯彻落实习近平总书记重要指示精神，按照李强总理等中央领导同志批示要求，根据国家有关法律法规规定，国务院成立事故调查组，由应急管理部牵头，公安部、自然资源部、全国总工会、国家能源局、国家矿山安监局和山西省人民政府等相关方面参加，对山西长治山西通洲集团留神峪煤业有限公司“5·22”特别重大瓦斯爆炸事故进行调查。\n国家能源局公布“人工智能+”能源高价值场景清单\n5月27日，国家能源局正式对外公布了51个“人工智能+”能源高价值场景清单。据介绍，51个高价值场景包括重要输电通道强对流灾害智能应急处置、新型配电网智能诊断与智慧运营、大规模车网互动智能运营优化、清洁能源",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 8.0,
+      "d3Market": 7.0,
+      "d4Tech": 9.0,
+      "d5Business": 7.0,
+      "qualityScore": 3.42
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "65",
+    "title": "侨批收藏家眼中的“情书”，它承载的金融变迁不应被遗忘",
+    "content": "《给阿嬷的情书》引发的热潮还在持续，也让侨批进入更多人的视野。\n电影《给阿嬷的情书》票房破十亿元，成为今年开分最高的国产片，目前密钥已延期至6月30日。\n电影引发的热潮还在持续，也让侨批进入更多人的视野。它是海外华侨通过民间渠道寄回国内的信件与汇款合一的邮传载体，同时是连带家书或简单附言的汇款凭证。第一财经记者近日采访了曾在中国银行系统工作30多年的侨批研究者和收藏家黄清海。\n\n他是福建泉州人，家乡永春县湖洋镇位于闽南山区，距离泉州市区和莆田市区都近100公里。与广东、福建的众多乡镇一样，湖洋镇也是侨乡。黄清海的曾祖父、祖父曾在马来亚谋生，并向家中寄回侨批，他小时候也多次见到父亲收到侨批。\n黄清海自上世纪80年代末开始收藏、研究侨批文书，撰写、参编多部相关史料性书籍。随着《给阿嬷的情书》上映，他创办的自媒体“侨批与契约精神”自4月下旬以来不断发布新内容。\n从集邮到研究侨批\n黄清海年轻时就接触集邮。1996年，他编辑的《泉州侨批业史料》作为集邮文献类作品，在北京亚洲集邮展览上获奖。2005年，他的《闽南侨批》邮集获泰国国际集邮侨批展“大镀金奖”。\n贴有邮票、盖有邮戳和信局印章等信息的侨批",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 8.0,
+      "d3Market": 6.0,
+      "d4Tech": 8.0,
+      "d5Business": 7.0,
+      "qualityScore": 3.21
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "254",
+    "title": "工业互联网与油气储运行业融合应用参考指南发布",
+    "content": "工业互联网与油气储运行业融合应用参考指南发布",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 8.0,
+      "d3Market": 4.0,
+      "d4Tech": 6.0,
+      "d5Business": 5.0,
+      "qualityScore": 3.11
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "6",
+    "title": "能源早报|留神峪煤矿爆炸时247人下井仅记录124人；中国空间站将首启钙钛矿电池相关实验",
+    "content": "鞍钢齐大山铁矿扩建工程开工，创国内同类项目新纪录；河南“十五五”规划纲要表示，推动算力绿色低碳发展，与绿电资源丰富省份合作建设算力通道。鞍钢齐大山铁矿扩建工程开工，创国内同类项目新纪录；河南“十五五”规划纲要表示，推动算力绿色低碳发展，与绿电资源丰富省份合作建设算力通道。\n留神峪煤矿爆炸时247人下井仅记录124人\n据央视网5月24日消息，5月22日19时29分，山西省沁源县通洲集团留神峪煤矿发生瓦斯爆炸。记者表示，矿工入井时需要经过人脸识别，安全门、携带人员定位卡进行登记后才可入井。记者在现场看到，发生爆炸时的入井人员公示牌上显示，当时有124人入井。而经过多方核实，井下实际人员为247人，123人在系统中查不到有效信息。企业对井下作业人员统计不清，导致信息发布过程中出现了混乱和矛盾的情况。\n鞍钢齐大山铁矿扩建工程开工，创国内同类项目新纪录\n据摇篮鞍钢5月24日消息，日前，鞍钢矿业齐大山铁矿露天扩建工程已全面开工建设。该工程自安全设施设计获得国家矿山安全监察局批复后，迅速启动施工，实现了“批复即开工”，创下国内同级别矿山项目审批与开工建设速度新纪录。作为落实国家“铁资源开发计划”、推",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 7.0,
+      "d3Market": 5.0,
+      "d4Tech": 9.0,
+      "d5Business": 7.0,
+      "qualityScore": 3.06
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "41",
+    "title": "CPU，夯爆了",
+    "content": "AI从训练转向推理，CPU在AI时代日益重要且不可或缺。这点从芯片巨头和研调机构对未来市场空间（TAM）的预测和修正就能很直观的感受到：\n2026年5月，AMD首席执行官苏姿丰（Dr. Lisa Su）在2026年一季度财报电话会上上调了对全球服务器CPU市场的长期预测：预计到2030年，服务器CPU的TAM将以超过35%的年复合增长率（CAGR）高速飙升，达到1200亿美元以上。而就在数月前，这一数字的预测还仅为600亿美元。\n华尔街投行花旗银行（Citi）在2026年5月中旬的客户报告中更加乐观，将2030年全球CPU市场规模锚定在1315亿美元。Arm官方也将其相关的TAM锁定在了千亿美元级别。\n英伟达则更为激进，其在2027财年一季度电话会中提到，Vera CPU将为英伟达打开一个“全新的2000亿美元TAM”，并称公司今年已能看到接近200亿美元的CPU收入可见度。 随后路透社的报道称，黄仁勋确认英伟达对CPU市场这2000亿美元的预测包括中国市场，并表示公司正在加速Vera Rubin平台生产。\n短短几个月里，数据中心CPU市场的想象空间从600亿美元、1200 亿美元，进",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 9.0,
+      "d4Tech": 8.0,
+      "d5Business": 9.0,
+      "qualityScore": 2.98
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "189",
+    "title": "关税战扰动全球资本市场，如何依靠资产配置穿越周期",
+    "content": "关税战扰动全球资本市场，如何依靠资产配置穿越周期",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 9.0,
+      "d3Market": 9.0,
+      "d4Tech": 1.0,
+      "d5Business": 6.0,
+      "qualityScore": 2.95
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "12",
+    "title": "能源早报 | 《中华人民共和国矿产资源法实施条例》公布；我国将推动多用户绿电直连发展",
+    "content": "德方纳米拟投资24亿元建设20万吨/年磷酸盐新材料生产线；璞泰来拟投资56亿元建设锂离子电池隔膜项目。德方纳米拟投资24亿元建设20万吨/年磷酸盐新材料生产线；璞泰来拟投资56亿元建设锂离子电池隔膜项目。\n《中华人民共和国矿产资源法实施条例》公布\n据新华社5月20日消息，国务院总理李强日前签署国务院令，公布《中华人民共和国矿产资源法实施条例》（以下简称《条例》），自2026年6月15日起施行。《条例》旨在保障修订后的矿产资源法有效实施，促进矿产资源合理开发利用，加强矿产资源和生态环境保护，推动矿业高质量发展，保障矿产资源安全。\n《条例》共8章79条，主要规定了以下内容。一是进一步完善矿业权制度。对矿业权的设立、出让、续期、转让等作出具体规定。二是细化矿产资源勘查、开采相关制度。规定建立健全基础性地质调查技术标准和规范体系，明确申请勘查许可证、采矿许可证的程序，强化矿业用地保障，促进矿产资源综合利用，明确矿产资源储量报告的法定效力。\n三是细化矿区生态修复相关制度。明确采矿权人是矿区生态修复的责任人，细化矿区生态修复方案应当明确的内容，规定了矿区生态修复的完成时限和验收程序。四是进一步完善",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 8.0,
+      "d3Market": 6.0,
+      "d4Tech": 5.0,
+      "d5Business": 5.0,
+      "qualityScore": 2.71
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "68",
+    "title": "美光股价大涨超19%，万亿美元市值俱乐部再添一员",
+    "content": "从今年初到5月26日，美光股价累计上涨了2.14倍。\n头部存储厂商开启了市值比拼。\n三星电子（005930.KS）市值突破1万亿美元后，美股5月26日收盘，美光科技（MU.O）大涨19.29%，创下股价新高，市值站上1万亿美元。5月27日盘中，SK海力士（000660.KS）股价也一度上涨11%，市值突破1万亿美元大关。至此，最大的三家DRAM（动态随机存取内存）存储原厂市值都在万亿美元量级。\n从收盘价看，美光是第二家市值站上万亿美元的DRAM存储原厂。从今年初到5月26日，美光股价累计上涨了2.14倍，若从2025年初开始算起，美光股价累计上涨9.68倍。\n\n资本市场对三大存储原厂的关注与AI带动的需求增长相关，特别是与AI相关性最强的HBM（高带宽内存，一种DRAM），主要就来自这三家原厂。其中，SK海力士HBM市场份额最大，但美光追赶速度颇快。\n三家原厂中，美光对HBM的投入也较多。据TrendForce集邦咨询统计，去年SK海力士占据HBM市场的一半以上，三星、SK海力士、美光HBM占公司内存产能的比例则分别为23%、18%和26%，美光HBM在内存中的比例偏高。为了实现追赶，",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 8.0,
+      "d4Tech": 8.0,
+      "d5Business": 8.0,
+      "qualityScore": 2.62
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "164",
+    "title": "深交所理事长沙雁：让优质创新企业“进得来”，让创新价值“成长快”，让投资创新“共赢多”",
+    "content": "深交所理事长沙雁：让优质创新企业“进得来”，让创新价值“成长快”，让投资创新“共赢多”",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 9.0,
+      "d3Market": 6.0,
+      "d4Tech": 2.0,
+      "d5Business": 5.0,
+      "qualityScore": 2.56
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "218",
+    "title": "香港金管局",
+    "content": "香港金管局",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 9.0,
+      "d3Market": 6.0,
+      "d4Tech": 2.0,
+      "d5Business": 5.0,
+      "qualityScore": 2.56
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "19",
+    "title": "云鲸上市前夕，张峻彬首谈恐惧：一把手的孤独无人能体会",
+    "content": "“我们不介意和谁对标，但拒绝虚假增长。”\n2026年，扫地机器人行业正经历一场剧烈的结构性震荡。奥维云网数据显示，今年1至4月，国内扫地机线上市场累计销量仅95.28万台，同比大幅下滑21.18%，但均价同比上涨3.58%至3412元，呈现“量跌价升”的深度调整格局。\n与此同时，石头科技、科沃斯、追觅、小米和云鲸五家中国品牌包揽全球出货量前五，形成“中国军团”垄断格局。不过，在行业集中度持续向头部倾斜之时，竞争却远未降温，大疆等强势闯入。\n云鲸，正站在这一变局的十字路口。\n十年前，创始人张峻彬在20平米办公室里以“光杆司令”起步；十年后，这家公司以170万台年出货量跻身全球前五，估值突破百亿，并于2025年4月完成由腾讯与北京机器人产业基金联合领投的1亿美元Pre-IPO融资，正在全力冲刺港股上市。\n\n图｜云鲸办公大楼\n但聚光灯下，云鲸亦有暗涌：2026Q1扫地机线上销量市占下滑，核心高管在IPO前夕离开创业，外界关于“慢创新”与“产品线单一”的质疑声此起彼伏。\n在扫地机器人这个公认“非常卷”的赛道里，张峻彬始终是一个难以被归类的存在。他和他的公司，被贴上了“长跑选手”的标签——稳健、",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 7.0,
+      "d4Tech": 6.0,
+      "d5Business": 8.0,
+      "qualityScore": 2.44
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "30",
+    "title": "超10万家餐饮店杀入咖啡赛道，为啥都想当瑞幸？",
+    "content": "最近几年，餐饮市场的竞争可谓是日趋白热化，在这个几乎近身肉搏的市场上，各家都在使出浑身解数来提升竞争力，其中最显著的趋势是集体杀入咖啡赛道，那么，为啥餐饮企业都想当瑞幸呢？\n\n一、超10万家餐饮店杀入咖啡赛道\n据红餐网的报道，超10万家餐饮店同时杀进咖啡赛道，市场会发生哪些变化？过去几年，瑞幸咖啡用“平价咖啡”和“咖啡奶茶化”把咖啡拉下神坛，在中国市场踏出了一条新赛道，自己稳坐领头羊地位。\n近段时间以来，从新茶饮头部品牌到连锁快餐巨头都在“开咖啡店”。它们的手段和瑞幸当初如出一辙——“平价咖啡”“咖啡奶茶化”。也就是说，这些手握上万家门店的餐饮巨头，瞄准的并不是星巴克，而是瑞幸。\n前不久，茉莉奶白全国2300多家门店首次推出咖啡系列产品“400次鸳鸯泰奶”和“针王苹果拿铁”。据行业媒体“咖门”报道，上线当天，全国多个门店直接爆单，8小时卖出超过21万杯新品。最近古茗推出的香草籽维也纳、苦尽柑来拿铁等产品，也成了小爆款。\n2023年，肯德基正式推出了独立的咖啡品牌肯悦咖啡，短短两年多时间，已经开出超过2600家门店，还计划在2027年底前冲到5000家。\n2024年5月，麦当劳旗下的麦咖",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 8.0,
+      "d4Tech": 5.0,
+      "d5Business": 8.0,
+      "qualityScore": 2.35
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "103",
+    "title": "出海论坛",
+    "content": "出海论坛",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 5.0,
+      "d4Tech": 5.0,
+      "d5Business": 5.0,
+      "qualityScore": 2.23
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "56",
+    "title": "新能源时代，发动机靠AI“杀了个回马枪”",
+    "content": "在算力永不眠的时代，发动机正以另一种方式迎来“第二春”。\n近日，康明斯完成首台国产QSK60矿用发动机的交付。\nQSK60是康明斯推出的V16缸大马力柴油发动机，主要应用于工业及发电两大领域。据介绍，该款发动机在发电机组、铁路、油气田等市场的国产化已陆续完成，随着本次矿用场景的国产落地，QSK60国产化基本全部到位，最后一个应用——船用发动机也在推进当中。\n\n新能源时代下，对于此次QSK60国产化的契机，康明斯动力系统事业部中国总经理袁军在接受第一财经记者采访时表示，一方面，中国不仅是其大马力发动机的重要市场，也正成为矿山动力技术创新与应用的关键基地，康明斯将依托中国本地研发、制造与服务能力，为中国客户及中国矿山装备走向全球提供有力支撑；另一方面，“AI技术的快速发展，使我们能够在同一技术平台上协同AI数据中心和矿山两大市场，实现规模效应，这也成为推动QSK60矿用发动机国产化的重要因素。”\n为何AI数据中心会拉动大马力发动机的需求？袁军进一步解释：数据中心虽然通常有两路市电接入，但仍存在断电风险，而其对于供电连续性要求极高，绝不能停。此时，发动机便承担起应急使命——一旦市电中断，先由",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 8.0,
+      "d4Tech": 5.0,
+      "d5Business": 7.0,
+      "qualityScore": 2.23
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "259",
+    "title": "【05-22】中国电器工业协会数智化工作委员会成立大会在南京成功召开",
+    "content": "【05-22】中国电器工业协会数智化工作委员会成立大会在南京成功召开",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 2.0,
+      "d4Tech": 5.0,
+      "d5Business": 3.0,
+      "qualityScore": 2.17
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "48",
+    "title": "官方定调：疲劳驾驶新规认定不适用网约车司机",
+    "content": "不涉及出租汽车（含网约车）等经营活动。\n随着《机动车驾驶人疲劳驾驶认定规则》（下称“新规”）临近6月1日正式落地执行，网约车和出租车是否适用相关疲劳驾驶认定，引发行业热议。\n近日，新规起草负责人在接受央视新闻采访时回应称，新规中针对客运机动车驾驶人的两种疲劳驾驶认定情形，依据的是《道路旅客运输企业安全管理规范》（交运规〔2023〕4号）。经向交通运输部确认，《道路旅客运输企业安全管理规范》适用于道路旅客运输企业，以及从事道路旅客运输（即班车客运、包车客运、旅游客运）经营活动的驾驶员和车辆等，不涉及出租汽车（含网约车）等经营活动。\n上述两种情形具体为：客运机动车驾驶人在晚22:00至次日凌晨6:00连续驾驶超过2小时未停车休息，或停车休息时间少于20分钟；客运机动车驾驶人在24小时内累计驾驶时间超过8小时。\n根据新规内容，上述“客运机动车驾驶人”是指从事道路旅客运输经营活动的机动车驾驶人。\n新规出台后，网约车和出租车是否纳入其调整范围，成为市场关注的焦点。这一疑问背后，是网约车司机长时间在线的行业现实。\n多地监测数据显示，长工时已成为普遍现象。杭州市2025年第四季度网约车市场运行监测信",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 10.0,
+      "d3Market": 5.0,
+      "d4Tech": 0.0,
+      "d5Business": 3.0,
+      "qualityScore": 2.14
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "200",
+    "title": "6突破1800万！中国人口增长第一城，诞生",
+    "content": "6突破1800万！中国人口增长第一城，诞生",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 8.0,
+      "d4Tech": 1.0,
+      "d5Business": 5.0,
+      "qualityScore": 2.11
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "25",
+    "title": "度小满的两幅面孔：低息诱客，高息放贷",
+    "content": "“浪姐”无法帮助度小满实现真正的破浪，它需要穿越的，不是娱乐舆论的浪，而是监管、口碑、场景和信任共同形成的深水区。\n度小满最近狂刷存在感，却是以一种极尽分裂的方式。\n大荧幕上，它用真金白银独家冠名《乘风2026》（浪姐7），试图在主流娱乐场域里，为自己砸出一个光鲜亮丽的C位；短视频信息流里，旗下“有钱花”的广告大肆推送，“年化利率6.6%为例，一万元借1天利息0.98元”的文案，极具诱惑力地撩拨着大众神经。\n此外，高调发布AI支付解决方案，开源金融推理大模型；但转过身，它又是黑猫投诉上超过4万条关于“暴力催收”“砍头息”声讨的靶心。据消费保平台数据，仅2025年一年，涉及度小满的投诉共3355件，总金额逼近7000万元。\n这种极具撕裂感的“两幅面孔”，正是度小满当下的真实写照，游走在明暗交界处，试图用S级综艺的品牌幻觉，掩盖自身底层依然是一个需要靠高息覆盖高额获客成本的传统信贷撮合客的事实。\n随着监管政策的重拳落地与宏观周期的不可逆转，用流量漏斗装载套利旧梦的游戏即将终结。度小满试图以娱乐投放逆转口碑、套壳AI跃升估值的突围战，正面临空前考验。\nPart.1\n年化利率的修辞术\n低息诱饵",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 5.0,
+      "d4Tech": 3.0,
+      "d5Business": 5.0,
+      "qualityScore": 2.05
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "61",
+    "title": "陆挺：中外国债利率大分流及应对",
+    "content": "发达经济体的政府债券收益率已大幅攀升至数十年来的历史高位。\n全球债券市场正经历一场深刻的范式重构。2008年全球金融危机随后的十余年里，发达经济体长期呈现低增长、低通胀、低政策利率、低国债收益率和低期限溢价等特征。然而步入2026年第二季度，这一局面已被彻底改变。在和平时期罕见的大规模财政赤字、能源危机引发的成本推动型通胀，以及各国央行被迫转向的共同作用下，发达经济体的政府债券收益率已大幅攀升至数十年来的历史高位。\n在日本与西方发达国家的国债利率快速合流之际，全球国债市场却上演了历史上罕见的再次大分流：一方面，从美欧到日本，全球主流发达市场的融资成本全线走高；另一方面，作为全球第二大经济体、最大贸易国和第一制造业大国的中国，国债收益率却在小幅下行，最近维持在1.75%附近，远低于发达国家的水平。这种剧烈走阔的大分流，势必将对全球汇率、跨境资本流动、信用扩张及大类资产价格产生深远的影响。\n发达经济体固收市场大抛售\n本轮发达市场国债收益率上行的速度、幅度与同步性，标志着全球资本定价正面临结构性的深刻变化。长期被机构投资者视为组合稳定器与避险资产的固收产品遭遇大幅抛售，导致银行体系账面资产显",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 5.0,
+      "d4Tech": 4.0,
+      "d5Business": 4.0,
+      "qualityScore": 2.02
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "270",
+    "title": "【05-27】国家发展改革委 财政部发布关于印发 《推进生态综合补偿实施方案》的通知",
+    "content": "【05-27】国家发展改革委 财政部发布关于印发 《推进生态综合补偿实施方案》的通知",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 9.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 2.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "130",
+    "title": "前美联储“三把手”警告：当前几乎没有理由降息，中性利率已升高05-27 10:180评",
+    "content": "前美联储“三把手”警告：当前几乎没有理由降息，中性利率已升高05-27 10:180评",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 8.0,
+      "d3Market": 5.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.99
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "252",
+    "title": "2026文化强国建设高峰论坛在深圳开幕",
+    "content": "2026文化强国建设高峰论坛在深圳开幕",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 7.0,
+      "d3Market": 3.0,
+      "d4Tech": 2.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.95
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "247",
+    "title": "国家能源局召开民营企业座谈会",
+    "content": "国家能源局召开民营企业座谈会",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 8.0,
+      "d3Market": 3.0,
+      "d4Tech": 0.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.88
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "58",
+    "title": "南方五省份提前一个月迎峰度夏，区域用电负荷出现新形态",
+    "content": "从电源建设、能源储备到电力跨区调度补强保供实力。\n今年，国内多地入夏进程明显加快，南方电网电力负荷近日连创新高，迎峰度夏能源保供形势备受关注。\n受用电需求推升影响，5月27日，电力板块多股开盘后迅速拉涨。截至当日收盘，粤电力A（000539.SZ）、华电辽能（600396.SH）、华能蒙电（600863.SH）、华电能源（600726.SH）、华银电力（600744.SH）、韶能股份（000601.SZ）等多股未打开涨停板。\n国家发改委政策研究室副主任李超5月22日在发布会上表示，今夏全国大部分地区气温预计较常年同期偏高，叠加部分极端天气对电力设备的影响，能源电力保供压力或有所增加，预计今年全国最高用电负荷将达16亿千瓦左右，较去年新增“一个河南省的用电负荷”。\n为补强能源保供能力，国家发改委从电源建设到能源储备再到电力跨区调度，明确了五大核心举措，充分发挥煤电油气运保障工作部际协调机制作用。国家电网、中国华电集团等多家央企也提前谋划，共同迎战用电“大考”。\n迎峰度夏提前近一个月开启\n南方电网公司5月26日晚间消息，25日20时21分，南方电网电力负荷飙至2.59亿千瓦，创历史新高，较",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 4.0,
+      "d4Tech": 4.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.78
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "138",
+    "title": "突破1800万，中国人口增长第一城诞生05-26 11:390评",
+    "content": "突破1800万，中国人口增长第一城诞生05-26 11:390评",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 7.0,
+      "d4Tech": 1.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.76
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "24",
+    "title": "这两天，你τ了吗？扔掉制程的傻大憨粗，拥抱系统协同",
+    "content": "一力降十会，却不敌一巧破千钧\n2026年5月25日，华为何庭波在 IEEE ISCAS 2026 上发表“韬（τ）定律”，以“时间微缩”替代“几何微缩”，通过器件、电路、芯片、系统创新提升晶体管密度，公司目标 2031 年在无 EUV 情况下芯片效能达到等效1.4nm。\n当日国产芯片上市公司市值大涨，但随后第二天就迎来当头棒喝，除了封测板块外，可谓是全线下跌，超4082家下跌，其中34家跌停，半导体、中芯概念跌幅居前。\n行情如此，有人发问，这个τ到底是哪个“Tao”？不少人选择“套”。\n\n实际上，韬定律听着玄而又玄，但它表达的东西并不复杂。简单讲，韬定律在回答一个问题：当芯片已经很难继续无限变小时，计算性能还能怎么提升？和A股走势更是毫无关系。\n持仓亏损或许真的是因为盲目跟风，真的没理解华为的韬是什么。\n01\n后摩尔时代，τ的答案\n韬定律之所以引起市场关注，主要是因为在摩尔时代，芯片厂商高度依赖光刻机，自从阿斯麦因种种原因停供之后，华为就在试图绕开阿斯麦的限制，从将单位面积塞进更多晶体管，转向努力让数据跑得更快，实现原始技术路径下先进制程的效率。巧了，韬定律就能让数据跑得更快。\n回顾一",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 3.0,
+      "d4Tech": 5.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.76
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "195",
+    "title": "1全球市场集体跳水，发生了什么？",
+    "content": "1全球市场集体跳水，发生了什么？",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 2.0,
+      "d3Market": 9.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.76
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "157",
+    "title": "银行财眼｜9大违规，四川银行被罚274.57万元",
+    "content": "银行财眼｜9大违规，四川银行被罚274.57万元",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 9.0,
+      "d3Market": 2.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.76
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "261",
+    "title": "【05-21】中国电器工业协会组团亮相2026柏林线圈展 30周年盛会见证“中国力量”",
+    "content": "【05-21】中国电器工业协会组团亮相2026柏林线圈展 30周年盛会见证“中国力量”",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 4.0,
+      "d4Tech": 3.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.74
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "28",
+    "title": "Fender “收回” Stratocaster：一场迟到70年的确权",
+    "content": "一场看似“冷门”的法律判决，在吉他行业内部掀起了巨大的波澜。\n2026年3月，Fender在德国赢得关键判决。Stratocaster（俗称“ST型”）电吉他的琴身轮廓，被认定为受版权保护的实用艺术作品。\n\n这一裁决的意义在于，首次在欧洲主要市场明确承认，一个诞生于1954年的经典设计，尽管早已被全球无数品牌复制与演绎，依然可以作为品牌资产被重新确权。\n判决之后，Fender迅速以欧洲为中心展开法律行动：律师函密集发出、要求侵权产品电商平台下架、中小品牌被迫修改设计或退出市场。这一系列动作，也引发了品牌方、独立制琴师、经销商乃至乐迷群体的激烈争论。Fender目前尚没有做公开回应。\nStratocaster堪称音乐史上最具辨识度的乐器设计之一，多年来模仿者众多，几乎已经成为吉他行业的标准琴型之一。Fender此轮行动，试图将已经成为行业公共资源的设计重新转化为私有品牌资产。\n这些停止侵权通知函引发的问题是，德国法院的裁决究竟会产生多大的影响，影响范围有多广，影响程度有多深？本质上，这次法律行动触碰了一个行业长期默认的边界：什么是可以被占有的，什么又是属于公共文化的。\nA\n经典设计如何成",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 4.0,
+      "d4Tech": 2.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.73
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "11",
+    "title": "国内成品油价今晚上调，加满一箱油多花3元",
+    "content": "下一轮成品油价格或搁浅。下一轮成品油价格或搁浅。\n\n界面新闻记者 | 田鹤琪\n国内成品油价今晚迎来上调。\n5月21日，国家发改委发布消息称，自24时起，国内汽油价格和柴油价格分别上调75元/吨、70元/吨。折合升价，92号汽油、95号汽油和0号柴油均上调0.06元。\n消费者用油成本有所增加。例如，油箱容量为50升的小型私家车加满一箱油，将比之前多花3元左右；物流行业，以月跑1万公里，百公里油耗在38L的重型卡车为例，单辆车的燃油成本将增加106元左右。\n本轮是2026年第十次调价，也是2026年的第八次上调。本次调价过后，2026年成品油调价将呈现“八涨一跌一搁浅”的格局。\n本计价周期内，国际原油受中东地缘冲突扰动，市场情绪反复震荡，原油价格呈现宽幅波动走势。\n卓创资讯成品油分析师高青翠对界面新闻表示，前期美国宣布加大对伊朗石油的封锁，地缘风险带来的避险溢价阶段性提振油价，但随着冲突边际影响减弱，油价冲高后有所回落。\n“整体看，本周期原油均值环比仍有上涨，受此影响，国内参考的原油变化率由负转正。”高青翠称。\n近期，美国能源信息署(EIA)发布的报告预计，2026年全球石油产量为1.01",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 5.0,
+      "d4Tech": 3.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.7
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "5",
+    "title": "能源早报 | 天顺风能中标约5.68亿元订单；中矿资源集团与秘鲁金达矿业签署合作协议",
+    "content": "湖南黄金新龙矿业本部恢复生产；宝武镁业控股股东宝钢金属拟将26.53%股份无偿划转至中国宝武。湖南黄金新龙矿业本部恢复生产；宝武镁业控股股东宝钢金属拟将26.53%股份无偿划转至中国宝武。\n天顺风能中标约5.68亿元海上浮式生产储油船建造订单\n天顺风能5月25日公告，公司海工板块全资子公司近期新中标1艘海上浮式生产储油船（FPSO）船体建造服务订单，金额约5.68亿元。\n湖南黄金新龙矿业本部恢复生产\n湖南黄金5月25日公告，公司子公司新龙矿业本部于2026年5月26日起恢复生产。此前因4月25日发生顶板冒落事故导致一名员工死亡，新龙矿业本部主动停产整顿。经初步测算，本次停产预计减少公司当期净利润约4000万元。新龙矿业已通过安全培训、隐患排查等措施降低影响。\n中矿资源集团与秘鲁金达矿业签署秘鲁拉赫亚铜矿矿权合作协议\n5月25日消息，近日中矿资源集团股份有限公司与秘鲁金达矿业有限公司在中矿资源总部就秘鲁拉赫亚铜矿项目签署合作协议。根据协议，秘鲁金达矿业承诺，将其旗下位于秘鲁境内的拉赫亚铜矿矿权重新登记在双方共同设立、中矿资源控股的合资公司名下，并发挥其本地化优势，中矿资源将提供资金、技术",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 4.0,
+      "d4Tech": 3.0,
+      "d5Business": 5.0,
+      "qualityScore": 1.7
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "45",
+    "title": "高盛看好标普500挑战8000点，这些因素会是绊脚石吗",
+    "content": "通胀持续加速推高美债收益率、巨型IPO虹吸影响和中期选举不确定性可能导致市场颠簸震荡。\n周三，标普500指数年内第20次刷新历史新高。\n即便市场热情不断高涨，高盛在最新研报中认为指数还将不断刷新纪录，看好标普500冲击8000点。不过，随着夏季交易开启，一些市场人士认为，通胀持续加速，或推高债券收益率并挤压消费者支出、巨型IPO可能从市场分流资金、叠加中期选举等多重因素可能导致市场颠簸震荡。\n盈利增长成关键\n周二晚间，高盛将标普500指数年终目标位从7600点上调至8000点，这家华尔街投行预计，企业利润持续增长将为估值提供支撑。目前德意志银行、摩根士丹利同样给出8000点的目标，亚德尼研究公司的目标位则为8300点。\n由本・斯奈德牵头的策略团队表示：“一季度财报季表现格外亮眼，市场上调了对标普500成分股的盈利预期，我们也因此上调了回报率预测。”\n高盛团队将2026年标普500指数每股收益预期上调至340美元，同比增幅达24%；2027年每股收益预期为385美元，同比增长13%。“今年标普500指数近半数的每股收益增长，将来自人工智能基础设施投资的相关受益企业。”不过高盛预计，股市市",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 5.0,
+      "d4Tech": 3.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.7
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "183",
+    "title": "IPO临门一脚，专利诉讼破门而入：傅里叶半导体遭遇“精准狙击”",
+    "content": "IPO临门一脚，专利诉讼破门而入：傅里叶半导体遭遇“精准狙击”",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 4.0,
+      "d4Tech": 4.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.67
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "153",
+    "title": "又一家车企“暴雷”了",
+    "content": "又一家车企“暴雷”了",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 6.0,
+      "d4Tech": 0.0,
+      "d5Business": 8.0,
+      "qualityScore": 1.67
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "4",
+    "title": "算力狂飙引发全球能源焦虑，中国如何破局？",
+    "content": "在产业落地层面，源网荷储多元互动正衍生出六类具体发展方向。在产业落地层面，源网荷储多元互动正衍生出六类具体发展方向。\n\n界面新闻记者 | 田鹤琪\n“2025年全球数据中心投资额达到7700亿美元，规模超越光伏、油气勘探开发行业投资，即将媲美油气与新能源产业的整体投资。算力训练与推理的背后，意味着全方位的基础设施投资。”\n近日，第四届中国能源周在北京亦庄召开，睿咨得能源可再生能源与电力研究高级分析师邓思梦作出上述表述。这组数据揭示了一个关键产业拐点：算力产业加速引领全球能源投资，而电力供给正成为制约算力扩张的“卡脖子”环节。\n从电力需求看，行业增长势头迅猛，预计2030年数据中心用电将占据全球总用电量的7%，成为全球用电量增速最快的行业。在高速发展的同时，全球算力产业也面临着项目批复周期长、电网设备交付慢、接网难度大等难题。\n据邓思梦介绍，睿咨得收录的全球数据中心项目数量超1.5万个，涵盖在建、储备各类项目。区域分布上，美国项目储备量占比过半，位列全球首位，其次为中国、欧洲地区。\n然而，受电力配套、政策审批、用地等多重因素制约，预计到2030年全球规划容量最终能按期投运的规模仅约半数。其",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 4.0,
+      "d4Tech": 4.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.67
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "16",
+    "title": "创新药行业残酷真相：拿不回现金的BD一文不值",
+    "content": "在当下的中国创新药行业里，License-out的火爆像一束光。\n几乎每隔几天，市场就会被一条新的出海喜讯点燃：某家Biotech将核心管线授权给跨国药企，交易总额数亿美元，甚至十几亿美元。\n\n数据来源：《2025中国医药授权许可BD交易年度报告》\n新闻稿里，数字巨大、措辞振奋，足以让投资人重新计算估值，也足以让一家现金吃紧的创新药企看到续命的希望。\n但在跨国医药交易的真实世界里，签约从来不是终点。\n合同落笔之后，还有反垄断审查、数据出境、人类遗传资源备案、个人信息合规、FDA文件更新……一道道看不见的闸门，可能拦住最关键的一笔钱。\n对一家资产负债率一度高企的Biotech来说，这不是流程问题，而是生死问题。\n正在冲刺科创板的苏州信诺维医药科技股份有限公司（简称“信诺维”），最近在一份长达500多页的问询函回复文件中，把这场“签约之后如何真正拿到钱”的战役，摊开给了整个行业。\n这笔交易的对手方是跨国药企安斯泰来。2025年5月，安斯泰来看中了信诺维的核心ADC管线XNW27011，双方签署了总额高达15.36亿美元的独家许可协议。\n其中，最关键的是1.3亿美元不可退还、不可抵扣的一次性",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 3.0,
+      "d4Tech": 4.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.67
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "110",
+    "title": "付鹏：Token相当于工业时代的石油，未来或将没有银行、没有券商",
+    "content": "付鹏：Token相当于工业时代的石油，未来或将没有银行、没有券商",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 2.0,
+      "d3Market": 4.0,
+      "d4Tech": 5.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.64
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "21",
+    "title": "无人配送，怎么成了“新石器们”的角力场",
+    "content": "无人配送赛道，又有了微妙的变化。\n新石器联合特来电推出全球首个无人车自动充电及运营中心——来电岛，意欲重新制定行业规则，而另外一家头部企业九识智能则推出新型重载无人配送产品，旨在打开市场边界。\n这意味着，无人配送双雄加速跑马圈地。\n作为一个新兴赛道，无人配送走到哪一步了？大厂也在积极布局，为何唱主角的是“新石器们”？低空配送会在未来构成挑战吗？\n进入双雄争霸时代\n提到无人驾驶，广为人熟知的是C端的无人驾驶出租车。\n主打“不挑单、不拒载”的萝卜快跑早在2024年就出了圈，进入大众的主流视野，并持续引发互联网的关注。\n其实，在B端也发展得如火如荼，快递配送、商超零售与批发货运为三大应用场景。\n《2025年中国无人城配车行业白皮书》透露，2025年中国无人城配车的销量为2.2万辆，全国保有量超3万辆；预计2030年销量有望接近150万辆，总保有量将超350万辆。\n不难看出，无人配送是一个蓝海市场。\n值得一提的是，无人配送赛道领跑的是初创企业，新石器以51.6%的份额居首，九识智能以32.3%位居第二。\n\n图源：《2025年中国无人城配车行业白皮书》\n“不管是把物流车新能源化，还是把物流车和车",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 5.0,
+      "d4Tech": 5.0,
+      "d5Business": 5.0,
+      "qualityScore": 1.64
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "137",
+    "title": "“陈克明”公开道歉：全面停止生产、销售带有“手擀”相关表述的产品05-26 13:030评",
+    "content": "“陈克明”公开道歉：全面停止生产、销售带有“手擀”相关表述的产品05-26 13:030评",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 8.0,
+      "d3Market": 2.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.64
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "145",
+    "title": "银行财眼｜农发行重庆市綦江支行被罚款30万元 因向“四证”不齐项目发放固定资产贷款",
+    "content": "银行财眼｜农发行重庆市綦江支行被罚款30万元 因向“四证”不齐项目发放固定资产贷款",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 8.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.64
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "107",
+    "title": "鬼故事来了，又一位美联储理事高喊：准备加息",
+    "content": "鬼故事来了，又一位美联储理事高喊：准备加息",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 4.0,
+      "d4Tech": 1.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.64
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "213",
+    "title": "博鳌亚洲论坛2025年年会",
+    "content": "博鳌亚洲论坛2025年年会",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 4.0,
+      "d4Tech": 2.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.61
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "105",
+    "title": "凤凰湾区财经论坛・金融峰会",
+    "content": "凤凰湾区财经论坛・金融峰会",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 4.0,
+      "d4Tech": 2.0,
+      "d5Business": 5.0,
+      "qualityScore": 1.61
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "201",
+    "title": "7超大特大城市，正在拼命建“第二高铁”",
+    "content": "7超大特大城市，正在拼命建“第二高铁”",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 5.0,
+      "d4Tech": 3.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.58
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "57",
+    "title": "三星大罢工风险暂时解除的背后：隐患仍存？韩国股市又能暴涨多久",
+    "content": "詹德斌认为，各种声音恰恰体现了罢工的核心争议点在于究竟谁才是企业业绩成果的真正贡献者。\n央视新闻报道称，当地时间27日上午，据三星电子方面消息，日前进行的三星电子内部投票结果于当天公布。此前劳资双方达成的暂定协议在内部投票中获73.7%赞成通过，三星电子劳工大罢工风险暂时平息。\n自去年底以来，三星电子内部围绕绩效奖金制度的争议不断升级。原本超4.5万员工从5月21日开始发起为期18天的罢工。就在罢工启动前夕，韩国政府紧急介入调解，双方最终达成一份临时工资协议，并对初步薪资协议进行投票。\n上海市朝鲜半岛研究会副会长、上海对外经贸大学朝鲜半岛研究中心主任詹德斌告诉第一财经记者，纵观三星电子此次事件的来龙去脉，成因繁杂，“这场对峙更偏向‘悬崖谈判策略’，一方面企业不会继续大幅上调待遇，另一方面工会的过度诉求也受到政府约束，如果继续强行僵持，大概率无法获取更多权益。”\n\n各方诉求难调\n此次休战，避免了本可能对三星及科技行业造成的严重损害。自去年底以来，围绕奖金分配的争议，不仅三星电子的劳资双方，韩国政府、三星的股东，还有撑起韩国股市的散户，都被推到了风口浪尖。\n在三星劳资双方就“临时协议”投票",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 4.0,
+      "d4Tech": 3.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.58
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "274",
+    "title": "【05-25】国家能源局：推动到2030年我国初步建成新型电网",
+    "content": "【05-25】国家能源局：推动到2030年我国初步建成新型电网",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 1.0,
+      "d4Tech": 3.0,
+      "d5Business": 1.0,
+      "qualityScore": 1.57
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "14",
+    "title": "“进口药妆集合店”鼻祖，破产了？",
+    "content": "5月26日，上海市第三中级人民法院发布公告称，上海优贝施化妆品有限公司（下称：上海优贝施）因无法清偿到期债务，且资不抵债，法院根据债权人同意，对其进行破产立案审查。\n公开报道显示，上海优贝施的关联品牌，即是首批将进口药妆集合店引入国内、巅峰时期门店数量超过200家的连锁美妆集合店“+UBSKIN优贝施进口药妆”（以下简称“优贝施”）。\n时移世易，昔日的行业龙头，如今已陷入破产境地。\n01\n巅峰时期200+门店\n如今走向破产\n根据国家企业信用信息公示系统显示，上海优贝施成立于2010年2月5日，注册资本300万元，经营范围包括化妆品、化工原料及产品等，该公司已于2020年5月19日被吊销营业执照，目前尚未注销。\n\n图源：国家企业信用信息公示系统\n根据《中华人民共和国企业破产法》规定，若对破产申请有异议，可在收到通知之日起7日内向法院提交书面异议及证据。目前上海优贝施一案处于破产审查阶段，尚未裁定受理破产申请。\n\n图源：全国企业破产重整案件信息网\n青眼根据公开联系方式试图联系上海优贝施，以了解其企业现状以及破产缘由，但截至发稿前，未收到回复邮件，且电话无人接通。\n公开信息显示，UBSKIN",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 4.0,
+      "d4Tech": 0.0,
+      "d5Business": 5.0,
+      "qualityScore": 1.55
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "7",
+    "title": "绿电直连进入“点对群”时代",
+    "content": "应用绿电直连模式的用户主体更为多元，通过多主体共担成本，降低绿电直连的门槛和风险。应用绿电直连模式的用户主体更为多元，通过多主体共担成本，降低绿电直连的门槛和风险。\n\n界面新闻记者 | 田鹤琪\n在去年650号文的基础上，中国将绿电直连从“单用户专属”拓展为“多主体共享”，实现了从“1.0”到“2.0”的迭代升级。\n近日，国家发展改革委、国家能源局联合印发《关于有序推动多用户绿电直连发展有关事项的通知》（发改能源〔2026〕688号，下称688号文）。这份文件被视为去年绿电直连政策的“升级版”。\n在新能源装机爆发式增长、局部消纳压力凸显、出口企业面临碳关税壁垒的当下，新政不仅为风电、光伏等新能源消纳找到了一条新通路，也为算力中心、绿色氢氨醇、零碳园区等新兴产业提供了清晰的绿电获取机制。\n从“一对一”到“一对多”\n去年的650号文首次打开了“绿电直连”的大门，但主要面向单一大用户。此次688号文的最大突破，是形成了“多用户绿电直连项目”，即风电、太阳能发电、生物质发电等新能源发电，不直接接入公共电网，而是通过专用线路和变电设施向多个用户供给绿电。\n睿咨得能源可再生能源与电力研究高级分析师邓",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 3.0,
+      "d4Tech": 4.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.55
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "109",
+    "title": "1分钟封死涨停，6倍大牛股带火细分赛道，发生了什么？",
+    "content": "1分钟封死涨停，6倍大牛股带火细分赛道，发生了什么？",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 8.0,
+      "d4Tech": 0.0,
+      "d5Business": 5.0,
+      "qualityScore": 1.55
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "60",
+    "title": "规上工业利润增速加快，需关注高油价对中下游企业利润侵蚀",
+    "content": "工业生产较快增长、价格回升，共同推动工业企业营业收入稳定增长。\n国家统计局5月27日发布的最新数据显示，1-4月份，全国规模以上工业企业利润同比增长18.2%，较1-3月份加快2.7个百分点。其中4月份，全国规模以上工业企业利润增长24.7%。\n国家统计局工业司首席统计师于卫宁表示，有效实施更加积极有为的宏观政策，工业生产较快增长，工业品价格回升，带动工业企业利润增长加快，装备制造业和高技术制造业等新动能行业引领作用明显，工业企业效益持续改善。\n分规模看，1-4月份，规模以上大、中、小型工业企业利润分别同比增长19.7%、21.3%、12.0%；分企业类型看，1-4月份，股份制企业、私营企业、国有控股企业利润分别增长24.0%、23.7%、17.1%。\n工业企业单位成本下降，盈利能力继续改善。1-4月份，规模以上工业企业每百元营业收入中的成本为84.94元，同比下降0.55元，工业企业累计单位成本今年以来连续四个月下降。规模以上工业企业营业收入利润率为5.43%，同比提高0.60个百分点，营收利润率达2023年以来同期最高水平。\n于卫宁分析，工业生产保持较快增长，工业生产者出厂价格回升",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 4.0,
+      "d4Tech": 4.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.55
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "69",
+    "title": "盘前必读丨美国公布月球基地建设路线图；深科技拟扩产高端存储芯片封测",
+    "content": "机构认为，权益资产迎来修复，投资者可布局主题机会。\n【财经日历】\n长鑫科技科创板IPO上会\n中国1-4月规模以上工业企业利润年率\n中国人民银行在香港发行300亿元中央银行票据\n新西兰联储公布利率决议\n鸿蒙智行问界M9系列新品发布会\n财报发布：拼多多、快手\n\n►►5月26日，国家能源局在深圳召开全国“人工智能+”能源现场推进会。会议强调，人工智能是建设能源强国、发展能源新质生产力的重要引擎，要深入贯彻落实党中央、国务院重大决策部署，抢抓全球人工智能发展战略机遇，持续深化能源应用场景开放，着力突破关键核心技术，促进算力电力高效协同，积极营造生态共建、资源共享、价值共创、未来共赢的良好氛围，推动形成人工智能和能源双向赋能、融合发展新格局。\n►►工信部发布2026年汽车标准化工作要点。其中提到，推动新能源汽车标准发展。加快燃料电池电动汽车安全要求、电动汽车碰撞后安全要求、车用动力电池拆解破碎安全要求等标准研制，开展燃料电池电动汽车换氢安全、传导充电电磁兼容安全等标准研究。推动电池规格尺寸、热管理系统等标准发布，开展电动汽车充电性能、动力电池循环寿命、动力电池安全及性能评价、动力电池标签标识、动",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 3.0,
+      "d4Tech": 4.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.55
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "64",
+    "title": "全球音乐剧市场逆势增长，中国如何接住这把火？",
+    "content": "作为全球音乐剧版图上增长最快的市场之一，中国展现出哪些特质，又将迎来怎样的变革？\n近日，在上海文化广场举办的音乐剧发展论坛上，来自美国、英国、德国、韩国以及中国的资深从业者带来了一线观察。尽管文化背景不同，产业发展阶段各异，他们的分享皆印证了，音乐剧正成为文化消费中越来越重要的选项。\n繁荣之下，也有暗流。在全球经济波动的环境下，音乐剧制作成本升高，观众消费习惯发生改变。各国从业者如何看待自身挑战？作为全球音乐剧版图上增长最快的市场之一，中国展现出哪些特质，又将迎来怎样的变革？\n全球市场联动\n“在数字化普及、流媒体和短视频平台兴起的背景下，百老汇、伦敦西区音乐剧的盈利能力超过好莱坞电影。”百老汇亚洲及百老汇国际集团主席西蒙·吉娜特用一组数据展示音乐剧的价值：《功夫熊猫》三部曲全球票房约15亿美元，而《剧院魅影》《猫》《妈妈咪呀》等经典音乐剧，凭借长期驻演、多地制作和全球授权，累计收入达到60亿美元。\n在吉娜特看来，现场娱乐不只是一桩票房生意，也是城市经济的支柱。观众为一场百老汇演出奔赴纽约，带动酒店、餐饮、零售消费，支撑着无数工作岗位。另外，她还表示，经济下行的压力正影响着消费习惯。“全",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 2.0,
+      "d3Market": 5.0,
+      "d4Tech": 4.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.55
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "33",
+    "title": "前逸动员工创立消费级智能船艇公司，半年内再获新融资｜硬氪首发",
+    "content": "作者｜黄楠\n编辑｜袁斯来\n硬氪获悉，安澜动力科技（深圳）有限公司（以下称“安澜动力”）日前完成数千万天使++轮融资，本轮由南山战新投独家投资。这是公司成立不足一年内完成的第三轮融资。资金将主要用于补充核心研发与量产团队人才，同步启动海外品牌建设与渠道开拓，并为下半年种子用户测试的BETA样机交付做好储备。\n当陆地新能源载具进入存量博弈，一片长期被欧美垄断的蓝海市场正在水面觉醒。随着全球水域环保政策持续收紧、电动化技术日趋成熟、年轻用户对智能硬件接受度提升，消费级休闲船艇站在电动化与智能化跃迁的临界点，成为继新能源汽车后的又一个变革赛道。\n一个清晰的行业趋势已然形成：从传统燃油机械船艇，转向电动智能、易操作、低维护的新一代水上载具，用户需求的迁移，让中国硬件公司看到了结构性的机会窗口。\n安澜动力成立于2025年，由全球领先的船艇电动推进设备企业逸动科技几位前员工创立，核心团队来自小鹏汽车、香港科技大学、东莞理工、南安普顿大学等高校与企业，成员背景覆盖机器人、三电系统、整车智能架构、船艇制造及乘用车供应链。\n团队从摩托艇品类切入，瞄准全球500亿美金级的消费级船艇市场，聚焦私人娱乐、发烧友",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 4.0,
+      "d4Tech": 4.0,
+      "d5Business": 5.0,
+      "qualityScore": 1.55
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "256",
+    "title": "【05-27】2026年度防爆电气行业产品质量安全技术交流暨行业质量提升倡议大会在郑州圆满召开",
+    "content": "【05-27】2026年度防爆电气行业产品质量安全技术交流暨行业质量提升倡议大会在郑州圆满召开",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 2.0,
+      "d4Tech": 4.0,
+      "d5Business": 1.0,
+      "qualityScore": 1.53
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "255",
+    "title": "【02-11】2025年度电器工业创新成就遴选活动入选名单",
+    "content": "【02-11】2025年度电器工业创新成就遴选活动入选名单",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 3.0,
+      "d4Tech": 4.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.53
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "43",
+    "title": "美国4月PCE前瞻：逼近4%？美联储最青睐物价指标或点燃加息恐慌",
+    "content": "能源通胀影响正逐步扩散。\n当地时间周四，美国经济统计局（BEA）将公布4月PCE通胀报告。\n近期公布的数据显示，通胀压力尚未完全释放，4月整体通胀率与核心通胀率同比料双双上行。在高通胀环境下，外界普遍认为，美联储将在6月议息会议上维持利率不变，并可能在2026年年底前启动加息。\n数据爆表\n市场预测显示，受能源成本推升、叠加本就顽固的物价压力影响，这项核心通胀指标有望创下2023年以来新高。\n目前高昂燃油成本已开始传导至经济其他领域。官方数据显示，全美普通汽油均价已从伊朗冲突前的每加仑2.94美元，飙升至4月底的4.12美元。食品杂货价格上月涨幅也创下近四年新高。服装、机票及租金等商品和服务价格同样大幅走高。与此同时，AI相关需求的爆发式增长导致全球存储芯片供应紧张，推动个人电脑及相关硬件配件价格持续上行，进一步加剧了通胀黏性。\n据财经数据公司FactSet预测，4月PCE物价指数同比上涨3.9%，远高于美联储2%的通胀目标；环比上涨0.53%。剔除食品和能源价格的核心PCE指数，4月环比预计上涨0.3%、同比上涨3.3%，两项数据较3月均小幅上行0.1个百分点。\n晨星资深美国经济学家普",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 5.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.52
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "46",
+    "title": "芯片股回调高通跌6%，中国资产闪耀，美伊备忘录现争议原油大跳水",
+    "content": "黄金失守4500美元关口。\n*三大股指收高，道指涨近200点；\n*中长期美债收益率回落，2年期美债报4.03%；\n*纳斯达克中国金龙指数涨超1%。\n受美伊和谈推进影响，原油价格与美债收益率双双回落，周三美国三大股指联袂创历史新高。截至收盘，道指涨182.60点，涨幅0.36%，报50644.28点，纳指涨0.07%，报26674.73点，标普500指数涨0.02%，报7520.36点。\n\n \n【热门股表现】\n明星科技股普涨，Meta涨3.74%，亚马逊涨2.47%，特斯拉涨1.56%，苹果涨0.82%，谷歌平盘，微软跌0.81%。\n\n个股方面，费城半导体指数从纪录高位下跌1.4%。此前大幅走高的芯片板块集体回调：英特尔跌1.4%，迈威尔科技跌4.6%，高通周二大涨后回落6%，芯片巨头英伟达跌1.05%。\n摩根大通跌2.4%，拖累整体银行板块。该行首席执行官戴蒙警示，今年整体支出或将较此前预估高出10亿美元。\n资金轮动至医疗与消费股，宝洁涨3.2%，联合健康涨1.9%。\n美高梅度假村涨约9%，摩根大通、特鲁伊斯特双双上调该股评级与目标价。\n波士顿科学大跌近12%，公司首席执行官迈克・马奥",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 5.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.52
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "215",
+    "title": "亚洲金融论坛",
+    "content": "亚洲金融论坛",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 5.0,
+      "d4Tech": 1.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.52
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "211",
+    "title": "2025中国企业出海高峰论坛",
+    "content": "2025中国企业出海高峰论坛",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 4.0,
+      "d4Tech": 2.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.49
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "72",
+    "title": "“死了么”复活成“在么在么”，融资千万后接入杭州社区",
+    "content": "产品能否成功，这是一场比融资更漫长的验证。\n时隔4个月，曾经在1月火上热搜又突遭下架的“死了么”APP宣布回来了，定位仍然是独居人群的安全工具，2.0版本的新名字是“在么在么”。\n“中间四个月经历了很多事情，导致（新产品）延期，真正开发的时间是两个月。”近日，月境未来、“在么在么”（前“死了么”）创始人吕功琛接受第一财经记者采访时表示，新名字是从当时的一次名称征集里发现的，团队认为“在么在么”是日常社交生活中可能经常会用到的打招呼用语，也比较好记住。\n这是“死了么”第二次更名，1月中旬，“死了么”App爆火，因猎奇又有点黑色幽默的命名在社交平台引发争议，随后团队宣布启用全球化品牌名Demumu，次日官方账号发文称之前的更名尝试不尽如人意，决定把命名权交给网友，征集名称。\n此前，“死了么”的功能较为简单，仅为“每日签到+超时邮件提醒”，开发成本1500元，是团队3名95后远程协作完成，但精准击中了1.25亿中国独居人口的安全焦虑，1月中旬曾连续多天登顶苹果应用商店付费榜，用户量暴涨800倍。1月15日，该APP突遭下架，团队并未透露原因。\n吕功琛表示，目前公司团队从3个人增加到了4个，仍",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 4.0,
+      "d4Tech": 3.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.46
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "15",
+    "title": "快手新老铁，不愿天天见",
+    "content": "5月27日，快手发布2026年第一季度财报。\n从表面看，略好于预期：营收337亿元，超出分析师预期0.9%；经调整净利润33.74亿元，超预期11.3%；月活用户达到7.72亿，创下历史新高。\n但真正值得关注的，不是这几个“超预期”数字，而是DAU/MAU比率。快手一季度DAU/MAU为53.5%，比市场预期低3.7个百分点，是整张报表里miss幅度最大的单项指标。\n\n这意味着，快手的用户规模还在涨，但用户打开频率和活跃深度没有同步改善。对一个靠广告、电商和直播变现的内容平台来说，这比单季利润下降问题大。\n1\n直播下滑，老铁经济继续退潮\n直播是快手最早的商业化支柱，也是它区别于抖音的重要标签。\n一年前，快手还在电话会上强调直播收入同比增长14.4%，称其为“恢复正增长趋势”的信号。但四个季度之后，这条线已经跌到-13.5%。\n直播收入增速轨迹非常清楚：1Q25为+14.4%，2Q25为+8.0%，3Q25为+2.5%，4Q25为-1.9%，到1Q26变成-13.5%。这不是季节性波动，而是一条持续下行曲线，而且下滑速度在加快。\n\n快手早期依靠老铁经济、公会生态和打赏分成建立了商业闭环，",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 4.0,
+      "d4Tech": 3.0,
+      "d5Business": 5.0,
+      "qualityScore": 1.46
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "3",
+    "title": "能源早报 | 赣锋锂业与MinRes就一锂矿项目达成最终投资决定；英国石油公司董事长被撤职",
+    "content": "中广核云南540兆瓦光伏项目群全面开工建设，投资超18.7亿元；中远海能向海南海能增资10.18亿元用于油轮建造项目。中广核云南540兆瓦光伏项目群全面开工建设，投资超18.7亿元；中远海能向海南海能增资10.18亿元用于油轮建造项目。\n赣锋锂业与MinRes就一锂矿项目达成最终投资决定\n澳大利亚矿业公司Mineral Resources（MinRes）5月26日宣布，其与合资伙伴赣锋锂业已就Mt Marion锂矿项目建设浮选厂及开发地下开采正式做出最终投资决定，该项目在100%权益基础上的总资本投资预计为4.90亿澳元，资金将分摊在2027和2028财年，其中包括浮选厂2.40亿澳元、地下前期生产开发2.20亿澳元及非加工基础设施3000万澳元。按当前约2700美元/吨SC6的锂精矿现货价格计算，该项目的投资回收期将不足一年。\n中广核云南540兆瓦光伏项目群全面开工建设，投资超18.7亿元\n5月26日，据云南省能源局官微消息，近日，中广核云南保山隆阳区540兆瓦光伏项目群全面开工建设，总投资超18.7亿元。据测算，项目建成投运后，预计年平均上网电量超过7.2亿千瓦时。\n因信息披露违规",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 2.0,
+      "d3Market": 4.0,
+      "d4Tech": 3.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.46
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "22",
+    "title": "IP授权“暴利”与“暴雷”：从圆谷沃贝等上市公司看市场变化",
+    "content": "上周，文创潮发布了一 篇 文章，介绍了国内影视出版领域的上市公司，纷纷进军潮玩和IP衍生品的现象，回顾：“IP派”加速\n在版权方争相转型“IP运营”、希望获得更强确定性的同时，IP授权也在发生着变化。\n今天，我们就从国内国外的一些案例，看看IP授权在当下的趋势。\n毛利率超8成的“暴利”生意\n\n总部在加拿大多伦多、运营《天线宝宝》《花园宝宝》《草莓甜心》等动漫IP的沃贝（WildBrain），2026年第一季度的持续经营业务收入为6120万加元，其中2513.4万加元（约人民币1.24亿）来自IP授权，3606.1万加元来自影视内容制作与分发。\n可见，虽然沃贝关掉了赖以起家但近年严重拖累业绩的电视网络业务，目前它主要还是个内容发行公司。\n利润方面，沃贝的内容制作与发行业务，实现了558.7万加元毛利润，部门亏损174.3万加元；IP授权业务实现2236.3万加元毛利润（约合人民币1.1亿），部门利润1139.5万加元。\n近期，沃贝的IP授权业务已经有多个季度的毛利率超过80%甚至高于90%，运营利润率也能在50%上下，和连续亏损的内容发行业务形成鲜明对比。\n\n其实，不光沃贝，还有许多公司",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 5.0,
+      "d4Tech": 3.0,
+      "d5Business": 5.0,
+      "qualityScore": 1.46
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "129",
+    "title": "欧洲央行副行长：高估值与地缘风险叠加 市场回调风险正在上升05-27 22:360评",
+    "content": "欧洲央行副行长：高估值与地缘风险叠加 市场回调风险正在上升05-27 22:360评",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 5.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.4
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "76",
+    "title": "直播",
+    "content": "直播",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 2.0,
+      "d3Market": 3.0,
+      "d4Tech": 5.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.4
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "83",
+    "title": "房产",
+    "content": "房产",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 2.0,
+      "d3Market": 5.0,
+      "d4Tech": 1.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.4
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "243",
+    "title": "沪公网安备31010402006047号",
+    "content": "沪公网安备31010402006047号",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 8.0,
+      "d3Market": 2.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 1.4
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "8",
+    "title": "山西煤矿事故已致90人遇难，为何现代化煤矿仍防不住瓦斯爆炸？",
+    "content": "瓦斯可称为煤矿安全的最大威胁者。瓦斯可称为煤矿安全的最大威胁者。\n\n界面新闻记者｜田鹤琪 蒋习\n界面新闻编辑｜张慧\n山西一煤矿发生重大事故。\n5月23日上午，山西沁源县应急管理局发布关于留神峪煤矿发生瓦斯爆炸的通报，5月22日19时29分，沁源县通洲集团留神峪煤矿发生瓦斯爆炸，井下当班作业人员247人。事故发生后，山西省市县党委政府立即启动应急响应，并当即赶赴现场指挥救援工作。\n据央视新闻报道，截至5月23日下午14时许，事故已造成90人死亡。\n当天下午13时30分至14时许，界面新闻致电沁源县应急管理局，值班人员表示，正在和前线联系，目前未收到任何反馈，一切消息以官方新闻发布会或通报为准。\n长治市应急管理局工作人员告诉界面新闻，目前未收到事件最新进展，正与沁源县县局联系，其对于救援人员部署也不清楚。\n留神峪煤矿隶属于山西通洲集团留神峪煤业有限公司(下称留神峪煤业)。天眼查APP信息显示，留神峪煤业成立于2010年8月，控股股东为山西通州煤焦集团股份有限公司(下称山西通州煤焦集团)，持股比例为94.56%，实际控制人为任铁柱。\n界面新闻发现，今年1月9日，长治市能源局官网披露，已完成了",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 1.0,
+      "d4Tech": 5.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.4
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "223",
+    "title": "保护隐私权",
+    "content": "保护隐私权",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 9.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 1.4
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "144",
+    "title": "银行财眼｜恒丰银行潍坊分行被罚款45万元 因违规发放无实际用途贷款等",
+    "content": "银行财眼｜恒丰银行潍坊分行被罚款45万元 因违规发放无实际用途贷款等",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 3.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.4
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "118",
+    "title": "新政策落地，学区房危险了05-28 07:190评",
+    "content": "新政策落地，学区房危险了05-28 07:190评",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 4.0,
+      "d4Tech": 1.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.4
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "133",
+    "title": "午后，20%涨停05-26 14:590评",
+    "content": "午后，20%涨停05-26 14:590评",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 9.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 1.4
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "163",
+    "title": "科技股，午后爆发",
+    "content": "科技股，午后爆发",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 2.0,
+      "d3Market": 5.0,
+      "d4Tech": 2.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.37
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "37",
+    "title": "“星球大战”已不是票房印钞机？迪士尼：不重要，我玩的是几百亿的 IP 生意",
+    "content": "好莱坞的生意经，从来都不止于电影本身\n近期的全球电影市场被正被新片《星球大战：曼达洛人与古古》统治， 该片上映四天拿下1.63 亿美元票房，但还是有很多人为“星球大战”这个 IP 担心。\n\n因为《曼达洛人与古古》是“星战宇宙”时隔近 7 年推出的全新电影。对于这样的超级 IP，没有大爆，是不是就就意味着失败？\n与“担忧”相对的，还有一种“乐观”的声音：对迪士尼来说，“星球大战”这个 IP的票房收入从来都只是冰山一角。\n从1977 年首部《星球大战》电影上映，到现在走过近半个世纪，“星球大战”IP 早已成长为一个商业帝国。电影、剧集、游戏、漫画、衍生品、授权、主题公园……几乎每一个能想象到的娱乐消费场景，都有“原力”的印记。\n“星球大战”的IP帝国是如何建立起来的？这中间，迪士尼扮演了什么样的角色？\n我们又能从中获得哪些启示呢？\n故事要从 1977 年的夏天讲起……\n01 空盒子卖爆！40 亿“卖身”！细数“星战”IP 帝国发家史\n1977年乔治·卢卡斯拍完《星球大战》，片子还没上映，他就做了一个在当时看来近乎疯狂的决定：主动放弃部分导演片酬，换来了这部电影所有衍生品和续集的授权权益。\n",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 5.0,
+      "d4Tech": 2.0,
+      "d5Business": 5.0,
+      "qualityScore": 1.37
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "47",
+    "title": "世界杯临近，美加相继发布旅行禁令严防埃博拉",
+    "content": "谭德塞25日表示，本轮疫情尤其棘手。\n\n距离2026年世界杯揭幕战还剩两周，然而埃博拉疫情令美国和加拿大相继推出临时边境管制措施。\n当地时间26日，加拿大政府发布公告称，自27日起，禁止所有刚果（金）、乌干达和南苏丹居民入境加拿大，禁令有效期为90天。公告还称，过去21天内曾到访过这些地区且无症状的加拿大公民、永久居民和外国居民等，将必须进行21天的隔离。\n此前，美国政府宣布，暂时禁止在过去21天内曾到访刚果（金）、乌干达或南苏丹的非美国公民和美国合法永久居民，即绿卡持有者入境。到访过这些地区的美国公民仍可以入境，但需前往指定机场。\n受上述旅行和入境限制影响，刚果（金）国家男子足球队25日宣布，已取消原定在首都金沙萨启动的世界杯备战计划，改为直接在欧洲集训并停留至少21天后再赴美参赛。该国足协表示，部分已购买世界杯门票的刚果（金）球迷可能因美国相关限制措施无法获得赴美签证，国际足联已承诺研究刚果（金）足协提出的退票方案。\n\n美国CDC招人加强入境筛查\n据报道，美国疾病控制与预防中心（CDC）向员工发出“紧急请求”，招募更多人员加强入境点的埃博拉病毒筛查工作，包括公共卫生顾问、急救专家和",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 3.0,
+      "d4Tech": 2.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.37
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "208",
+    "title": "2024年博鳌亚洲论坛",
+    "content": "2024年博鳌亚洲论坛",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 3.0,
+      "d4Tech": 2.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.37
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "38",
+    "title": "当热门韩剧也有了一股国产短剧味儿",
+    "content": "面对同样被短视频改造的观众、同样缩短的注意力阈值，各自的产业都在试图给出不同的解法。\n最近刷社交媒体，有两部韩剧的存在感高得绕不开。\n一部是朝 鲜恶女被赐死后穿越2026年，附身十八线演员，对上冷面财阀的《我的王室死对头》；另一部是女霸总为跨越阶级倒追王室大君，契约结婚先婚后爱的《21世纪大君夫人》。两个故事放在一起，穿越、恶女、财阀、霸总、契约婚姻，关键词排列组合下来，几乎可以无缝填入任何一个国产短剧或网文模板里。\n这两部剧确实在5月交替霸占了韩剧的收视冠军。《我的王室死对头》收视率从首集4.1%一路涨到第6集的10.4%，Netflix全球热榜上也有它的位置；《21世纪大君夫人》更猛，大结局全国收视率冲到13.8%，首都圈14.1%，瞬间最高冲到16.1%。\n\n数据上看，两部剧都算得上“火”了。但切换到中国观众的视角，两部剧的舆论待遇却天差地别。\n1\n  \n都是套路\n为什么一个真香一个骂都懒得骂？\n《我的王室死对头》在中国的口碑堪称“集体真香现场”。初期舆论几乎一致吐槽男主角颜值—，但播到中后段，风向开始扭转，吐槽变成了“对不起，越看越顺眼”，甚至有人说“好几年没守着电视看剧了，这",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 5.0,
+      "d4Tech": 2.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.37
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "239",
+    "title": "投研",
+    "content": "投研",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 4.0,
+      "d4Tech": 2.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.37
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "82",
+    "title": "汽车",
+    "content": "汽车",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 3.0,
+      "d4Tech": 3.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.34
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "106",
+    "title": "丰元资本李强：大模型估值泡沫显著，AI初创项目陷“越好越快死”的怪圈",
+    "content": "丰元资本李强：大模型估值泡沫显著，AI初创项目陷“越好越快死”的怪圈",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 5.0,
+      "d4Tech": 3.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.34
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "39",
+    "title": "AI漫剧遇冷，爆改日漫老番成为新宠？",
+    "content": "过去一年，AI漫剧几乎以“工业流水线”速度占领短剧市场。\n中国网络视听协会发布的《微短剧创作指引》显示，2026年第一季度上线的12.8万部微短剧中，AI微短剧占比已超过95%。但产能狂飙背后，行业却开始迅速降温：保底取消、爆款减少、监管收紧，大量同质化AI内容正在失去用户耐心。\n不过，一类特殊内容却在逆势扩散——由经典动漫、漫画IP改编而来的AI真人漫剧。\n从《漩涡》《犬夜叉》到《元气少女缘结神》《黑执事》，越来越多创作者开始借助AI，把“纸片人”重新拉进真人世界。而有趣的是，相比真人漫改长期被吐槽“毁原作”，这类AI真人版反而意外收获了大量二次元用户的宽容与追捧。\n当AI开始进入二次元世界，一个新的问题也浮现出来：为什么AI真人化，反而比真人演员更接近“二次元”？\n01\nAI爆改日漫老番\n纵观近期在国内平台上更新的此类援引二次元IP的AI真人漫剧，基本上来自于改编日本经典动漫IP。除了全球顶流《海贼王》《火影忍者》是被AI化的主力外，不少相对垂类的动漫IP也收获了一定的关注。\n比如抖音博主“Ezio_li”根据漫画家伊藤润二作品《漩涡》所制作的同名AI真人漫剧，目前仅更新13支视频",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 2.0,
+      "d3Market": 4.0,
+      "d4Tech": 3.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.34
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "63",
+    "title": "新股N长进盘中一度大涨1500%，单签盈利近30万",
+    "content": "截至发稿，股价有所回落，涨超1200%。\n5月27日，新股N长进盘中一度大涨1500%，股价突破680元，最高报688.88元，一签盈利近30万。截至发稿，股价有所回落，涨超1200%。\n\n招股书显示，长进光子主要从事特种光纤的研发、生产和销售。公司主要产品掺稀土光纤是特种光纤的重要子类，广泛应用于先进制造、光通信、测量传感、国防军工、医疗健康、科学研究等领域。\n财务方面，2023年、2024年及2025年，长进光子营业收入分别为1.45亿元、1.92亿元、2.47亿元，净利润分别为5465.65万元、7575.59万元、9564.04万元，主营业务毛利率分别为69.31%、69.13%、65.06%。\n根据公司初步预测，2026年1-3月营业收入5200万元-5500万元，同比增长16.25%-22.96%；归母净利润1556万元-1640万元，同比增长2.49%-8.02%。",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 5.0,
+      "d4Tech": 3.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.34
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "44",
+    "title": "盘前必读丨长鑫科技IPO已提交注册；德福科技拟31亿布局高端AI铜箔",
+    "content": "机构认为，科技股方向存在交易过渡拥挤，等待调整压力释放后择机进场。\n【财经日历】\n比亚迪举办智能化战略发布会\n深交所举办2026全球投资者大会(深圳,5/28-5/29)\n2026世界智能产业博览会(天津，5/28-5/31)\n欧洲央行公布4月货币政策会议纪要\n美国4月核心PCE物价指数年率\n财报发布：理想汽车、小鹏汽车、微博\n\n►►据新华社，中共中央政治局常委、国务院总理李强5月25日至27日在浙江省舟山市、宁波市调研。他强调，要坚持政府主导、社会共建、多元互补，做好大宗商品和重要物资储备调节，强化战略保障、宏观调控和应对急需功能，持续提升产业链供应链韧性，加快建设大宗商品资源配置枢纽，为统筹发展和安全提供可靠保障。\n►►5月27日晚，国务院山西长治山西通洲集团留神峪煤业有限公司“5·22”特别重大瓦斯爆炸事故调查组召开第一次全体会议。国务院事故调查组组长、应急管理部部长张成中主持会议，通报调查安排、提出工作要求。\n会议强调，事故调查组要认真贯彻落实习近平总书记重要指示精神和党中央、国务院决策部署，较真碰硬开展事故调查，按照“科学严谨、依法依规、实事求是、注重实效”和“四不放过”的原",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 3.0,
+      "d4Tech": 3.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.34
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "36",
+    "title": "BOSS直聘吃肉，拉勾连汤都没得喝",
+    "content": "2026年5月15日，天眼查弹出一条不起眼的工商变更：\n拉勾网，进入破产重整程序。\n一家曾估值2亿美元的公司，自己申请了破产。\n这则消息由控股大股东前程无忧向媒体证实。而就在破产公告十天之后，界面新闻的报道中追加了一条细节：拉勾网及创始人许单单，新增一则限制消费令。\n从明星到弃子。从2亿美元到一张限消令。拉勾网走了十三年。\n十三年时间，它踩中了互联网最缺人的那几年，又倒在了招聘行业被彻底改写的那几年。\n01\n踩在风口上的拉勾\n2013年，移动互联网正热。\n微信刚过3亿用户，滴滴快的还没合并，美团饿了么在千团大战里杀红了眼。整个行业在膨胀，创业公司在满大街招人。\n不缺钱，不缺方向，就缺人。\n但招聘赛道还是老三样：前程无忧、智联招聘、中华英才网。页面老旧，流程冗长，从投简历到收到反馈，周期以\"周\"为单位。用户体验，基本为零。\n拉勾网就踩在这个点上。三个联合创始人看准了一件事：互联网行业需要一种更快的招聘方式。\n它的打法也简单粗暴。主打一个岗位真实、反馈快。投递后24小时内必有回复。\n放在今天看，这不算什么。但在2013年，这已经是颠覆了招聘行业。智联招聘和前程无忧的反馈周期动辄一两周，拉勾",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 4.0,
+      "d4Tech": 3.0,
+      "d5Business": 5.0,
+      "qualityScore": 1.34
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "194",
+    "title": "创造新蓝海，揭秘康师傅的新质生产力",
+    "content": "创造新蓝海，揭秘康师傅的新质生产力",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 4.0,
+      "d4Tech": 3.0,
+      "d5Business": 5.0,
+      "qualityScore": 1.34
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "275",
+    "title": "【05-22】本周热点速览 | 4月份全社会用电量同比增长6.0%",
+    "content": "【05-22】本周热点速览 | 4月份全社会用电量同比增长6.0%",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 4.0,
+      "d4Tech": 1.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.32
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "273",
+    "title": "【05-25】一图读懂《关于有序推动多用户绿电直连发展有关事项的通知》",
+    "content": "【05-25】一图读懂《关于有序推动多用户绿电直连发展有关事项的通知》",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 1.32
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "266",
+    "title": "【02-10】李强主持召开国务院常务会议 听取2025年国务院部门办理全国人大代表建议和全国政协提案工作情况汇报等",
+    "content": "【02-10】李强主持召开国务院常务会议 听取2025年国务院部门办理全国人大代表建议和全国政协提案工作情况汇报等",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 1.32
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "257",
+    "title": "【05-26】中电协电工合金标准化专业委员会成立大会在北京成功召开",
+    "content": "【05-26】中电协电工合金标准化专业委员会成立大会在北京成功召开",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 1.32
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "272",
+    "title": "【05-26】生态环境部公开征求意见",
+    "content": "【05-26】生态环境部公开征求意见",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 1.32
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "260",
+    "title": "【05-22】浙江省电气行业协会秘书长郑志超一行到访中电协",
+    "content": "【05-22】浙江省电气行业协会秘书长郑志超一行到访中电协",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.32
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "152",
+    "title": "“手擀”面条竟是商标？知名品牌集体被曝光",
+    "content": "“手擀”面条竟是商标？知名品牌集体被曝光",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 5.0,
+      "d4Tech": 0.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.31
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "13",
+    "title": "首席执行官访谈 | 乐高掌舵人倪志伟复盘：以精简革新重塑企业增长引擎",
+    "content": "本文阅读时长约8分钟\n乐高集团首席执行官倪志伟（Niels B. Christiansen）在对话中向Jean-François Manzoni教授分享了他如何通过精简管理架构、发展成年消费市场，让这家玩具巨头重焕活力。\n很少有企业能像乐高这样，跨越代际收获全球消费者的喜爱。自上世纪50 年代积木产品在丹麦比隆（Billund）诞生以来，乐高集团一路成长为全球规模最大的玩具企业，年营收突破 110 亿欧元（约 869 亿人民币），全球员工约 3.4 万人，缔造了商界极具代表性的经典品牌发展故事。\n但乐高的发展并非一帆风顺。21世纪初，公司遭遇严峻危机，不得不彻底重构发展思路。彼时沉淀的运营规范与战略共识，深刻影响着公司如今的运作模式。\n2017 年，倪志伟接任乐高 CEO一职。当时，乐高虽已走出低谷、重回增长轨道，却隐现疲态。“当时公司整体发展陷入停滞，” 他回忆道，“经历一轮扩张后，组织变得极度臃肿，决策效率大幅下降。”\n上任初期，他并未急于制定宏大战略愿景，而是优先把控企业基础运营。“我们没有一味畅想长远蓝图，核心重心回归夯实根基，梳理业务轻重边界，全面简化冗余体系。”\n他秉持务实",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 3.0,
+      "d4Tech": 4.0,
+      "d5Business": 5.0,
+      "qualityScore": 1.31
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "50",
+    "title": "“并购狂人”礼来扫货加速：年内8起并购落地，总额达245亿美元",
+    "content": "今年以来，礼来每个月都在“买买买”。\n全球减肥药巨头礼来今年以来的并购节凑，似乎有些停不下来。\n当地时间5月26日，礼来一举宣布了三项并购，分别并购Curevo、LimmaTech Biologics和Vaccine Company这三家疫苗企业，合计拟斥资38.3亿美元，目的是扩展公司在传染病领域的研发版图。\n这三家疫苗企业，涉足的领域有所不同，Curevo属于带状疱疹疫苗企业，LimmaTech Biologics专注于耐药致病菌疫苗研发，Vaccine Company的核心疫苗产品是五抗原EB病毒（EBV）疫苗。\n历史上，礼来曾涉足过人用疫苗业务，而这次的并购，被视为公司重返人用疫苗赛道。\n传染病至今仍是全球发病的主要原因，其危害既体现在急性感染期，也存在于感染后引发的长期健康后果中。\n\n值得注意的是，礼来这次收购的Curevo，其核心疫苗产品是一款用于成人带状疱疹预防的佐剂亚单位疫苗amezosvatein。当前，全球已有其他带状疱疹疫苗获批上市，与此同时，还有多款带状疱疹疫苗还在研发中。\n对于收购Curevo，礼来给出的理由是：目前市场上的主流带状疱疹疫苗虽有疗效，但耐受性不",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 3.0,
+      "d4Tech": 4.0,
+      "d5Business": 5.0,
+      "qualityScore": 1.31
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "32",
+    "title": "OpenAI和Anthropic带头念的经可能是歪的",
+    "content": "过去一年，“多智能体系统（MAS, Multi-Agent System）”成为 AI 世界最热门的方向之一。\n大量框架和产品开始同时出现，其中最著名的显然就是Claude Code和Codex，这步确实也赚钱，但这路其实不一定对！\n互联网早期是门户，最终不是啊！\n至少我们要知道还有个完全与此并行的路。\n今天我们要说的是除了：“多个 AI Agent 如何协作完成复杂任务”，还有哪条路线存在。\n先总结下大家比较热衷也比较熟悉的这条路。\n直播可以聊一点点这个话题，但不太想完全说这个，本来人就不多，我担心给播没了...\n第一条路线：Harness式 MAS\n这是当前主流的 MAS 方向。它的本质是：“多个 AI 角色协同完成任务”。例如：\n一个 Agent 写代码\n一个 Agent 做测试\n一个 Agent 做规划\n一个 Agent 做搜索\n一个 Agent 做审查\n它们彼此配合，形成一条自动化工作流。这类系统的核心特点是：\n共享上下文\n共享目标\n中心化调度\n临时角色\n无长期身份\n无持续利益\n无真正所有权\n本质上，它更像：Workflow Engine（工作流引擎），加上Ontology其",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 3.0,
+      "d4Tech": 5.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.28
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "52",
+    "title": "公安部查纠涉企执法问题5.7万个，返还扣押资金22.2亿",
+    "content": "全社会针对涉企执法的举报投诉明显下降。\n2025年以来，公安部组织全国公安机关开展了规范涉企执法的专项行动，进展与成效如何？\n公安部副部长杨维林5月27日在国新办发布会上表示，专项行动期间共查纠涉企执法问题5.7万个，累计解除查封财物价值13.8亿元，返还扣押资金22.2亿元。同时完善制度规范，制定了异地执法办案协作指引等20余项制度措施。\n杨维林介绍，公安部大力整治涉企执法的突出问题，主要做了三方面工作。\n首先，全面排查问题，深入从严整改。公安部聚焦受案立案、异地执法、涉案财物管理这些重点环节，组织各地公安机关对重点涉企案件全面排查起底。经侦、刑侦等办案部门认真查纠整改问题，督察、法制等部门加强重点案件、重点线索的跟踪督办和问效，严查反面典型，加强警示教育。\n从数据上看，专项行动期间共查纠涉企执法问题5.7万个，累计解除查封财物价值13.8亿元，返还扣押资金22.2亿元，依法变更或者解除冻结账户19.9万个，释放资金89.8亿元。\n其次，完善制度规范，加强源头治理。针对违规立案、违规查封扣押冻结涉案财物、违规异地执法这些易发多发问题，公安部有针对性制定出台了跨省涉企犯罪案件的管辖规定",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 2.0,
+      "d4Tech": 1.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.28
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "26",
+    "title": "那些不会被AI取代的剧组人",
+    "content": "AI正在以前所未有的速度席卷影视行业。\n从“AI生成宣传物料”、“编剧是否会用AI写剧本”，到如今“AI演员将要替代真人演员”等话题，只要沾上AI，都会被热聊甚至上热搜。\n即将进入横店卧底的时候，小娱以为会看到一群很典型的AI焦虑。比如演员担心失业，助理害怕被机器人替代，设计师被AI抢饭碗，所有人都在学习提示词、研究工具、拼命证明“人类还有价值”。\n但真的来到剧组之后，小娱却发现，影视行业的一线现场，正在出现一种非常荒诞的现实。\nAI确实越来越像“人”了，它会修图、写文案、生成分镜、辅助配音，甚至已经能批量生产漫剧；但与此同时，很多影视行业里的岗位，却越来越不像“工作”，反而更像“情绪耗材”。\n影视“牛马们”为了保住饭碗，各出奇招。有人留在剧组给导演接梗、陪聊天，有人鞍前马后拼一个比AI更会“照顾人”；有的人知道AI已经是成熟的设计了，但甲方公司还是需要有个能点头哈腰的活人来“挨骂”。\n\n娱乐资本论（id:yulezibenlun）在剧组里和四位影视行业一线从业者聊了聊，慢慢发现，最黑色幽默的是，就是这些影视行业里原本最不起眼、最难被量化、甚至有点“伺候人”的工作内容，反而成了现阶段，",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 3.0,
+      "d4Tech": 5.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.28
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "23",
+    "title": "“国货第一底妆”被申请破产",
+    "content": "blank me 半分一(以下简称“ blank me”)母公司上海永熙继去年被曝债务缠身，创始人杨博雅被限制高消费后，最近又被申请破产。\n作为2017前后涌现的国货彩妆新锐代表，blank me与花西子、完美日记、方里等相继崛起。\n其中，blank me曾被称作国货第一底妆，先后获得世相科技、尚承投资、悠可等机构/企业投资，品牌排名一度超越花西子，备受行业瞩目。\n\n△图源：blank me 小红书\n但这家昔日风头正盛的企业，近年深陷业绩疲软、债务高企、投资争议等多重负面风波。去年3月旗下各大社媒账号停更，电商平台在售单品寥寥，产品备案也停留在2024年，经营难题彻底浮出水面。尤其是2025年的中国美妆市场，正在经历一场残酷的洗牌。\n5月25日，全国企业破产重整案件信息网公示，上海博观瑞思传媒科技有限公司(以下简称“博观瑞思”)，已向上海市第三中级人民法院申请对上海永熙信息科技有限公司(以下简称“上海永熙”)进行破产审查。\n\n△图源：截自全国企业破产重整案件信息网\n截至目前，博观瑞思尚未对外披露上海永熙申请破产的具体原因。从公开信息来看，两家企业并无股权关联，双方业务合作相关情况也未见",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 5.0,
+      "d4Tech": 1.0,
+      "d5Business": 5.0,
+      "qualityScore": 1.28
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "253",
+    "title": "预计最高16亿千瓦！国家发改委回应今夏电力保供形势",
+    "content": "预计最高16亿千瓦！国家发改委回应今夏电力保供形势",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 3.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 1.26
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "98",
+    "title": "绿色发展",
+    "content": "绿色发展",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 3.0,
+      "d4Tech": 2.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.25
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "180",
+    "title": "好盈科技IPO：数据“打架”、研发占比下滑，20亿募资投向引质疑",
+    "content": "好盈科技IPO：数据“打架”、研发占比下滑，20亿募资投向引质疑",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 2.0,
+      "d3Market": 3.0,
+      "d4Tech": 2.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.25
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "134",
+    "title": "严跃进：流通性差的房子可以通过加装电梯或者政府收购改造盘活05-26 14:410评",
+    "content": "严跃进：流通性差的房子可以通过加装电梯或者政府收购改造盘活05-26 14:410评",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 4.0,
+      "d4Tech": 2.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.25
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "250",
+    "title": "国家矿山安全监察局紧急部署强化煤矿瓦斯防治工作",
+    "content": "国家矿山安全监察局紧急部署强化煤矿瓦斯防治工作",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 1.0,
+      "d4Tech": 2.0,
+      "d5Business": 1.0,
+      "qualityScore": 1.23
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "17",
+    "title": "拼多多上的新品战争",
+    "content": "01 不比价格了\n新品是传统零售行业永恒的C位。\nCostco每年会换掉约30%的商品，确保卖场里的4000个SKU始终保持新鲜感。7-Eleven每年要更新约70%的SKU，鲜食类商品的生命周期通常只有2-4周。小米汽车每次发布新品前，雷军会化身为最积极的推销员——对于汽车行业的玩家来说，新品成败直接影响品牌存亡。MEGA系列的失利，一度就让理想汽车陷入低谷。\n但在电商领域，新品的“地位”长期让位于价格。低价是电商平台最醒目的标签，也是很多消费者选择他们的最直接理由。这让很多商家主动或被动加入到价格战，继而陷入无休止的同质化竞争之中。\n一个反直觉的现象正在发生：越来越多的中小商家正在用新品研发来对抗价格战。\n服装商家们在各个平台宣传新品的力度，堪比电影宣发。从布料、工艺到样品展示，他们竭尽全力展示新品的“值得”。拼多多上涌现的新品也越来越多，大概从2025年开始，趋势越发明显：蒙牛做了《哪吒》联名款纯牛奶，10万件上线即售罄；大宝针对年轻人推出的A醇嫩肤乳，上线没多久销售达到数万支。\n原因在于，电商竞争正在进入新范式。GMV不再是评判成败的唯一标准，行业进入到长期主义的叙事之中。不管",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 2.0,
+      "d3Market": 4.0,
+      "d4Tech": 3.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.22
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "20",
+    "title": "Costco上京东，能追上山姆的500个前置仓吗？",
+    "content": "正式入驻京东5天后，Costco开市客官方旗舰店得到了9.4万人关注。\n\n这是其进入中国市场7年来，首次在国内电商平台开设官方旗舰店。\n在业内人士看来，Costco这一动作既是在门店扩张迟缓、续卡率承压下的必然选择，也是一场迟来的补课。\n这一步，同为会员制商超的另一巨头山姆比其早了近10年，如今山姆京东官方旗舰店已经坐拥1304.6万粉丝，稳居商超店铺榜一的位置。\n\nCostco进驻京东，可谓是摸着山姆过河。\n对于这次线上渠道拓展，消费者端的感知是购物门槛的破除。这是Costco首次开放无卡购物的权限，非Costco会员也可以在京东旗舰店下单，但购买同款产品要比会员价高出约20%，且需达到199元方可起送，还需要支付20元的配送费。\n相比之下，10年前山姆中国入驻京东之时，做法要激进得多——史无前例地开放为期10天的会员体验，即在这个周期内，在京东下单的消费者不仅可以享受会员价，还能领取免运费券。\n不仅如此，Costco在华门店规模、本土化选品，乃至即时配送能力上，跟山姆中国对比也是短板明显。目前，Costco在京东渠道上线的商品以自有品牌Kirkland为主，覆盖零食、粮油、保健等长",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 4.0,
+      "d4Tech": 3.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.22
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "148",
+    "title": "银行财眼｜广州银行江门分行被罚款45万元 因贷款三查不到位",
+    "content": "银行财眼｜广州银行江门分行被罚款45万元 因贷款三查不到位",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 8.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.19
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "271",
+    "title": "【05-27】南方电网“算电协同服务专区”正式上线！",
+    "content": "【05-27】南方电网“算电协同服务专区”正式上线！",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 1.0,
+      "d4Tech": 4.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.19
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "2",
+    "title": "算力狂飙的瓶颈不止电量：电网风险正突破认知",
+    "content": "算电协同最终能不能协同，核心在于认清并应对电网特性的改变，守住系统安全的底线。算电协同最终能不能协同，核心在于认清并应对电网特性的改变，守住系统安全的底线。\n\n界面新闻记者 | 田鹤琪\n“当量增长非常快，增速远超想象。但这个量是电量的概念，并不是电力的概念。电网运行阶段真正存在的是电力问题，不是电量问题。”\n近日，界面新闻在第四届中国能源周上获悉，国网冀北电科院电力系统研究所副所长王泽森发表观点称，电算要实现真正协同，需从空间布局与电量的协同，深化到电力的协同上。\n“之前大家多从政策和规划层面探讨算电协同，但真正到了协同运行阶段，电网的运行风险可能已经超过我们对算力负荷的认知。”王泽森认为，算电协同最终能不能协同，核心在于认清并应对电网特性的改变，守住系统安全的底线。\n电力正在成为决定AI发展边界的战略资源。全球AI数据中心能耗正以45%的年复合增长率攀升。\n据中国信通院数据，2025年中国算力中心用电量为1960亿千瓦时，同比增速达18.1%，同期全社会用电量增速仅5.2%。\n到2030年，中国算力中心用电量预计在5000亿千瓦时左右；若人工智能爆发增长，甚至将高达7000亿千瓦时，",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 2.0,
+      "d4Tech": 4.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.19
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "190",
+    "title": "《封面》对话靳玉志",
+    "content": "《封面》对话靳玉志",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 3.0,
+      "d4Tech": 4.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.19
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "111",
+    "title": "“抢铜大战”重演？全球的铜都在流向美国",
+    "content": "“抢铜大战”重演？全球的铜都在流向美国",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 8.0,
+      "d4Tech": 0.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.19
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "165",
+    "title": "“打出政策‘组合拳’”，证监会最新发声",
+    "content": "“打出政策‘组合拳’”，证监会最新发声",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 3.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 1.16
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "170",
+    "title": "含权理财宽幅波动，银行紧急行动",
+    "content": "含权理财宽幅波动，银行紧急行动",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 5.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.16
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "154",
+    "title": "又一个销量神话，被曝假洋品牌",
+    "content": "又一个销量神话，被曝假洋品牌",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 5.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.16
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "9",
+    "title": "能源早报 | 中国华电集团换帅；中国核建拟募资不超40亿元",
+    "content": "恩捷股份终止投资20亿元马来西亚锂电池隔离膜项目；海科新源拟出售不超过85.11万股已回购股份。恩捷股份终止投资20亿元马来西亚锂电池隔离膜项目；海科新源拟出售不超过85.11万股已回购股份。\n中国华电集团换帅\n中国华电5月22日发布消息称，公司召开中层以上管理人员大会，中央组织部有关负责同志宣布了中央关于中国华电集团有限公司董事长、党组书记调整的决定：叶向东任中国华电集团有限公司董事长、党组书记，免去其中国华电集团有限公司总经理职务；免去江毅的中国华电集团有限公司董事长、党组书记职务。相关职务任免，按有关法律和章程的规定办理。\n中国核建拟募资不超40亿元\n中国核建5月22日公告，公司拟向不超过35名特定对象发行股票，募集资金总额不超过40亿元，扣除发行费用后用于江苏徐圩核能供热发电厂一期工程1、2号机组核岛及其配套BOP土建工程；浙江金七门核电厂1、2号机组核岛及其配套土建及安装工程；偿还银行借款。\n恩捷股份终止投资20亿元马来西亚锂电池隔离膜项目\n恩捷股份5月22日公告，公司董事会审议通过《关于终止在马来西亚投资建设锂电池隔离膜项目的议案》，决定终止该项目的投资。此前披露，公司控股",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 2.0,
+      "d4Tech": 1.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.16
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "135",
+    "title": "严跃进：政府收购老旧二手房，为置换新房提供一个渠道05-26 14:390评",
+    "content": "严跃进：政府收购老旧二手房，为置换新房提供一个渠道05-26 14:390评",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 3.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 1.16
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "245",
+    "title": "小场景撬动大价值丨人工智能如何刷新中国“办电速度”",
+    "content": "小场景撬动大价值丨人工智能如何刷新中国“办电速度”",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 2.0,
+      "d4Tech": 4.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.16
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "97",
+    "title": "港股",
+    "content": "港股",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 5.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.16
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "40",
+    "title": "国产AI编程冲上全球第二，实测五大模型，谁才是Vibe Coding神器",
+    "content": "超越 GPT-5.5、Gemini 3.5 Flash、DeepSeek V4 Pro，阿里的最新旗舰模型 Qwen3.7 Max 在编程竞技榜拿下第二名，仅次于 Claude Opus 4.7。\n\n5.26 榜单截图\n除了真实场景的用户选择，在传统的大模型固定评测榜单上，像是终端能力 Terminal Bench、编程能力 SWE Bench 等，Qwen3.7 Max 的表现也是拿下了国产模型的冠军。\n\n虽然现在大模型四年，我们已经对这些排行榜的刷新屡见不鲜，但还是忍不住想要体验一下，能够超越 GPT 5.5 的 Qwen 模型，实际能力到底如何。\n要知道，现在最火的 Coding Agent 组合，大概就是搭配了 GPT 5.5 的 Codex。\n如果我们把 Codex 里面的默认模型修改成 Qwen3.7 Max，再用 Codex 来完成一些日常的任务，会不会比 GPT 5.5 还好用呢。\n获取 Qwen3.7 Max\n趁着现在各家都在推出一些 Token 优惠活动，阿里云也提供了 100 万 Token 的免费使用，可在阿里云百炼平台使用。\n\nQwen3.7 Max 的定价，",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 3.0,
+      "d4Tech": 5.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.16
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "121",
+    "title": "洪灏：人民币汇率6.8仅是起点，中长期升值趋势无悬念05-28 07:120评",
+    "content": "洪灏：人民币汇率6.8仅是起点，中长期升值趋势无悬念05-28 07:120评",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 5.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.16
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "269",
+    "title": "【05-18】《2026中国电器行业系列白皮书》发布会即将启幕",
+    "content": "【05-18】《2026中国电器行业系列白皮书》发布会即将启幕",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 2.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.15
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "29",
+    "title": "芯片新万亿玩家，一个月多了仨，飙升3倍，瑞银唱高美光至1.1万元",
+    "content": "今年5月，注定载入存储芯片史册。\n5月6日，三星电子市值率先突破1万亿美元；5月26日，美光科技暴涨19.29%，市值站上万亿美元。时隔不到10小时，SK海力士接力冲线。\n短短一个月内，全球存储芯片三巨头悉数跻身万亿美元俱乐部。\n三巨头强势垄断\n全球存储芯片市场呈现鲜明的寡头格局，三星电子、SK海力士、美光科技三足鼎立，牢牢把控着行业命脉。\n据机构CFM闪存市场公布的数据，今年一季度，全球DRAM（动态随机存取存储器）市场规模为943.25亿美元，环比增长81.5%。其中，三星电子市场份额为40.5%，SK海力士市占29.6%，美光科技市占19.9%，三家合计占据全球DRAM市场约90%份额。\n三星电子素有“存储帝国”之称，在DRAM与NAND（闪存）领域全产业链布局，稳坐头把交椅。2026年一季度，三星电子芯片业务营收为74.8万亿韩元（约合人民币3380亿元），同比增长292%；营业利润为53.7万亿韩元（约合人民币2427亿元），同比增长4782%。\nSK海力士另辟蹊径，发力HBM（高带宽存储）细分市场，率先开发出HBM3和HBM3E产品，并向英伟达、微软等供货，由此确立了在HB",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 5.0,
+      "d4Tech": 2.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.13
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "70",
+    "title": "狂飙19%！美光科技市值破万亿美元，纳指大涨1.19%，英伟达目标股价获上调",
+    "content": "美光科技收盘飙高19.29%，市值突破1万亿美元。华尔街分析师的乐观预期显著提振了该股股价。\n*三大股指涨跌互现，纳指涨1.19%\n*美光科技暴涨19.29%，市值破万亿美元\n*WTI油价跌2.81%，布油涨3.58%\n 周二（26日）美股三大股指涨跌互现。科技板块表现强劲，纳指盘中创下历史新高，市场正在评估美伊达成协议、结束战争的可能性。\n截至收盘，道指跌118.02点，跌幅0.23%，报50461.68点；纳指涨312.21点，涨幅1.19%，报26656.18点；标准普尔500指数涨45.65点，涨幅0.61%，报7519.12点，收于历史新高。\n\n道指周二迎来创立130周年纪念日。该指数从最初追踪12家公司的基准股指，演变为如今涵盖30只成分股的平均指数，今年早些时候首次突破五万点大关，而其1896年创立之初的点位还不足41点。\n【热门股表现】\n明星科技股涨跌不一。特斯拉收涨1.78%，谷歌涨1.54%，Meta涨0.34%。下跌阵营中，奈飞收跌1.04%，微软跌0.61%，亚马逊跌0.39%，苹果跌0.16%。\n\n英伟达收跌0.22%。罗斯柴尔德旗下Redburn分析机构认为",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 4.0,
+      "d4Tech": 2.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.13
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "119",
+    "title": "AI重构投资逻辑？这类AI赛道有望跑出万亿级行业巨头05-28 07:160评",
+    "content": "AI重构投资逻辑？这类AI赛道有望跑出万亿级行业巨头05-28 07:160评",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 4.0,
+      "d4Tech": 2.0,
+      "d5Business": 4.0,
+      "qualityScore": 1.13
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "49",
+    "title": "重庆2030年西部陆海新通道货运量目标：超过50万标箱",
+    "content": "全市进出口总额将突破9000亿元。\n“十五五”期间，重庆将突出西部陆海新通道牵引作用，完善现代化集疏运体系和综合服务体系，打造链接欧亚大陆经济走廊的战略枢纽。\n5月27日，重庆市政府新闻办举行“开局起步‘十五五’”重庆专场新闻发布会。重庆市副市长郑向东表示，目标到2030年，重庆经西部陆海新通道货运量超过50万标箱，全市进出口总额突破9000亿元，基本形成贯通欧洲—中国—东盟三大市场的产业链供应链枢纽。\n重庆处在“一带一路”和长江经济带的连接点上，已构建起西部陆海新通道、中欧班列、长江黄金水道相衔接的通道网络，是全国首个“五型”国家物流枢纽城市。其中，西部陆海新通道通达全球128个国家和地区的593个港口、“十四五”期间运输箱量和货运值均增长3倍以上。\n西部陆海新通道是在2019年上升为国家战略的。当年国家发展和改革委发布的《西部陆海新通道总体规划》提出，着力打造国际性综合交通枢纽，充分发挥重庆位于“一带一路”和长江经济带交汇点的区位优势，建设通道物流和运营组织中心。\n郑向东表示，“十五五”时期，重庆将积极融入新发展格局，放大通道枢纽优势，以制度型开放为重点，着力构建“一区两体系”。“",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 1.0,
+      "d4Tech": 2.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.13
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "202",
+    "title": "8财务造假，股价重挫90%，A股又一公司被重罚，大股东父女也双双受罚",
+    "content": "8财务造假，股价重挫90%，A股又一公司被重罚，大股东父女也双双受罚",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 3.0,
+      "d4Tech": 0.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.07
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "171",
+    "title": "日本股市跌超400点，韩国股市也跌了，SK海力士跌超3%",
+    "content": "日本股市跌超400点，韩国股市也跌了，SK海力士跌超3%",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 4.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.04
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "217",
+    "title": "中国证监会",
+    "content": "中国证监会",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 2.0,
+      "d4Tech": 1.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.04
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "166",
+    "title": "证监会副主席刘浩凌：推出更多有力度的改革开放举措",
+    "content": "证监会副主席刘浩凌：推出更多有力度的改革开放举措",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 2.0,
+      "d4Tech": 1.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.04
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "117",
+    "title": "“加息噩梦”更近了？美联储官员再“放鹰”：已做好准备，取决于通胀趋势05-28 08:150评",
+    "content": "“加息噩梦”更近了？美联储官员再“放鹰”：已做好准备，取决于通胀趋势05-28 08:150评",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 3.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 1.04
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "96",
+    "title": "股票",
+    "content": "股票",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 5.0,
+      "d4Tech": 1.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.04
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "251",
+    "title": "“电建一号”传回首批高清影像",
+    "content": "“电建一号”传回首批高清影像",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 2.0,
+      "d4Tech": 4.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.01
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "224",
+    "title": "免责条款",
+    "content": "免责条款",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 2.0,
+      "d4Tech": 2.0,
+      "d5Business": 2.0,
+      "qualityScore": 1.01
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "176",
+    "title": "估值280亿的独角兽清陶能源IPO：产品“越卖越亏”、产能大幅闲置",
+    "content": "估值280亿的独角兽清陶能源IPO：产品“越卖越亏”、产能大幅闲置",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 4.0,
+      "d4Tech": 2.0,
+      "d5Business": 3.0,
+      "qualityScore": 1.01
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "85",
+    "title": "军事",
+    "content": "军事",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 1.0,
+      "d4Tech": 3.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.98
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "66",
+    "title": "A股四大指数开盘表现分化，市场逾3000股下跌",
+    "content": "盘面上，存储器、光伏、短剧游戏概念股走强。\n5月27日，A股四大指数开盘表现分化，沪指跌0.16%，深证成指跌0.05%，创业板指涨0.26%，科创综指涨0.1%。\n\n盘面上，宇树机器人、电商、核聚变、先进封装、黄金、超硬材料、CPO概念股走弱，存储器、光伏、短剧游戏概念股走强。市场逾3000股下跌。\n个股方面，兆易创新高开近3%，公司提示，持有长鑫科技股份仅占其当前总股本的1.80%，持股比例较小。\n\n沪电股份低开超2%，公司公告，随着PCB行业整体产能持续释放，未来市场竞争预计将会加剧。\n\n光大证券认为，科技主线前期积累的大量获利盘的兑现压力，对当前行情的制约趋于放大，短线市场或维持高位震荡、结构分化格局。需警惕高位题材补跌风险。",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 4.0,
+      "d4Tech": 3.0,
+      "d5Business": 2.0,
+      "qualityScore": 0.98
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "116",
+    "title": "又谈崩了？特朗普反对伊朗控制霍尔木兹海峡05-28 08:300评",
+    "content": "又谈崩了？特朗普反对伊朗控制霍尔木兹海峡05-28 08:300评",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 3.0,
+      "d4Tech": 0.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.95
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "59",
+    "title": "晓数点丨全球存储三巨头，集体跻身“万亿美元市值俱乐部”",
+    "content": "一图速览>>\n5月26日，美光科技单日涨超19%，继三星电子后成为存储三巨头中第二家万亿美元市值公司。5月27日早间，SK海力士大涨14%，市值亦突破1万亿美元。\n至此，全球存储三大巨头已集体跻身“万亿美元市值俱乐部”。",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 4.0,
+      "d4Tech": 0.0,
+      "d5Business": 4.0,
+      "qualityScore": 0.95
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "182",
+    "title": "信得科技转战港股：曾因串标被禁3年，社保欠缴5500万",
+    "content": "信得科技转战港股：曾因串标被禁3年，社保欠缴5500万",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 2.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 4.0,
+      "qualityScore": 0.92
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "31",
+    "title": "盒马风波背后：严筱磊当学于东来",
+    "content": "因“贵妃粉耳”产品包装标签争议，盒马公开道歉了。\n25日晚，盒马向媒体回应：“向广大网友和消费者郑重道歉。”\n盒马表示相关商品全部下架，内部将复盘和改进上架审核流程。盒马坚决反对展示和传递低俗不良信息，将持续加强商品品质和标签审核，避免类似情况再次发生。\n这波舆情来得快，盒马处理得也快。\n事件从曝光到商品下架总时长不超过24小时，不禁让人感慨：盒马的效率和速度还是一如既往，危机公关的技能点满了。\n这半年，盒马遇上的事情不少。1月份的水仙误送致中毒事件；4月份的小龙虾食品安全事件；以及这两天发生的“贵妃粉耳”产品包装标签争议……半年的时间，盒马T0级的品牌舆情就遇上了三起。\n半年三次舆情，这“中奖率”不低了。\n零售行业有问题是一种常态，就连零售标杆胖东来也会被维权，但事后复盘来看，零售行业大都是偶发性事件。\n对于盒马而言，情况则有些不同。\n舆情频发背后到底是“偶发问题”还是“管理问题”？争议产品下架了问题是不是就真的解决了？问题发生之后，到底谁该为品牌形象资产的损失负责？\n这轮舆情暴露出的这些深层次的问题，可能更值得深究。\n争议背后，GMV目标与品控的权衡与取舍\n零售企业的品控、服务等问",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 3.0,
+      "d4Tech": 1.0,
+      "d5Business": 4.0,
+      "qualityScore": 0.92
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "122",
+    "title": "深圳的这场会议，传出阵阵掌声05-28 07:000评",
+    "content": "深圳的这场会议，传出阵阵掌声05-28 07:000评",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 3.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.92
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "139",
+    "title": "午评：沪指半日跌0.84% 全市场超4500只个股下挫05-26 11:360评",
+    "content": "午评：沪指半日跌0.84% 全市场超4500只个股下挫05-26 11:360评",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 2.0,
+      "d3Market": 4.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.92
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "158",
+    "title": "群消息回复不及时被取消年终奖？ 疑似国盛证券研究所群聊截图惹关注",
+    "content": "群消息回复不及时被取消年终奖？ 疑似国盛证券研究所群聊截图惹关注",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 2.0,
+      "qualityScore": 0.92
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "264",
+    "title": "【03-09】一图速览 | 2026年政府工作报告",
+    "content": "【03-09】一图速览 | 2026年政府工作报告",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 5.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.85
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "67",
+    "title": "前理财顾问爆料：宜信类固收规模约500亿，底层资产包括小额信贷等",
+    "content": "正在统一测算数据，预计4到6周内会公布良性清退方案，并逐一与客户签订协议。\n“我1年半之前刚投进去了1000多万，听到清退的消息后人都懵了，现在只希望能把本金顺利拿回来。”投资者陈先生（化名）说。\n近日，宜信启动旗下类固收产品“良性清退”的消息引发市场高度关注。第一财经在多个投资者群发现，宜信的客群以高净值客户为主，投资金额均较大，尤其以百万元以上的投资者占据多数，因此对清退方案颇为关注。\n根据宜信此前的回应，目前正在统一测算数据，待方案形成并向主管部门汇报后，预计4到6周内会公布良性清退方案，并逐一与客户签订协议。\n一位自称曾在宜信工作了14年的前中高级别理财顾问赵先生（化名）对记者说，据他估算，目前宜信的“类固收”产品规模大约500亿元左右。“如果以这个规模计算，按照之前传闻的净本金兑付，再给宜信3-5年的时间缓冲，最终兑付应该问题不大。”他说。\n类固收的底层资产是什么？\n事实上，“净本金兑付”也是目前最具争议的质疑点。根据市场流传的可能的兑付规则，兑付基数核算方式为投资者持有余额扣除累计已分配收益，即后续将剔除投资者历史全部获利收益，仅以剩余本金作为分期兑付的计算基数。\n第一财经",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 3.0,
+      "d4Tech": 0.0,
+      "d5Business": 3.0,
+      "qualityScore": 0.83
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "142",
+    "title": "三大巨头竞购朴朴？即时零售迈入寡头时代05-26 08:430评",
+    "content": "三大巨头竞购朴朴？即时零售迈入寡头时代05-26 08:430评",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 3.0,
+      "d4Tech": 0.0,
+      "d5Business": 4.0,
+      "qualityScore": 0.83
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "207",
+    "title": "2024巴菲特股东大会",
+    "content": "2024巴菲特股东大会",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 2.0,
+      "d4Tech": 0.0,
+      "d5Business": 5.0,
+      "qualityScore": 0.83
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "177",
+    "title": "力勤资源IPO：实控人年薪2517万，兄弟拿1900万、被疑“技术性离婚”",
+    "content": "力勤资源IPO：实控人年薪2517万，兄弟拿1900万、被疑“技术性离婚”",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 2.0,
+      "d4Tech": 0.0,
+      "d5Business": 4.0,
+      "qualityScore": 0.83
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "159",
+    "title": "净值单日暴跌31.5%创记录，场内4个跌停，国投瑞银因何“翻车”？",
+    "content": "净值单日暴跌31.5%创记录，场内4个跌停，国投瑞银因何“翻车”？",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 2.0,
+      "d4Tech": 0.0,
+      "d5Business": 5.0,
+      "qualityScore": 0.83
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "181",
+    "title": "思谋科技冲港股IPO引争议：对赌赎回条款压顶、高管股权激励“零元购”",
+    "content": "思谋科技冲港股IPO引争议：对赌赎回条款压顶、高管股权激励“零元购”",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 5.0,
+      "qualityScore": 0.8
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "34",
+    "title": "AI会让HR原地起飞吗？",
+    "content": "在AI时代，SSC是冲击最大、风险最高的HR职能之一，因为这个模块的本质就是处理标准化、高频、大批量的事务性工作，这正是AI和自动化的绝对优势区。人类员工的追求，应该维护这个模块的高效运转。因此，他们需要管两头：一头是模型的搭建；另一头是处理例外、应急事项或AI无法处理的员工情绪。\n但值得玩味的是，如果按照这种方式运作SSC，人类员工在建好模型之后，就只能成为AI的助理，价值被大大降低，SSC的从业者们也会失去了光明的前途。其实，过去的SSC也被数字化工具冲击，只不过，AI的强大让这种冲击的程度呈指数级增长。\n破解之道还是“升维”，SSC要从过去单纯的“运行流程”，走向“数据运营”“产品运营”“解决方案”“数据规划”等高价值工作。他们要基于战略、业务、文化等背景，规划出人力资源管理职能的数据结构，推动数据沉淀，执行数据清洗，为各个HR模块的运作提供基础弹药，也要亲自下场做交付产品或解决方案。我甚至认为，在AI时代，一个好的SSC的重要性可以比肩OD。\n01\nHRM基本流程运行——无人工厂\n对于这类标准化工作，数字化工具已经大量进行了替代，加上AI的介入，几乎完全可以脱离HR的干预。换言",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 1.0,
+      "d4Tech": 5.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.8
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "199",
+    "title": "5王思聪、王健林父子，被逼到崩溃边缘",
+    "content": "5王思聪、王健林父子，被逼到崩溃边缘",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 2.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 0.8
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "222",
+    "title": "诚征英才",
+    "content": "诚征英才",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 2.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 0.8
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "236",
+    "title": "盯盘",
+    "content": "盯盘",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 3.0,
+      "d4Tech": 1.0,
+      "d5Business": 2.0,
+      "qualityScore": 0.8
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "108",
+    "title": "午评：创业板指探底回升涨0.21%，电力、半导体板块集体走强",
+    "content": "午评：创业板指探底回升涨0.21%，电力、半导体板块集体走强",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 4.0,
+      "d4Tech": 1.0,
+      "d5Business": 2.0,
+      "qualityScore": 0.8
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "104",
+    "title": "品牌主场",
+    "content": "品牌主场",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 3.0,
+      "d4Tech": 1.0,
+      "d5Business": 2.0,
+      "qualityScore": 0.8
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "18",
+    "title": "\"新疆奶王\"的困局：奶价跌了，牛卖了，疆外市场也在缩水",
+    "content": "2026年一季报，天润乳业可以稍稍喘口气。净利同比扭亏，奶价下行带来的震荡慢慢放缓，改善利润的基本面初见成效。\n但这丝喘息之机，很难掩盖过去数年里那场代价不菲的扩张试验。\n2014年，天润乳业把“重点拓展疆外市场”写进年报，被视为最有可能走出新疆、走向全国的区域乳企。\n那么，一家全国性乳企需要具备什么？\n前提条件是，充足的奶源，稳定的渠道，以及深入人心的品牌认知。\n过去十多年里，天润乳业每一个动作都在朝着这个标准答案去，但从后续财报数据来看，随之而来的连锁反应不断带来新的问题和阵痛。\n这一课，天润乳业上了十余年，成本仍在持续累积。\n01.两度试水，两种打法\n在区域乳企出疆的案例中，天润乳业是比较典型的那个：有新疆奶源的地域禀赋，又处于远离东部市场的最西部。\n这家企业前身是新疆天宏纸业股份有限公司，2013年转型为乳制品加工企业，并借壳上市，由新疆生产建设兵团农十二师国有资产经营有限公司控股。\n过去十余年，天润乳业在“让好奶走出新疆”这件事上，有过两次尝试。\n2015-2017年，是天润乳业出疆的第一次探索。彼时，其主打产品爱克林浓缩系列酸奶，创造了新疆酸奶单品销售记录。这款酸奶并没有很",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 2.0,
+      "d4Tech": 3.0,
+      "d5Business": 2.0,
+      "qualityScore": 0.74
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "184",
+    "title": "空壳子公司扎堆+财务数据疑修饰，北方实验IPO遇核心争议",
+    "content": "空壳子公司扎堆+财务数据疑修饰，北方实验IPO遇核心争议",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 2.0,
+      "d4Tech": 0.0,
+      "d5Business": 4.0,
+      "qualityScore": 0.71
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "155",
+    "title": "一张合影疑似拍出豪门大战：洁丽雅藏了多少秘密？",
+    "content": "一张合影疑似拍出豪门大战：洁丽雅藏了多少秘密？",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 2.0,
+      "d4Tech": 0.0,
+      "d5Business": 4.0,
+      "qualityScore": 0.71
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "150",
+    "title": "“父母状告女儿，姐弟互相罢免”，17万股东“付费吃瓜”光伏豪门内斗",
+    "content": "“父母状告女儿，姐弟互相罢免”，17万股东“付费吃瓜”光伏豪门内斗",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 2.0,
+      "d4Tech": 0.0,
+      "d5Business": 4.0,
+      "qualityScore": 0.71
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "149",
+    "title": "银行财眼｜广东华润银行深圳四海社区支行被罚款1万元 因管理不善导致金融许可证遗失",
+    "content": "银行财眼｜广东华润银行深圳四海社区支行被罚款1万元 因管理不善导致金融许可证遗失",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 2.0,
+      "qualityScore": 0.71
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "174",
+    "title": "三年营收翻4倍，现金流却连负两年，绿控传动的“纸面富贵”藏不住了",
+    "content": "三年营收翻4倍，现金流却连负两年，绿控传动的“纸面富贵”藏不住了",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 1.0,
+      "d4Tech": 0.0,
+      "d5Business": 5.0,
+      "qualityScore": 0.71
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "124",
+    "title": "越野跑赛事井喷、九成亏损，业内人士：你只要是注册一个公司，就可以办赛05-28 01:040评",
+    "content": "越野跑赛事井喷、九成亏损，业内人士：你只要是注册一个公司，就可以办赛05-28 01:040评",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 4.0,
+      "d4Tech": 0.0,
+      "d5Business": 2.0,
+      "qualityScore": 0.71
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "204",
+    "title": "10实控人增持近50万股，闻泰科技结束长达11天的连续跌停",
+    "content": "10实控人增持近50万股，闻泰科技结束长达11天的连续跌停",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 4.0,
+      "d4Tech": 0.0,
+      "d5Business": 2.0,
+      "qualityScore": 0.71
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "168",
+    "title": "A股三大指数开盘集体下跌，沪指跌0.33%",
+    "content": "A股三大指数开盘集体下跌，沪指跌0.33%",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 5.0,
+      "d4Tech": 0.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.71
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "140",
+    "title": "维也纳酒店毛巾擦完马桶擦杯子、全季酒店用客人牙刷洗杯子……官方通报05-26 11:110评",
+    "content": "维也纳酒店毛巾擦完马桶擦杯子、全季酒店用客人牙刷洗杯子……官方通报05-26 11:110评",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 3.0,
+      "d4Tech": 0.0,
+      "d5Business": 2.0,
+      "qualityScore": 0.71
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "265",
+    "title": "【03-09】一图读懂 | 政府工作报告能源看点",
+    "content": "【03-09】一图读懂 | 政府工作报告能源看点",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 4.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.68
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "214",
+    "title": "2025年两会财经报道",
+    "content": "2025年两会财经报道",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 3.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.68
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "35",
+    "title": "员工最需要的领导力，90%的老板都给错了",
+    "content": "企业在领导力方面的投入前所未有地高，但员工对领导者的信任却比以往任何时候都低。全球范围内，员工和管理者的敬业度得分不断下降，职业倦怠现象愈发严重，许多领导力培训项目虽构建了令人印象深刻的框架，却收效甚微。\n通常的诊断结果是领导者需要改进，要更加真诚、更具同理心、更能推动变革。但如果这个诊断是错误的呢？如果领导力的失败并非因为领导者缺乏正确的风格，而是因为他们误解了下属对他们的需求呢？\n在各个行业，领导者都被鼓励培养一种一致的风格，即赋予下属权力、激励他们并传达目标。这些建议并非毫无道理。但它们基于一个很少被质疑的假设：有效的领导力在各种情况下大致相同。\n然而在实践中，并非如此。\n在不确定时刻放权的领导者，可能引发焦虑而非投入。当下属渴望明确方向时强调同理心的领导者，或许能让他们暂时感觉良好，但最终会使他们失去方向。拥有引人瞩目的愿景但奖励分配不公的领导者，很快就会失去信任。在上述每种情况下，领导者或许都在按教科书的建议行事，但依然失败了。\n问题不在于努力程度或意图，而在于误判。领导力被视为领导者个人的特质，而非一种由下属在特定时刻的需求所塑造的关系。这种视角的转变改变了一切。\n追随背后",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 0.68
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "51",
+    "title": "收盘丨沪指跌1.25%，白酒板块逆市走强",
+    "content": "市场热点较为杂乱，全市场近4500只个股下跌。\n5月27日，四大股指收盘涨跌不一，沪指跌1.25%，深成指跌0.88%，创业板指涨0.07%，科创综指跌2.53%。\n\n盘面上，人形机器人、超硬材料、黄金、存储器、工业金属、商业航天概念股回调；白酒、电力、煤炭板块走强。\n具体来看，白酒概念股集体反弹。水井坊涨停，酒鬼酒、今世缘等涨超5%。\n\n有色金属板块走低，黄金股跌幅明显，四川黄金跌超8%，西部黄金跌超6%。\n\n沪深两市成交额3.24万亿，较上一个交易日缩量51亿。盘面上，市场热点较为杂乱，全市场近4500只个股下跌。",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 5.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.6
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "120",
+    "title": "洪灏：当前AI泡沫与2000年互联网泡沫相似，泡沫并不可怕05-28 07:120评",
+    "content": "洪灏：当前AI泡沫与2000年互联网泡沫相似，泡沫并不可怕05-28 07:120评",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 5.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.6
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "203",
+    "title": "910倍大牛股，突然跌停！热门赛道，集体下跌！发生了什么？",
+    "content": "910倍大牛股，突然跌停！热门赛道，集体下跌！发生了什么？",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 5.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.6
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "131",
+    "title": "摩根大通：市场高估了央行加息风险，低波动股票或受益05-26 22:420评",
+    "content": "摩根大通：市场高估了央行加息风险，低波动股票或受益05-26 22:420评",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 4.0,
+      "d4Tech": 0.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.6
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "172",
+    "title": "昨夜，美股续创新高",
+    "content": "昨夜，美股续创新高",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 4.0,
+      "d4Tech": 0.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.6
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "162",
+    "title": "光大永明人寿巨亏之后迎来新掌门，精算老将张晨松能否打赢“翻身仗”",
+    "content": "光大永明人寿巨亏之后迎来新掌门，精算老将张晨松能否打赢“翻身仗”",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 2.0,
+      "d4Tech": 0.0,
+      "d5Business": 3.0,
+      "qualityScore": 0.6
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "146",
+    "title": "近10%小股东说不！杭州银行高管薪酬方案引争议",
+    "content": "近10%小股东说不！杭州银行高管薪酬方案引争议",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 2.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 3.0,
+      "qualityScore": 0.6
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "123",
+    "title": "社媒帖子点燃欧洲半导体妖股，晶圆厂股票突遭资金疯抢05-28 02:110评",
+    "content": "社媒帖子点燃欧洲半导体妖股，晶圆厂股票突遭资金疯抢05-28 02:110评",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 4.0,
+      "d4Tech": 0.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.6
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "125",
+    "title": "车市一线调查：燃油车集体降价，“几年前落地17万的车，现在裸车只要9万元”05-28 00:350评",
+    "content": "车市一线调查：燃油车集体降价，“几年前落地17万的车，现在裸车只要9万元”05-28 00:350评",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 5.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.6
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "169",
+    "title": "单日6只大规模基金成立，主动权益基金四大指标，超去年全年",
+    "content": "单日6只大规模基金成立，主动权益基金四大指标，超去年全年",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 4.0,
+      "d4Tech": 0.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.6
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "198",
+    "title": "4济南和青岛山姆的熟食、饮料被偷吃偷喝？网友：像在吃自助餐！两店开业不到一周，客服：最近出现好多这种情况，将调查处理",
+    "content": "4济南和青岛山姆的熟食、饮料被偷吃偷喝？网友：像在吃自助餐！两店开业不到一周，客服：最近出现好多这种情况，将调查处理",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 3.0,
+      "d4Tech": 0.0,
+      "d5Business": 2.0,
+      "qualityScore": 0.6
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "151",
+    "title": "又一款国民饮料，卖不动了",
+    "content": "又一款国民饮料，卖不动了",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 5.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.6
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "248",
+    "title": "2.59亿千瓦！南方电网电力负荷创新高",
+    "content": "2.59亿千瓦！南方电网电力负荷创新高",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 4.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.58
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "206",
+    "title": "中国人民保险集团发布2024年中期业绩",
+    "content": "中国人民保险集团发布2024年中期业绩",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 1.0,
+      "d4Tech": 0.0,
+      "d5Business": 3.0,
+      "qualityScore": 0.48
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "126",
+    "title": "中东供应受阻推高国际铝价，美国太阳能行业或再遭成本冲击05-28 00:030评",
+    "content": "中东供应受阻推高国际铝价，美国太阳能行业或再遭成本冲击05-28 00:030评",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 4.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.48
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "220",
+    "title": "凤凰新媒体介绍",
+    "content": "凤凰新媒体介绍",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.45
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "179",
+    "title": "超纯材料“带病”闯关？董秘与审计机构关联引关注，业绩增长伴多重争议",
+    "content": "超纯材料“带病”闯关？董秘与审计机构关联引关注，业绩增长伴多重争议",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 1.0,
+      "d5Business": 3.0,
+      "qualityScore": 0.45
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "230",
+    "title": "用户反馈",
+    "content": "用户反馈",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.45
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "237",
+    "title": "VIP",
+    "content": "VIP",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.45
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "73",
+    "title": "首页",
+    "content": "首页",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.45
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "231",
+    "title": "网站地图",
+    "content": "网站地图",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.45
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "263",
+    "title": "【03-10】一图速览！“十五五”109项重大工程项目",
+    "content": "【03-10】一图速览！“十五五”109项重大工程项目",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.9,
+      "d3Market": 0.6,
+      "d4Tech": 0.5,
+      "d5Business": 0.6,
+      "qualityScore": 0.42
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "161",
+    "title": "国投瑞银及基金经理施成被起诉，涉金融委托理财合同纠纷",
+    "content": "国投瑞银及基金经理施成被起诉，涉金融委托理财合同纠纷",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 1.0,
+      "d4Tech": 0.0,
+      "d5Business": 2.0,
+      "qualityScore": 0.36
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "173",
+    "title": "万亿风口下的冷静玩家：深演智能登陆港股，5479倍超购背后，市场在抢筹什么？",
+    "content": "万亿风口下的冷静玩家：深演智能登陆港股，5479倍超购背后，市场在抢筹什么？",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 1.0,
+      "d4Tech": 1.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.33
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "53",
+    "title": "5年增长33%，上海服务业增加值2030年要达到6万亿",
+    "content": "服务业对2025年上海经济增长贡献率超80%\n上海确定了经济增长主导引擎的“十五五”增长目标：到2030年，上海服务业增加值达6万亿元左右。\n这也就意味着，“十五五”时期，上海服务业增加值要在2025年约4.5万亿元的基础上，增长1/3。\n5月27日，上海市服务业大会召开，大会上公布了《上海市服务业发展“十五五”规划》，同时解读《上海市推进服务业扩能提质的实施意见》（下称《实施意见》），部署下阶段重点工作。\n服务业的经济增长贡献率超80%\n服务业是上海经济增长的主导引擎。2025年，上海服务业增加值规模达44958.70亿元，居全国城市首位，占全市GDP（56708.71亿元）比重达79.3%，对经济增长贡献率超80%。\n从全球城市来看，上海服务经济规模也位列全球城市前列，金融市场成交额超4000万亿元，服务贸易和数字贸易规模屡创新高，集装箱吞吐量连续16年世界第一，每万人高价值发明专利提高到65件。服务业成为城市核心功能的关键支撑。\n不仅如此，服务业也是新质生产力培育的重要领域、扩大新型消费的主要阵地。\n统计公报显示，2025年，上海战略性新兴产业增加值14342.35亿元，占地区生",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.85,
+      "d3Market": 0.75,
+      "d4Tech": 0.7,
+      "d5Business": 0.6,
+      "qualityScore": 0.32
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "115",
+    "title": "凤凰鉴保官 | “好医保”评测04-29 22:060评",
+    "content": "凤凰鉴保官 | “好医保”评测04-29 22:060评",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 2.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.3
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "127",
+    "title": "“2000万”人口城市，能否带动大西北？05-27 22:580评",
+    "content": "“2000万”人口城市，能否带动大西北？05-27 22:580评",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 1.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.24
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "141",
+    "title": "风暴眼丨中国版“绝命毒师”伏法！揭秘三体原CEO许垚投毒轨迹05-26 10:390评",
+    "content": "风暴眼丨中国版“绝命毒师”伏法！揭秘三体原CEO许垚投毒轨迹05-26 10:390评",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.24
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "128",
+    "title": "今夜大变局，全球“大动脉”突传重磅，两类资产直线跳水05-27 22:480评",
+    "content": "今夜大变局，全球“大动脉”突传重磅，两类资产直线跳水05-27 22:480评",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 2.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.24
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "94",
+    "title": "酒业",
+    "content": "酒业",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.5,
+      "d3Market": 0.5,
+      "d4Tech": 0.5,
+      "d5Business": 0.5,
+      "qualityScore": 0.22
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "258",
+    "title": "【05-25】中国电器工业协会继电保护及自动化设备分会九届二次理事会在珠海顺利召开",
+    "content": "【05-25】中国电器工业协会继电保护及自动化设备分会九届二次理事会在珠海顺利召开",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.17
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "196",
+    "title": "2华为郑俊：中国模型加中国算力已经居于世界领先水平",
+    "content": "2华为郑俊：中国模型加中国算力已经居于世界领先水平",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.4,
+      "d4Tech": 0.6,
+      "d5Business": 0.3,
+      "qualityScore": 0.14
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "246",
+    "title": "我国首部天然气水合物领域国家标准发布",
+    "content": "我国首部天然气水合物领域国家标准发布",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.14
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "112",
+    "title": "11：27，A股异动拉升",
+    "content": "11：27，A股异动拉升",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.8,
+      "d4Tech": 0.0,
+      "d5Business": 0.3,
+      "qualityScore": 0.13
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "197",
+    "title": "3中国版“绝命毒师”伏法！揭秘三体原CEO许垚投毒轨迹",
+    "content": "3中国版“绝命毒师”伏法！揭秘三体原CEO许垚投毒轨迹",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.12
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "160",
+    "title": "重亏近50%遭解聘？基金经理将华宝基金告上法庭",
+    "content": "重亏近50%遭解聘？基金经理将华宝基金告上法庭",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.12
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "147",
+    "title": "银行财眼｜十万亿中信银行新行长落定，“老将”吕天贵回归",
+    "content": "银行财眼｜十万亿中信银行新行长落定，“老将”吕天贵回归",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.12
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "226",
+    "title": "京ICP证030609号",
+    "content": "京ICP证030609号",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.12
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "175",
+    "title": "对赌压顶、现金告急：海纳医药的港股IPO生死局",
+    "content": "对赌压顶、现金告急：海纳医药的港股IPO生死局",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.12
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "178",
+    "title": "深陷“高利贷”争议、背负对赌重压：研趣科技闯关港股",
+    "content": "深陷“高利贷”争议、背负对赌重压：研趣科技闯关港股",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.12
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "132",
+    "title": "闻泰刚开始自救，大股东股份就被冻结了05-26 15:220评",
+    "content": "闻泰刚开始自救，大股东股份就被冻结了05-26 15:220评",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.12
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "216",
+    "title": "中国央行",
+    "content": "中国央行",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 1.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.12
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "71",
+    "title": "收盘丨创业板指探底回升涨0.54% 全市场超4000只个股下跌",
+    "content": "市场热点较为杂乱，全市场超4000只个股下跌。\n5月26日，四大股指收盘涨跌不一，沪指跌0.17%，深成指涨0.12%，创业板指涨0.54%，科创综指跌1.42%。\n\n盘面上，半导体、算力硬件产业链全线下挫，光刻机、CPO、存储器方向领跌。商业航天、特高压、AI应用、光伏题材跌幅靠前。有色金属、化工、券商板块走强，PCB、宇树机器人概念股活跃。\n具体来看，有色金属板块涨幅明显，中国铝业、招金黄金等多股涨停。\n\n下跌方面，光通信概念股跌幅巨大，平治信息跌13.17%，炬光科技、光迅科技等多股跌超7%。\n\n沪深两市成交额3.24万亿，较上一个交易日放量380亿。盘面上，市场热点较为杂乱，全市场超4000只个股下跌。",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 1.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.12
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "62",
+    "title": "三星电子薪资协议获工会成员73.7%投票赞成，内部分歧仍需弥合",
+    "content": "该投票率创下三星创办以来类似工会投票的新高，但后续在内部奖金分配不均的问题、股东团体利益的协调上仍有分歧需要弥合。\n\n5月27日上午，三星电子工会表示其成员已批准薪资协议，73.7%投票赞成。27日，截至韩国当地时间约9点35分，三星电子涨6.77%至319250韩元/股。\n对外经济贸易大学朝鲜半岛问题研究中心兼职研究员权小星对第一财经记者分析说，该投票率创下三星创办以来类似工会投票的新高，但后续在内部奖金分配不均的问题、股东团体利益的协调上仍然有分歧需要弥合。\n本次组织罢工及谈判的“超企业工会”是三星电子最大工会，成员约7万人，其中约90%为半导体（DS）部门员工。据薪资协议，DS部门旗下存储芯片事业部的员工2026年度有望最高获得约6亿韩元的绩效奖金。\n权小星认为，尽管这次薪资协议获得工会的投票通过，但是三星电子内部奖金分配不均已导致非存储业务部门及公共事业部门取消各类会议，晶圆代工、测试封装板块怠工现象蔓延。而这两大环节正是高带宽内存（HBM）后端封装与检测的核心工序。封装测试一旦受阻，将冲击三星为英伟达新一代AI加速器供货的HBM4产能。\n在股东层面，代表三星电子部分少数股东利",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 1.0,
+      "qualityScore": 0.12
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "102",
+    "title": "银行财眼",
+    "content": "银行财眼",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.1,
+      "d3Market": 0.2,
+      "d4Tech": 0.3,
+      "d5Business": 0.4,
+      "qualityScore": 0.11
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "219",
+    "title": "研究院",
+    "content": "研究院",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 1.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.09
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "75",
+    "title": "视频",
+    "content": "视频",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 1.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.09
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "267",
+    "title": "【10-24】党的二十届四中全会公报一图速览",
+    "content": "【10-24】党的二十届四中全会公报一图速览",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.4,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.07
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "136",
+    "title": "三体宇宙发声明回应“原CEO许垚被执行死刑”05-26 14:150评",
+    "content": "三体宇宙发声明回应“原CEO许垚被执行死刑”05-26 14:150评",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.5,
+      "qualityScore": 0.06
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "241",
+    "title": "友情链接",
+    "content": "友情链接",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "234",
+    "title": "电报",
+    "content": "电报",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "92",
+    "title": "公益",
+    "content": "公益",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "242",
+    "title": "沪ICP备14040942号-9",
+    "content": "沪ICP备14040942号-9",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "212",
+    "title": "2025长白山高峰论坛",
+    "content": "2025长白山高峰论坛",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "209",
+    "title": "all_cj@ifeng.com",
+    "content": "all_cj@ifeng.com",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "228",
+    "title": "网站声明",
+    "content": "网站声明",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "186",
+    "title": "邹佳铭北京和昶律师事务所主任",
+    "content": "邹佳铭北京和昶律师事务所主任",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "238",
+    "title": "FM",
+    "content": "FM",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "191",
+    "title": "《封面》对话林长波",
+    "content": "《封面》对话林长波",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "167",
+    "title": "段永平举牌，泡泡玛特股价大涨",
+    "content": "段永平举牌，泡泡玛特股价大涨",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "192",
+    "title": ".",
+    "content": ".",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "240",
+    "title": "下载",
+    "content": "下载",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "88",
+    "title": "佛教",
+    "content": "佛教",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "93",
+    "title": "教育",
+    "content": "教育",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "74",
+    "title": "资讯",
+    "content": "资讯",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "114",
+    "title": "欧莱雅马晓宇的领导力“美学”：先修己，再度人|《封面》对话05-19 17:530评",
+    "content": "欧莱雅马晓宇的领导力“美学”：先修己，再度人|《封面》对话05-19 17:530评",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "90",
+    "title": "数码",
+    "content": "数码",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "91",
+    "title": "健康",
+    "content": "健康",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "80",
+    "title": "体育",
+    "content": "体育",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "235",
+    "title": "话题",
+    "content": "话题",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "221",
+    "title": "投资者关系 Investor Relations",
+    "content": "投资者关系 Investor Relations",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "79",
+    "title": "娱乐",
+    "content": "娱乐",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "101",
+    "title": "封面",
+    "content": "封面",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "229",
+    "title": "联系方式",
+    "content": "联系方式",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "233",
+    "title": "首页",
+    "content": "首页",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "99",
+    "title": "中国深度财经",
+    "content": "中国深度财经",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "87",
+    "title": "旅游",
+    "content": "旅游",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "244",
+    "title": "沪金信备 [2021] 2号",
+    "content": "沪金信备 [2021] 2号",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "84",
+    "title": "科技",
+    "content": "科技",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "81",
+    "title": "时尚",
+    "content": "时尚",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "205",
+    "title": "2024新经济科创论坛",
+    "content": "2024新经济科创论坛",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "77",
+    "title": "凤凰卫视",
+    "content": "凤凰卫视",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "54",
+    "title": "下月将迎来80岁生日，特朗普称体检结果“完美”",
+    "content": "“各项检查结果都‘完美’。”特朗普写道。\n美国总统特朗普于当地时间周二（26日）表示，他一年一度的体检进行得“非常完美”。\n“各项检查结果都‘完美’。”特朗普在从首都华盛顿附近的里德军事医院乘车返回白宫途中，在社交平台上发帖写道。\n随后，白宫发布了一张特朗普的照片，并配文：“健康状况‘完美’！”\n这是特朗普去年重返白宫以来接受的第三次体检，此前其手部出现瘀青等情况曾引发外界对其健康状况的猜测。\n将迎来80岁生日\n曾在美国前总统奥巴马、小布什和克林顿任内担任白宫医生的库尔曼（Jeffrey Kuhlman）博士表示，对于像特朗普这样高龄的总统而言，一次全面的体检通常应包含心脏检查、常见癌症筛查以及认知能力评估，此外还有身高、体重和血压等基础项目的检测。\n白宫尚未披露此次就医的具体内容。\n6月14日特朗普将迎来80岁生日。“我感觉自己和50年前没什么两样,我不是老年人。我比老年人年轻得多。”特朗普本月初在白宫的一次活动中表示，尽管他酷爱快餐、牛排和健怡可乐，但他依然保持着“高能量”状态。他还补充说：“也许垃圾食品其实是有益的。”\n据官方记录显示，特朗普身高6英尺3英寸（约合191厘米），在",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "225",
+    "title": "意见反馈",
+    "content": "意见反馈",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "78",
+    "title": "财经",
+    "content": "财经",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "86",
+    "title": "文化",
+    "content": "文化",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "185",
+    "title": "查看更多",
+    "content": "查看更多",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "95",
+    "title": "美食",
+    "content": "美食",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "210",
+    "title": "http://weibo.com/financeifeng/",
+    "content": "http://weibo.com/financeifeng/",
+    "category": "市场与价格",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "188",
+    "title": "畅游中国：沈阳，一座用烟火气和历史黄瓦写就的“幸福之城”",
+    "content": "畅游中国：沈阳，一座用烟火气和历史黄瓦写就的“幸福之城”",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "193",
+    "title": "《前行者》",
+    "content": "《前行者》",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "42",
+    "title": "职场中最大的恶，是用顺从掩盖恶意",
+    "content": "前两天，我看了一个孔子杀少正卯的故事，颇有些感触。\n孔子在52岁那年，当上了鲁国的大司寇，还代理宰相。\n上任七天，就把鲁国大夫少正卯给杀了。\n学生子贡不理解，问他：“少正卯是鲁国的大名人，您杀了他，不怕被人说是公报私仇吗？”\n孔子说，世上有五类人该杀，盗贼都不在此列。这五类人是：心达而险的、行僻而坚的、言伪而辩的、记丑而博的、顺非而泽的。少正卯兼而有之，所以当杀。\n在职场上，这5类人也是很危险的，尤其是最后一类人，在职场中非常普遍，但又极其隐蔽，极具破坏力，这就是“顺非而泽”。\n我始终觉得，职场中最大的恶意，就是用顺从掩盖恶意。\n今天，我们一起聊聊这个话题。\n01\n职场中最大的恶，是用顺从掩盖恶意\n什么是顺非而泽？顺非，是顺应别人的错误，而则，是润色别人的错误。\n他们之所以会这样做，要么是为了讨好他人，要么是害怕得罪人，最终却让错误不断扩大，给团队带来严重的损失。\n职场中总是有一批干部或员工，他总是顺从他的团队和上级的错误。\n当老板定了一个错误的战略时，他明明知道是错误的，但他不敢讲，他怕得罪老板，他怕老板不开心影响他的仕途，影响他的加薪。\n但他从来不思考，这个战略能不能让公司良性和可",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "89",
+    "title": "国学",
+    "content": "国学",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "143",
+    "title": "更多",
+    "content": "更多",
+    "category": "技术与产品",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "232",
+    "title": "帮助",
+    "content": "帮助",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "227",
+    "title": "关于我们",
+    "content": "关于我们",
+    "category": "政策与标准",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  },
+  {
+    "id": "100",
+    "title": "上市公司研究院",
+    "content": "上市公司研究院",
+    "category": "公司与资本",
+    "expected": {
+      "d1Policy": null,
+      "d3Market": null,
+      "d4Tech": null,
+      "d5Business": null,
+      "qualityScore": null
+    },
+    "model_reference": {
+      "d1Policy": 0.0,
+      "d3Market": 0.0,
+      "d4Tech": 0.0,
+      "d5Business": 0.0,
+      "qualityScore": 0.0
+    },
+    "annotator": "",
+    "reviewer": "",
+    "reason": ""
+  }
+]

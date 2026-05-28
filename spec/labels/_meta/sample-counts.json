@@ -1,0 +1,37 @@
+{
+  "source": "tmp/kyo-58-local-smoke-20260528/annotation-candidates.csv",
+  "source_total": 275,
+  "real_vs_synthetic_policy": {
+    "real_source": "KYO-58 candidate export",
+    "synthetic_source": "KYO-54 and generated benchmark samples",
+    "mixing_allowed": false
+  },
+  "class_counts": {
+    "prefilter": 275,
+    "ner": 275,
+    "scorer": 275,
+    "scrubber": 275,
+    "backtest": 275,
+    "entities": 275,
+    "timeline": 0,
+    "daily-report": 0,
+    "vector-benchmark": 0
+  },
+  "gaps": [
+    {
+      "class": "timeline",
+      "missing": "历史时间线真实产线样本（按页面口径）",
+      "owner": "业务/运营"
+    },
+    {
+      "class": "daily-report",
+      "missing": "日报成稿人工质量标注样本",
+      "owner": "产业研究员"
+    },
+    {
+      "class": "vector-benchmark",
+      "missing": "向量召回人工相关性对照集",
+      "owner": "算法/业务共建"
+    }
+  ]
+}
