@@ -1,5 +1,6 @@
 import { SourceFetchError } from "@fe-radar/shared";
 import type { AnnouncementSourceConfig, FetchContext, StandardItem } from "../types";
+import { sseAdapter } from "./sse";
 import type { AnnouncementAdapter } from "./types";
 
 const adapterRegistry: Record<string, AnnouncementAdapter> = {};
@@ -29,3 +30,5 @@ export async function fetchAnnouncements(
     sourceConfig: config,
   });
 }
+
+registerAnnouncementAdapter(sseAdapter);

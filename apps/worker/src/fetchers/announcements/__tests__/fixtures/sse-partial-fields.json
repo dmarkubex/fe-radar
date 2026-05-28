@@ -1,0 +1,22 @@
+{
+  "success": "true",
+  "pageHelp": {
+    "data": [
+      {
+        "TITLE": "远东控股：关于项目中标的公告",
+        "URL": "/disclosure/listedinfo/announcement/c/new/2026-05-20/valid.pdf",
+        "SSEDate": "2026-05-20 09:30:00",
+        "SECURITY_CODE": "600869",
+        "SECURITY_ABBREV": "远东股份"
+      },
+      {
+        "TITLE": "缺链接公告",
+        "SSEDate": "2026-05-20 09:30:00"
+      },
+      {
+        "URL": "/disclosure/listedinfo/announcement/c/new/2026-05-20/missing-title.pdf",
+        "SSEDate": "2026-05-20 09:30:00"
+      }
+    ]
+  }
+}
