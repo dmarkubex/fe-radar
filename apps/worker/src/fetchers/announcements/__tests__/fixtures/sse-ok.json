@@ -1,0 +1,46 @@
+{
+  "success": "true",
+  "pageHelp": {
+    "pageCount": 1,
+    "pageSize": 5,
+    "pageNum": 1,
+    "total": 5,
+    "data": [
+      {
+        "TITLE": "远东控股：关于签订重大合同的公告",
+        "URL": "/disclosure/listedinfo/announcement/c/new/2026-05-20/5885159490.pdf",
+        "SSEDate": "2026-05-20 17:30:00",
+        "SECURITY_CODE": "600869",
+        "SECURITY_ABBREV": "远东股份"
+      },
+      {
+        "TITLE": "亨通光电：2026年第一季度业绩快报",
+        "URL": "/disclosure/listedinfo/announcement/c/new/2026-05-19/5885159001.pdf",
+        "SSEDate": "2026-05-19 18:00:00",
+        "SECURITY_CODE": "600487",
+        "SECURITY_ABBREV": "亨通光电"
+      },
+      {
+        "TITLE": "宝胜股份：关于中标海上风电项目的公告",
+        "URL": "/disclosure/listedinfo/announcement/c/new/2026-05-18/5885158002.pdf",
+        "SSEDate": "2026-05-18 16:45:00",
+        "SECURITY_CODE": "600973",
+        "SECURITY_ABBREV": "宝胜股份"
+      },
+      {
+        "TITLE": "东方电缆：关于重大合同进展的公告",
+        "URL": "/disclosure/listedinfo/announcement/c/new/2026-05-17/5885157003.pdf",
+        "SSEDate": "2026-05-17 15:20:00",
+        "SECURITY_CODE": "603606",
+        "SECURITY_ABBREV": "东方电缆"
+      },
+      {
+        "TITLE": "中天科技：关于股份回购进展的公告",
+        "URL": "/disclosure/listedinfo/announcement/c/new/2026-05-16/5885156004.pdf",
+        "SSEDate": "2026-05-16 14:10:00",
+        "SECURITY_CODE": "600522",
+        "SECURITY_ABBREV": "中天科技"
+      }
+    ]
+  }
+}
