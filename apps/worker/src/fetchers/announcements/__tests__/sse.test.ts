@@ -22,7 +22,7 @@ function robotsResponse(): Awaited<ReturnType<typeof undiciFetch>> {
 }
 
 vi.mock("undici", async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = (await importOriginal()) as Record<string, unknown>;
   return {
     ...actual,
     fetch: vi.fn(),
