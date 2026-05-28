@@ -81,7 +81,7 @@ export const FETCH_SCHEDULE_TZ = "Asia/Shanghai";
 export const DAILY_REPORT_SCHEDULE_CRON = "0 8 * * *";
 export const DAILY_REPORT_SCHEDULE_TZ = "Asia/Shanghai";
 
-export const QUEUE_QUOTES_FETCH = "fe:quotes-fetch";
+export const QUEUE_QUOTES_FETCH = "fe-quotes-fetch";
 export const QUOTES_FETCH_SCHEDULE_CRON = "0 30 15 * * 1-5";
 export const QUOTES_FETCH_SCHEDULE_TZ = "Asia/Shanghai";
 
@@ -96,7 +96,7 @@ export function createQuotesFetchQueue(connection = createRedisConnection()): Qu
   });
 }
 
-export const QUEUE_BRIEFING_GEN = "fe:briefing-gen";
+export const QUEUE_BRIEFING_GEN = "fe-briefing-gen";
 export const BRIEFING_GEN_SCHEDULE_CRON = "0 0 16 * * 1-5";
 export const BRIEFING_GEN_SCHEDULE_TZ = "Asia/Shanghai";
 
@@ -114,7 +114,7 @@ export function createBriefingGenQueue(connection = createRedisConnection()): Qu
   });
 }
 
-export const QUEUE_BRIEFING_PUSH = "fe:briefing-push";
+export const QUEUE_BRIEFING_PUSH = "fe-briefing-push";
 export const BRIEFING_PUSH_SCHEDULE_CRON = "0 5 16 * * 1-5";
 export const BRIEFING_PUSH_SCHEDULE_TZ = "Asia/Shanghai";
 

@@ -5,14 +5,14 @@ export const DAILY_BUDGET_NORMAL = 1300;
 export const DAILY_BUDGET_PRIORITY = 200;
 
 export const QUEUES = {
-  fetch: "fe:fetch",
-  prefilter: "fe:prefilter",
-  ner: "fe:ner",
-  scorer: "fe:scorer",
-  embedder: "fe:embedder",
-  cluster: "fe:cluster",
-  curator: "fe:curator",
-  daily: "fe:daily"
+  fetch: "fe-fetch",
+  prefilter: "fe-prefilter",
+  ner: "fe-ner",
+  scorer: "fe-scorer",
+  embedder: "fe-embedder",
+  cluster: "fe-cluster",
+  curator: "fe-curator",
+  daily: "fe-daily"
 } as const;
 
 export const USER_ROLES = ["viewer", "editor", "admin"] as const;

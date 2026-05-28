@@ -496,14 +496,14 @@ export async function startWorker(): Promise<void> {
     jobId: "schedule-daily-report",
   });
 
-  const cleanupQueue = new Queue("fe:cleanup", { connection, defaultJobOptions: { ...DEFAULT_JOB_OPTIONS, attempts: 1 } });
+  const cleanupQueue = new Queue("fe-cleanup", { connection, defaultJobOptions: { ...DEFAULT_JOB_OPTIONS, attempts: 1 } });
   await cleanupQueue.add("schedule-cleanup", {}, {
     repeat: { pattern: CLEANUP_SCHEDULE_CRON, tz: CLEANUP_SCHEDULE_TZ },
     jobId: "schedule-cleanup",
   });
 
   const cleanupWorker = new Worker(
-    "fe:cleanup",
+    "fe-cleanup",
     async () => {
       const result = await runCleanup();
       logger.info(result, "cleanup completed");
