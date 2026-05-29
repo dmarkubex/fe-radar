@@ -23,3 +23,20 @@ pnpm exec tsx scripts/scoring-backtest.ts samples/scoring.json candidate-config.
 The report includes accuracy, mean absolute score error, curated overlap, and
 per-sample score deltas. Use it before changing `scoring_config` weights or
 thresholds.
+
+## M2 label evaluator
+
+`scripts/m2-label-evaluator.ts` reads the KYO-7/KYO-58 label package under
+`spec/labels` and writes a Markdown gate report for the M2 release metrics:
+prefilter accuracy, NER recall, scorer score MSE, scrubber recall/false
+positive rate, and backtest Pearson correlation.
+
+```bash
+pnpm labels:m2 -- --out /tmp/m2-label-gate.md
+pnpm labels:m2 -- --strict --out /tmp/m2-label-gate.md
+```
+
+The evaluator treats only human fields under `expected.*`, `label`,
+`entities[]`, and `expectedRedactions[]` as truth. Model/reference columns are
+reported as predictions only, and missing human labels produce a
+`blocked/missing labels` verdict instead of a fabricated metric.
