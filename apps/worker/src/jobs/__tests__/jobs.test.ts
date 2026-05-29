@@ -32,6 +32,16 @@ describe("pipeline jobs", () => {
     await expect(runEmbedder("title", "summary", llm)).resolves.toHaveLength(1024);
   });
 
+  it("embedder returns null when scrubber blocks", async () => {
+    const llm = { embedding: vi.fn(async () => { throw new LlmError("SCRUBBER_BLOCKED", "blocked"); }) } as unknown as LlmClient;
+    await expect(runEmbedder("pii title", "pii summary", llm)).resolves.toBeNull();
+  });
+
+  it("embedder rethrows non-scrubber errors", async () => {
+    const llm = { embedding: vi.fn(async () => { throw new Error("network failure"); }) } as unknown as LlmClient;
+    await expect(runEmbedder("title", "summary", llm)).rejects.toThrow("network failure");
+  });
+
   it("cluster lock uses acquire and release lua", async () => {
     const evalMock = vi.fn(async (script: string) => script.includes("SET") ? 1 : 0);
     await expect(withClusterCreateLock({ eval: evalMock } as never, async () => "ok")).resolves.toBe("ok");

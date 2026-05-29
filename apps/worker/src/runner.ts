@@ -228,7 +228,7 @@ async function handleScorerJob(job: { data: PipelineJob }): Promise<void> {
   if (!row) return;
 
   const text = `${row.title}\n${row.content ?? ""}`;
-  const result = await runScorer(text, deepSeek);
+  const result = await runScorer(text, withScrubber(deepSeek));
 
   await db.update(itemAnalysis).set({
     d1Policy: result.d1Policy,
@@ -253,8 +253,10 @@ async function handleEmbedderJob(job: { data: PipelineJob }): Promise<void> {
 
   if (!row) return;
 
-  const embedding = await runEmbedder(row.title, row.summaryZh ?? row.title, qwen);
-  await db.update(itemAnalysis).set({ embedding: JSON.stringify(embedding) as unknown as number[] }).where(eq(itemAnalysis.itemId, itemId));
+  const embedding = await runEmbedder(row.title, row.summaryZh ?? row.title, withScrubber(qwen));
+  if (embedding) {
+    await db.update(itemAnalysis).set({ embedding: JSON.stringify(embedding) as unknown as number[] }).where(eq(itemAnalysis.itemId, itemId));
+  }
 }
 
 async function handleClusterJob(job: { data: PipelineJob }): Promise<void> {
