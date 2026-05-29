@@ -52,8 +52,8 @@ test.describe("release smoke", () => {
   test("daily loads", async ({ page }) => {
     // Navigate to a seeded date so the report is present (seed-release-data seeds 2026-05-24..26).
     await page.goto("/daily?date=2026-05-26");
-    // "产业日报" is always visible in the page header regardless of report data.
-    await expect(page.getByText("产业日报")).toBeVisible();
+    // Assert a section that only renders when sections data is present (not just the page skeleton).
+    await expect(page.getByText("今日判断")).toBeVisible();
   });
 
   test("admin dashboard loads", async ({ page }) => {
