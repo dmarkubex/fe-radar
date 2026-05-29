@@ -6,6 +6,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "dev": "pnpm --filter @fe-radar/web dev",
+    "labels:m2": "tsx scripts/m2-label-evaluator.ts",
     "lint": "pnpm -r lint",
     "prepare": "husky || true",
     "typecheck": "pnpm -r typecheck",
