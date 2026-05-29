@@ -33,4 +33,86 @@ describe("playwright fetcher", () => {
     }
     expect(contexts).toBeLessThanOrEqual(2);
   });
+
+  it("closes both browser and context on pool.close()", async () => {
+    const closedContexts: number[] = [];
+    const closedBrowsers: number[] = [];
+    let browserId = 0;
+
+    const pool = new BrowserContextPool(async () => {
+      const id = browserId;
+      browserId += 1;
+
+      return {
+        async newContext() {
+          return {
+            async newPage() {
+              return {
+                async goto() {},
+                async waitForSelector() {},
+                async evaluate() {
+                  return [];
+                },
+                async close() {}
+              };
+            },
+            async close() {
+              closedContexts.push(id);
+            }
+          };
+        },
+        async close() {
+          closedBrowsers.push(id);
+        }
+      };
+    });
+
+    await pool.acquire("ua-1");
+    await pool.acquire("ua-2");
+
+    await pool.close();
+
+    expect(closedContexts.sort((left, right) => left - right)).toEqual([0, 1]);
+    expect(closedBrowsers.sort((left, right) => left - right)).toEqual([0, 1]);
+  });
+
+  it("closes browsers even if context.close fails", async () => {
+    const closedBrowsers: number[] = [];
+    let browserId = 0;
+
+    const pool = new BrowserContextPool(async () => {
+      const id = browserId;
+      browserId += 1;
+
+      return {
+        async newContext() {
+          return {
+            async newPage() {
+              return {
+                async goto() {},
+                async waitForSelector() {},
+                async evaluate() {
+                  return [];
+                },
+                async close() {}
+              };
+            },
+            async close() {
+              throw new Error("context close failed");
+            }
+          };
+        },
+        async close() {
+          closedBrowsers.push(id);
+        }
+      };
+    });
+
+    await pool.acquire("ua-1");
+    await pool.acquire("ua-2");
+
+    await pool.close();
+
+    expect(closedBrowsers.sort((left, right) => left - right)).toEqual([0, 1]);
+  });
 });
