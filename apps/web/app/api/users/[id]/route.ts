@@ -1,4 +1,4 @@
-import { and, count, eq, ne } from "drizzle-orm";
+import { and, count, eq, isNull, ne } from "drizzle-orm";
 import { auditLogs, getDb, mergeConflicts, users } from "@fe-radar/db";
 import { getRequestUser } from "@/lib/api/authz";
 import { mergeConflictActionSchema, updateUserSchema, validationError } from "@/lib/api/users-schema";
@@ -22,11 +22,25 @@ export async function PUT(request: NextRequest, context: RouteContext): Promise<
     return Response.json({ error: { code: "FORBIDDEN", message: "不能降低自己的 admin 权限" } }, { status: 403 });
   }
 
+  if (actor.id === userId && parsed.data.disabled === true) {
+    return Response.json({ error: { code: "FORBIDDEN", message: "不能停用自己的账号" } }, { status: 403 });
+  }
+
   const db = getDb();
   if (parsed.data.disabled === true) {
-    const [adminCount] = await db.select({ total: count() }).from(users).where(and(eq(users.role, "admin"), ne(users.id, userId)));
+    const [adminCount] = await db.select({ total: count() }).from(users).where(and(eq(users.role, "admin"), isNull(users.disabledAt), ne(users.id, userId)));
     if ((adminCount?.total ?? 0) === 0) {
-      return Response.json({ error: { code: "FORBIDDEN", message: "不能停用最后一个 admin" } }, { status: 403 });
+      return Response.json({ error: { code: "FORBIDDEN", message: "不能停用最后一个活跃 admin" } }, { status: 403 });
+    }
+  }
+
+  if (parsed.data.role && parsed.data.role !== "admin") {
+    const [target] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+    if (target?.role === "admin") {
+      const [adminCount] = await db.select({ total: count() }).from(users).where(and(eq(users.role, "admin"), isNull(users.disabledAt), ne(users.id, userId)));
+      if ((adminCount?.total ?? 0) === 0) {
+        return Response.json({ error: { code: "FORBIDDEN", message: "不能降级最后一个活跃 admin" } }, { status: 403 });
+      }
     }
   }
 
