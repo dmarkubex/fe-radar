@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const adminUsername = process.env.E2E_ADMIN_USERNAME ?? "admin";
-const adminPassword = process.env.E2E_ADMIN_PASSWORD ?? "admin-password";
+const adminPassword = process.env.E2E_ADMIN_PASSWORD ?? process.env.SEED_ADMIN_PASSWORD ?? "admin123";
 
 async function login(page: Page): Promise<void> {
   const csrfResponse = await page.request.get("/api/auth/csrf");
@@ -17,6 +17,9 @@ async function login(page: Page): Promise<void> {
     maxRedirects: 0
   });
   expect([302, 303]).toContain(response.status());
+  const location = response.headers().location;
+  expect(location, "credentials login should not redirect back with an auth error").toBeTruthy();
+  expect(location).not.toContain("error=CredentialsSignin");
 }
 
 test.describe("release smoke", () => {
