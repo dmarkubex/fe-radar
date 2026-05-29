@@ -29,12 +29,13 @@ test.describe("release smoke", () => {
 
   test("timeline loads", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "时间线" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "全量信息流" })).toBeVisible();
   });
 
   test("curated loads", async ({ page }) => {
     await page.goto("/curated");
-    await expect(page.getByRole("heading", { name: "精选" })).toBeVisible();
+    // Default category tab is "政策与标准"; the h1 renders the active category label.
+    await expect(page.getByRole("heading", { name: "政策与标准" })).toBeVisible();
   });
 
   test("search loads", async ({ page }) => {
@@ -44,17 +45,20 @@ test.describe("release smoke", () => {
 
   test("alerts loads", async ({ page }) => {
     await page.goto("/alerts?type=safety");
-    await expect(page.getByRole("heading", { name: "告警" })).toBeVisible();
+    // h1 contains dynamic "{total} 条告警 · {p1Count} 条 P1 需立即关注"
+    await expect(page.getByRole("heading", { name: /告警/ })).toBeVisible();
   });
 
   test("daily loads", async ({ page }) => {
-    await page.goto("/daily");
-    await expect(page.getByRole("heading", { name: "日报" })).toBeVisible();
+    // Navigate to a seeded date so the report is present (seed-release-data seeds 2026-05-24..26).
+    await page.goto("/daily?date=2026-05-26");
+    // "产业日报" is always visible in the page header regardless of report data.
+    await expect(page.getByText("产业日报")).toBeVisible();
   });
 
   test("admin dashboard loads", async ({ page }) => {
     await page.goto("/admin/dashboard");
-    await expect(page.getByRole("heading", { name: "运行仪表盘" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "FE-Radar 运行仪表盘" })).toBeVisible();
   });
 });
 
