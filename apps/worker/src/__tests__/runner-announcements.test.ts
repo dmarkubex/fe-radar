@@ -203,3 +203,28 @@ describe("handleFetchJob announcement routing", () => {
     expect(mockRecordSourceFailure).not.toHaveBeenCalled();
   });
 });
+
+describe("worker runtime shutdown", () => {
+  it("closes workers, queues, Playwright pool, and Redis once", async () => {
+    const workerA = { close: vi.fn().mockResolvedValue(undefined) };
+    const workerB = { close: vi.fn().mockResolvedValue(undefined) };
+    const queue = { close: vi.fn().mockResolvedValue(undefined) };
+    const playwrightPool = { close: vi.fn().mockResolvedValue(undefined) };
+    const connection = { quit: vi.fn().mockResolvedValue(undefined) };
+    const runtime = __testables.createWorkerRuntime({
+      workers: [workerA, workerB],
+      queues: [queue],
+      connection,
+      getPlaywrightPool: () => playwrightPool,
+      logger: { info: vi.fn() },
+    });
+
+    await Promise.all([runtime.shutdown("SIGTERM"), runtime.shutdown("SIGINT")]);
+
+    expect(workerA.close).toHaveBeenCalledTimes(1);
+    expect(workerB.close).toHaveBeenCalledTimes(1);
+    expect(queue.close).toHaveBeenCalledTimes(1);
+    expect(playwrightPool.close).toHaveBeenCalledTimes(1);
+    expect(connection.quit).toHaveBeenCalledTimes(1);
+  });
+});

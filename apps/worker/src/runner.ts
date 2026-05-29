@@ -36,6 +36,52 @@ let deepSeek: LlmClient;
 let kimi: LlmClient;
 let playwrightPool: BrowserContextPool;
 
+export interface WorkerRuntime {
+  shutdown(signal: string): Promise<void>;
+}
+
+interface ShutdownLogger {
+  info(obj: object, msg: string): void;
+}
+
+interface CloseableResource {
+  close(): Promise<unknown>;
+}
+
+interface RedisConnection {
+  quit(): Promise<unknown>;
+}
+
+interface WorkerRuntimeOptions {
+  workers: CloseableResource[];
+  queues: CloseableResource[];
+  connection: RedisConnection;
+  getPlaywrightPool: () => CloseableResource | undefined;
+  logger: ShutdownLogger;
+}
+
+function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntime {
+  let shutdownPromise: Promise<void> | null = null;
+
+  return {
+    shutdown(signal: string): Promise<void> {
+      shutdownPromise ??= (async () => {
+        options.logger.info({ signal }, "shutting down...");
+        await Promise.all(options.workers.map((w) => w.close()));
+        await Promise.all(options.queues.map((q) => q.close()));
+        const pool = options.getPlaywrightPool();
+        if (pool) {
+          await pool.close();
+        }
+        await options.connection.quit();
+        options.logger.info({ signal }, "shutdown complete");
+      })();
+
+      return shutdownPromise;
+    },
+  };
+}
+
 async function loadScoringConfig(): Promise<CoreScoringConfig> {
   const db = getDb();
   const rows = await db.select().from(scoringConfig);
@@ -396,7 +442,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return denom === 0 ? 0 : dot / denom;
 }
 
-export async function startWorker(): Promise<void> {
+export async function startWorker(): Promise<WorkerRuntime> {
   const connection = createRedisConnection();
 
   qwen = createQwenClient();
@@ -487,18 +533,21 @@ export async function startWorker(): Promise<void> {
 
   const { Queue } = await import("bullmq");
   const fetchQueue = new Queue<FetchSourceJob>(QUEUES.fetch, { connection, defaultJobOptions: DEFAULT_JOB_OPTIONS });
+  const allQueues: CloseableResource[] = [fetchQueue];
   await fetchQueue.add("schedule-fetch-sources", { sourceId: 0 }, {
     repeat: { pattern: FETCH_SCHEDULE_CRON, tz: FETCH_SCHEDULE_TZ },
     jobId: "schedule-fetch-sources",
   });
 
   const dailyQueue = new Queue(QUEUES.daily, { connection, defaultJobOptions: DEFAULT_JOB_OPTIONS });
+  allQueues.push(dailyQueue);
   await dailyQueue.add("schedule-daily-report", {}, {
     repeat: { pattern: DAILY_REPORT_SCHEDULE_CRON, tz: DAILY_REPORT_SCHEDULE_TZ },
     jobId: "schedule-daily-report",
   });
 
   const cleanupQueue = new Queue("fe:cleanup", { connection, defaultJobOptions: { ...DEFAULT_JOB_OPTIONS, attempts: 1 } });
+  allQueues.push(cleanupQueue);
   await cleanupQueue.add("schedule-cleanup", {}, {
     repeat: { pattern: CLEANUP_SCHEDULE_CRON, tz: CLEANUP_SCHEDULE_TZ },
     jobId: "schedule-cleanup",
@@ -515,6 +564,7 @@ export async function startWorker(): Promise<void> {
   allWorkers.push(cleanupWorker);
 
   const quotesFetchQueue = new Queue<QuotesFetchJob>(QUEUE_QUOTES_FETCH, { connection, defaultJobOptions: DEFAULT_JOB_OPTIONS });
+  allQueues.push(quotesFetchQueue);
   await scheduleQuotesFetchCron(quotesFetchQueue);
 
   const quotesFetchWorker = new Worker<QuotesFetchJob>(
@@ -536,6 +586,7 @@ export async function startWorker(): Promise<void> {
     connection,
     defaultJobOptions: { ...DEFAULT_JOB_OPTIONS, attempts: 1 }
   });
+  allQueues.push(briefingGenQueue);
   await briefingGenQueue.add("schedule-briefing-gen", {}, {
     repeat: { pattern: BRIEFING_GEN_SCHEDULE_CRON, tz: BRIEFING_GEN_SCHEDULE_TZ },
     jobId: "schedule-briefing-gen",
@@ -553,6 +604,7 @@ export async function startWorker(): Promise<void> {
   allWorkers.push(briefingGenWorker);
 
   const briefingPushQueue = new Queue<BriefingPushJob>(QUEUE_BRIEFING_PUSH, { connection, defaultJobOptions: DEFAULT_JOB_OPTIONS });
+  allQueues.push(briefingPushQueue);
   await scheduleBriefingPushCron(briefingPushQueue);
 
   const briefingPushWorker = new Worker<BriefingPushJob>(
@@ -579,19 +631,14 @@ export async function startWorker(): Promise<void> {
 
   logger.info("all workers and schedulers started");
 
-  const shutdown = async (signal: string): Promise<void> => {
-    logger.info({ signal }, "shutting down...");
-    await Promise.all(allWorkers.map((w) => w.close()));
-    if (playwrightPool) {
-      await playwrightPool.close();
-    }
-    await connection.quit();
-    process.exit(0);
-  };
-
-  process.on("SIGTERM", () => void shutdown("SIGTERM"));
-  process.on("SIGINT", () => void shutdown("SIGINT"));
+  return createWorkerRuntime({
+    workers: allWorkers,
+    queues: allQueues,
+    connection,
+    getPlaywrightPool: () => playwrightPool,
+    logger,
+  });
 }
 
 export { workerName } from "./index";
-export const __testables = { handleFetchJob };
+export const __testables = { handleFetchJob, createWorkerRuntime };
