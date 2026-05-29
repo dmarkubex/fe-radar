@@ -31,30 +31,37 @@ interface PageLike {
 const MAX_CONTEXTS = 2;
 
 export class BrowserContextPool {
-  private contexts: BrowserContextLike[] = [];
+  private slots: { browser: BrowserLike; context: BrowserContextLike }[] = [];
   private cursor = 0;
 
   public constructor(private readonly browserFactory: () => Promise<BrowserLike>) {}
 
   public async acquire(userAgent: string, proxy?: { server: string }): Promise<BrowserContextLike> {
-    if (this.contexts.length < MAX_CONTEXTS) {
+    if (this.slots.length < MAX_CONTEXTS) {
       const browser = await this.browserFactory();
       const context = await browser.newContext({ userAgent, proxy });
-      this.contexts.push(context);
+      this.slots.push({ browser, context });
       return context;
     }
 
-    const context = this.contexts[this.cursor % this.contexts.length];
+    const slot = this.slots[this.cursor % this.slots.length];
     this.cursor += 1;
-    if (!context) {
+    if (!slot) {
       throw new SourceFetchError("FETCH_PLAYWRIGHT_POOL", "Browser context pool is empty");
     }
-    return context;
+    return slot.context;
   }
 
   public async close(): Promise<void> {
-    await Promise.all(this.contexts.map((context) => context.close()));
-    this.contexts = [];
+    const slots = this.slots;
+    this.slots = [];
+    await Promise.allSettled(slots.map(async ({ context, browser }) => {
+      try {
+        await context.close();
+      } finally {
+        await browser.close();
+      }
+    }));
   }
 }
 
