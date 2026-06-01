@@ -1,0 +1,80 @@
+# syntax=docker/dockerfile:1.7
+# FE-Radar worker (BullMQ consumer：fetcher / pipeline / scheduler / cleanup) 多阶段构建
+# 说明：
+#  - worker 通过 `tsc -p tsconfig.json` 编译到 dist/。因 tsconfig.base.json 的 paths 将
+#    @fe-radar/* 解析到 packages/*/src，tsc 把 packages 源码纳入编译图，实际产物路径为
+#    dist/apps/worker/src/main.js（与 scheduler.js 同级），并非裸 dist/main.js。
+#    本镜像 WORKDIR=/app/apps/worker，故 `node dist/apps/worker/src/main.js` 即真实入口。
+#  - fetcher 使用 Playwright（chromium.launch headless）。Playwright 自带的 Chromium 需要
+#    glibc，alpine(musl) 无法运行，故运行期基于 node:20-bookworm-slim（glibc）。
+#  - 这是新增文件，不影响正在运行的应用。
+
+# ---------- deps：安装 monorepo 依赖 ----------
+FROM node:20-bookworm-slim AS deps
+ENV TZ=Asia/Shanghai
+WORKDIR /app
+
+RUN corepack enable
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/web/package.json apps/web/package.json
+COPY apps/worker/package.json apps/worker/package.json
+COPY packages/db/package.json packages/db/package.json
+COPY packages/llm/package.json packages/llm/package.json
+COPY packages/core/package.json packages/core/package.json
+COPY packages/shared/package.json packages/shared/package.json
+
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --frozen-lockfile
+
+# ---------- builder：tsc 编译 worker ----------
+FROM node:20-bookworm-slim AS builder
+ENV TZ=Asia/Shanghai
+WORKDIR /app
+
+RUN corepack enable
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/worker/node_modules ./apps/worker/node_modules
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json tsconfig.json ./
+COPY packages ./packages
+COPY apps/worker ./apps/worker
+
+RUN pnpm --filter @fe-radar/worker build
+
+# ---------- runner：精简运行期镜像（含 Playwright Chromium） ----------
+FROM node:20-bookworm-slim AS runner
+ENV TZ=Asia/Shanghai
+ENV NODE_ENV=production
+# Playwright 浏览器安装到固定路径，便于 root 安装、非 root 运行
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+WORKDIR /app
+
+RUN corepack enable
+
+# 复用 deps 阶段已安装好的 node_modules（含 playwright 包），随后安装 Chromium 及其系统依赖。
+# `playwright install --with-deps chromium` 会用 apt 拉齐 glibc 运行库。
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/worker/node_modules ./apps/worker/node_modules
+COPY apps/worker/package.json ./apps/worker/package.json
+
+RUN pnpm --filter @fe-radar/worker exec playwright install --with-deps chromium && \
+    rm -rf /var/lib/apt/lists/*
+
+# 拷贝编译产物与 worker package.json（提供 `start` 脚本与运行期元信息）
+COPY --from=builder /app/apps/worker/dist ./apps/worker/dist
+
+# 非 root 运行，浏览器目录授予可读执行
+RUN groupadd -g 1001 nodejs && \
+    useradd -u 1001 -g nodejs -m worker && \
+    chown -R worker:nodejs /ms-playwright
+
+USER worker
+
+WORKDIR /app/apps/worker
+
+# 默认入口 worker；stack.yml 中 scheduler 服务复用同镜像并 override command 为
+# ["node", "dist/apps/worker/src/scheduler.js"]
+CMD ["node", "dist/apps/worker/src/main.js"]

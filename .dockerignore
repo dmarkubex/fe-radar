@@ -1,0 +1,33 @@
+# 构建上下文排除项（配合 deploy/Dockerfile.web / Dockerfile.worker）
+# 避免把宿主机 node_modules / 构建产物送入镜像，防止覆盖镜像内 frozen install 的依赖
+
+# 依赖
+**/node_modules
+
+# 构建产物
+**/dist
+**/.next
+**/.turbo
+**/out
+generated
+
+# 测试 / 覆盖率
+**/coverage
+**/playwright-report
+**/test-results
+
+# 版本控制与编辑器
+.git
+.gitignore
+**/.DS_Store
+.vscode
+.idea
+.omc
+
+# 环境与密钥（运行期注入，勿入镜像）
+**/.env
+**/.env.*
+deploy/secrets
+
+# 文档 / 杂项
+**/*.log

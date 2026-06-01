@@ -1,0 +1,79 @@
+# syntax=docker/dockerfile:1.7
+# FE-Radar web (Next.js 15 App Router) 多阶段构建
+# 说明：apps/web/next.config.js 未启用 output:'standalone'，
+#       且 transpilePackages 直接编译 packages/* 的 TS 源码，
+#       因此运行期用 `next start` 启动，无需 server.js。
+# 这是新增文件，不影响正在运行的应用。
+
+# ---------- deps：安装 monorepo 依赖（带缓存的 frozen install） ----------
+FROM node:22-alpine AS deps
+ENV TZ=Asia/Shanghai
+WORKDIR /app
+
+RUN corepack enable
+
+# 仅拷贝 workspace 清单 + lockfile，最大化 Docker 层缓存命中率
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/web/package.json apps/web/package.json
+COPY apps/worker/package.json apps/worker/package.json
+COPY packages/db/package.json packages/db/package.json
+COPY packages/llm/package.json packages/llm/package.json
+COPY packages/core/package.json packages/core/package.json
+COPY packages/shared/package.json packages/shared/package.json
+
+# corepack 按 package.json 的 packageManager 字段锁定 pnpm 版本
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --frozen-lockfile
+
+# ---------- builder：编译 Next.js ----------
+FROM node:22-alpine AS builder
+ENV TZ=Asia/Shanghai
+ENV NEXT_TELEMETRY_DISABLED=1
+WORKDIR /app
+
+RUN corepack enable
+
+# 复用 deps 阶段已安装好的 node_modules（含 workspace 软链）
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+
+# 拷贝构建所需源码（web 通过 transpilePackages 直接编译 packages/* 源码）
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json tsconfig.json ./
+COPY packages ./packages
+COPY apps/web ./apps/web
+
+RUN pnpm --filter @fe-radar/web build
+
+# ---------- runner：精简运行期镜像 ----------
+FROM node:22-alpine AS runner
+ENV TZ=Asia/Shanghai
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+WORKDIR /app
+
+RUN corepack enable && \
+    addgroup -g 1001 -S nodejs && \
+    adduser -u 1001 -S nextjs -G nodejs
+
+# 运行 `next start` 需要：根 node_modules（next CLI + 运行期依赖）、
+# web 包的 node_modules（软链至 workspace 包）、构建产物 .next、
+# package.json/next.config.js，以及 packages/* 源码
+# （transpilePackages 在运行期仍按源码解析 @fe-radar/* 模块）。
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/node_modules ./apps/web/node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next ./apps/web/.next
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/package.json ./apps/web/package.json
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/next.config.js ./apps/web/next.config.js
+COPY --from=builder --chown=nextjs:nodejs /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml /app/tsconfig.base.json /app/tsconfig.json ./
+COPY --from=builder --chown=nextjs:nodejs /app/packages ./packages
+
+USER nextjs
+
+WORKDIR /app/apps/web
+EXPOSE 3000
+
+# next start（next.config.js 未配置 standalone，故不使用 server.js）
+CMD ["pnpm", "start"]
