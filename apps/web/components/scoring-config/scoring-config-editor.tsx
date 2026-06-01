@@ -11,12 +11,17 @@ const DIM_LABELS: { key: keyof ScoringConfigBody["weights"]; label: string }[] =
   { key: "w5", label: "D5 · 独特性" },
 ];
 
+// Keys MUST match the item `category` strings used by the scoring pipeline
+// (packages/core/curator.ts looks up `thresholds[item.category][topCircle]`),
+// the LLM scorer enum, the worker defaults, and the 0002 seed migration.
+// Using anything else makes every cell read undefined → render 0 and any edit
+// silently no-ops in curation.
 const THRESHOLD_ROWS = [
-  { key: "own", label: "自家公司" },
-  { key: "safety", label: "安全合规" },
-  { key: "policy", label: "政策变动" },
-  { key: "market", label: "市场动态" },
-  { key: "tech", label: "技术前沿" },
+  { key: "政策与标准", label: "政策与标准" },
+  { key: "市场与价格", label: "市场与价格" },
+  { key: "技术与产品", label: "技术与产品" },
+  { key: "项目与招投标", label: "项目与招投标" },
+  { key: "公司与资本", label: "公司与资本" },
 ];
 
 const ALERT_RULES = [
