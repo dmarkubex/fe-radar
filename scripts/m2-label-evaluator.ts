@@ -201,8 +201,8 @@ function evaluateNer(rows: JsonRecord[], missingLabels: number): GateResult {
     return blocked("ner_recall", `blocked/missing labels: ${missingLabels} rows lack reviewed entity labels`, `>= ${M2_THRESHOLDS.nerRecallMin}`);
   }
 
-  const expected = rows.flatMap((row) => normalizeEntities(asArray(row.entities)));
-  if (expected.length === 0) {
+  const allExpected = rows.flatMap((row) => normalizeEntities(asArray(row.entities)));
+  if (allExpected.length === 0) {
     return blocked("ner_recall", "blocked/missing positive labels: no expected entities are present", `>= ${M2_THRESHOLDS.nerRecallMin}`);
   }
 
@@ -212,12 +212,21 @@ function evaluateNer(rows: JsonRecord[], missingLabels: number): GateResult {
     return blocked("ner_recall", `blocked/missing model outputs: ${missingPredictions} rows lack predictedEntities/model_entities`, `>= ${M2_THRESHOLDS.nerRecallMin}`);
   }
 
-  const predictedKeys = new Set(
-    predictionRows.flatMap((items) => normalizeEntities(items ?? [])).map((entity) => entityKey(entity))
-  );
-  const matched = expected.filter((entity) => predictedKeys.has(entityKey(entity))).length;
-  const recall = matched / expected.length;
-  return gate("ner_recall", recall, recall >= M2_THRESHOLDS.nerRecallMin, `>= ${M2_THRESHOLDS.nerRecallMin}`, `${matched}/${expected.length} expected entities matched exactly by type/text`);
+  // Per-document recall: match each document's expected entities only against
+  // that same document's predicted entities, preventing cross-document false matches.
+  let totalExpected = 0;
+  let totalMatched = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const docExpected = normalizeEntities(asArray(rows[i]!.entities));
+    if (docExpected.length === 0) continue;
+    const docPredictedKeys = new Set(
+      normalizeEntities(predictionRows[i] ?? []).map((entity) => entityKey(entity))
+    );
+    totalExpected += docExpected.length;
+    totalMatched += docExpected.filter((entity) => docPredictedKeys.has(entityKey(entity))).length;
+  }
+  const recall = totalExpected === 0 ? 0 : totalMatched / totalExpected;
+  return gate("ner_recall", recall, recall >= M2_THRESHOLDS.nerRecallMin, `>= ${M2_THRESHOLDS.nerRecallMin}`, `${totalMatched}/${totalExpected} expected entities matched exactly by type/text (per-doc)`);
 }
 
 function evaluateScorer(rows: JsonRecord[], missingLabels: number): GateResult {
@@ -239,7 +248,8 @@ function evaluateScorer(rows: JsonRecord[], missingLabels: number): GateResult {
   const atomMse = mean(
     pairs.flatMap((pair) => atomNames.map((name) => square(asNumber(pair.predicted?.[name]) - asNumber(pair.expected?.[name]))))
   );
-  return gate("scorer_score_mse", scoreMse, scoreMse <= M2_THRESHOLDS.scorerScoreMseMax, `<= ${M2_THRESHOLDS.scorerScoreMseMax}`, `qualityScore MSE; atom_mse=${atomMse.toFixed(3)}`);
+  const atomMseDisplay = Number.isFinite(atomMse) ? atomMse.toFixed(3) : "N/A";
+  return gate("scorer_score_mse", scoreMse, scoreMse <= M2_THRESHOLDS.scorerScoreMseMax, `<= ${M2_THRESHOLDS.scorerScoreMseMax}`, `qualityScore MSE; atom_mse=${atomMseDisplay}`);
 }
 
 function evaluateScrubber(rows: JsonRecord[], missingLabels: number): GateResult {
@@ -292,7 +302,13 @@ function evaluateBacktest(rows: JsonRecord[], missingLabels: number): GateResult
   }
 
   const expectedScores = pairs.map((pair) => asNumber(pair.expected?.qualityScore));
-  const predictedScores = pairs.map((pair) => asNumber(pair.predicted?.modelQualityScore ?? pair.predicted?.qualityScore));
+  // Use explicit isFiniteNumber fallback instead of ?? to correctly handle
+  // non-null but non-finite values (e.g. a string "garbage" for modelQualityScore).
+  const predictedScores = pairs.map((pair) => {
+    const mqs = pair.predicted?.modelQualityScore;
+    const qs = pair.predicted?.qualityScore;
+    return asNumber(isFiniteNumber(mqs) ? mqs : qs);
+  });
   const pearson = pearsonCorrelation(expectedScores, predictedScores);
   if (pearson === null) {
     return blocked("backtest_pearson", "blocked/insufficient variance: Pearson requires at least two non-constant score series", `>= ${M2_THRESHOLDS.backtestPearsonMin}`);
