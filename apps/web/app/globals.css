@@ -28,13 +28,15 @@
 
   --font-display: Arial, "Helvetica Neue", ui-sans-serif, system-ui, sans-serif;
   --font-body: Arial, "Helvetica Neue", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "IBM Plex Mono", Menlo, monospace;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, "IBM Plex Mono", Menlo, monospace;
 
-  --shadow-card: rgba(0, 91, 134, 0.10) -2px 4px 12px,
-    rgba(0, 91, 134, 0.06) -8px 16px 28px,
+  --shadow-card:
+    rgba(0, 91, 134, 0.1) -2px 4px 12px, rgba(0, 91, 134, 0.06) -8px 16px 28px,
     rgba(0, 91, 134, 0.04) -20px 40px 56px;
-  --shadow-pop: rgba(0, 91, 134, 0.14) -8px 16px 39px,
-    rgba(0, 91, 134, 0.10) -33px 64px 72px,
+  --shadow-pop:
+    rgba(0, 91, 134, 0.14) -8px 16px 39px,
+    rgba(0, 91, 134, 0.1) -33px 64px 72px,
     rgba(0, 91, 134, 0.06) -73px 144px 97px;
 
   --tracking-tightest: -2.4px;
@@ -44,12 +46,32 @@
   color-scheme: light;
 }
 
-html, body {
+/* ── Fluid layout utilities (container-query driven) ──────────────────────
+   Depend on an ancestor marked `@container` (set on AppShell <main>).
+   `cqi` = container inline-size, so sizing tracks the real content width
+   (viewport minus the fixed nav), not the raw viewport. */
+@utility pad-fluid {
+  padding-inline: clamp(1rem, 4cqi, 2.5rem);
+  padding-block: clamp(1.25rem, 2.5cqi, 1.75rem);
+}
+
+@utility pad-fluid-x {
+  padding-inline: clamp(1rem, 4cqi, 2.5rem);
+}
+
+/* Fluid display heading: scales continuously between phone and desktop. */
+@utility display-fluid {
+  font-size: clamp(1.5rem, 3.4cqi, 1.95rem);
+  line-height: 1.12;
+}
+
+html,
+body {
   margin: 0;
   padding: 0;
   background: #f5f9fc;
   color: #143141;
-  font-family: Arial, 'Helvetica Neue', ui-sans-serif, system-ui, sans-serif;
+  font-family: Arial, "Helvetica Neue", ui-sans-serif, system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.5;
   font-weight: 400;
@@ -83,7 +105,8 @@ table.fr {
 
 table.fr thead th {
   text-align: start;
-  font-family: 'JetBrains Mono', ui-monospace, 'IBM Plex Mono', Menlo, monospace;
+  font-family:
+    "JetBrains Mono", ui-monospace, "IBM Plex Mono", Menlo, monospace;
   font-weight: 400;
   font-size: 10px;
   letter-spacing: 1.4px;
@@ -104,13 +127,19 @@ table.fr tbody tr:hover {
 }
 
 table.fr td.num {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
   text-align: end;
 }
 
 @keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(47,125,79,0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(47,125,79,0); }
-  100% { box-shadow: 0 0 0 0 rgba(47,125,79,0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(47, 125, 79, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(47, 125, 79, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(47, 125, 79, 0);
+  }
 }

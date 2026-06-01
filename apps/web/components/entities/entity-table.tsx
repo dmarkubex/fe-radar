@@ -55,25 +55,25 @@ export function EntityTable(): React.JSX.Element {
 
   return (
     <div className="grid gap-4">
-      <form action={submit} className="grid gap-3 rounded-lg border border-zinc-200 bg-white p-4 md:grid-cols-5">
-        <input className="h-10 rounded-md border border-zinc-200 px-3" name="type" placeholder="type" />
-        <input className="h-10 rounded-md border border-zinc-200 px-3" name="canonicalName" placeholder="标准名" />
-        <input className="h-10 rounded-md border border-zinc-200 px-3" name="aliases" placeholder="别名，逗号分隔" />
-        <select className="h-10 rounded-md border border-zinc-200 px-3" name="circle" defaultValue="">
+      <form action={submit} className="grid gap-3 rounded-none border border-border bg-surface p-4 md:grid-cols-5">
+        <input className="h-10 rounded-none border border-border px-3" name="type" placeholder="type" />
+        <input className="h-10 rounded-none border border-border px-3" name="canonicalName" placeholder="标准名" />
+        <input className="h-10 rounded-none border border-border px-3" name="aliases" placeholder="别名，逗号分隔" />
+        <select className="h-10 rounded-none border border-border px-3" name="circle" defaultValue="">
           <option value="">无关注圈</option>
           <option value="C1">C1</option>
           <option value="C2">C2</option>
           <option value="C3">C3</option>
         </select>
-        <input className="h-10 rounded-md border border-zinc-200 px-3" name="weight" placeholder="权重" type="number" defaultValue="1" />
+        <input className="h-10 rounded-none border border-border px-3" name="weight" placeholder="权重" type="number" defaultValue="1" />
         <div className="md:col-span-5">
           <Button type="submit">新增实体</Button>
         </div>
-        {error ? <p className="text-sm text-red-600 md:col-span-5">{error}</p> : null}
+        {error ? <p className="text-sm text-danger md:col-span-5">{error}</p> : null}
       </form>
-      <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+      <div className="overflow-hidden rounded-none border border-border bg-surface">
         <table className="w-full text-sm">
-          <thead className="bg-zinc-50 text-left text-zinc-500">
+          <thead className="bg-bg text-left text-[11px] font-mono uppercase text-fg-soft">
             <tr>
               <th className="p-3">类型</th>
               <th className="p-3">标准名</th>
@@ -84,10 +84,10 @@ export function EntityTable(): React.JSX.Element {
           </thead>
           <tbody>
             {items.map((item) => (
-              <tr className="border-t border-zinc-100" key={item.id}>
+              <tr className="border-t border-hairline" key={item.id}>
                 <td className="p-3">{item.type}</td>
-                <td className="p-3 font-medium text-zinc-950">{item.canonicalName}</td>
-                <td className="p-3 text-zinc-600">{item.aliases.join("，")}</td>
+                <td className="p-3 font-medium text-fg">{item.canonicalName}</td>
+                <td className="p-3 text-fg-muted">{item.aliases.join("，")}</td>
                 <td className="p-3">{item.circle ?? "-"}</td>
                 <td className="p-3">
                   <Button size="sm" variant="outline" type="button" onClick={() => void remove(item.id)}>删除</Button>

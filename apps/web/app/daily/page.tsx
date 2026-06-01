@@ -36,7 +36,7 @@ export default async function DailyPage({ searchParams }: { searchParams: PageSe
 
   return (
     <main className="bg-bg">
-      <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-border bg-bg px-8 py-3.5">
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-border bg-bg pad-fluid-x py-3.5">
         <div className="font-mono text-[11px] uppercase tracking-[1px] text-fg-muted">监测 / 日报</div>
         <div className="flex flex-wrap gap-1.5">
           {dates.map((date) => (
@@ -47,7 +47,7 @@ export default async function DailyPage({ searchParams }: { searchParams: PageSe
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1120px] px-6">
+      <div className="mx-auto max-w-[1120px] pad-fluid-x">
         <header className="flex items-end justify-between gap-8 border-b-4 border-double border-fg py-5">
           <div className="flex items-center gap-4">
             <img src="/fareast-logo.png" alt="远东控股集团" className="h-auto w-[142px] border border-border bg-white px-2 py-1" />
@@ -67,7 +67,7 @@ export default async function DailyPage({ searchParams }: { searchParams: PageSe
             <section className="grid grid-cols-[minmax(0,1.15fr)_360px] items-start gap-6 border-b border-border py-[18px] max-[900px]:grid-cols-1">
               <div>
                 <div className="mb-2 font-mono text-[11px] uppercase tracking-[2px] text-accent">今日判断</div>
-                <h1 className="m-0 font-display text-[31px] font-normal leading-[1.08] tracking-[-0.7px] text-fg">{text(sections.hero_title, "今日产业情报总览")}</h1>
+                <h1 className="m-0 font-display text-[clamp(1.5rem,3.4cqi,1.95rem)] font-normal leading-[1.08] tracking-[-0.7px] text-fg">{text(sections.hero_title, "今日产业情报总览")}</h1>
                 <p className="mt-2.5 text-[13px] leading-[1.5] text-fg-muted">{text(sections.hero_summary, "暂无今日判断摘要。")}</p>
               </div>
               <aside className="border border-border bg-surface p-4">

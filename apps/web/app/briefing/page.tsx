@@ -3,6 +3,8 @@ import { commodityBriefings, getDb } from "@fe-radar/db";
 import { dayjs, APP_TIMEZONE } from "@fe-radar/shared";
 import { ChevronRight, FileText, AlertCircle, CheckCircle, Clock } from "lucide-react";
 import Link from "next/link";
+import { PageFrame } from "@/components/layout/page-frame";
+import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -44,19 +46,12 @@ export default async function BriefingListPage(): Promise<React.JSX.Element> {
   }
 
   return (
-    <main className="mx-auto w-full max-w-[900px] px-6 py-8 md:px-10">
-      {/* Header */}
-      <header className="mb-8">
-        <p className="font-mono text-[10px] uppercase tracking-[2px] text-fg-soft mb-1">
-          简报 · BRIEFING
-        </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-fg mb-2">
-          铜锂行情每日简报
-        </h1>
-        <p className="text-sm text-fg-muted leading-relaxed">
-          每个工作日 16:00 自动生成，含沪铜 / 碳酸锂主力行情、宏观评述、风险提示与采购建议。
-        </p>
-      </header>
+    <PageFrame size="wide">
+      <PageHeader
+        eyebrow="简报 · BRIEFING"
+        title="铜锂行情每日简报"
+        description="每个工作日 16:00 自动生成，含沪铜 / 碳酸锂主力行情、宏观评述、风险提示与采购建议。"
+      />
 
       {rows.length === 0 ? (
         <div className="py-20 text-center text-sm text-fg-soft">
@@ -117,6 +112,6 @@ export default async function BriefingListPage(): Promise<React.JSX.Element> {
           })}
         </div>
       )}
-    </main>
+    </PageFrame>
   );
 }

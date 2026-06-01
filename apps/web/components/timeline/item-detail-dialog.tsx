@@ -62,9 +62,9 @@ export function ItemDetailDialog({ itemId, onClose }: { itemId: number | null; o
           <div className="flex flex-col gap-5 p-5">
             <div className="grid gap-2 sm:grid-cols-5">
               {Object.entries(item.scores).map(([key, value]) => (
-                <div className="rounded-md border border-zinc-200 p-3" key={key}>
-                  <p className="text-xs text-zinc-500">{key}</p>
-                  <p className="mt-1 text-lg font-semibold text-zinc-950">{scoreLabel(value)}</p>
+                <div className="border border-zinc-200 p-3" key={key}>
+                  <p className="font-mono text-[13px] uppercase tracking-widest text-zinc-500">{key}</p>
+                  <p className="mt-1 text-xl font-semibold tabular-nums text-zinc-950">{scoreLabel(value)}</p>
                 </div>
               ))}
             </div>

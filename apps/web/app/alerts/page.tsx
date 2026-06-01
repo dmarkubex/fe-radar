@@ -34,9 +34,9 @@ export default async function AlertsPage({ searchParams }: { searchParams: PageS
 
   return (
     <main>
-      <header className="grid grid-cols-[max-content_minmax(260px,360px)_minmax(0,1fr)] items-baseline gap-x-[18px] border-b border-hairline px-8 py-5 max-[1100px]:grid-cols-1 max-[1100px]:gap-y-1">
-        <div className="font-mono text-[10px] uppercase tracking-[1.4px] text-accent">/ ALERTS · 24H</div>
-        <h1 className="m-0 font-display text-2xl font-normal leading-[1.15] tracking-[-0.4px] text-fg">
+      <header className="grid grid-cols-[max-content_minmax(260px,360px)_minmax(0,1fr)] items-baseline gap-x-[18px] border-b border-hairline pad-fluid-x py-5 max-[1100px]:grid-cols-1 max-[1100px]:gap-y-1">
+        <div className="font-mono text-[10px] font-medium uppercase tracking-[1.4px] text-fg-soft">/ ALERTS · 24H</div>
+        <h1 className="m-0 display-fluid font-semibold tracking-tight text-fg">
           {total} 条告警 · {p1Count} 条 P1 需立即关注
         </h1>
         <p className="m-0 text-xs leading-6 text-fg-muted">
@@ -44,7 +44,7 @@ export default async function AlertsPage({ searchParams }: { searchParams: PageS
         </p>
       </header>
 
-      <div className="px-8 py-5">
+      <div className="pad-fluid-x py-5">
         <div className="mb-4 grid grid-cols-3 gap-px border border-border bg-border max-[720px]:grid-cols-1">
           <SummaryCell active={filterType === "own"} href="/alerts?type=own" count={counts.own} label="自家公司 · C1" delta="含 P1 事故与中标动态" pip="bg-accent" />
           <SummaryCell active={filterType === "safety"} href="/alerts?type=safety" count={counts.safety} label="安全事故" delta="行业内 · 最近 6h" pip="bg-warn" />
@@ -74,10 +74,10 @@ export default async function AlertsPage({ searchParams }: { searchParams: PageS
 function SummaryCell({ active, href, count, label, delta, pip }: { active: boolean; href: string; count: number; label: string; delta: string; pip: string }): React.JSX.Element {
   return (
     <a href={active ? "/alerts" : href} className={`flex items-center gap-3.5 p-4 ${active ? "bg-surface-deep text-white" : "bg-surface text-fg hover:bg-bg-deep"}`}>
-      <b className="min-w-10 font-display text-[28px] font-normal leading-none tracking-[-0.6px]">{count}</b>
+      <b className="min-w-10 font-display text-3xl font-normal leading-none tracking-[-0.6px] tabular-nums">{count}</b>
       <span className="min-w-0 flex-1">
-        <span className={`flex items-center gap-2 font-mono text-[10px] uppercase tracking-[1.4px] ${active ? "text-sunshine-500" : "text-fg-soft"}`}><i className={`h-1.5 w-1.5 rounded-full ${pip}`} />{label}</span>
-        <span className={`block font-mono text-[11px] ${active ? "text-white/70" : "text-fg-muted"}`}>{delta}</span>
+        <span className={`flex items-center gap-2 font-mono text-[13px] uppercase tracking-[1.4px] ${active ? "text-sunshine-500" : "text-fg-soft"}`}><i className={`h-1.5 w-1.5 rounded-full ${pip}`} />{label}</span>
+        <span className={`block font-mono text-[12px] ${active ? "text-white/70" : "text-fg-muted"}`}>{delta}</span>
       </span>
     </a>
   );
@@ -116,11 +116,11 @@ function BigAlert({ item, level }: { item: TimelineItemDto; level: string }): Re
 
       <aside className="flex min-h-full flex-col gap-3 border-l border-hairline pl-6 max-[1100px]:border-l-0 max-[1100px]:border-t max-[1100px]:pl-0 max-[1100px]:pt-4">
         <div className="flex items-baseline justify-between border-b border-hairline pb-2.5">
-          <small className="font-mono text-[10px] uppercase tracking-[1.2px] text-fg-soft">综合得分</small>
+          <small className="font-mono text-[12px] uppercase tracking-[1.2px] text-fg-soft">综合得分</small>
           <b className="font-display text-[32px] font-normal leading-none tracking-[-0.8px] text-accent">{score ?? "-"}</b>
         </div>
-        <div className="font-mono text-[11px] leading-[1.75] tracking-[0.2px] text-fg-muted">
-          <b className="mb-1 block text-[10px] font-normal uppercase tracking-[1.2px] text-fg">已推送</b>
+        <div className="font-mono text-[12px] leading-[1.75] tracking-[0.2px] text-fg-muted">
+          <b className="mb-1 block text-[12px] font-normal uppercase tracking-[1.2px] text-fg">已推送</b>
           · {channelText(item.alertType)}<br />
           <span className="text-ok">✓ 钉钉机器人 {formatAppTime(item.scoredAt ?? item.publishedAt)}</span><br />
           <span className="text-fg-soft">SMS 短信 — 待发</span>
