@@ -72,7 +72,12 @@ test("admin 可以按 tier 查看 seed 信源且启用数符合合同", async ({
   const totalEnabled = enabledByTier.T1 + enabledByTier.T2 + enabledByTier.T3;
 
   await page.goto("/admin/sources");
-  await page.waitForSelector("tbody tr");
+  // Wait for the source table to finish loading rows from the API.
+  // On "全部" view, the row count should equal the API total (or at least be substantial).
+  await page.waitForFunction(
+    (min) => document.querySelectorAll("tbody tr").length >= min,
+    Math.max(totalSources - 5, 5)
+  );
 
   // Verify per-tier total row counts match API
   let uiTotal = 0;
