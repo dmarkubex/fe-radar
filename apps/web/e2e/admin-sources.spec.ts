@@ -103,7 +103,7 @@ test("admin 可以通过 UI 新建信源", async ({ page }) => {
   await page.goto("/admin/sources");
 
   await page.getByPlaceholder("名称").fill(name);
-  await page.getByPlaceholder("URL").fill(url);
+  await page.locator("input[name='url']").fill(url);
   await page.locator("select[name='tier']").selectOption("T1");
   await page.locator("select[name='fetcherType']").selectOption("rss");
   await page.getByPlaceholder("分类").fill("E2E");
