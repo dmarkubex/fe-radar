@@ -115,6 +115,7 @@ async function runPgvectorBenchmark(): Promise<BenchmarkResult> {
   });
   await client.connect();
 
+  try {
   await client.query("CREATE EXTENSION IF NOT EXISTS vector;");
 
   if (skipLoad) {
@@ -234,8 +235,6 @@ async function runPgvectorBenchmark(): Promise<BenchmarkResult> {
   latencies.sort((a, b) => a - b);
   const avgRecall = recalls.reduce((a, b) => a + b, 0) / recalls.length;
 
-  await client.end();
-
   return {
     rows,
     dimensions,
@@ -252,6 +251,9 @@ async function runPgvectorBenchmark(): Promise<BenchmarkResult> {
     indexType: `pgvector-${indexType}`,
     indexParams,
   };
+  } finally {
+    await client.end();
+  }
 }
 
 function cosine(a: number[], b: number[]): number {
