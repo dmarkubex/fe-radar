@@ -27,6 +27,7 @@ export function DingtalkProvider(): OAuthConfig<DingtalkProfile> {
     },
     token: "https://api.dingtalk.com/v1.0/oauth2/userAccessToken",
     userinfo: {
+      url: "https://api.dingtalk.com/v1.0/contact/users/me",
       async request({ tokens }: { tokens: { access_token?: unknown } }) {
         const response = await fetch("https://api.dingtalk.com/v1.0/contact/users/me", {
           headers: { "x-acs-dingtalk-access-token": String(tokens.access_token ?? "") }
