@@ -38,7 +38,7 @@ vi.mock("../../lib/briefing-render", () => ({
 }));
 
 vi.mock("../../queues", () => ({
-  QUEUE_QUOTES_FETCH: "fe:quotes-fetch",
+  QUEUE_QUOTES_FETCH: "fe-quotes-fetch",
   createRedisConnection: vi.fn().mockReturnValue({}),
 }));
 

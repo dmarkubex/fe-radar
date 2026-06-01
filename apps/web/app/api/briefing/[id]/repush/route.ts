@@ -41,7 +41,7 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
   const redisUrl = process.env["REDIS_URL"] ?? "redis://localhost:6379";
   const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
   try {
-    const queue = new Queue("fe:briefing-push", { connection });
+    const queue = new Queue("fe-briefing-push", { connection });
     await queue.add("repush", { briefingId: numId, briefingDate: briefing.briefingDate });
   } finally {
     await connection.quit();
