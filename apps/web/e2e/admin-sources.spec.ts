@@ -7,6 +7,34 @@ const viewerPassword = process.env.E2E_VIEWER_PASSWORD ?? "viewer-password";
 
 test.describe.configure({ mode: "serial" });
 
+// ---------------------------------------------------------------------------
+// Cleanup: soft-delete all E2E test entities after the serial suite finishes.
+// Prevents accumulation of enabled T1 rows across reruns.  Uses the same
+// DELETE endpoint the admin UI calls (soft-delete / set enabled=false).
+// ---------------------------------------------------------------------------
+test.afterAll(async ({ request }) => {
+  const csrfRes = await request.get("/api/auth/csrf");
+  if (!csrfRes.ok()) return;
+  const csrf = await csrfRes.json() as { csrfToken: string };
+  await request.post("/api/auth/callback/credentials", {
+    form: {
+      csrfToken: csrf.csrfToken,
+      username: adminUsername,
+      password: adminPassword,
+      callbackUrl: "/admin/sources"
+    },
+    maxRedirects: 0
+  });
+
+  const listRes = await request.get("/api/sources");
+  if (!listRes.ok()) return;
+  const { items } = await listRes.json() as { items: Array<{ id: number; name: string }> };
+  const e2eSources = items.filter((s) => s.name.startsWith("E2E "));
+  await Promise.all(
+    e2eSources.map((s) => request.delete(`/api/sources/${s.id}`))
+  );
+});
+
 async function login(page: Page, username: string, password: string): Promise<void> {
   const csrfResponse = await page.request.get("/api/auth/csrf");
   expect(csrfResponse.ok()).toBe(true);
@@ -75,15 +103,17 @@ test("admin 可以按 tier 查看 seed 信源且启用数符合合同", async ({
   // Wait for the source table to finish loading rows from the API.
   // On "全部" view, the row count should equal the API total (or at least be substantial).
   await page.waitForFunction(
-    (min) => document.querySelectorAll("tbody tr").length >= min,
+    (min) => document.querySelectorAll("tbody tr[data-testid]").length >= min,
     Math.max(totalSources - 5, 5)
   );
 
-  // Verify per-tier total row counts match API
+  // Verify per-tier total row counts match API.
+  // Only count rows with data-testid (real source rows), excluding the
+  // "暂无匹配信源" placeholder row that appears for empty tiers.
   let uiTotal = 0;
   for (const tier of ["T1", "T2", "T3"]) {
     await page.getByRole("button", { name: tier }).click();
-    const rows = await page.locator("tbody tr").count();
+    const rows = await page.locator("tbody tr[data-testid]").count();
     expect(rows, `${tier} total`).toBe(totalByTier[tier]);
     uiTotal += rows;
   }
@@ -91,7 +121,7 @@ test("admin 可以按 tier 查看 seed 信源且启用数符合合同", async ({
 
   // Verify enabled source count: switch to ALL view and count rows with "启用" status
   await page.getByRole("button", { name: "全部" }).click();
-  const statusCells = page.locator("tbody tr td:nth-child(5)");
+  const statusCells = page.locator("tbody tr[data-testid] td:nth-child(5)");
   const enabledCount = await statusCells.filter({ hasText: "启用" }).count();
   expect(enabledCount, "Enabled sources").toBe(totalEnabled);
 });
