@@ -124,7 +124,7 @@ test("admin 可以编辑信源名称", async ({ page }) => {
   const row = page.getByTestId(`source-row-${source.id}`);
   await row.getByRole("button", { name: "编辑" }).click();
   await row.getByLabel("信源名称").fill(updatedName);
-  await row.getByRole("button", { name: "保存编辑" }).click();
+  await row.getByRole("button", { name: "保存" }).click();
 
   await expect(page.getByRole("row", { name: new RegExp(updatedName) })).toBeVisible();
 });
