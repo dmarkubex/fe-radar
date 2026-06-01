@@ -34,6 +34,8 @@ export const sources = pgTable("sources", {
   enabled: boolean("enabled").notNull().default(true),
   lastOkAt: timestamp("last_ok_at", { withTimezone: true }),
   failCount: integer("fail_count").notNull().default(0),
+  lastError: text("last_error"),
+  lastErrorAt: timestamp("last_error_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 }, (table) => ({
   fetcherTypeCheck: check("sources_fetcher_type_check", sql`${table.fetcherType} IN ('rss', 'html', 'playwright', 'quotes', 'announcement')`),

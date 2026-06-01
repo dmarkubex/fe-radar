@@ -12,7 +12,7 @@ export async function enqueueEnabledSources(db: DbClient, queue: Queue<FetchSour
   await Promise.all(
     enabledSources.map((source) =>
       queue.add("fetch-source", { sourceId: source.id }, {
-        jobId: `fetch-source:${source.id}`,
+        jobId: `fetch-source-${source.id}`,
         attempts: 3,
         backoff: { type: "exponential", delay: 200 }
       })
@@ -36,9 +36,13 @@ export function shouldDisableSource(source: Pick<SourceRecord, "failCount">): bo
   return source.failCount >= DISABLE_AFTER_FAIL_DAYS;
 }
 
-export async function recordSourceFailure(db: DbClient, source: Pick<SourceRecord, "id" | "failCount">): Promise<void> {
+export async function recordSourceFailure(
+  db: DbClient,
+  source: Pick<SourceRecord, "id" | "failCount">,
+  errorMessage?: string
+): Promise<void> {
   const nextFailCount = source.failCount + 1;
-  await markSourceFailure(db, source.id, nextFailCount, nextFailCount >= DISABLE_AFTER_FAIL_DAYS);
+  await markSourceFailure(db, source.id, nextFailCount, nextFailCount >= DISABLE_AFTER_FAIL_DAYS, errorMessage ?? null);
 }
 
 export async function enqueueEnabledQuotesSources(
@@ -50,7 +54,7 @@ export async function enqueueEnabledQuotesSources(
   await Promise.all(
     quotesSources.map((source) =>
       queue.add("quotes-fetch", { sourceId: source.id }, {
-        jobId: `quotes-fetch:${source.id}`,
+        jobId: `quotes-fetch-${source.id}`,
         attempts: 3,
         backoff: { type: "exponential", delay: 200 }
       })

@@ -108,14 +108,15 @@ export async function runQuotesFetch(sourceId: number): Promise<QuotesFetchResul
   } catch (error) {
     logger.error({ error, sourceId, sourceName: source.name }, "quotes fetch failed");
     const nextFail = source.failCount + 1;
-    await markSourceFailure(db, source.id, nextFail, nextFail >= DISABLE_AFTER_FAIL_COUNT);
+    const message = error instanceof Error ? error.message : String(error);
+    await markSourceFailure(db, source.id, nextFail, nextFail >= DISABLE_AFTER_FAIL_COUNT, `行情抓取失败：${message}`);
     throw error;
   }
 
   if (samples.length === 0) {
     logger.warn({ sourceId, sourceName: source.name }, "quotes fetch returned empty samples");
     const nextFail = source.failCount + 1;
-    await markSourceFailure(db, source.id, nextFail, nextFail >= DISABLE_AFTER_FAIL_COUNT);
+    await markSourceFailure(db, source.id, nextFail, nextFail >= DISABLE_AFTER_FAIL_COUNT, "行情抓取返回空样本");
     return { sourceId, upserted: 0, skipped: false };
   }
 
@@ -123,7 +124,7 @@ export async function runQuotesFetch(sourceId: number): Promise<QuotesFetchResul
   const hasNonNullValue = samples.some((sample) => sample.value !== null);
   if (!hasNonNullValue) {
     const nextFail = source.failCount + 1;
-    await markSourceFailure(db, source.id, nextFail, nextFail >= DISABLE_AFTER_FAIL_COUNT);
+    await markSourceFailure(db, source.id, nextFail, nextFail >= DISABLE_AFTER_FAIL_COUNT, "行情抓取仅返回空值（数值全为 null）");
     if (nextFail >= WARN_AFTER_NULL_VALUE_DAYS) {
       logger.warn(
         { sourceId, sourceName: source.name, failCount: nextFail },

@@ -184,7 +184,8 @@ describe("runQuotesFetch", () => {
       expect.anything(),
       1,
       3,     // nextFail = 2+1
-      false  // not yet at threshold
+      false, // not yet at threshold
+      expect.stringContaining("network timeout") // lastError reason
     );
     expect(mockMarkSourceSuccess).not.toHaveBeenCalled();
   });
@@ -223,7 +224,8 @@ describe("runQuotesFetch", () => {
       expect.anything(),
       1,
       7,    // nextFail = 6+1
-      true  // disable=true at threshold
+      true, // disable=true at threshold
+      expect.stringContaining("timeout") // lastError reason
     );
   });
 
@@ -244,7 +246,8 @@ describe("runQuotesFetch", () => {
       expect.anything(),
       1,
       3,
-      false
+      false,
+      expect.stringContaining("空值") // lastError reason (all-null samples)
     );
     expect(mockMarkSourceSuccess).not.toHaveBeenCalled();
   });

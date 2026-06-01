@@ -2,8 +2,8 @@ import type { FlowJob, FlowProducer } from "bullmq";
 import { QUEUES } from "@fe-radar/shared";
 import type { PipelineJob } from "./queues";
 
-export function buildItemPipelineFlow(itemId: number): FlowJob {
-  const payload: PipelineJob = { itemId };
+export function buildItemPipelineFlow(itemId: number, correlationId?: string): FlowJob {
+  const payload: PipelineJob = { itemId, correlationId };
   return {
     name: "curator",
     queueName: QUEUES.curator,
@@ -36,6 +36,6 @@ export function buildItemPipelineFlow(itemId: number): FlowJob {
   };
 }
 
-export async function enqueueItemPipeline(flowProducer: FlowProducer, itemId: number): Promise<void> {
-  await flowProducer.add(buildItemPipelineFlow(itemId));
+export async function enqueueItemPipeline(flowProducer: FlowProducer, itemId: number, correlationId?: string): Promise<void> {
+  await flowProducer.add(buildItemPipelineFlow(itemId, correlationId));
 }

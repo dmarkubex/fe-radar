@@ -198,7 +198,7 @@ describe("handleFetchJob announcement routing", () => {
     );
     expect(db.insert).toHaveBeenCalledWith(mockItems);
     expect(db.insert).toHaveBeenCalledWith(mockItemAnalysis);
-    expect(mockEnqueueItemPipeline).toHaveBeenCalledWith(expect.anything(), 101);
+    expect(mockEnqueueItemPipeline).toHaveBeenCalledWith(expect.anything(), 101, expect.any(String));
     expect(mockMarkSourceSuccess).toHaveBeenCalledWith(db, 7);
     expect(mockRecordSourceFailure).not.toHaveBeenCalled();
   });
