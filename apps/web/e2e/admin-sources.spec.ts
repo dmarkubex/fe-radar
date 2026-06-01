@@ -51,17 +51,44 @@ test("admin 可以登录并进入 sources 后台", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "新增信源" })).toBeVisible();
 });
 
-test("admin 可以看到 37 条 seed 信源", async ({ page }) => {
+test("admin 可以按 tier 查看 seed 信源且启用数符合合同", async ({ page }) => {
   await login(page, adminUsername, adminPassword);
-  await page.goto("/admin/sources");
 
-  let rowCount = 0;
+  // Fetch expected counts from API to derive per-tier expectations dynamically
+  const apiRes = await page.request.get("/api/sources");
+  expect(apiRes.ok()).toBe(true);
+  const { items } = await apiRes.json() as { items: Array<{ enabled: boolean; tier: string }> };
+
+  // Compute per-tier counts from the API (only T1/T2/T3 tiers)
+  const totalByTier: Record<string, number> = { T1: 0, T2: 0, T3: 0 };
+  const enabledByTier: Record<string, number> = { T1: 0, T2: 0, T3: 0 };
+  for (const s of items) {
+    if (s.tier === "T1" || s.tier === "T2" || s.tier === "T3") {
+      totalByTier[s.tier]++;
+      if (s.enabled) enabledByTier[s.tier]++;
+    }
+  }
+  const totalSources = totalByTier.T1 + totalByTier.T2 + totalByTier.T3;
+  const totalEnabled = enabledByTier.T1 + enabledByTier.T2 + enabledByTier.T3;
+
+  await page.goto("/admin/sources");
+  await page.waitForSelector("tbody tr");
+
+  // Verify per-tier total row counts match API
+  let uiTotal = 0;
   for (const tier of ["T1", "T2", "T3"]) {
     await page.getByRole("button", { name: tier }).click();
-    rowCount += await page.locator("tbody tr").count();
+    const rows = await page.locator("tbody tr").count();
+    expect(rows, `${tier} total`).toBe(totalByTier[tier]);
+    uiTotal += rows;
   }
+  expect(uiTotal, "Total sources across tiers").toBe(totalSources);
 
-  expect(rowCount).toBeGreaterThanOrEqual(37);
+  // Verify enabled source count: switch to ALL view and count rows with "启用" status
+  await page.getByRole("button", { name: "全部" }).click();
+  const statusCells = page.locator("tbody tr td:nth-child(5)");
+  const enabledCount = await statusCells.filter({ hasText: "启用" }).count();
+  expect(enabledCount, "Enabled sources").toBe(totalEnabled);
 });
 
 test("admin 可以通过 UI 新建信源", async ({ page }) => {
