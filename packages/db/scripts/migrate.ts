@@ -25,7 +25,12 @@ async function main(): Promise<void> {
 
   const sql = postgres(databaseUrl, { max: 1, prepare: false });
   const migrationsDir = new URL("../migrations", import.meta.url).pathname;
-  const files = readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort();
+  // Forward migrations only. `*.down.sql` are reverse migrations applied
+  // manually for explicit rollback — they must never run in the forward loop
+  // (doing so would drop tables on every migrate).
+  const files = readdirSync(migrationsDir)
+    .filter((file) => file.endsWith(".sql") && !file.endsWith(".down.sql"))
+    .sort();
 
   try {
     for (const file of files) {

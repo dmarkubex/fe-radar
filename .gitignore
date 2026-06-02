@@ -16,7 +16,12 @@
 /.ccb-requests/
 
 # 设计稿 / 原型 HTML+PNG（参考资产，避免膨胀仓库）
-/design/
+# 用 /design/* 而非 /design/ 以便 git 仍能下钻、对下方例外生效
+/design/*
+# 例外：v1.1 简报 docx 模板是生产资产，必须纳入 git（CLAUDE.md 陷阱 #10 / T-CB-11）
+!/design/templates/
+/design/templates/*
+!/design/templates/briefing.docx
 
 # Node 依赖与早期临时实验产物（M0 monorepo 起步时按 spec/tasks.md T-M0-01 重新建立）
 /node_modules/

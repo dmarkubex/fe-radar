@@ -178,6 +178,7 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
                 </label>
                 <select
                   className={FIELD}
+                  data-testid="adapter-select"
                   onChange={(e) => {
                     const parsed = JSON.parse(config) as Record<string, unknown>;
                     parsed["adapter"] = e.target.value;
@@ -199,6 +200,7 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
                 </label>
                 <input
                   className={FIELD}
+                  data-testid="metric-keys-input"
                   placeholder="cu_main_close,cu_main_change_pct"
                   onChange={(e) => {
                     const keys = e.target.value
