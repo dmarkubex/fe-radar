@@ -66,6 +66,10 @@ RUN pnpm --filter @fe-radar/worker exec playwright install --with-deps chromium 
 # 拷贝编译产物与 worker package.json（提供 `start` 脚本与运行期元信息）
 COPY --from=builder /app/apps/worker/dist ./apps/worker/dist
 
+# 读取 Docker *_FILE 密钥到纯 env（DEEPSEEK_API_KEY_FILE→DEEPSEEK_API_KEY 等）；
+# 未设 *_FILE 时为 no-op，故纯 env 部署不受影响。
+COPY --chmod=0755 deploy/docker-entrypoint-secrets.sh /usr/local/bin/fe-entrypoint.sh
+
 # 非 root 运行，浏览器目录授予可读执行
 RUN groupadd -g 1001 nodejs && \
     useradd -u 1001 -g nodejs -m worker && \
@@ -75,6 +79,8 @@ USER worker
 
 WORKDIR /app/apps/worker
 
-# 默认入口 worker；stack.yml 中 scheduler 服务复用同镜像并 override command 为
-# ["node", "dist/apps/worker/src/scheduler.js"]
+# 默认入口 worker；scheduler 服务复用同镜像并在 stack.yml override command 为
+# ["node", "dist/apps/worker/src/scheduler.js"]。ENTRYPOINT 负责 *_FILE 密钥注入，
+# command override 会作为参数透传给它。
+ENTRYPOINT ["/usr/local/bin/fe-entrypoint.sh"]
 CMD ["node", "dist/apps/worker/src/main.js"]

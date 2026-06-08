@@ -22,7 +22,7 @@ services:
 
   worker:
     image: fe-radar/worker:latest
-    command: ["node", "dist/main.js"]
+    # 入口用镜像默认 CMD（dist/apps/worker/src/main.js）；不要覆盖成 dist/main.js（不存在）
     environment:
       NODE_ENV: production
       TZ: Asia/Shanghai
@@ -47,7 +47,7 @@ services:
 
   scheduler:
     image: fe-radar/worker:latest
-    command: ["node", "dist/scheduler.js"]
+    command: ["node", "dist/apps/worker/src/scheduler.js"]
     environment:
       NODE_ENV: production
       TZ: Asia/Shanghai

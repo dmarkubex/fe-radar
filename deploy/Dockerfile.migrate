@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1.7
+# FE-Radar 一次性迁移 / seed 镜像（G2）。
+# runner（web/worker）镜像不含 tsx 与 db 脚本，故用本镜像跑 packages/db 的迁移/seed。
+#
+# 用法（stack 部署后，在能连 internal overlay 的 manager 节点）：
+#   # 1) 建表 + seed ~75 个 enabled 信源（migrate.ts 顺序执行 migrations/*.sql）
+#   docker run --rm --network fe-radar_internal \
+#     -e DATABASE_URL='postgres://fe_radar:<DBPW>@postgres:5432/fe_radar' \
+#     fe-radar/migrate:latest
+#   # 2) 建后台登录账号（可用 SEED_ADMIN_USERNAME / SEED_ADMIN_PASSWORD 指定）
+#   docker run --rm --network fe-radar_internal \
+#     -e DATABASE_URL='postgres://fe_radar:<DBPW>@postgres:5432/fe_radar' \
+#     -e SEED_ADMIN_USERNAME=admin -e SEED_ADMIN_PASSWORD='<strong-pw>' \
+#     fe-radar/migrate:latest pnpm --filter @fe-radar/db seed:admin
+#
+# 注意：不设 NODE_ENV=production，否则 pnpm 跳过 devDependencies → tsx 缺失，迁移无法运行。
+
+FROM node:20-bookworm-slim
+ENV TZ=Asia/Shanghai
+WORKDIR /app
+
+RUN corepack enable
+
+# workspace 清单 + lockfile，最大化层缓存
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json tsconfig.json ./
+COPY apps/web/package.json apps/web/package.json
+COPY apps/worker/package.json apps/worker/package.json
+COPY packages/db/package.json packages/db/package.json
+COPY packages/llm/package.json packages/llm/package.json
+COPY packages/core/package.json packages/core/package.json
+COPY packages/shared/package.json packages/shared/package.json
+
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --frozen-lockfile
+
+# db 包源码（migrations/*.sql + scripts/*.ts）
+COPY packages ./packages
+
+# 默认：建表 + seed 信源。seed:admin 通过 override command 调用（见文件头用法）。
+CMD ["pnpm", "--filter", "@fe-radar/db", "migrate"]

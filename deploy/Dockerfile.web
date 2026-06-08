@@ -70,10 +70,15 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/next.config.js ./apps/we
 COPY --from=builder --chown=nextjs:nodejs /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml /app/tsconfig.base.json /app/tsconfig.json ./
 COPY --from=builder --chown=nextjs:nodejs /app/packages ./packages
 
+# 读取 Docker *_FILE 密钥到纯 env（NEXTAUTH_SECRET_FILE→NEXTAUTH_SECRET 等）；
+# 未设 *_FILE 时为 no-op，故纯 env 部署不受影响。
+COPY --chmod=0755 deploy/docker-entrypoint-secrets.sh /usr/local/bin/fe-entrypoint.sh
+
 USER nextjs
 
 WORKDIR /app/apps/web
 EXPOSE 3000
 
 # next start（next.config.js 未配置 standalone，故不使用 server.js）
+ENTRYPOINT ["/usr/local/bin/fe-entrypoint.sh"]
 CMD ["pnpm", "start"]
