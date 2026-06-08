@@ -11,7 +11,66 @@
  * the clone carries the value while the original does not.
  */
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { mockGetToken } = vi.hoisted(() => ({ mockGetToken: vi.fn() }));
+vi.mock("next-auth/jwt", () => ({ getToken: mockGetToken }));
+
+import middleware from "../middleware";
+import type { NextRequest } from "next/server";
+
+const mw = (path: string): Promise<{ status: number; headers: Headers }> => {
+  const url = `http://localhost${path}`;
+  const req = { nextUrl: new URL(url), url, headers: new Headers() } as unknown as NextRequest;
+  return middleware(req);
+};
+
+// Antigravity #5 — the real auth gate is middleware.ts; cover unauth (401/redirect)
+// and role boundaries (403) that the per-route tests bypass by mocking getRequestUser.
+describe("middleware auth gate (Antigravity #5)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns 401 for an unauthenticated API request", async () => {
+    mockGetToken.mockResolvedValue(null);
+    expect((await mw("/api/timeline")).status).toBe(401);
+  });
+
+  it("redirects an unauthenticated page request to /auth/login", async () => {
+    mockGetToken.mockResolvedValue(null);
+    const res = await mw("/curated");
+    expect([302, 307]).toContain(res.status);
+    expect(res.headers.get("location")).toContain("/auth/login");
+  });
+
+  it("returns 403 when a viewer hits an admin API path", async () => {
+    mockGetToken.mockResolvedValue({ role: "viewer", sub: "1" });
+    expect((await mw("/api/admin/worker")).status).toBe(403);
+  });
+
+  it("returns 403 when a viewer hits an editor (sources) API path", async () => {
+    mockGetToken.mockResolvedValue({ role: "viewer", sub: "1" });
+    expect((await mw("/api/sources/5")).status).toBe(403);
+  });
+
+  it("returns 403 when an editor hits an admin API path", async () => {
+    mockGetToken.mockResolvedValue({ role: "editor", sub: "1" });
+    expect((await mw("/api/users")).status).toBe(403);
+  });
+
+  it("allows an admin through an admin API path (no 401/403)", async () => {
+    mockGetToken.mockResolvedValue({ role: "admin", sub: "1" });
+    const res = await mw("/api/admin/worker");
+    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
+  });
+
+  it("allows a viewer through a timeline API path", async () => {
+    mockGetToken.mockResolvedValue({ role: "viewer", sub: "1" });
+    const res = await mw("/api/timeline");
+    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
+  });
+});
 
 describe("middleware x-pathname header injection pattern (DMA-51)", () => {
   it("cloned Headers object carries the injected x-pathname value", () => {

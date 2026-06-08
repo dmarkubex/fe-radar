@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { NextRequest } from "next/server";
+import type * as AuthzModule from "@/lib/api/authz";
 
 const { mockFetchTimeline, mockGetRequestUser } = vi.hoisted(() => ({
   mockFetchTimeline: vi.fn(),
@@ -8,7 +9,7 @@ const { mockFetchTimeline, mockGetRequestUser } = vi.hoisted(() => ({
 
 vi.mock("@/lib/api/timeline-query", () => ({ fetchTimeline: mockFetchTimeline }));
 vi.mock("@/lib/api/authz", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/api/authz")>();
+  const actual = await importOriginal<typeof AuthzModule>();
   return { ...actual, getRequestUser: mockGetRequestUser };
 });
 
@@ -44,5 +45,18 @@ describe("GET /api/search", () => {
     const res = await GET(req(`${BASE}?q=x&circle=NOPE`));
     expect(res.status).toBe(400);
     expect(mockFetchTimeline).not.toHaveBeenCalled();
+  });
+
+  // Antigravity #5 — route-level RBAC boundary (mirror of timeline route)
+  it("does not let a viewer include blocked items", async () => {
+    mockGetRequestUser.mockResolvedValue({ id: 2, role: "viewer" });
+    await GET(req(`${BASE}?q=x&includeBlocked=true`));
+    expect((mockFetchTimeline.mock.calls[0]![0] as { includeBlocked: boolean }).includeBlocked).toBe(false);
+  });
+
+  it("lets an admin include blocked items", async () => {
+    mockGetRequestUser.mockResolvedValue({ id: 3, role: "admin" });
+    await GET(req(`${BASE}?q=x&includeBlocked=true`));
+    expect((mockFetchTimeline.mock.calls[0]![0] as { includeBlocked: boolean }).includeBlocked).toBe(true);
   });
 });
