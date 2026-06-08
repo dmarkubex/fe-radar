@@ -1,13 +1,14 @@
 import crypto from "node:crypto";
 import { createLogger, DingtalkBotError } from "@fe-radar/shared";
 
+/** Pino redact paths for this module's log calls */
+const MODULE_REDACT = ["webhookUrl", "signSecret", "webhook", "sign"] as const;
+
 const logger = createLogger({
   service: "dingtalk-bot",
   // redact webhook/sign fields in addition to global REDACT_PATHS
+  redactPaths: [...MODULE_REDACT],
 });
-
-/** Pino redact paths for this module's log calls */
-const MODULE_REDACT = ["webhookUrl", "signSecret", "webhook", "sign"] as const;
 
 function maskedUrl(url: string): string {
   // Show only last 4 chars of the URL to aid debugging without leaking token
@@ -86,7 +87,7 @@ async function postToWebhook(
   let json: { errcode: number; errmsg: string };
   try {
     json = (await response.json()) as { errcode: number; errmsg: string };
-  } catch (err) {
+  } catch {
     throw new DingtalkBotError(
       "DINGTALK_PARSE_ERROR",
       "Failed to parse DingTalk response JSON",

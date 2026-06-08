@@ -1,0 +1,107 @@
+# FE-Radar — 单机 fetch 真连网验证用 docker-compose（standalone Docker / Portainer Compose stack）
+#
+# 与 deploy/stack.yml 的区别：
+#   - stack.yml 是 Swarm 风味（deploy.replicas / secrets:external / overlay internal），用 `docker stack deploy`
+#   - 本文件是 standalone 风味（restart / 纯 env / bridge 网络 / 一次性 migrate），用 `docker compose up`
+#     或直接贴进 Portainer 的 Compose stack。只起验证 fetch 所需的最小服务，不含 web/minio/grafana/LLM。
+#
+# 用法：
+#   1) 先在本机/服务器 build 三个镜像（见 docs/runbook/deploy-portainer.md §1·B）：
+#        fe-radar/postgres-zhparser:pg16 / fe-radar/worker:latest / fe-radar/migrate:latest
+#   2) docker compose -f deploy/compose.fetch-smoke.yml up -d
+#      （或 Portainer → Stacks → Add stack → 贴本文件）
+#   3) migrate 服务会自动建表 + seed ~75 个 enabled 信源 + 建 admin 账号，然后退出
+#   4) 验证抓取见 runbook §5（或用 deploy/scripts 的自检 SQL）
+#
+# 可调：DB_PASSWORD 默认 fe_radar_dev；ADMIN_PASSWORD 默认 admin123（仅测试用，勿用于生产）。
+
+services:
+  postgres:
+    image: harborssl.fegroup.cn/custom-project/fe-radar/postgres-zhparser:pg16
+    environment:
+      POSTGRES_DB: fe_radar
+      POSTGRES_USER: fe_radar
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-fe_radar_dev}
+      TZ: Asia/Shanghai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # 映射到宿主机，方便 psql 直接查（测试用；生产关闭）
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fe_radar -d fe_radar"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: harborssl.fegroup.cn/custom-project/redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  rsshub:
+    image: harborssl.fegroup.cn/custom-project/diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3df98bab0f979c03059
+    environment:
+      TZ: Asia/Shanghai
+      NODE_ENV: production
+      CACHE_EXPIRE: "3600"
+      REDIS_URL: redis://redis:6379
+    restart: unless-stopped
+
+  # 一次性迁移 + seed：建表、seed 信源、建 admin 账号，跑完即退出
+  migrate:
+    image: harborssl.fegroup.cn/custom-project/fe-radar/migrate:latest
+    command:
+      - sh
+      - -c
+      - "pnpm --filter @fe-radar/db migrate && pnpm --filter @fe-radar/db seed:admin"
+    environment:
+      TZ: Asia/Shanghai
+      DATABASE_URL: postgres://fe_radar:${DB_PASSWORD:-fe_radar_dev}@postgres:5432/fe_radar
+      SEED_ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      SEED_ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  worker:
+    image: harborssl.fegroup.cn/custom-project/fe-radar/worker:latest
+    # 入口用镜像默认 CMD（dist/apps/worker/src/main.js），勿覆盖
+    environment:
+      NODE_ENV: production
+      TZ: Asia/Shanghai
+      DATABASE_URL: postgres://fe_radar:${DB_PASSWORD:-fe_radar_dev}@postgres:5432/fe_radar
+      REDIS_URL: redis://redis:6379
+      RSSHUB_BASE_URL: http://rsshub:1200
+      PROXY_POOL_ENABLED: "false"
+      # 首测不配 LLM：worker 仍能启动，fetch 照常抓取写 items；下游 prefilter 调 LLM 才失败（预期）
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  scheduler:
+    image: harborssl.fegroup.cn/custom-project/fe-radar/worker:latest
+    command: ["node", "dist/apps/worker/src/scheduler.js"]
+    environment:
+      NODE_ENV: production
+      TZ: Asia/Shanghai
+      DATABASE_URL: postgres://fe_radar:${DB_PASSWORD:-fe_radar_dev}@postgres:5432/fe_radar
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -35,7 +35,7 @@ import type { Quote, SupportResistanceSample } from "@fe-radar/core";
 import { APP_TIMEZONE, createLogger, dayjs } from "@fe-radar/shared";
 
 import { renderBriefing } from "../lib/briefing-render";
-import { createRedisConnection, QUEUE_QUOTES_FETCH } from "../queues";
+import { createBriefingPushQueue, createRedisConnection, QUEUE_QUOTES_FETCH } from "../queues";
 
 const logger = createLogger({ service: "briefing-gen" });
 
@@ -55,13 +55,23 @@ const MAX_QUEUE_RETRIES = 2;
 /** Maximum number of field-coverage retries before degraded */
 const MAX_FIELD_RETRIES = 2;
 
-/** Key metric fields required for a non-degraded briefing (first 5 from commodity_quotes) */
-const KEY_METRIC_FIELDS = [
-  "cu_main_close",
-  "cu_main_change_pct",
-  "lc_main_close",
-  "lc_main_change_pct",
-  "usd_cny",
+/**
+ * Key metric fields required for a non-degraded briefing.
+ *
+ * IMPORTANT (Antigravity #3): these MUST match the canonical metric_key values
+ * actually produced by the quotes adapters / seeded in
+ * 0009_commodity_seed.sql (sources.config.metric_keys + briefing_template_fields.
+ * source_metric). The earlier values cu_main_change_pct / lc_main_change_pct /
+ * usd_cny never existed in commodity_quotes, so every briefing was falsely
+ * judged coverage-insufficient → degraded. See drift-guard test in
+ * briefing-gen.test.ts.
+ */
+export const KEY_METRIC_FIELDS = [
+  "cu_main_close", // SHFE 沪铜主力收盘
+  "cu_change_pct", // SHFE 沪铜涨跌幅
+  "lc_main_close", // GFEX 碳酸锂主力收盘
+  "lc_change_pct", // GFEX 碳酸锂涨跌幅
+  "fx_usdcny", // 央行美元中间价
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -252,35 +262,43 @@ export async function runBriefingGen(
   }
 
   // ── Step 0: quotes-fetch queue precheck (v0.4 fix E1) ─────
-  let queueRetries = 0;
-  while (true) {
-    const queueHandle =
-      options.quotesFetchQueueOverride ??
-      new Queue(QUEUE_QUOTES_FETCH, { connection: createRedisConnection() });
+  // Create the queue handle ONCE (not per retry) and always close it. Tests
+  // inject quotesFetchQueueOverride, in which case we own no Redis resource.
+  const ownPrecheckConn = options.quotesFetchQueueOverride ? null : createRedisConnection();
+  const ownPrecheckQueue = ownPrecheckConn
+    ? new Queue(QUEUE_QUOTES_FETCH, { connection: ownPrecheckConn })
+    : null;
+  const queueHandle = options.quotesFetchQueueOverride ?? ownPrecheckQueue!;
+  try {
+    let queueRetries = 0;
+    while (true) {
+      const counts = await queueHandle.getJobCounts("waiting", "active", "delayed");
+      const pending = (counts["waiting"] ?? 0) + (counts["active"] ?? 0) + (counts["delayed"] ?? 0);
 
-    const counts = await queueHandle.getJobCounts("waiting", "active", "delayed");
-    const pending = (counts["waiting"] ?? 0) + (counts["active"] ?? 0) + (counts["delayed"] ?? 0);
+      if (pending === 0) break; // quotes-fetch queue is clear
 
-    if (pending === 0) break; // quotes-fetch queue is clear
+      queueRetries++;
+      if (queueRetries > MAX_QUEUE_RETRIES) {
+        logger.error(
+          { counts, retries: queueRetries },
+          "briefing-gen aborted: quotes-fetch queue still non-empty after max retries"
+        );
+        await persistBriefing(db, todayStr, {}, null, "failed", "quotes-fetch queue non-empty after max retries");
+        return {
+          status: "failed",
+          genError: "quotes-fetch queue non-empty after max retries",
+        };
+      }
 
-    queueRetries++;
-    if (queueRetries > MAX_QUEUE_RETRIES) {
-      logger.error(
-        { counts, retries: queueRetries },
-        "briefing-gen aborted: quotes-fetch queue still non-empty after max retries"
+      logger.warn(
+        { counts, attempt: queueRetries },
+        `briefing-gen: quotes-fetch queue non-empty, waiting ${retryDelayMs}ms before retry`
       );
-      await persistBriefing(db, todayStr, {}, null, "failed", "quotes-fetch queue non-empty after max retries");
-      return {
-        status: "failed",
-        genError: "quotes-fetch queue non-empty after max retries",
-      };
+      await sleep(retryDelayMs);
     }
-
-    logger.warn(
-      { counts, attempt: queueRetries },
-      `briefing-gen: quotes-fetch queue non-empty, waiting ${retryDelayMs}ms before retry`
-    );
-    await sleep(retryDelayMs);
+  } finally {
+    if (ownPrecheckQueue) await ownPrecheckQueue.close();
+    if (ownPrecheckConn) await ownPrecheckConn.quit();
   }
 
   // ── Step 1: field coverage precheck ───────────────────────
@@ -380,8 +398,8 @@ export async function runBriefingGen(
   // ── Step 4: docx render ───────────────────────────────────
   const briefingDateCompact = todayStr.replace(/-/g, ""); // YYYYMMDD
 
-  // Build flat template fields from payload
-  const templateFields = buildTemplateFields(payloadJson, todayStr);
+  // Build flat template fields from payload + today's quotes
+  const templateFields = buildTemplateFields(payloadJson, quotesByKey, todayStr, now);
 
   let docxPath: string | null = null;
   try {
@@ -407,6 +425,30 @@ export async function runBriefingGen(
     finalStatus,
     null
   );
+
+  // ── Enqueue briefing-push on success ──────────────────────
+  // Push immediately so manual /regenerate and same-day generation reach the
+  // dingtalk targets without waiting for the 16:05 cron. Idempotent via
+  // briefing_pushes UNIQUE(briefing_id, target_id); enqueue failure degrades
+  // gracefully to the cron fallback and never fails the gen job itself.
+  if (briefingId > 0) {
+    // Build the connection explicitly: BullMQ won't quit a passed-in ("shared")
+    // IORedis on queue.close(), so we own the quit() to avoid a per-briefing leak.
+    const pushConn = createRedisConnection();
+    const pushQueue = createBriefingPushQueue(pushConn);
+    try {
+      await pushQueue.add("briefing-push", { briefingId });
+      logger.debug({ briefingId }, "briefing-gen: enqueued briefing-push job");
+    } catch (error) {
+      logger.warn(
+        { briefingId, error: error instanceof Error ? error.message : String(error) },
+        "briefing-gen: failed to enqueue briefing-push (falling back to 16:05 cron)"
+      );
+    } finally {
+      await pushQueue.close();
+      await pushConn.quit();
+    }
+  }
 
   logger.info(
     { briefingId, briefingDate: todayStr, status: finalStatus, docxPath },
@@ -459,9 +501,59 @@ async function persistBriefing(
 // Template field builder
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * Maps flat docx placeholder keys → commodity_quotes metric_key, mirroring the
+ * `source_metric` column seeded in 0009_commodity_seed.sql. Keeping this in sync
+ * with the seed is what lets the docx template (flat {{cu_close}} placeholders)
+ * resolve real numeric values. Any key absent from today's quotes falls back to
+ * "—" via the template nullGetter.
+ */
+const PLACEHOLDER_METRIC_MAP: Record<string, string> = {
+  cu_close: "cu_main_close",
+  cu_open: "cu_main_open",
+  cu_high: "cu_main_high",
+  cu_low: "cu_main_low",
+  cu_volume: "cu_main_volume",
+  cu_change_pct: "cu_change_pct",
+  cu_warrants: "cu_warrants",
+  lc_close: "lc_main_close",
+  lc_open: "lc_main_open",
+  lc_high: "lc_main_high",
+  lc_low: "lc_main_low",
+  lc_volume: "lc_main_volume",
+  lc_change_pct: "lc_change_pct",
+  lc_warrants: "lc_warrants",
+  lme_cu_close: "lme_cu_3m",
+  lme_cu_cash: "lme_cu_cash",
+  lme_cu_change_pct: "lme_cu_change_pct",
+  fx_usdcny: "fx_usdcny",
+  fx_eurcny: "fx_eurcny",
+  fx_hkdcny: "fx_hkdcny",
+  cny_10y_yield: "cny_10y_yield",
+  cny_5y_yield: "cny_5y_yield",
+  cny_2y_yield: "cny_2y_yield",
+  cu_spot_smm: "cu_spot_smm",
+  cu_spot_100ppi: "cu_spot_100ppi",
+  cu_spot_cjsc: "cu_spot_cjsc",
+  lc_spot_smm: "lc_spot_smm",
+  ev_sales_monthly: "ev_sales_monthly",
+  al_spot_smm: "al_spot_smm",
+  zn_spot_smm: "zn_spot_smm",
+};
+
+/**
+ * Assemble the flat placeholder→value map consumed by the docx template. Keys
+ * MUST match `briefing_template_fields.placeholder_key` (flat, e.g. `cu_close`,
+ * `cu_logic_summary`) so the render-time lint passes and values actually
+ * substitute. LLM segments + code-computed support/resistance come from
+ * payload_json; numeric metrics come from today's quotes via
+ * PLACEHOLDER_METRIC_MAP; static/meta fields are filled inline.
+ */
 function buildTemplateFields(
   payload: BriefingPayloadJson,
-  briefingDate: string
+  quotesByKey: Record<string, number | null>,
+  briefingDate: string,
+  now: Date
 ): Record<string, string> {
   const fallback = "—";
 
@@ -470,23 +562,35 @@ function buildTemplateFields(
     return String(v);
   }
 
-  return {
+  const fields: Record<string, string> = {
+    // Static / meta
     briefing_date: briefingDate,
-    // CU fields
-    "cu.logic_summary": payload.cu.logic_summary ?? fallback,
-    "cu.outlook.trend": payload.cu.outlook.trend ?? fallback,
-    "cu.outlook.support": fmt(payload.cu.outlook.support),
-    "cu.outlook.resistance": fmt(payload.cu.outlook.resistance),
-    // LC fields
-    "lc.logic_summary": payload.lc.logic_summary ?? fallback,
-    "lc.outlook.trend": payload.lc.outlook.trend ?? fallback,
-    "lc.outlook.support": fmt(payload.lc.outlook.support),
-    "lc.outlook.resistance": fmt(payload.lc.outlook.resistance),
-    // Shared fields
+    template_version: "1",
+    generated_at: dayjs(now).tz(APP_TIMEZONE).format("YYYY-MM-DD HH:mm"),
+    report_disclaimer: "本简报仅供远东控股内部参考，不构成投资建议。",
+    footer_date: briefingDate,
+    footer_company: "远东控股集团",
+    // LLM 7-segment output
+    cu_logic_summary: payload.cu.logic_summary ?? fallback,
+    cu_outlook_trend: payload.cu.outlook.trend ?? fallback,
+    lc_logic_summary: payload.lc.logic_summary ?? fallback,
+    lc_outlook_trend: payload.lc.outlook.trend ?? fallback,
     macro_summary: payload.macro_summary ?? fallback,
     risk_notes: Array.isArray(payload.risk_notes)
       ? payload.risk_notes.join("；")
       : fallback,
     procurement_advice: payload.procurement_advice ?? fallback,
+    // Code-computed support / resistance (design.md §6.5)
+    cu_support: fmt(payload.cu.outlook.support),
+    cu_resistance: fmt(payload.cu.outlook.resistance),
+    lc_support: fmt(payload.lc.outlook.support),
+    lc_resistance: fmt(payload.lc.outlook.resistance),
   };
+
+  // Numeric metric placeholders (NFR-102: values come only from quotes, never LLM)
+  for (const [placeholder, metricKey] of Object.entries(PLACEHOLDER_METRIC_MAP)) {
+    fields[placeholder] = fmt(quotesByKey[metricKey]);
+  }
+
+  return fields;
 }

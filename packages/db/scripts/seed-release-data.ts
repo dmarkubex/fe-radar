@@ -106,7 +106,11 @@ async function main(): Promise<void> {
       sources = await sql`SELECT id, name, tier FROM sources LIMIT 10`;
     }
 
-    const sourceMap = new Map(sources.map((s: { name: string; id: number }) => [s.name, s.id]));
+    const sourceMap = new Map(
+      (sources as unknown as Array<{ name: string; id: number }>).map(
+        (s) => [s.name, s.id] as [string, number]
+      )
+    );
     const basePublishedAt = new Date("2026-05-26T12:00:00+08:00");
 
     for (let i = 0; i < TIMELINE_SEEDS.length; i += 1) {
@@ -137,7 +141,7 @@ async function main(): Promise<void> {
           quality_score, category, top_circle, is_curated,
           alert_level, alert_type, quota_state, scored_at
         ) VALUES (
-          ${item.id}, true, ${seed.summaryZh},
+          ${item!.id}, true, ${seed.summaryZh},
           ${seed.scores.d1}, ${seed.scores.d2}, ${seed.scores.d3}, ${seed.scores.d4}, ${seed.scores.d5},
           ${seed.quality}, ${seed.category}, ${seed.circle}, ${isCurated},
           ${seed.alertLevel}, ${seed.alertType}, 'admitted', ${scoredAt}

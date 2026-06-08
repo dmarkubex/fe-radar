@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { runBriefingGen } from "../briefing-gen";
+import { runBriefingGen, KEY_METRIC_FIELDS } from "../briefing-gen";
 
 // ─────────────────────────────────────────────────────────────
 // Module mocks
@@ -37,9 +37,23 @@ vi.mock("../../lib/briefing-render", () => ({
   renderBriefing: (payload: unknown, db: unknown) => renderBriefingFn?.(payload, db),
 }));
 
+// Shared spies so tests can assert briefing-push enqueue. Declared via
+// vi.hoisted so they exist before the hoisted vi.mock factory runs.
+const { pushQueueAdd, pushQueueClose, pushConnQuit } = vi.hoisted(() => ({
+  pushQueueAdd: vi.fn().mockResolvedValue(undefined),
+  pushQueueClose: vi.fn().mockResolvedValue(undefined),
+  pushConnQuit: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("../../queues", () => ({
   QUEUE_QUOTES_FETCH: "fe-quotes-fetch",
-  createRedisConnection: vi.fn().mockReturnValue({}),
+  // Returns a connection with quit() so the leak-fix (conn.quit after close) is
+  // exercised; BullMQ won't quit a passed-in shared IORedis on queue.close().
+  createRedisConnection: vi.fn().mockReturnValue({ quit: pushConnQuit }),
+  createBriefingPushQueue: vi.fn().mockReturnValue({
+    add: pushQueueAdd,
+    close: pushQueueClose,
+  }),
 }));
 
 // ─────────────────────────────────────────────────────────────
@@ -120,6 +134,21 @@ describe("briefing-gen", () => {
       docxPath: "fe-radar-briefings/briefings/2026/05/briefing-20260520.docx",
       minioKey: "briefings/2026/05/briefing-20260520.docx",
     });
+  });
+
+  // ── Drift guard (Antigravity #3): coverage keys must match seed metric_keys ──
+  it("KEY_METRIC_FIELDS use canonical seed metric_key names, not the buggy aliases", () => {
+    expect(KEY_METRIC_FIELDS).toEqual([
+      "cu_main_close",
+      "cu_change_pct",
+      "lc_main_close",
+      "lc_change_pct",
+      "fx_usdcny",
+    ]);
+    // The old values silently broke coverage — guard against regression.
+    for (const bad of ["cu_main_change_pct", "lc_main_change_pct", "usd_cny"]) {
+      expect(KEY_METRIC_FIELDS).not.toContain(bad);
+    }
   });
 
   // ── Case 1: quotes-fetch queue non-empty → delay × 2 → abort failed ────
@@ -273,16 +302,50 @@ describe("briefing-gen", () => {
     // _srDegraded flag must be present
     expect(payload["_srDegraded"]).toBe(true);
 
-    // docx template field for support should be "—"
+    // docx template field for support should be "—" (flat placeholder keys
+    // matching briefing_template_fields.placeholder_key)
     expect(renderBriefingFn).toHaveBeenCalledWith(
       expect.objectContaining({
         fields: expect.objectContaining({
-          "cu.outlook.support": "—",
-          "cu.outlook.resistance": "—",
+          cu_support: "—",
+          cu_resistance: "—",
         }),
       }),
       expect.anything()
     );
+  });
+
+  // ── Case 7: enqueue briefing-push on success (T-CB-13 / FIX-2) ─────────
+  it("enqueues a briefing-push job after a successful generation", async () => {
+    pushQueueAdd.mockClear();
+    pushQueueClose.mockClear();
+    pushConnQuit.mockClear();
+
+    const insertChain: Record<string, ReturnType<typeof vi.fn>> = {};
+    insertChain.values = vi.fn().mockReturnValue(insertChain);
+    insertChain.onConflictDoNothing = vi.fn().mockReturnValue(insertChain);
+    insertChain.returning = vi.fn().mockResolvedValue([{ id: 88 }]);
+
+    const db = { ...buildDb(), insert: vi.fn().mockReturnValue(insertChain) };
+
+    const mockQueue = {
+      getJobCounts: vi.fn().mockResolvedValue({ waiting: 0, active: 0, delayed: 0 }),
+    };
+
+    const result = await runBriefingGen({
+      db: db as never,
+      now: new Date("2026-05-20T08:00:00Z"),
+      quotesFetchQueueOverride: mockQueue,
+      retryDelayMs: 0,
+    });
+
+    expect(result.status).toBe("succeeded");
+    expect(result.briefingId).toBe(88);
+    // briefing-push enqueued with the persisted briefingId, then connection closed
+    expect(pushQueueAdd).toHaveBeenCalledWith("briefing-push", { briefingId: 88 });
+    expect(pushQueueClose).toHaveBeenCalledOnce();
+    // #4 leak-fix: the push queue's Redis connection must also be quit, not just close()d.
+    expect(pushConnQuit).toHaveBeenCalledOnce();
   });
 
   // ── Case 6: LLM error → gen_status=failed + gen_error text ────────────

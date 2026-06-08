@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
-import { DingtalkProvider, isDingtalkEnabled } from "@/lib/auth/dingtalk-provider";
+import { DingtalkProvider, isDingtalkEnabled, isLocalLoginAllowed } from "@/lib/auth/dingtalk-provider";
 import { mergeOrCreateUser } from "@/lib/auth/merge";
 import { findUserByUsername } from "@/lib/auth/users";
 import { verifyPassword } from "@/lib/auth/password";
@@ -24,6 +24,13 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         password: { label: "密码", type: "password" }
       },
       async authorize(rawCredentials) {
+        // Emergency break-glass gate: when DingTalk SSO is enabled, local
+        // credential login is rejected unless EMERGENCY_LOCAL_LOGIN=true.
+        // This is the real control — UI hiding alone is not. (Antigravity #1)
+        if (!isLocalLoginAllowed()) {
+          return null;
+        }
+
         const parsed = credentialsSchema.safeParse(rawCredentials);
         if (!parsed.success) {
           return null;

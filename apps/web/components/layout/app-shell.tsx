@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
+import { Menu, X } from "lucide-react";
 import { AlertBadge } from "@/components/layout/alert-badge";
 
 import type { UserRole } from "@fe-radar/shared";
@@ -29,6 +32,7 @@ const DATA_NAV = [
 const ADMIN_NAV = [
   { href: "/admin/sources", label: "信源 Sources", minRole: "editor" as UserRole },
   { href: "/admin/scoring-config", label: "评分配置 Scoring", minRole: "admin" as UserRole },
+  { href: "/admin/worker", label: "运行监控 Monitor", minRole: "admin" as UserRole },
   { href: "/admin/users", label: "用户与权限", minRole: "admin" as UserRole },
 ];
 
@@ -45,17 +49,18 @@ export function AppShell({
   const currentPath = pathname ?? activePath;
   const isLoggedIn = Boolean(user?.name);
   const initial = user?.name ? user.name.slice(0, 2).toUpperCase() : "?";
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
-    <div className="grid grid-cols-[232px_1fr] min-h-screen max-[760px]:grid-cols-1">
-      <aside className="bg-surface-deep text-fg-on-dark py-6 border-r border-surface-deep sticky top-0 h-screen overflow-y-auto flex flex-col max-[760px]:static max-[760px]:h-auto">
-        <div className="px-6 pb-6 border-b border-white/[0.08] mb-4">
+    <div className="grid grid-cols-[188px_1fr] min-h-screen max-[760px]:block">
+      <aside className="bg-surface-deep text-fg-on-dark py-3 border-r border-surface-deep sticky top-0 h-screen overflow-y-auto flex flex-col max-[760px]:hidden">
+        <div className="px-3 pb-3 border-b border-white/[0.08] mb-2">
           <img
             src="/fareast-logo.png"
             alt="远东控股集团"
-            className="block h-auto w-[158px] border border-white/[0.18] bg-white px-2 py-1"
+            className="block h-auto w-[128px] border border-white/[0.18] bg-white px-1 py-0.5"
           />
-          <small className="mt-2 block text-[10px] text-white/55 tracking-[1.6px] uppercase">FE-Radar · 行业情报雷达</small>
+          <small className="mt-1 block text-[8px] text-white/55 tracking-[1.2px] uppercase">FE-Radar</small>
         </div>
 
         {isLoggedIn ? (
@@ -75,32 +80,89 @@ export function AppShell({
         )}
 
         {isLoggedIn && (
-          <div className="mt-auto px-6 py-4 border-t border-white/[0.08] flex items-center gap-2.5 text-xs text-white/60">
-            <div className="w-7 h-7 bg-sunshine-700 text-white grid place-items-center text-xs tracking-[-0.5px] rounded-[1px]">
-              {initial}
+          <div className="mt-auto px-3 py-3 border-t border-white/[0.08] flex items-center justify-between gap-2 text-xs text-white/60">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 bg-sunshine-700 text-white grid place-items-center text-[10px] tracking-[-0.5px] rounded-[1px] shrink-0">
+                {initial}
+              </div>
+              <div className="min-w-0">
+                <div className="text-white text-xs truncate">{user?.name}</div>
+                <small className="text-white/50 text-[10px]">
+                  {user?.role === "admin" ? "管理员" : user?.role === "editor" ? "编辑" : "查看者"}
+                </small>
+              </div>
             </div>
-            <div>
-              <div className="text-white text-sm">{user?.name}</div>
-              <small className="text-white/50">
-                {user?.role === "admin" ? "管理员" : user?.role === "editor" ? "编辑" : "查看者"}
-              </small>
-            </div>
+            <button
+              onClick={() => signOut({ callbackUrl: "/auth/login" })}
+              className="text-[9px] tracking-[0.5px] uppercase text-white/50 hover:text-white/90 transition-colors px-1.5 py-0.5 border border-white/20 hover:border-white/40 rounded-[1px]"
+            >
+              登出
+            </button>
           </div>
         )}
       </aside>
 
-      <main className="min-w-0">
+      <main className="@container min-w-0">
         {isLoggedIn && (
-          <div className="sticky top-0 z-10 flex items-center gap-4 px-8 py-3.5 bg-bg border-b border-border">
-            <div className="text-xs text-fg-muted tracking-[0.4px] uppercase">
+          <div className="hidden max-[760px]:flex items-center justify-between gap-3 px-4 py-2 bg-surface-deep text-fg-on-dark border-b border-white/[0.08] sticky top-0 z-30">
+            <img
+              src="/fareast-logo.png"
+              alt="远东控股集团"
+              className="block h-auto w-[96px] border border-white/[0.18] bg-white px-1 py-0.5"
+            />
+            <button
+              type="button"
+              aria-label="打开菜单"
+              onClick={() => setDrawerOpen(true)}
+              className="grid place-items-center w-8 h-8 border border-white/20 text-white/80 hover:text-white hover:border-white/40 rounded-[1px] transition-colors"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {isLoggedIn && drawerOpen && (
+          <div className="hidden max-[760px]:block fixed inset-0 z-40">
+            <div
+              className="absolute inset-0 bg-black/60"
+              onClick={() => setDrawerOpen(false)}
+            />
+            <div className="absolute inset-y-0 left-0 w-[240px] bg-surface-deep text-fg-on-dark flex flex-col overflow-y-auto border-r border-white/[0.08]">
+              <div className="px-3 py-3 border-b border-white/[0.08] flex items-center justify-between">
+                <img
+                  src="/fareast-logo.png"
+                  alt="远东控股集团"
+                  className="block h-auto w-[128px] border border-white/[0.18] bg-white px-1 py-0.5"
+                />
+                <button
+                  type="button"
+                  aria-label="关闭菜单"
+                  onClick={() => setDrawerOpen(false)}
+                  className="grid place-items-center w-7 h-7 border border-white/20 text-white/80 hover:text-white hover:border-white/40 rounded-[1px] transition-colors shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <nav className="flex-1 py-2" onClick={() => setDrawerOpen(false)}>
+                <NavSection title="监测" items={MONITOR_NAV} role={user?.role} activePath={currentPath} />
+                <NavSection title="数据" items={DATA_NAV} role={user?.role} activePath={currentPath} />
+                <NavSection title="管理" items={ADMIN_NAV} role={user?.role} activePath={currentPath} />
+              </nav>
+            </div>
+          </div>
+        )}
+
+        {isLoggedIn && (
+          <div className="sticky top-0 z-10 flex items-center gap-3 px-5 py-2 bg-bg border-b border-border max-[760px]:px-4">
+            <div className="text-[10px] text-fg-muted tracking-[0.4px] uppercase shrink-0 max-[760px]:hidden">
               {getBreadcrumb(currentPath)}
             </div>
-            <div className="flex-1 max-w-[480px] flex items-center gap-2 bg-surface border border-border px-3 py-[7px] text-[13px] text-fg-soft">
+            <div className="flex-1 max-w-[380px] flex items-center gap-1.5 bg-surface border border-border px-2.5 py-1 text-xs text-fg-soft">
               <span>⌕</span>
-              <input placeholder="搜索条目、实体、信源…" className="flex-1 border-0 bg-transparent outline-none text-fg font-[inherit]" />
-              <kbd className="font-mono text-[10px] bg-surface border border-border px-[5px] py-[1px] text-fg-muted tracking-[0.4px]">⌘K</kbd>
+              <input placeholder="搜索…" className="flex-1 border-0 bg-transparent outline-none text-fg font-[inherit]" />
+              <kbd className="font-mono text-[9px] bg-surface border border-border px-1 text-fg-muted">⌘K</kbd>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center">
               <AlertBadge />
             </div>
           </div>
@@ -127,7 +189,7 @@ function NavSection({
 
   return (
     <>
-      <div className="px-6 pt-4 pb-1.5 text-[10px] tracking-[1.6px] uppercase text-white/40">
+      <div className="px-3 pt-2.5 pb-0.5 text-[8px] tracking-[1.2px] uppercase text-white/40">
         {title}
       </div>
       <nav>
@@ -141,7 +203,7 @@ function NavSection({
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center justify-between px-6 py-2.5 text-sm border-l-2
+              className={`flex items-center justify-between px-3 py-1 text-[11px] border-l-2
                 ${isActive
                   ? "bg-sunshine-700/18 text-white border-l-accent"
                   : "text-white/82 border-l-transparent hover:bg-white/[0.04] hover:text-white"
@@ -166,6 +228,7 @@ function getBreadcrumb(path?: string): string {
   if (path.startsWith("/search")) return "监测 / 搜索";
   if (path.startsWith("/admin/sources")) return "管理 / 信源";
   if (path.startsWith("/admin/scoring-config")) return "管理 / 评分配置";
+  if (path.startsWith("/admin/worker")) return "管理 / 运行监控";
   if (path.startsWith("/admin/users")) return "管理 / 用户";
   if (path.startsWith("/admin/entities")) return "数据 / 实体";
   if (path.startsWith("/briefing")) return "监测 / 简报";

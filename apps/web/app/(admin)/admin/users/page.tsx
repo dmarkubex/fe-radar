@@ -1,5 +1,7 @@
 import { getDb, mergeConflicts, users } from "@fe-radar/db";
 import { desc, eq } from "drizzle-orm";
+import { PageFrame } from "@/components/layout/page-frame";
+import { PageHeader } from "@/components/layout/page-header";
 import { UsersAdmin } from "@/components/users/users-admin";
 
 export const dynamic = "force-dynamic";
@@ -26,12 +28,9 @@ export default async function AdminUsersPage(): Promise<React.JSX.Element> {
   }));
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8">
-      <header>
-        <p className="text-sm font-medium text-zinc-500">后台</p>
-        <h1 className="mt-2 text-2xl font-semibold text-zinc-950">用户管理</h1>
-      </header>
+    <PageFrame size="full">
+      <PageHeader eyebrow="后台" title="用户管理" />
       <UsersAdmin users={userRows.map((item) => ({ ...item, disabledAt: item.disabledAt?.toISOString() ?? null }))} mergeConflicts={mergeConflictPayload} />
-    </main>
+    </PageFrame>
   );
 }

@@ -34,17 +34,30 @@ const DEFAULT_CONFIGS: Record<FetcherType, unknown> = {
   }
 };
 
+export interface EditingSource {
+  id: number;
+  name: string;
+  url: string;
+  tier: "T1" | "T2" | "T3";
+  category: string | null;
+  fetcherType: FetcherType;
+  config: unknown;
+}
+
 interface SourceFormProps {
   onSaved(): void;
+  editing?: EditingSource | null;
+  onCancelEdit?(): void;
 }
 
 const FIELD =
   "h-9 w-full border border-border bg-bg px-3 text-sm text-fg placeholder:text-fg-soft focus:outline-none focus:border-accent";
 
-export function SourceForm({ onSaved }: SourceFormProps): React.JSX.Element {
-  const [fetcherType, setFetcherType] = useState<FetcherType>("rss");
+export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps): React.JSX.Element {
+  const isEdit = Boolean(editing);
+  const [fetcherType, setFetcherType] = useState<FetcherType>(editing?.fetcherType ?? "rss");
   const [config, setConfig] = useState(
-    JSON.stringify(DEFAULT_CONFIGS.rss, null, 2),
+    JSON.stringify(editing?.config ?? DEFAULT_CONFIGS.rss, null, 2),
   );
   const [error, setError] = useState<string | null>(null);
 
@@ -64,11 +77,14 @@ export function SourceForm({ onSaved }: SourceFormProps): React.JSX.Element {
         category: String(formData.get("category") ?? ""),
         config: JSON.parse(config) as unknown,
       };
-      const response = await fetch("/api/sources", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const response = await fetch(
+        isEdit ? `/api/sources/${editing!.id}` : "/api/sources",
+        {
+          method: isEdit ? "PUT" : "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
       if (!response.ok) throw new Error("保存失败，请检查字段和 config JSON。");
       onSaved();
     } catch (cause) {
@@ -78,11 +94,24 @@ export function SourceForm({ onSaved }: SourceFormProps): React.JSX.Element {
 
   return (
     <form action={submit} className="space-y-4">
-      <h3 className="font-display text-base font-semibold text-fg">
-        新增信源
-      </h3>
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="font-display text-base font-semibold text-fg">
+          {isEdit ? `编辑信源 #${editing!.id}` : "新增信源"}
+        </h3>
+        {isEdit ? (
+          <button
+            type="button"
+            className="rounded-none px-2 py-1 font-mono text-[11px] text-fg-muted hover:bg-bg-deep"
+            onClick={() => onCancelEdit?.()}
+          >
+            取消编辑
+          </button>
+        ) : null}
+      </div>
       <p className="font-mono text-[11px] text-fg-soft">
-        填写信源信息后点击「新建」提交。
+        {isEdit
+          ? "修改字段后点击「保存修改」，将更新该信源的全部信息。"
+          : "填写信源信息后点击「新建」提交。"}
       </p>
 
       <div className="space-y-3">
@@ -90,20 +119,20 @@ export function SourceForm({ onSaved }: SourceFormProps): React.JSX.Element {
           <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
             名称
           </label>
-          <input className={FIELD} name="name" placeholder="信源名称" />
+          <input className={FIELD} name="name" placeholder="信源名称" defaultValue={editing?.name ?? ""} />
         </div>
         <div>
           <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
             URL
           </label>
-          <input className={FIELD} name="url" placeholder="https://" />
+          <input className={FIELD} name="url" placeholder="https://" defaultValue={editing?.url ?? ""} />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
               Tier
             </label>
-            <select className={FIELD} name="tier" defaultValue="T2">
+            <select className={FIELD} name="tier" defaultValue={editing?.tier ?? "T2"}>
               <option value="T1">T1</option>
               <option value="T2">T2</option>
               <option value="T3">T3</option>
@@ -132,13 +161,15 @@ export function SourceForm({ onSaved }: SourceFormProps): React.JSX.Element {
           <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
             分类
           </label>
-          <input className={FIELD} name="category" placeholder="分类" />
+          <input className={FIELD} name="category" placeholder="分类" defaultValue={editing?.category ?? ""} />
         </div>
 
         {fetcherType === "quotes" ? (
           <div className="space-y-3 border border-border p-3">
             <p className="font-mono text-[11px] text-fg-soft">
-              Quotes 信源新建后默认 disabled，需等 adapter 上线再启用。
+              {isEdit
+                ? "数值精度字段请直接在下方 Config JSON 中编辑（adapter / metric_keys / endpoint）。"
+                : "Quotes 信源新建后默认 disabled，需等 adapter 上线再启用。"}
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -147,6 +178,7 @@ export function SourceForm({ onSaved }: SourceFormProps): React.JSX.Element {
                 </label>
                 <select
                   className={FIELD}
+                  data-testid="adapter-select"
                   onChange={(e) => {
                     const parsed = JSON.parse(config) as Record<string, unknown>;
                     parsed["adapter"] = e.target.value;
@@ -168,7 +200,8 @@ export function SourceForm({ onSaved }: SourceFormProps): React.JSX.Element {
                 </label>
                 <input
                   className={FIELD}
-                  placeholder="cu_main_close,cu_main_change_pct"
+                  data-testid="metric-keys-input"
+                  placeholder="cu_main_close,cu_change_pct"
                   onChange={(e) => {
                     const keys = e.target.value
                       .split(",")
@@ -214,7 +247,7 @@ export function SourceForm({ onSaved }: SourceFormProps): React.JSX.Element {
         type="submit"
         className="w-full border border-accent bg-accent py-2 font-mono text-xs uppercase tracking-wide text-bg transition-colors hover:bg-accent/90"
       >
-        新建
+        {isEdit ? "保存修改" : "新建"}
       </button>
 
       {error ? (

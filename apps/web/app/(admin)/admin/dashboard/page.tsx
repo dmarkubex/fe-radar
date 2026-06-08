@@ -76,14 +76,14 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
   ];
 
   return (
-    <main className="min-h-screen bg-bg px-6 py-8 font-body text-fg">
+    <main className="min-h-screen bg-bg pad-fluid font-body text-fg">
       <div className="mx-auto w-full max-w-7xl space-y-8">
         {/* ---- page-head ---- */}
         <header className="space-y-2">
           <p className="font-mono text-xs tracking-wide text-fg-soft uppercase">
             概览 · {dateStr} · {timeStr}
           </p>
-          <h1 className="font-display text-3xl tracking-tightest text-fg">
+          <h1 className="font-display display-fluid tracking-tightest text-fg">
             FE-Radar 运行仪表盘
           </h1>
           <p className="max-w-2xl text-sm leading-relaxed text-fg-muted">
@@ -104,15 +104,15 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
           {kpiCards.map((card) => (
             <div
               key={card.label}
-              className={`rounded-none border p-5 shadow-card ${kpiTone(card.tone)}`}
+              className={`rounded-none border p-3 shadow-card ${kpiTone(card.tone)}`}
             >
-              <p className="font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+              <p className="font-mono text-[13px] uppercase tracking-widest text-fg-soft">
                 {card.label}
               </p>
-              <p className="mt-3 font-display text-4xl tracking-tightest text-fg">
+              <p className="mt-1 font-display text-3xl tabular-nums tracking-tight text-fg">
                 {card.value}
               </p>
-              <p className={`mt-2 font-mono text-[11px] ${kpiDelta(card.tone)}`}>
+              <p className={`mt-0.5 font-mono text-[12px] ${kpiDelta(card.tone)}`}>
                 {card.tone === "critical" && "需关注"}
                 {card.tone === "warning" && "偏高"}
                 {card.tone === "default" && "正常"}
@@ -137,8 +137,8 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
                 return (
                   <div key={dim.label} className="space-y-1">
                     <div className="flex items-baseline justify-between">
-                      <span className="font-mono text-xs text-fg-muted">{dim.label}</span>
-                      <span className="font-mono text-xs tabular-nums text-fg">{dim.value}</span>
+                      <span className="font-mono text-sm text-fg-muted">{dim.label}</span>
+                      <span className="font-mono text-sm tabular-nums text-fg">{dim.value}</span>
                     </div>
                     <div className="h-2 w-full bg-bg-deep">
                       <div

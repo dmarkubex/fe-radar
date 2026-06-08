@@ -16,6 +16,8 @@ export interface SourceRecord {
   enabled: boolean;
   lastOkAt: Date | null;
   failCount: number;
+  lastError: string | null;
+  lastErrorAt: Date | null;
   createdAt: Date;
 }
 
@@ -39,6 +41,8 @@ export interface SourceUpdateInput {
   enabled?: boolean;
   lastOkAt?: Date | null;
   failCount?: number;
+  lastError?: string | null;
+  lastErrorAt?: Date | null;
 }
 
 export interface SourceListFilters {
@@ -92,9 +96,26 @@ export async function softDeleteSource(db: DbClient, id: number): Promise<Source
 }
 
 export async function markSourceSuccess(db: DbClient, id: number, now = new Date()): Promise<void> {
-  await db.update(sources).set({ lastOkAt: now, failCount: 0, enabled: true }).where(eq(sources.id, id));
+  // Clear any recorded failure reason on recovery.
+  await db.update(sources).set({ lastOkAt: now, failCount: 0, enabled: true, lastError: null, lastErrorAt: null }).where(eq(sources.id, id));
 }
 
-export async function markSourceFailure(db: DbClient, id: number, failCount: number, disable = false): Promise<void> {
-  await db.update(sources).set({ failCount, enabled: disable ? false : undefined }).where(eq(sources.id, id));
+const LAST_ERROR_MAX_LEN = 1000;
+
+export async function markSourceFailure(
+  db: DbClient,
+  id: number,
+  failCount: number,
+  disable = false,
+  lastError?: string | null,
+  now = new Date()
+): Promise<void> {
+  // lastError semantics: undefined => leave column unchanged; null => clear; string => record (truncated).
+  const lastErrorValue = lastError === undefined ? undefined : lastError === null ? null : lastError.slice(0, LAST_ERROR_MAX_LEN);
+  await db.update(sources).set({
+    failCount,
+    enabled: disable ? false : undefined,
+    lastError: lastErrorValue,
+    lastErrorAt: lastError === undefined ? undefined : lastError === null ? null : now
+  }).where(eq(sources.id, id));
 }

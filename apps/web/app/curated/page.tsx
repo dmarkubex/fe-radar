@@ -1,3 +1,5 @@
+import { PageFrame } from "@/components/layout/page-frame";
+import { PageHeader } from "@/components/layout/page-header";
 import { CATEGORY_TABS } from "@/components/timeline/meta";
 import { fetchTimeline } from "@/lib/api/timeline-query";
 
@@ -35,58 +37,53 @@ export default async function CuratedPage({ searchParams }: { searchParams: Page
   const activeCategory = CATEGORIES.find((c) => c.value === category) ?? CATEGORIES[0];
 
   return (
-    <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 px-5 py-6 md:px-8">
-      <header className="page-head pb-4">
-        <p className="eyebrow font-mono text-[10px] font-medium uppercase tracking-[2px] text-fg-soft">
-          精选 &middot; CURATED
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-fg">
-          {activeCategory.label}
-        </h1>
-        <p className="deck mt-1 text-sm leading-relaxed text-fg-muted">
-          每条目经 5 维评分后按质量排序；低于阈值条目自动滤除。点击卡片查看完整分析与实体。
-        </p>
-        <details className="mt-2">
-          <summary className="cursor-pointer font-mono text-[10px] font-medium uppercase tracking-[1.2px] text-accent hover:text-accent-flame">
-            评分阈值详情
-          </summary>
-          <div className="mt-2 grid grid-cols-5 gap-2 rounded-none border border-hairline bg-surface p-3">
-            {["D1 政策", "D2 链条", "D3 市场", "D4 技术", "D5 商业"].map((d) => (
-              <div key={d} className="text-center">
-                <p className="font-mono text-[10px] text-fg-soft">{d}</p>
-                <p className="text-sm font-semibold text-fg">≥ 5.0</p>
-              </div>
-            ))}
-          </div>
-        </details>
-      </header>
+    <PageFrame size="wide">
+      <PageHeader
+        eyebrow="精选 · CURATED"
+        title={activeCategory.label}
+        description="每条目经 5 维评分后按质量排序；低于阈值条目自动滤除。点击卡片查看完整分析与实体。"
+      />
+
+      <details className="mt-2">
+        <summary className="cursor-pointer font-mono text-[10px] font-medium uppercase tracking-[1.2px] text-accent hover:text-accent-flame">
+          评分阈值详情
+        </summary>
+        <div className="mt-2 grid grid-cols-5 gap-2 rounded-none border border-hairline bg-surface p-3">
+          {["D1 政策", "D2 链条", "D3 市场", "D4 技术", "D5 商业"].map((d) => (
+            <div key={d} className="text-center">
+              <p className="font-mono text-[12px] text-fg-soft">{d}</p>
+              <p className="text-sm font-semibold text-fg">≥ 5.0</p>
+            </div>
+          ))}
+        </div>
+      </details>
 
       <div className="category-strip grid grid-cols-5 gap-0 border border-border-strong">
         {allCategoryData.map((cat) => (
           <a
             key={cat.value}
             href={`/curated?category=${cat.value}`}
-            className={`group flex flex-col items-center gap-1 border-r border-hairline px-3 py-4 last:border-r-0 transition-colors ${
+            className={`group flex flex-col items-center gap-0.5 border-r border-hairline px-3 py-2.5 last:border-r-0 transition-colors ${
               category === cat.value
                 ? "bg-surface-deep text-fg-on-dark"
                 : "bg-surface text-fg hover:bg-surface-warm"
             }`}
           >
-            <span className={`font-mono text-lg ${category === cat.value ? "text-fg-on-dark" : "text-accent"}`}>
+            <span className={`font-mono text-sm ${category === cat.value ? "text-fg-on-dark" : "text-accent"}`}>
               {cat.icon}
             </span>
-            <span className={`text-[10px] font-medium uppercase tracking-[1px] ${
+            <span className={`text-[13px] font-medium uppercase tracking-[1px] ${
               category === cat.value ? "text-fg-on-dark" : "text-fg-soft"
             }`}>
               {cat.label}
             </span>
-            <span className={`font-mono text-xl font-semibold tabular-nums ${
+            <span className={`font-mono text-3xl font-semibold tabular-nums ${
               category === cat.value ? "text-fg-on-dark" : "text-fg"
             }`}>
               {cat.count}
             </span>
             {cat.topScore !== null ? (
-              <span className={`font-mono text-[10px] ${
+              <span className={`font-mono text-[12px] ${
                 category === cat.value ? "text-fg-on-dark/70" : "text-fg-muted"
               }`}>
                 ▲ {cat.topScore.toFixed(1)}
@@ -157,10 +154,10 @@ export default async function CuratedPage({ searchParams }: { searchParams: Page
           </div>
 
           <div className="signal-panel border border-l-0 border-hairline bg-bg-deep p-5">
-            <p className="font-mono text-[10px] font-medium uppercase tracking-[1.4px] text-fg-soft">
+            <p className="font-mono text-[13px] font-medium uppercase tracking-[1.4px] text-fg-soft">
               综合评分
             </p>
-            <p className="mt-1 font-mono text-4xl font-semibold tabular-nums text-accent">
+            <p className="mt-1 font-mono text-3xl font-semibold tabular-nums text-accent">
               {heroItem.qualityScore !== null ? heroItem.qualityScore.toFixed(1) : "-"}
             </p>
             <div className="mt-4 space-y-2">
@@ -172,7 +169,7 @@ export default async function CuratedPage({ searchParams }: { searchParams: Page
                 { label: "D5", key: "d5Business" as const },
               ].map((dim) => (
                 <div key={dim.key} className="flex items-center gap-2">
-                  <span className="w-6 font-mono text-[10px] text-fg-soft">{dim.label}</span>
+                  <span className="w-6 font-mono text-[13px] text-fg-soft">{dim.label}</span>
                   <div className="h-1.5 flex-1 rounded-none bg-border">
                     <div
                       className="h-full rounded-none bg-accent"
@@ -282,6 +279,6 @@ export default async function CuratedPage({ searchParams }: { searchParams: Page
         </section>
       ) : null}
 
-    </main>
+    </PageFrame>
   );
 }

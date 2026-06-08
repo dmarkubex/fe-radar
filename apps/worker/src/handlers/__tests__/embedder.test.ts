@@ -1,0 +1,82 @@
+import { describe, expect, it, vi, beforeEach } from "vitest";
+
+const { mockGetDb, mockRunEmbedder, mockWithScrubber } = vi.hoisted(() => ({
+  mockGetDb: vi.fn(),
+  mockRunEmbedder: vi.fn(),
+  mockWithScrubber: vi.fn((client: unknown) => client),
+}));
+
+vi.mock("@fe-radar/db", () => ({
+  getDb: mockGetDb,
+  items: { id: "items.id", title: "items.title" },
+  itemAnalysis: { itemId: "ia.item_id", summaryZh: "ia.summary", embedding: "ia.embedding" },
+}));
+
+vi.mock("@fe-radar/llm", () => ({ withScrubber: mockWithScrubber }));
+vi.mock("drizzle-orm", () => ({ eq: vi.fn((a: unknown, b: unknown) => ({ a, b })) }));
+vi.mock("../../jobs/embedder", () => ({ runEmbedder: mockRunEmbedder }));
+vi.mock("../context", () => ({ logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() }, handlerContext: { qwen: { id: "qwen" } } }));
+
+function makeDb(selectRows: unknown[]) {
+  const updateWhere = vi.fn().mockResolvedValue(undefined);
+  const updateSet = vi.fn(() => ({ where: updateWhere }));
+  const db = {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        innerJoin: vi.fn(() => ({
+          where: vi.fn(() => ({ limit: vi.fn().mockResolvedValue(selectRows) })),
+        })),
+      })),
+    })),
+    update: vi.fn(() => ({ set: updateSet })),
+    _updateSet: updateSet,
+    _updateWhere: updateWhere,
+  };
+  mockGetDb.mockReturnValue(db);
+  return db;
+}
+
+import { handleEmbedderJob } from "../embedder";
+
+describe("handleEmbedderJob", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockWithScrubber.mockImplementation((client: unknown) => client);
+  });
+
+  it("normal path: persists JSON-serialized embedding when runEmbedder returns a vector", async () => {
+    const db = makeDb([{ title: "标题", summaryZh: "摘要" }]);
+    const vec = Array.from({ length: 1024 }, () => 0.1);
+    mockRunEmbedder.mockResolvedValue(vec);
+
+    await handleEmbedderJob({ data: { itemId: 21 } as never });
+
+    expect(mockRunEmbedder).toHaveBeenCalledWith("标题", "摘要", expect.anything());
+    expect(db._updateSet).toHaveBeenCalledWith({ embedding: JSON.stringify(vec) });
+    expect(db._updateWhere).toHaveBeenCalledTimes(1);
+  });
+
+  it("boundary: null summaryZh falls back to title as embedding source", async () => {
+    const db = makeDb([{ title: "仅标题", summaryZh: null }]);
+    mockRunEmbedder.mockResolvedValue([0.5]);
+
+    await handleEmbedderJob({ data: { itemId: 22 } as never });
+    expect(mockRunEmbedder).toHaveBeenCalledWith("仅标题", "仅标题", expect.anything());
+  });
+
+  it("error/empty path: runEmbedder returns null (scrubber block) → no DB update", async () => {
+    const db = makeDb([{ title: "标题", summaryZh: "摘要" }]);
+    mockRunEmbedder.mockResolvedValue(null);
+
+    await handleEmbedderJob({ data: { itemId: 23 } as never });
+    expect(db.update).not.toHaveBeenCalled();
+  });
+
+  it("empty path: item/analysis join returns no row → runEmbedder not called", async () => {
+    const db = makeDb([]);
+    await handleEmbedderJob({ data: { itemId: 404 } as never });
+
+    expect(mockRunEmbedder).not.toHaveBeenCalled();
+    expect(db.update).not.toHaveBeenCalled();
+  });
+});

@@ -252,11 +252,15 @@ async function main(): Promise<void> {
     await sql`DELETE FROM daily_reports`;
 
     const now = new Date();
-    const sourceMap = new Map(allSources.map((s: any) => [s.name, s.id]));
+    const sourceMap = new Map(
+      (allSources as unknown as Array<{ name: string; id: number }>).map(
+        (s) => [s.name, s.id] as [string, number]
+      )
+    );
 
     for (let i = 0; i < mockItems.length; i++) {
-      const m = mockItems[i];
-      const sourceId = sourceMap.get(m.sourceName) ?? allSources[0].id;
+      const m = mockItems[i]!;
+      const sourceId = sourceMap.get(m.sourceName) ?? allSources[0]!.id;
       const publishedAt = new Date(now.getTime() - i * 3600_000);
       const scoredAt = new Date(publishedAt.getTime() + 5 * 60_000);
 
@@ -267,17 +271,19 @@ async function main(): Promise<void> {
       const isCurated = m.quality >= 5.0;
 
       await sql`INSERT INTO item_analysis (item_id, is_industry_related, summary_zh, d1_policy, d2_chain, d3_market, d4_tech, d5_business, quality_score, category, top_circle, is_curated, alert_level, alert_type, scored_at)
-        VALUES (${item.id}, true, ${m.summaryZh}, ${m.scores.d1}, ${m.scores.d2}, ${m.scores.d3}, ${m.scores.d4}, ${m.scores.d5}, ${m.quality}, ${m.category}, ${m.circle}, ${isCurated}, ${m.alertLevel}, ${m.alertType}, ${scoredAt})`;
+        VALUES (${item!.id}, true, ${m.summaryZh}, ${m.scores.d1}, ${m.scores.d2}, ${m.scores.d3}, ${m.scores.d4}, ${m.scores.d5}, ${m.quality}, ${m.category}, ${m.circle}, ${isCurated}, ${m.alertLevel}, ${m.alertType}, ${scoredAt})`;
 
       // link entities
-      const matchedEntities = allEntities.filter((e: any) => {
+      const matchedEntities = (
+        allEntities as unknown as Array<{ id: number; canonicalName: string; aliases: string[] }>
+      ).filter((e) => {
         return m.summaryZh.includes(e.canonicalName)
           || m.title.includes(e.canonicalName)
-          || (e.aliases as string[]).some((a: string) => m.title.includes(a) || m.summaryZh.includes(a));
+          || e.aliases.some((a: string) => m.title.includes(a) || m.summaryZh.includes(a));
       });
       for (const entity of matchedEntities) {
         await sql`INSERT INTO item_entities (item_id, entity_id, span)
-          VALUES (${item.id}, ${entity.id}, ${entity.canonicalName})
+          VALUES (${item!.id}, ${entity.id}, ${entity.canonicalName})
           ON CONFLICT DO NOTHING`;
       }
     }
@@ -286,7 +292,8 @@ async function main(): Promise<void> {
     // ── 1 cluster ──
     const top2Items = await sql`SELECT i.id FROM items i JOIN item_analysis a ON a.item_id = i.id ORDER BY a.quality_score DESC LIMIT 2`;
     if (top2Items.length >= 2) {
-      await sql`INSERT INTO clusters (event_type, lead_item_id) VALUES ('招标', ${top2Items[0].id}) RETURNING id`.then(async ([cluster]: any[]) => {
+      await sql`INSERT INTO clusters (event_type, lead_item_id) VALUES ('招标', ${top2Items[0]!.id}) RETURNING id`.then(async (clusterRows) => {
+        const cluster = clusterRows[0]!;
         for (const item of top2Items) {
           await sql`INSERT INTO cluster_items (cluster_id, item_id, similarity) VALUES (${cluster.id}, ${item.id}, ${0.85}) ON CONFLICT DO NOTHING`;
         }

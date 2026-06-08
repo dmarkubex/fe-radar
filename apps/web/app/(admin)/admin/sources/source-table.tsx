@@ -3,10 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SourceForm } from "./source-form";
 
+type FetcherType = "rss" | "html" | "playwright" | "quotes";
+
 interface SourceRow {
   id: number;
   name: string;
   url: string;
+  fetcherType: FetcherType;
+  config: unknown;
   tier: "T1" | "T2" | "T3";
   category: string | null;
   enabled: boolean;
@@ -34,8 +38,7 @@ function tierColor(tier: "T1" | "T2" | "T3"): string {
 export function SourceTable(): React.JSX.Element {
   const [filter, setFilter] = useState<TierFilter>("ALL");
   const [rows, setRows] = useState<SourceRow[]>([]);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editingName, setEditingName] = useState("");
+  const [editingSource, setEditingSource] = useState<SourceRow | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const filteredRows = useMemo(() => {
@@ -87,16 +90,17 @@ export function SourceTable(): React.JSX.Element {
     await loadRows();
   }
 
-  async function saveName(row: SourceRow): Promise<void> {
-    await fetch(`/api/sources/${row.id}`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: editingName }),
-    });
-    setEditingId(null);
-    setEditingName("");
-    await loadRows();
+  function beginEdit(row: SourceRow): void {
+    setEditingSource(row);
+    if (typeof document !== "undefined") {
+      document.getElementById("source-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }
+
+  const handleSaved = useCallback(async () => {
+    setEditingSource(null);
+    await loadRows();
+  }, [loadRows]);
 
   return (
     <div className="space-y-6">
@@ -177,31 +181,20 @@ export function SourceTable(): React.JSX.Element {
                       key={row.id}
                       data-testid={`source-row-${row.id}`}
                       className={`transition-colors ${
-                        row.failCount >= 7
-                          ? "bg-danger/5"
-                          : row.failCount >= 3
-                            ? "bg-warn/5"
-                            : "hover:bg-bg-deep"
+                        editingSource?.id === row.id
+                          ? "bg-accent/5 ring-1 ring-inset ring-accent"
+                          : row.failCount >= 7
+                            ? "bg-danger/5"
+                            : row.failCount >= 3
+                              ? "bg-warn/5"
+                              : "hover:bg-bg-deep"
                       }`}
                     >
                       <td className="px-6 py-3 font-mono text-xs tabular-nums text-fg-soft">
                         {row.id}
                       </td>
                       <td className="px-3 py-3 font-medium text-fg">
-                        {editingId === row.id ? (
-                          <input
-                            aria-label="信源名称"
-                            className="h-8 w-full border border-border bg-bg px-2 text-sm text-fg"
-                            value={editingName}
-                            onChange={(e) => setEditingName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") void saveName(row);
-                              if (e.key === "Escape") setEditingId(null);
-                            }}
-                          />
-                        ) : (
-                          row.name
-                        )}
+                        {row.name}
                       </td>
                       <td className="px-3 py-3">
                         <span
@@ -240,53 +233,31 @@ export function SourceTable(): React.JSX.Element {
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex gap-1">
-                          {editingId === row.id ? (
-                            <>
-                              <button
-                                type="button"
-                                className="rounded-none px-2 py-1 font-mono text-[11px] text-accent hover:bg-accent/10"
-                                onClick={() => void saveName(row)}
-                              >
-                                保存
-                              </button>
-                              <button
-                                type="button"
-                                className="rounded-none px-2 py-1 font-mono text-[11px] text-fg-muted hover:bg-bg-deep"
-                                onClick={() => setEditingId(null)}
-                              >
-                                取消
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                className="rounded-none px-2 py-1 font-mono text-[11px] text-accent hover:bg-accent/10"
-                                onClick={() => {
-                                  setEditingId(row.id);
-                                  setEditingName(row.name);
-                                }}
-                              >
-                                编辑
-                              </button>
-                              <button
-                                type="button"
-                                className={`rounded-none px-2 py-1 font-mono text-[11px] hover:bg-bg-deep ${
-                                  row.enabled ? "text-warn" : "text-ok"
-                                }`}
-                                onClick={() => void toggleEnabled(row)}
-                              >
-                                {row.enabled ? "停用" : "启用"}
-                              </button>
-                              <button
-                                type="button"
-                                className="rounded-none px-2 py-1 font-mono text-[11px] text-danger hover:bg-danger/10"
-                                onClick={() => void deleteSource(row)}
-                              >
-                                删除
-                              </button>
-                            </>
-                          )}
+                          <button
+                            type="button"
+                            className={`rounded-none px-2 py-1 font-mono text-[11px] hover:bg-accent/10 ${
+                              editingSource?.id === row.id ? "bg-accent/10 text-accent" : "text-accent"
+                            }`}
+                            onClick={() => beginEdit(row)}
+                          >
+                            编辑
+                          </button>
+                          <button
+                            type="button"
+                            className={`rounded-none px-2 py-1 font-mono text-[11px] hover:bg-bg-deep ${
+                              row.enabled ? "text-warn" : "text-ok"
+                            }`}
+                            onClick={() => void toggleEnabled(row)}
+                          >
+                            {row.enabled ? "停用" : "启用"}
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-none px-2 py-1 font-mono text-[11px] text-danger hover:bg-danger/10"
+                            onClick={() => void deleteSource(row)}
+                          >
+                            删除
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -297,9 +268,19 @@ export function SourceTable(): React.JSX.Element {
           </div>
         </div>
 
-        {/* right: add source form */}
-        <div className="border border-border bg-surface-warm p-6 shadow-card">
-          <SourceForm onSaved={loadRows} />
+        {/* right: add / edit source form (reused) */}
+        <div
+          id="source-form"
+          className={`border bg-surface-warm p-6 shadow-card transition-colors ${
+            editingSource ? "border-accent" : "border-border"
+          }`}
+        >
+          <SourceForm
+            key={editingSource?.id ?? "new"}
+            editing={editingSource}
+            onSaved={handleSaved}
+            onCancelEdit={() => setEditingSource(null)}
+          />
         </div>
       </section>
     </div>

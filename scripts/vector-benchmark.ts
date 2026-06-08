@@ -3,6 +3,25 @@ import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 import { Client } from "pg";
 
+function cosine(a: number[], b: number[]): number {
+  let dot = 0;
+  let left = 0;
+  let right = 0;
+  for (let index = 0; index < a.length; index += 1) {
+    dot += a[index]! * b[index]!;
+    left += a[index]! ** 2;
+    right += b[index]! ** 2;
+  }
+  return dot / (Math.sqrt(left) * Math.sqrt(right));
+}
+
+function topK(vectors: number[][], query: number[], k: number): { index: number; score: number }[] {
+  return vectors
+    .map((vector, index) => ({ index, score: cosine(query, vector) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, k);
+}
+
 function percentile(sorted: number[], p: number): number {
   const index = Math.ceil((p / 100) * sorted.length) - 1;
   return sorted[Math.max(0, index)]!;
@@ -46,50 +65,14 @@ async function loadVectorsFromJsonl(jsonlPath: string, rows: number): Promise<Ve
   return vectors;
 }
 
-/**
- * Compute exact ground-truth topK via PostgreSQL sequential scan.
- * Disables index/bitmap scans to force a full seqscan — exact results guaranteed.
- */
-async function computeGroundTruth(
-  client: Client,
-  queryVectors: number[][],
-  topKCount: number,
-): Promise<number[][]> {
-  await client.query("SET enable_indexscan = off;");
-  await client.query("SET enable_bitmapscan = off;");
-
-  console.error("[pgvector] Computing ground truth via sequential scan...");
-  const groundTruth: number[][] = [];
-
-  for (let i = 0; i < queryVectors.length; i++) {
-    const queryVec = `[${queryVectors[i]!.join(",")}]`;
-    const result = await client.query<{ id: number }>(
-      `SELECT id FROM embeddings ORDER BY vector <=> $1 LIMIT ${topKCount}`,
-      [queryVec],
-    );
-    groundTruth.push(result.rows.map((r) => r.id));
-    if ((i + 1) % 50 === 0) {
-      console.error(`[pgvector] Ground truth ${i + 1}/${queryVectors.length} queries...`);
-    }
-  }
-
-  await client.query("SET enable_indexscan = on;");
-  await client.query("SET enable_bitmapscan = on;");
-  console.error("[pgvector] Ground truth computation complete.");
-
-  return groundTruth;
-}
-
 async function runPgvectorBenchmark(): Promise<BenchmarkResult> {
   const dimensions = Number(process.env.VECTOR_BENCH_DIMENSIONS ?? 1024);
   const rows = Number(process.env.VECTOR_BENCH_ROWS ?? 500000);
   const queries = Number(process.env.VECTOR_BENCH_QUERIES ?? 200);
   const topKCount = 10;
-  const jsonlPath =
-    process.env.VECTOR_BENCH_JSONL_PATH ??
-    (rows >= 500000
-      ? "generated/embedding/vectors-500k.jsonl"
-      : "generated/embedding/vectors-50k.jsonl");
+  const jsonlPath = process.env.VECTOR_BENCH_JSONL_PATH ?? (rows >= 500000
+    ? "generated/embedding/vectors-500k.jsonl"
+    : "generated/embedding/vectors-50k.jsonl");
 
   const pgHost = process.env.PGHOST ?? "localhost";
   const pgPort = Number(process.env.PGPORT ?? 5433);
@@ -103,7 +86,6 @@ async function runPgvectorBenchmark(): Promise<BenchmarkResult> {
   const hnswM = Number(process.env.VECTOR_BENCH_HNSW_M ?? 16);
   const hnswEfConstruction = Number(process.env.VECTOR_BENCH_HNSW_EF_CONSTRUCTION ?? 64);
   const hnswEfSearch = Number(process.env.VECTOR_BENCH_HNSW_EF_SEARCH ?? 40);
-  const skipLoad = process.env.VECTOR_BENCH_SKIP_LOAD === "1";
 
   console.error(`[pgvector] Connecting to ${pgHost}:${pgPort}...`);
   const client = new Client({
@@ -118,64 +100,29 @@ async function runPgvectorBenchmark(): Promise<BenchmarkResult> {
   try {
   await client.query("CREATE EXTENSION IF NOT EXISTS vector;");
 
-  if (skipLoad) {
-    console.error(`[pgvector] Skipping data load — verifying existing table...`);
-    const { rows: countRows } = await client.query<{ count: string }>(
-      "SELECT count(*) FROM embeddings;",
-    );
-    const existingCount = Number(countRows[0]!.count);
-    if (existingCount !== rows) {
-      throw new Error(
-        `Skip-load enabled but table has ${existingCount} rows, expected ${rows}. Re-run without VECTOR_BENCH_SKIP_LOAD=1.`,
-      );
-    }
-    console.error(`[pgvector] Table has ${existingCount} rows — using existing data.`);
-  } else {
-    console.error(`[pgvector] Creating table embeddings (vector(${dimensions}))...`);
-    await client.query("DROP TABLE IF EXISTS embeddings;");
-    await client.query(
-      `CREATE TABLE embeddings (id INT PRIMARY KEY, vector vector(${dimensions}));`,
-    );
+  console.error(`[pgvector] Creating table embeddings (vector(${dimensions}))...`);
+  await client.query("DROP TABLE IF EXISTS embeddings;");
+  await client.query(`CREATE TABLE embeddings (id INT PRIMARY KEY, vector vector(${dimensions}));`);
 
-    console.error(`[pgvector] Loading ${rows} vectors from ${jsonlPath}...`);
-    const vectors = await loadVectorsFromJsonl(jsonlPath, rows);
+  console.error(`[pgvector] Loading ${rows} vectors from ${jsonlPath}...`);
+  const vectors = await loadVectorsFromJsonl(jsonlPath, rows);
 
-    if (vectors.length !== rows) {
-      throw new Error(`Expected ${rows} rows, got ${vectors.length}`);
-    }
-
-    const batchSize = 1000;
-    for (let i = 0; i < vectors.length; i += batchSize) {
-      const batch = vectors.slice(i, i + batchSize);
-      const values = batch
-        .map((_v, idx) => `($${idx * 2 + 1}, $${idx * 2 + 2})`)
-        .join(",");
-      const params = batch.flatMap((v) => [v.id, `[${v.embedding.join(",")}]`]);
-      await client.query(
-        `INSERT INTO embeddings (id, vector) VALUES ${values}`,
-        params,
-      );
-      if ((i + batchSize) % 50000 === 0) {
-        console.error(
-          `[pgvector] Inserted ${Math.min(i + batchSize, rows)}/${rows} vectors...`,
-        );
-      }
-    }
-    console.error(`[pgvector] All ${rows} vectors loaded.`);
+  if (vectors.length !== rows) {
+    throw new Error(`Expected ${rows} rows, got ${vectors.length}`);
   }
 
-  const queryVectors = Array.from({ length: queries }, (_, qi) =>
-    Array.from({ length: dimensions }, (_, dim) => ((qi * 31 + dim * 7) % 503) / 503),
-  );
+  const batchSize = 1000;
+  for (let i = 0; i < vectors.length; i += batchSize) {
+    const batch = vectors.slice(i, i + batchSize);
+    const values = batch.map((v, idx) => `($${idx * 2 + 1}, $${idx * 2 + 2})`).join(",");
+    const params = batch.flatMap((v) => [v.id, `[${v.embedding.join(",")}]`]);
+    await client.query(`INSERT INTO embeddings (id, vector) VALUES ${values}`, params);
+    if ((i + batchSize) % 50000 === 0) {
+      console.error(`[pgvector] Inserted ${Math.min(i + batchSize, rows)}/${rows} vectors...`);
+    }
+  }
+  console.error(`[pgvector] All ${rows} vectors loaded.`);
 
-  // Drop any existing vector index (both the pkey and data remain)
-  console.error(`[pgvector] Dropping existing vector index if any...`);
-  await client.query("DROP INDEX IF EXISTS embeddings_vector_idx;");
-
-  // Compute ground truth BEFORE creating any index — sequential scan is exact
-  const groundTruth = await computeGroundTruth(client, queryVectors, topKCount);
-
-  // Create the desired index
   let indexParams: Record<string, unknown>;
   if (indexType === "ivfflat") {
     console.error(`[pgvector] Creating ivfflat index with lists=${ivfflatLists}...`);
@@ -185,36 +132,31 @@ async function runPgvectorBenchmark(): Promise<BenchmarkResult> {
     indexParams = { type: "ivfflat", lists: ivfflatLists, probes: ivfflatProbes };
     await client.query(`SET ivfflat.probes = ${ivfflatProbes};`);
   } else if (indexType === "hnsw") {
-    console.error(
-      `[pgvector] Creating hnsw index with m=${hnswM}, ef_construction=${hnswEfConstruction}...`,
-    );
+    console.error(`[pgvector] Creating hnsw index with m=${hnswM}, ef_construction=${hnswEfConstruction}...`);
     await client.query(
       `CREATE INDEX embeddings_vector_idx ON embeddings USING hnsw (vector vector_cosine_ops) WITH (m = ${hnswM}, ef_construction = ${hnswEfConstruction});`,
     );
-    indexParams = {
-      type: "hnsw",
-      m: hnswM,
-      ef_construction: hnswEfConstruction,
-      ef_search: hnswEfSearch,
-    };
+    indexParams = { type: "hnsw", m: hnswM, ef_construction: hnswEfConstruction, ef_search: hnswEfSearch };
     await client.query(`SET hnsw.ef_search = ${hnswEfSearch};`);
   } else {
     throw new Error(`Unknown index type: ${indexType}`);
   }
 
-  // Warmup
+  const queryVectors = Array.from({ length: queries }, (_, qi) =>
+    Array.from({ length: dimensions }, (_, dim) => ((qi * 31 + dim * 7) % 503) / 503),
+  );
+
+  const latencies: number[] = [];
+  const recalls: number[] = [];
+
   const warmupQuery = queryVectors[0]!;
   await client.query(
     `SELECT id, 1 - (vector <=> $1) AS score FROM embeddings ORDER BY vector <=> $1 LIMIT ${topKCount}`,
     [`[${warmupQuery.join(",")}]`],
   );
 
-  const latencies: number[] = [];
-  const recalls: number[] = [];
-
-  console.error(`[pgvector] Running ${queries} benchmark queries...`);
-  for (let i = 0; i < queryVectors.length; i++) {
-    const query = queryVectors[i]!;
+  console.error(`[pgvector] Running ${queries} queries...`);
+  for (const query of queryVectors) {
     const queryVec = `[${query.join(",")}]`;
 
     const t0 = performance.now();
@@ -225,10 +167,16 @@ async function runPgvectorBenchmark(): Promise<BenchmarkResult> {
     const latency = performance.now() - t0;
     latencies.push(latency);
 
-    const pgIds = result.rows.map((r) => r.id);
-    const gtIds = groundTruth[i]!;
+    const pgvectorIds = result.rows.map((r) => r.id);
 
-    const intersection = pgIds.filter((id) => gtIds.includes(id)).length;
+    const groundTruth = topK(
+      vectors.map((v) => v.embedding),
+      query,
+      topKCount,
+    );
+    const groundTruthIds = groundTruth.map((g) => vectors[g.index]!.id);
+
+    const intersection = pgvectorIds.filter((id) => groundTruthIds.includes(id)).length;
     recalls.push(intersection / topKCount);
   }
 
@@ -254,29 +202,6 @@ async function runPgvectorBenchmark(): Promise<BenchmarkResult> {
   } finally {
     await client.end();
   }
-}
-
-function cosine(a: number[], b: number[]): number {
-  let dot = 0;
-  let left = 0;
-  let right = 0;
-  for (let index = 0; index < a.length; index += 1) {
-    dot += a[index]! * b[index]!;
-    left += a[index]! ** 2;
-    right += b[index]! ** 2;
-  }
-  return dot / (Math.sqrt(left) * Math.sqrt(right));
-}
-
-function topK(
-  vectors: number[][],
-  query: number[],
-  k: number,
-): { index: number; score: number }[] {
-  return vectors
-    .map((vector, index) => ({ index, score: cosine(query, vector) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, k);
 }
 
 function main(): void {
@@ -317,12 +242,14 @@ function main(): void {
 
     latencies.sort((a, b) => a - b);
 
+    const recall = 1.0;
+
     const result: BenchmarkResult = {
       rows,
       dimensions,
       queries,
       topK: topKCount,
-      recallAt10: 1.0,
+      recallAt10: recall,
       latencyMs: {
         p50: Math.round(percentile(latencies, 50) * 100) / 100,
         p95: Math.round(percentile(latencies, 95) * 100) / 100,

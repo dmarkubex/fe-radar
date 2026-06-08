@@ -1,3 +1,5 @@
+import { PageFrame } from "@/components/layout/page-frame";
+import { PageHeader } from "@/components/layout/page-header";
 import { FilterBar } from "@/components/timeline/filter-bar";
 import { TimelineList } from "@/components/timeline/timeline-list";
 import { fetchTimeline } from "@/lib/api/timeline-query";
@@ -38,19 +40,12 @@ export default async function HomePage({ searchParams }: { searchParams: PageSea
   const filteredCount = initialData.items.filter((i) => i.topCircle === "C1" || i.topCircle === "C2").length;
 
   return (
-    <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 px-5 py-6 md:px-8">
-      <header className="page-head pb-4">
-        <p className="eyebrow font-mono text-[10px] font-medium uppercase tracking-[2px] text-fg-soft">
-          时间线 &middot; TIMELINE
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-fg">
-          全量信息流
-        </h1>
-        <p className="deck mt-1 text-sm leading-relaxed text-fg-muted">
-          时间倒序排列，每条经 8 阶段 pipeline 处理——去重 · NER · 5 维评分 · 聚簇 · 告警判定。
-          左侧色条 = 关注圈 / 告警类型，右侧评分面板可展开详情。
-        </p>
-      </header>
+    <PageFrame size="wide">
+      <PageHeader
+        eyebrow="时间线 · TIMELINE"
+        title="全量信息流"
+        description="时间倒序排列，每条经 8 阶段 pipeline 处理：去重 · NER · 5 维评分 · 聚簇 · 告警判定。左侧色条 = 关注圈 / 告警类型，右侧评分面板可展开详情。"
+      />
 
       <div className="stats-bar grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatsCell label="全量" value={String(totalCount)} />
@@ -62,7 +57,7 @@ export default async function HomePage({ searchParams }: { searchParams: PageSea
       <FilterBar />
 
       <TimelineList endpoint={endpointFromParams(params)} initialData={initialData} variant="timeline" />
-    </main>
+    </PageFrame>
   );
 }
 

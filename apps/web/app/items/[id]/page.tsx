@@ -62,7 +62,8 @@ export default async function ItemDetailPage({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-6 py-8 md:px-10">
+    <div className="@container w-full">
+    <div className="mx-auto w-full max-w-[1400px] px-[clamp(1rem,4cqi,2.5rem)] py-[clamp(1.5rem,2.5cqi,2rem)]">
       {/* ── Breadcrumb ── */}
       <nav className="flex items-center gap-2 text-[11px] font-mono text-fg-soft mb-6">
         <a href="/" className="hover:text-accent transition-colors">时间线</a>
@@ -76,8 +77,8 @@ export default async function ItemDetailPage({
         <span className="text-fg">#{item.id}</span>
       </nav>
 
-      {/* ── 2-Column Grid ── */}
-      <div className="grid grid-cols-[1fr_300px] gap-10">
+      {/* ── 2-Column Grid (fluid: collapses below container width) ── */}
+      <div className="grid grid-cols-1 gap-[clamp(1.5rem,3cqi,2.5rem)] @4xl:grid-cols-[minmax(0,1fr)_clamp(16rem,22cqi,19rem)]">
         {/* ── Article Column ── */}
         <article>
           {/* Tag Row */}
@@ -121,13 +122,13 @@ export default async function ItemDetailPage({
           </div>
 
           {/* Title */}
-          <h1 className="font-display text-[28px] leading-[36px] tracking-[-0.4px] text-fg mb-3">
+          <h1 className="font-display text-[clamp(1.5rem,3.2cqi,1.75rem)] leading-[1.28] tracking-[-0.4px] text-fg mb-3">
             {item.title}
           </h1>
 
           {/* Deck Summary */}
           {item.summaryZh && (
-            <p className="text-[15px] leading-[26px] text-fg-muted mb-4 max-w-[640px]">
+            <p className="text-[clamp(0.875rem,1.4cqi,0.9375rem)] leading-[26px] text-fg-muted mb-4 max-w-[62ch]">
               {item.summaryZh}
             </p>
           )}
@@ -199,13 +200,13 @@ export default async function ItemDetailPage({
         </article>
 
         {/* ── Meta Sidebar ── */}
-        <aside className="flex flex-col gap-5 sticky top-16 self-start">
+        <aside className="flex flex-col gap-[clamp(1rem,2cqi,1.25rem)] @4xl:sticky @4xl:top-16 self-start">
           {/* Composite Score */}
           <div className="rounded-[2px] border border-border bg-surface p-5 text-center shadow-card">
-            <div className="font-mono text-[10px] tracking-[1.2px] uppercase text-fg-soft mb-2">
+            <div className="font-mono text-[13px] tracking-widest uppercase text-fg-soft mb-2">
               综合评分
             </div>
-            <div className={`font-mono text-[48px] leading-[52px] tracking-[-2px] ${scoreColor(item.qualityScore)}`}>
+            <div className={`font-mono text-[clamp(2.25rem,6cqi,3rem)] leading-[1.08] tracking-[-2px] ${scoreColor(item.qualityScore)}`}>
               {scoreLabel(item.qualityScore)}
             </div>
             <div className="font-mono text-[10px] text-fg-soft mt-1">/ 10</div>
@@ -213,27 +214,27 @@ export default async function ItemDetailPage({
 
           {/* 5 Dimension Bars */}
           <div className="rounded-[2px] border border-border bg-surface p-5 shadow-card">
-            <div className="font-mono text-[10px] tracking-[1.2px] uppercase text-fg-soft mb-4">
+            <div className="font-mono text-[13px] tracking-widest uppercase text-fg-soft mb-3">
               五维评分
             </div>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               {DIMENSIONS.map((dim) => {
                 const value = item.scores[dim.key as keyof typeof item.scores] as number | null;
                 const pct = value !== null ? Math.round(value * 10) : 0;
                 return (
                   <div key={dim.key}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] text-fg-muted">
-                        <span className="font-mono text-[10px] text-fg-soft mr-1">{dim.abbr}</span>
+                      <span className="text-[13px] text-fg-muted">
+                        <span className="font-mono text-[13px] text-fg-soft mr-1">{dim.abbr}</span>
                         {dim.label}
                       </span>
-                      <span className={`font-mono text-[12px] tracking-[-0.4px] ${scoreColor(value)}`}>
+                      <span className={`font-mono text-sm tabular-nums ${scoreColor(value)}`}>
                         {scoreLabel(value)}
                       </span>
                     </div>
-                    <div className="h-1.5 bg-bg-deep rounded-[1px] overflow-hidden">
+                    <div className="h-1.5 bg-bg-deep overflow-hidden">
                       <div
-                        className={`h-full rounded-[1px] transition-all ${dimBarColor(value)}`}
+                        className={`h-full transition-all ${dimBarColor(value)}`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -246,7 +247,7 @@ export default async function ItemDetailPage({
           {/* Entities */}
           {item.entities.length > 0 && (
             <div className="rounded-[2px] border border-border bg-surface p-5 shadow-card">
-              <div className="font-mono text-[10px] tracking-[1.2px] uppercase text-fg-soft mb-3">
+              <div className="font-mono text-[12px] tracking-[1.2px] uppercase text-fg-soft mb-3">
                 识别实体
               </div>
               <div className="flex flex-col gap-2">
@@ -291,7 +292,7 @@ export default async function ItemDetailPage({
           {/* Alert Status */}
           {item.alertType && (
             <div className="rounded-[2px] border border-border bg-surface p-5 shadow-card">
-              <div className="font-mono text-[10px] tracking-[1.2px] uppercase text-fg-soft mb-3">
+              <div className="font-mono text-[12px] tracking-[1.2px] uppercase text-fg-soft mb-3">
                 告警通道
               </div>
               <div className="flex items-center gap-2">
@@ -320,7 +321,7 @@ export default async function ItemDetailPage({
             <div className="flex-1 border-t border-hairline" />
             <span className="text-[11px] text-fg-soft font-mono">{item.clusterItems.length} 条</span>
           </div>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-4 @3xl:grid-cols-3 @5xl:grid-cols-4">
             {item.clusterItems.map((related) => (
               <a
                 key={related.id}
@@ -344,6 +345,7 @@ export default async function ItemDetailPage({
           </div>
         </section>
       )}
+    </div>
     </div>
   );
 }

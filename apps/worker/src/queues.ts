@@ -8,6 +8,10 @@ export interface FetchSourceJob {
 
 export interface PipelineJob {
   itemId: number;
+  // Correlation ID threaded from fetch through every pipeline stage so a single
+  // item's full-chain run can be traced in structured logs. Optional for
+  // backward-compat (legacy/test jobs without it still process).
+  correlationId?: string;
 }
 
 export const PIPELINE_STAGE_ORDER = ["fetch", "prefilter", "ner", "scorer", "embedder", "cluster", "curator"] as const;

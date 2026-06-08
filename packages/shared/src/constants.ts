@@ -15,4 +15,10 @@ export const QUEUES = {
   daily: "fe-daily"
 } as const;
 
+// Non-pipeline BullMQ queue names. Single source of truth shared by worker
+// (queue/worker construction) and web (monitoring) to avoid literal drift.
+// NOTE: BullMQ 5 rejects ':' in queue names ("Queue name cannot contain :"),
+// so cleanup MUST be "fe-cleanup", never "fe:cleanup".
+export const QUEUE_CLEANUP = "fe-cleanup";
+
 export const USER_ROLES = ["viewer", "editor", "admin"] as const;

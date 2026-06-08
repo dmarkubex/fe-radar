@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   web:
-    image: fe-radar/web:latest
+    image: harborssl.fegroup.cn/custom-project/fe-radar/web:latest
     environment:
       NODE_ENV: production
       TZ: Asia/Shanghai
@@ -21,8 +21,8 @@ services:
         condition: on-failure
 
   worker:
-    image: fe-radar/worker:latest
-    command: ["node", "dist/main.js"]
+    image: harborssl.fegroup.cn/custom-project/fe-radar/worker:latest
+    # 入口用镜像默认 CMD（dist/apps/worker/src/main.js）；不要覆盖成 dist/main.js（不存在）
     environment:
       NODE_ENV: production
       TZ: Asia/Shanghai
@@ -46,8 +46,8 @@ services:
         condition: on-failure
 
   scheduler:
-    image: fe-radar/worker:latest
-    command: ["node", "dist/scheduler.js"]
+    image: harborssl.fegroup.cn/custom-project/fe-radar/worker:latest
+    command: ["node", "dist/apps/worker/src/scheduler.js"]
     environment:
       NODE_ENV: production
       TZ: Asia/Shanghai
@@ -63,7 +63,7 @@ services:
         condition: on-failure
 
   postgres:
-    image: fe-radar/postgres-zhparser:pg16
+    image: harborssl.fegroup.cn/custom-project/fe-radar/postgres-zhparser:pg16
     environment:
       POSTGRES_DB: fe_radar
       POSTGRES_USER: fe_radar
@@ -81,7 +81,7 @@ services:
         condition: on-failure
 
   redis:
-    image: redis:7-alpine
+    image: harborssl.fegroup.cn/custom-project/redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
     environment:
       TZ: Asia/Shanghai
@@ -95,7 +95,7 @@ services:
         condition: on-failure
 
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: harborssl.fegroup.cn/custom-project/minio/minio:RELEASE.2025-09-07T16-13-09Z
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       TZ: Asia/Shanghai
@@ -114,7 +114,7 @@ services:
         condition: on-failure
 
   backup:
-    image: fe-radar/backup:latest
+    image: harborssl.fegroup.cn/custom-project/fe-radar/backup:latest
     environment:
       TZ: Asia/Shanghai
       DATABASE_URL: postgres://fe_radar:${DB_PASSWORD}@postgres:5432/fe_radar
@@ -135,7 +135,7 @@ services:
         condition: none
 
   grafana:
-    image: grafana/grafana:12.1.1
+    image: harborssl.fegroup.cn/custom-project/grafana/grafana:12.1.1
     environment:
       TZ: Asia/Shanghai
       GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
@@ -152,7 +152,7 @@ services:
 
   # v1.1 commodity-briefing: RSSHub 内网自部署（供 rsshub-extract adapter 使用）
   rsshub:
-    image: diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3df98bab0f979c03059
+    image: harborssl.fegroup.cn/custom-project/diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3df98bab0f979c03059
     environment:
       TZ: Asia/Shanghai
       NODE_ENV: production

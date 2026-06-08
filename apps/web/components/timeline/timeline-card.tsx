@@ -49,8 +49,8 @@ export function TimelineCard({
         </div>
       </div>
       <div className="flex min-w-[140px] flex-col items-end gap-1.5">
-        <div className={`font-mono text-2xl leading-none tracking-[-0.5px] tabular-nums ${isHigh ? "text-accent" : "text-fg"}`}>{scoreLabel(item.qualityScore)}</div>
-        <div className="font-mono text-[10px] uppercase tracking-[1.2px] text-fg-soft">quality score</div>
+        <div className={`font-mono text-3xl leading-none tracking-[-0.5px] tabular-nums ${isHigh ? "text-accent" : "text-fg"}`}>{scoreLabel(item.qualityScore)}</div>
+        <div className="font-mono text-[13px] uppercase tracking-[1.2px] text-fg-soft">quality score</div>
         <div className="grid h-[18px] grid-cols-5 items-end gap-[3px]">
           {[0.35, 0.55, 0.75, 0.5, Math.max(0.45, Math.min(score / 10, 0.95))].map((height, index) => (
             <i key={index} className="block w-4 bg-sunshine-300 data-[hot=true]:bg-accent" data-hot={index >= 3} style={{ height: `${Math.round(height * 18)}px` }} />

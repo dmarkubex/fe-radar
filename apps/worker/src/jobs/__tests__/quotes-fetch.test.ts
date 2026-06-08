@@ -184,7 +184,8 @@ describe("runQuotesFetch", () => {
       expect.anything(),
       1,
       3,     // nextFail = 2+1
-      false  // not yet at threshold
+      false, // not yet at threshold
+      expect.stringContaining("network timeout") // lastError reason
     );
     expect(mockMarkSourceSuccess).not.toHaveBeenCalled();
   });
@@ -209,6 +210,54 @@ describe("runQuotesFetch", () => {
     expect(sqlArg).toContain("WHERE");
   });
 
+  // ── T-CB-09 v0.4 fix M3 — tier-priority upsert (cases a / b / c) ───────
+  // The upsert inlines the incoming source's tier number into a
+  // `WHERE <incomingTier> <= (existing source tier)` guard, so a lower-priority
+  // source can never overwrite a higher-priority one. The mocked sql tag
+  // materialises the generated SQL string for inspection.
+
+  it("tier priority (case a): T1 incoming emits `1 <= existing` guard → overwrites lower tiers", async () => {
+    makeDbWithHolidays([]);
+    mockIsBusinessDay.mockReturnValue(true);
+    mockListSources.mockResolvedValue([makeSource({ id: 1, name: "shfe-cu", tier: "T1" })]);
+    mockFetchQuotes.mockResolvedValue([makeSample({ metricKey: "cu_main_close", value: 68450 })]);
+
+    await runQuotesFetch(1);
+
+    const sqlArg = mockExecute.mock.calls[0]?.[0] as string;
+    expect(sqlArg).toContain("ON CONFLICT (metric_key, observed_at) DO UPDATE");
+    // incoming T1 → tierNum 1; 1 <= existing(1|2|3) always true → T1 wins
+    expect(sqlArg).toMatch(/WHERE\s+1\s*<=/);
+    expect(sqlArg).toContain("WHEN 'T1' THEN 1");
+  });
+
+  it("tier priority (case b): T2 incoming emits `2 <= existing` guard → cannot overwrite T1", async () => {
+    makeDbWithHolidays([]);
+    mockIsBusinessDay.mockReturnValue(true);
+    mockListSources.mockResolvedValue([makeSource({ id: 2, name: "smm-cu", tier: "T2" })]);
+    mockFetchQuotes.mockResolvedValue([makeSample({ metricKey: "cu_main_close", value: 68500 })]);
+
+    await runQuotesFetch(2);
+
+    const sqlArg = mockExecute.mock.calls[0]?.[0] as string;
+    // incoming T2 → tierNum 2; against an existing T1 row `2 <= 1` is false → T1 preserved
+    expect(sqlArg).toMatch(/WHERE\s+2\s*<=/);
+  });
+
+  it("tier priority (case c): same-tier (T1 over T1) emits `1 <= existing` guard → last-write-wins", async () => {
+    makeDbWithHolidays([]);
+    mockIsBusinessDay.mockReturnValue(true);
+    mockListSources.mockResolvedValue([makeSource({ id: 3, name: "shfe-cu-mirror", tier: "T1" })]);
+    mockFetchQuotes.mockResolvedValue([makeSample({ metricKey: "cu_main_close", value: 68550 })]);
+
+    await runQuotesFetch(3);
+
+    const sqlArg = mockExecute.mock.calls[0]?.[0] as string;
+    // incoming T1 vs existing T1 → `1 <= 1` true → newer write replaces value + source_id
+    expect(sqlArg).toMatch(/WHERE\s+1\s*<=/);
+    expect(sqlArg).toContain("EXCLUDED.source_id");
+  });
+
   it("consecutive 7 failures: markSourceFailure called with disable=true on 7th failure", async () => {
     makeDbWithHolidays([]);
     mockIsBusinessDay.mockReturnValue(true);
@@ -223,7 +272,8 @@ describe("runQuotesFetch", () => {
       expect.anything(),
       1,
       7,    // nextFail = 6+1
-      true  // disable=true at threshold
+      true, // disable=true at threshold
+      expect.stringContaining("timeout") // lastError reason
     );
   });
 
@@ -244,7 +294,8 @@ describe("runQuotesFetch", () => {
       expect.anything(),
       1,
       3,
-      false
+      false,
+      expect.stringContaining("空值") // lastError reason (all-null samples)
     );
     expect(mockMarkSourceSuccess).not.toHaveBeenCalled();
   });

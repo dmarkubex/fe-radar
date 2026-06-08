@@ -4,7 +4,11 @@ import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-export function LocalLoginForm(): React.JSX.Element {
+interface LocalLoginFormProps {
+  compact?: boolean;
+}
+
+export function LocalLoginForm({ compact = false }: LocalLoginFormProps): React.JSX.Element {
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -29,21 +33,25 @@ export function LocalLoginForm(): React.JSX.Element {
     window.location.href = searchParams.get("callbackUrl") || "/";
   }
 
+  const gap = compact ? "gap-3" : "gap-4";
+  const inputH = compact ? "h-9 text-sm" : "h-10 text-sm";
+  const btnPad = compact ? "px-4 py-2 text-xs" : "px-[18px] py-[11px] text-[13px]";
+
   return (
-    <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)}>
-      <label className="flex flex-col gap-1.5">
+    <form className={`flex flex-col ${gap}`} onSubmit={(event) => void submit(event)}>
+      <label className="flex flex-col gap-1">
         <span className="font-mono text-[10px] tracking-[1.4px] uppercase text-fg-muted">用户名</span>
         <input
-          className="h-10 border border-border-strong bg-surface px-3 text-sm text-fg outline-none focus:border-accent"
+          className={`${inputH} border border-border-strong bg-surface px-3 text-fg outline-none focus:border-accent`}
           name="username"
           type="text"
           autoComplete="username"
         />
       </label>
-      <label className="flex flex-col gap-1.5">
+      <label className="flex flex-col gap-1">
         <span className="font-mono text-[10px] tracking-[1.4px] uppercase text-fg-muted">密码</span>
         <input
-          className="h-10 border border-border-strong bg-surface px-3 text-sm text-fg outline-none focus:border-accent"
+          className={`${inputH} border border-border-strong bg-surface px-3 text-fg outline-none focus:border-accent`}
           name="password"
           type="password"
           autoComplete="current-password"
@@ -53,7 +61,7 @@ export function LocalLoginForm(): React.JSX.Element {
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex items-center justify-center gap-2 border border-fg bg-fg px-[18px] py-[11px] text-[13px] tracking-[0.4px] text-fg-on-dark hover:bg-accent disabled:opacity-60"
+        className={`inline-flex items-center justify-center gap-2 border border-fg bg-fg ${btnPad} tracking-[0.4px] text-fg-on-dark hover:bg-accent disabled:opacity-60`}
       >
         {pending ? "登录中…" : "登录"}
       </button>

@@ -1,3 +1,5 @@
+import { PageFrame } from "@/components/layout/page-frame";
+import { PageHeader } from "@/components/layout/page-header";
 import { SearchBox } from "@/components/search/search-box";
 import { TimelineList } from "@/components/timeline/timeline-list";
 import { fetchTimeline } from "@/lib/api/timeline-query";
@@ -17,16 +19,12 @@ export default async function ItemsPage({ searchParams }: { searchParams: PageSe
   const endpoint = q ? `/api/search?q=${encodeURIComponent(q)}` : "/api/timeline";
 
   return (
-    <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 px-6 py-8 md:px-10">
-      <header className="grid grid-cols-[max-content_minmax(260px,1fr)] items-baseline gap-x-5 border-b border-hairline pb-4 max-[900px]:grid-cols-1">
-        <p className="m-0 font-mono text-[10px] uppercase tracking-[1.4px] text-accent">/ ITEMS · QUERY</p>
-        <div>
-          <h1 className="m-0 font-display text-3xl font-normal tracking-[-0.7px] text-fg">条目查询</h1>
-          <p className="mt-2 max-w-[76ch] text-sm leading-6 text-fg-muted">
-            查询已入库的情报条目，支持标题、摘要、正文关键词检索。此页使用普通列表，不使用时间轴。
-          </p>
-        </div>
-      </header>
+    <PageFrame size="wide">
+      <PageHeader
+        eyebrow="/ ITEMS · QUERY"
+        title="条目查询"
+        description="查询已入库的情报条目，支持标题、摘要、正文关键词检索。此页使用普通列表，不使用时间轴。"
+      />
 
       <SearchBox initialQuery={q} />
 
@@ -36,6 +34,6 @@ export default async function ItemsPage({ searchParams }: { searchParams: PageSe
       </div>
 
       <TimelineList endpoint={endpoint} initialData={initialData} />
-    </main>
+    </PageFrame>
   );
 }

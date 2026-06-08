@@ -9,12 +9,14 @@ export const dynamic = "force-dynamic";
 const DEFAULT_WEIGHTS: ScoringConfigBody["weights"] = { w1: 0.25, w2: 0.2, w3: 0.2, w4: 0.2, w5: 0.15 };
 const DEFAULT_T_COEF: ScoringConfigBody["tCoef"] = { T1: 1.2, T2: 1.0, T3: 0.8 };
 const DEFAULT_C_COEF: ScoringConfigBody["cCoef"] = { C1: 1.2, C2: 1.0, C3: 0.8 };
+// Keyed by item category (matches 0002 seed, worker runner defaults, and the
+// curator lookup). Used only as a fallback when scoring_config has no row yet.
 const DEFAULT_THRESHOLDS: ScoringConfigBody["thresholds"] = {
-  own: { C1: 60, C2: 70, C3: 80 },
-  safety: { C1: 55, C2: 65, C3: 75 },
-  policy: { C1: 50, C2: 60, C3: 70 },
-  market: { C1: 50, C2: 60, C3: 70 },
-  tech: { C1: 50, C2: 60, C3: 70 },
+  "政策与标准": { C1: 55, C2: 60, C3: 65 },
+  "市场与价格": { C1: 55, C2: 60, C3: 70 },
+  "技术与产品": { C1: 55, C2: 65, C3: 75 },
+  "项目与招投标": { C1: 50, C2: 60, C3: 70 },
+  "公司与资本": { C1: 55, C2: 65, C3: 75 },
 };
 
 export default async function AdminScoringConfigPage(): Promise<React.JSX.Element> {
@@ -42,7 +44,7 @@ function ScoringConfigPageContent({ initial }: { initial: ScoringConfigBody }): 
           <p className="font-mono text-xs tracking-wide text-fg-soft uppercase">
             / 评分配置 · ADMIN · SCORING
           </p>
-          <h1 className="font-display text-3xl tracking-tightest text-fg">
+          <h1 className="font-display display-fluid tracking-tightest text-fg">
             评分配置
           </h1>
           <p className="max-w-2xl text-sm leading-relaxed text-fg-muted">

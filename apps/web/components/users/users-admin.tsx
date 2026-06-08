@@ -44,10 +44,10 @@ export function UsersAdmin({ users, mergeConflicts }: { users: UserRow[]; mergeC
 
   return (
     <div className="grid gap-6">
-      <p className="text-sm text-zinc-500">{status}</p>
-      <section className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+      <p className="text-sm text-fg-soft">{status}</p>
+      <section className="overflow-hidden rounded-none border border-border bg-surface">
         <table className="w-full text-sm">
-          <thead className="bg-zinc-50 text-left text-zinc-500">
+          <thead className="bg-bg text-left text-fg-soft">
             <tr>
               <th className="p-3">姓名</th>
               <th className="p-3">账号</th>
@@ -58,11 +58,11 @@ export function UsersAdmin({ users, mergeConflicts }: { users: UserRow[]; mergeC
           </thead>
           <tbody>
             {users.map((user) => (
-              <tr className="border-t border-zinc-100" key={user.id}>
-                <td className="p-3 font-medium text-zinc-950">{user.name}</td>
-                <td className="p-3 text-zinc-600">{user.username ?? user.dingtalkId ?? "-"}</td>
+              <tr className="border-t border-hairline" key={user.id}>
+                <td className="p-3 font-medium text-fg">{user.name}</td>
+                <td className="p-3 text-fg-muted">{user.username ?? user.dingtalkId ?? "-"}</td>
                 <td className="p-3">
-                  <select className="rounded-md border border-zinc-200 px-2 py-1" value={user.role} onChange={(event) => void updateUser(user.id, { role: event.target.value })}>
+                  <select className="rounded-none border border-border px-2 py-1" value={user.role} onChange={(event) => void updateUser(user.id, { role: event.target.value })}>
                     <option value="viewer">viewer</option>
                     <option value="editor">editor</option>
                     <option value="admin">admin</option>
@@ -80,14 +80,14 @@ export function UsersAdmin({ users, mergeConflicts }: { users: UserRow[]; mergeC
         </table>
       </section>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-5">
-        <h2 className="text-base font-semibold text-zinc-950">待处理合并冲突</h2>
+      <section className="rounded-none border border-border bg-surface p-5">
+        <h2 className="text-base font-semibold text-fg">待处理合并冲突</h2>
         <div className="mt-4 grid gap-3">
-          {mergeConflicts.length === 0 ? <p className="text-sm text-zinc-500">暂无冲突</p> : null}
+          {mergeConflicts.length === 0 ? <p className="text-sm text-fg-soft">暂无冲突</p> : null}
           {mergeConflicts.map((conflict) => (
-            <div className="rounded-md border border-zinc-200 p-3" key={conflict.id}>
-              <p className="text-sm font-medium text-zinc-950">{conflict.name} · {conflict.dept ?? "-"}</p>
-              <p className="mt-1 text-xs text-zinc-500">候选用户：{conflict.candidateIds.join(", ")}</p>
+            <div className="rounded-none border border-border p-3" key={conflict.id}>
+              <p className="text-sm font-medium text-fg">{conflict.name} · {conflict.dept ?? "-"}</p>
+              <p className="mt-1 text-xs text-fg-soft">候选用户：{conflict.candidateIds.join(", ")}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {conflict.candidateIds.map((candidateId) => (
                   <Button key={candidateId} size="sm" type="button" onClick={() => void resolveConflict(conflict.id, { action: "confirm", targetUserId: candidateId })}>

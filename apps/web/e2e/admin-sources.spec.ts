@@ -88,8 +88,8 @@ test("admin 可以按 tier 查看 seed 信源且启用数符合合同", async ({
   const { items } = await apiRes.json() as { items: Array<{ enabled: boolean; tier: string }> };
 
   // Compute per-tier counts from the API (only T1/T2/T3 tiers)
-  const totalByTier: Record<string, number> = { T1: 0, T2: 0, T3: 0 };
-  const enabledByTier: Record<string, number> = { T1: 0, T2: 0, T3: 0 };
+  const totalByTier: Record<"T1" | "T2" | "T3", number> = { T1: 0, T2: 0, T3: 0 };
+  const enabledByTier: Record<"T1" | "T2" | "T3", number> = { T1: 0, T2: 0, T3: 0 };
   for (const s of items) {
     if (s.tier === "T1" || s.tier === "T2" || s.tier === "T3") {
       totalByTier[s.tier]++;
@@ -111,7 +111,7 @@ test("admin 可以按 tier 查看 seed 信源且启用数符合合同", async ({
   // Only count rows with data-testid (real source rows), excluding the
   // "暂无匹配信源" placeholder row that appears for empty tiers.
   let uiTotal = 0;
-  for (const tier of ["T1", "T2", "T3"]) {
+  for (const tier of ["T1", "T2", "T3"] as const) {
     await page.getByRole("button", { name: tier }).click();
     const rows = await page.locator("tbody tr[data-testid]").count();
     expect(rows, `${tier} total`).toBe(totalByTier[tier]);

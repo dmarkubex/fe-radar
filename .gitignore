@@ -8,6 +8,7 @@
 
 # OMC 本地状态（每会话生成，非项目资产）
 /.omc/
+.omc/
 
 # 本地 agent / CCB 运行态（非项目资产）
 /AGENTS.md
@@ -16,7 +17,12 @@
 /.ccb-requests/
 
 # 设计稿 / 原型 HTML+PNG（参考资产，避免膨胀仓库）
-/design/
+# 用 /design/* 而非 /design/ 以便 git 仍能下钻、对下方例外生效
+/design/*
+# 例外：v1.1 简报 docx 模板是生产资产，必须纳入 git（CLAUDE.md 陷阱 #10 / T-CB-11）
+!/design/templates/
+/design/templates/*
+!/design/templates/briefing.docx
 
 # Node 依赖与早期临时实验产物（M0 monorepo 起步时按 spec/tasks.md T-M0-01 重新建立）
 /node_modules/
@@ -35,6 +41,9 @@ dist/
 
 # KYO-54 embedding benchmark datasets (regenerate via scripts/seed/generate-embedding-dataset.ts)
 generated/embedding/
+
+# 确定性生成的回测/评测样本（固定 seed，经 scripts/seed/ 重新生成，非版本库资产）
+scripts/samples/
 .next/
 **/.next/
 

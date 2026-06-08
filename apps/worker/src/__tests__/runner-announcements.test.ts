@@ -8,6 +8,7 @@ const {
   mockEnqueueItemPipeline,
   mockFlowProducer,
   mockRedis,
+  mockFetchQueueClose,
   mockSource,
   mockItems,
   mockItemAnalysis,
@@ -26,8 +27,11 @@ const {
     mockRecordSourceFailure: vi.fn().mockResolvedValue(undefined),
     mockFetchAnnouncements: vi.fn(),
     mockEnqueueItemPipeline: vi.fn().mockResolvedValue(undefined),
-    mockFlowProducer: vi.fn(),
-    mockRedis: { quit: vi.fn() },
+    mockFlowProducer: vi.fn(function () {
+      return { close: vi.fn().mockResolvedValue(undefined) };
+    }),
+    mockRedis: { quit: vi.fn().mockResolvedValue(undefined) },
+    mockFetchQueueClose: vi.fn().mockResolvedValue(undefined),
     mockSource,
     mockItems: { id: "items.id", sourceId: "items.source_id", url: "items.url", title: "items.title", publishedAt: "items.published_at" },
     mockItemAnalysis: { itemId: "item_analysis.item_id" },
@@ -73,7 +77,7 @@ vi.mock("../scheduler", () => ({
 
 vi.mock("../queues", () => ({
   createRedisConnection: vi.fn(() => mockRedis),
-  createFetchQueue: vi.fn(),
+  createFetchQueue: vi.fn(() => ({ close: mockFetchQueueClose })),
   FETCH_SCHEDULE_CRON: "0 */6 * * *",
   FETCH_SCHEDULE_TZ: "Asia/Shanghai",
   DAILY_REPORT_SCHEDULE_CRON: "0 8 * * *",
@@ -198,9 +202,22 @@ describe("handleFetchJob announcement routing", () => {
     );
     expect(db.insert).toHaveBeenCalledWith(mockItems);
     expect(db.insert).toHaveBeenCalledWith(mockItemAnalysis);
-    expect(mockEnqueueItemPipeline).toHaveBeenCalledWith(expect.anything(), 101);
+    expect(mockEnqueueItemPipeline).toHaveBeenCalledWith(expect.anything(), 101, expect.any(String));
     expect(mockMarkSourceSuccess).toHaveBeenCalledWith(db, 7);
     expect(mockRecordSourceFailure).not.toHaveBeenCalled();
+  });
+
+  // Antigravity/Codex #4 — the scheduling cycle (sourceId 0) builds a temporary
+  // fetch queue + its own Redis connection; BOTH must be released. Asserting
+  // close() alone is insufficient: BullMQ won't quit a passed-in (shared) IORedis,
+  // so we must also see conn.quit().
+  it("scheduling cycle (sourceId 0) closes the fetch queue AND quits its Redis connection", async () => {
+    makeDb();
+
+    await __testables.handleFetchJob({ data: { sourceId: 0 } });
+
+    expect(mockFetchQueueClose).toHaveBeenCalledTimes(1);
+    expect(mockRedis.quit).toHaveBeenCalledTimes(1);
   });
 });
 

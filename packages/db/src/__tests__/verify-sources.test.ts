@@ -16,6 +16,8 @@ function makeSource(overrides: Partial<SourceRecord> & { name: string; url: stri
     enabled: true,
     lastOkAt: null,
     failCount: 0,
+    lastError: null,
+    lastErrorAt: null,
     createdAt: new Date(),
     config: {},
     ...overrides
