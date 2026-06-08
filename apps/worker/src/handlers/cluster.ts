@@ -27,7 +27,6 @@ export async function handleClusterJob(job: { data: PipelineJob }): Promise<void
   const itemId = job.data.itemId;
   const correlationId = job.data.correlationId;
   logger.info({ itemId, correlationId, stage: "cluster" }, "pipeline stage");
-  const redis = createRedisConnection();
 
   const [row] = await db.select({
     embedding: itemAnalysis.embedding,
@@ -65,19 +64,26 @@ export async function handleClusterJob(job: { data: PipelineJob }): Promise<void
       similarity: bestCluster.similarity,
     }).onConflictDoNothing();
   } else {
-    await withClusterCreateLock(redis, async () => {
-      const [newCluster] = await db.insert(clusters).values({
-        centroid: JSON.stringify(embedding) as unknown as number[],
-        leadItemId: itemId,
-      }).returning({ id: clusters.id });
+    // Redis is only needed for the distributed cluster-create lock; create it
+    // lazily here and always quit it so the connection isn't leaked per job.
+    const redis = createRedisConnection();
+    try {
+      await withClusterCreateLock(redis, async () => {
+        const [newCluster] = await db.insert(clusters).values({
+          centroid: JSON.stringify(embedding) as unknown as number[],
+          leadItemId: itemId,
+        }).returning({ id: clusters.id });
 
-      if (newCluster) {
-        await db.insert(clusterItems).values({
-          clusterId: newCluster.id,
-          itemId,
-          similarity: 1.0,
-        });
-      }
-    });
+        if (newCluster) {
+          await db.insert(clusterItems).values({
+            clusterId: newCluster.id,
+            itemId,
+            similarity: 1.0,
+          });
+        }
+      });
+    } finally {
+      await redis.quit();
+    }
   }
 }

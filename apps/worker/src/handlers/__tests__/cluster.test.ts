@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const { mockGetDb, mockCreateRedisConnection, mockWithClusterCreateLock } = vi.hoisted(() => ({
   mockGetDb: vi.fn(),
-  mockCreateRedisConnection: vi.fn(() => ({ id: "redis" })),
+  mockCreateRedisConnection: vi.fn(() => ({ id: "redis", quit: vi.fn().mockResolvedValue(undefined) })),
   // default: lock simply runs the callback (lock acquired)
   mockWithClusterCreateLock: vi.fn(async (_redis: unknown, fn: () => Promise<unknown>) => fn()),
 }));
@@ -89,7 +89,7 @@ describe("cosineSimilarity", () => {
 describe("handleClusterJob", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCreateRedisConnection.mockReturnValue({ id: "redis" });
+    mockCreateRedisConnection.mockReturnValue({ id: "redis", quit: vi.fn().mockResolvedValue(undefined) });
     mockWithClusterCreateLock.mockImplementation(async (_redis: unknown, fn: () => Promise<unknown>) => fn());
   });
 

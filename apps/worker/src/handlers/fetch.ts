@@ -18,8 +18,13 @@ export async function handleFetchJob(job: { data: FetchSourceJob }): Promise<voi
 
   if (sourceId === 0) {
     const queue = await import("../queues").then((m) => m.createFetchQueue());
-    const count = await enqueueEnabledSources(db, queue);
-    logger.info({ count }, "scheduled fetch cycle");
+    try {
+      const count = await enqueueEnabledSources(db, queue);
+      logger.info({ count }, "scheduled fetch cycle");
+    } finally {
+      // createFetchQueue() owns its Redis connection; close() releases it.
+      await queue.close();
+    }
     return;
   }
 
@@ -83,29 +88,35 @@ export async function handleFetchJob(job: { data: FetchSourceJob }): Promise<voi
   const redis = createRedisConnection();
   const flowProducer = new FlowProducer({ connection: redis });
 
-  for (const item of accepted) {
-    const [inserted] = await db.insert(items).values({
-      sourceId: source.id,
-      url: item.url,
-      title: item.title,
-      content: item.content,
-      publishedAt: item.publishedAt,
-    }).returning({ id: items.id });
+  try {
+    for (const item of accepted) {
+      const [inserted] = await db.insert(items).values({
+        sourceId: source.id,
+        url: item.url,
+        title: item.title,
+        content: item.content,
+        publishedAt: item.publishedAt,
+      }).returning({ id: items.id });
 
-    if (!inserted) continue;
+      if (!inserted) continue;
 
-    await db.insert(itemAnalysis).values({
-      itemId: inserted.id,
-      isIndustryRelated: null,
-      quotaState: "admitted",
-    });
+      await db.insert(itemAnalysis).values({
+        itemId: inserted.id,
+        isIndustryRelated: null,
+        quotaState: "admitted",
+      });
 
-    const correlationId = randomUUID();
-    const { enqueueItemPipeline } = await import("../flows");
-    await enqueueItemPipeline(flowProducer, inserted.id, correlationId);
-    logger.info({ itemId: inserted.id, correlationId, sourceId: source.id, stage: "fetch" }, "pipeline enqueued");
+      const correlationId = randomUUID();
+      const { enqueueItemPipeline } = await import("../flows");
+      await enqueueItemPipeline(flowProducer, inserted.id, correlationId);
+      logger.info({ itemId: inserted.id, correlationId, sourceId: source.id, stage: "fetch" }, "pipeline enqueued");
+    }
+
+    await markSourceSuccess(db, source.id);
+    logger.info({ sourceId, accepted: accepted.length, skipped: candidates.length - accepted.length }, "items inserted and pipeline enqueued");
+  } finally {
+    // FlowProducer was given an external connection; close both so neither leaks.
+    await flowProducer.close();
+    await redis.quit();
   }
-
-  await markSourceSuccess(db, source.id);
-  logger.info({ sourceId, accepted: accepted.length, skipped: candidates.length - accepted.length }, "items inserted and pipeline enqueued");
 }

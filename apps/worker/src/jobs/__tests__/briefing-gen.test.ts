@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { runBriefingGen } from "../briefing-gen";
+import { runBriefingGen, KEY_METRIC_FIELDS } from "../briefing-gen";
 
 // ─────────────────────────────────────────────────────────────
 // Module mocks
@@ -131,6 +131,21 @@ describe("briefing-gen", () => {
       docxPath: "fe-radar-briefings/briefings/2026/05/briefing-20260520.docx",
       minioKey: "briefings/2026/05/briefing-20260520.docx",
     });
+  });
+
+  // ── Drift guard (Antigravity #3): coverage keys must match seed metric_keys ──
+  it("KEY_METRIC_FIELDS use canonical seed metric_key names, not the buggy aliases", () => {
+    expect(KEY_METRIC_FIELDS).toEqual([
+      "cu_main_close",
+      "cu_change_pct",
+      "lc_main_close",
+      "lc_change_pct",
+      "fx_usdcny",
+    ]);
+    // The old values silently broke coverage — guard against regression.
+    for (const bad of ["cu_main_change_pct", "lc_main_change_pct", "usd_cny"]) {
+      expect(KEY_METRIC_FIELDS).not.toContain(bad);
+    }
   });
 
   // ── Case 1: quotes-fetch queue non-empty → delay × 2 → abort failed ────

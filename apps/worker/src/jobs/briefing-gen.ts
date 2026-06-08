@@ -55,13 +55,23 @@ const MAX_QUEUE_RETRIES = 2;
 /** Maximum number of field-coverage retries before degraded */
 const MAX_FIELD_RETRIES = 2;
 
-/** Key metric fields required for a non-degraded briefing (first 5 from commodity_quotes) */
-const KEY_METRIC_FIELDS = [
-  "cu_main_close",
-  "cu_main_change_pct",
-  "lc_main_close",
-  "lc_main_change_pct",
-  "usd_cny",
+/**
+ * Key metric fields required for a non-degraded briefing.
+ *
+ * IMPORTANT (Antigravity #3): these MUST match the canonical metric_key values
+ * actually produced by the quotes adapters / seeded in
+ * 0009_commodity_seed.sql (sources.config.metric_keys + briefing_template_fields.
+ * source_metric). The earlier values cu_main_change_pct / lc_main_change_pct /
+ * usd_cny never existed in commodity_quotes, so every briefing was falsely
+ * judged coverage-insufficient → degraded. See drift-guard test in
+ * briefing-gen.test.ts.
+ */
+export const KEY_METRIC_FIELDS = [
+  "cu_main_close", // SHFE 沪铜主力收盘
+  "cu_change_pct", // SHFE 沪铜涨跌幅
+  "lc_main_close", // GFEX 碳酸锂主力收盘
+  "lc_change_pct", // GFEX 碳酸锂涨跌幅
+  "fx_usdcny", // 央行美元中间价
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -252,35 +262,43 @@ export async function runBriefingGen(
   }
 
   // ── Step 0: quotes-fetch queue precheck (v0.4 fix E1) ─────
-  let queueRetries = 0;
-  while (true) {
-    const queueHandle =
-      options.quotesFetchQueueOverride ??
-      new Queue(QUEUE_QUOTES_FETCH, { connection: createRedisConnection() });
+  // Create the queue handle ONCE (not per retry) and always close it. Tests
+  // inject quotesFetchQueueOverride, in which case we own no Redis resource.
+  const ownPrecheckConn = options.quotesFetchQueueOverride ? null : createRedisConnection();
+  const ownPrecheckQueue = ownPrecheckConn
+    ? new Queue(QUEUE_QUOTES_FETCH, { connection: ownPrecheckConn })
+    : null;
+  const queueHandle = options.quotesFetchQueueOverride ?? ownPrecheckQueue!;
+  try {
+    let queueRetries = 0;
+    while (true) {
+      const counts = await queueHandle.getJobCounts("waiting", "active", "delayed");
+      const pending = (counts["waiting"] ?? 0) + (counts["active"] ?? 0) + (counts["delayed"] ?? 0);
 
-    const counts = await queueHandle.getJobCounts("waiting", "active", "delayed");
-    const pending = (counts["waiting"] ?? 0) + (counts["active"] ?? 0) + (counts["delayed"] ?? 0);
+      if (pending === 0) break; // quotes-fetch queue is clear
 
-    if (pending === 0) break; // quotes-fetch queue is clear
+      queueRetries++;
+      if (queueRetries > MAX_QUEUE_RETRIES) {
+        logger.error(
+          { counts, retries: queueRetries },
+          "briefing-gen aborted: quotes-fetch queue still non-empty after max retries"
+        );
+        await persistBriefing(db, todayStr, {}, null, "failed", "quotes-fetch queue non-empty after max retries");
+        return {
+          status: "failed",
+          genError: "quotes-fetch queue non-empty after max retries",
+        };
+      }
 
-    queueRetries++;
-    if (queueRetries > MAX_QUEUE_RETRIES) {
-      logger.error(
-        { counts, retries: queueRetries },
-        "briefing-gen aborted: quotes-fetch queue still non-empty after max retries"
+      logger.warn(
+        { counts, attempt: queueRetries },
+        `briefing-gen: quotes-fetch queue non-empty, waiting ${retryDelayMs}ms before retry`
       );
-      await persistBriefing(db, todayStr, {}, null, "failed", "quotes-fetch queue non-empty after max retries");
-      return {
-        status: "failed",
-        genError: "quotes-fetch queue non-empty after max retries",
-      };
+      await sleep(retryDelayMs);
     }
-
-    logger.warn(
-      { counts, attempt: queueRetries },
-      `briefing-gen: quotes-fetch queue non-empty, waiting ${retryDelayMs}ms before retry`
-    );
-    await sleep(retryDelayMs);
+  } finally {
+    if (ownPrecheckQueue) await ownPrecheckQueue.close();
+    if (ownPrecheckConn) await ownPrecheckConn.quit();
   }
 
   // ── Step 1: field coverage precheck ───────────────────────

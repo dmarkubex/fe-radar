@@ -26,8 +26,10 @@ const {
     mockRecordSourceFailure: vi.fn().mockResolvedValue(undefined),
     mockFetchAnnouncements: vi.fn(),
     mockEnqueueItemPipeline: vi.fn().mockResolvedValue(undefined),
-    mockFlowProducer: vi.fn(),
-    mockRedis: { quit: vi.fn() },
+    mockFlowProducer: vi.fn(function () {
+      return { close: vi.fn().mockResolvedValue(undefined) };
+    }),
+    mockRedis: { quit: vi.fn().mockResolvedValue(undefined) },
     mockSource,
     mockItems: { id: "items.id", sourceId: "items.source_id", url: "items.url", title: "items.title", publishedAt: "items.published_at" },
     mockItemAnalysis: { itemId: "item_analysis.item_id" },
