@@ -24,6 +24,8 @@
 
 stack.yml 与 compose.fetch-smoke.yml 的 **所有 image 已改为 Harbor 路径**。你把 compose 贴进 Portainer 前，需保证 Harbor 里有这些镜像、且 Portainer/Docker 主机能登录 Harbor 拉取。
 
+**一键脚本**：`deploy/scripts/build-images.sh --push`（构建+推送 4 个自建镜像）、加 `--mirror` 同步公共镜像、`REGISTRY=...` 可改仓库。下面是等价的手敲命令：
+
 **1.1 构建并推送 4 个自建镜像**（在有 Docker 的构建机，仓库根目录）：
 
 ```bash

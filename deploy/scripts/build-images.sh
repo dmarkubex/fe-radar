@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# FE-Radar 镜像一键构建 + 推送到内网 Harbor。
+#
+# 在仓库根目录、有 Docker 的构建机上运行（Dockerfile 的 COPY 以仓库根为 build context）。
+#
+# 用法：
+#   deploy/scripts/build-images.sh                # 仅构建（tag 到 Harbor 路径）
+#   deploy/scripts/build-images.sh --push         # 构建并 docker push 到 Harbor
+#   deploy/scripts/build-images.sh --push --mirror# 额外把公共镜像(redis/rsshub)同步进 Harbor
+#   REGISTRY=harborssl.fegroup.cn/custom-project deploy/scripts/build-images.sh --push
+#
+# 自建镜像：postgres-zhparser / worker / migrate / web（backup 用 --with-backup 一并构建）
+set -euo pipefail
+
+REGISTRY="${REGISTRY:-harborssl.fegroup.cn/custom-project}"
+PUSH=0; MIRROR=0; WITH_BACKUP=0
+for arg in "$@"; do
+  case "$arg" in
+    --push) PUSH=1 ;;
+    --mirror) MIRROR=1 ;;
+    --with-backup) WITH_BACKUP=1 ;;
+    -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "unknown arg: $arg" >&2; exit 2 ;;
+  esac
+done
+
+# 切到仓库根目录（脚本在 deploy/scripts/ 下）
+cd "$(dirname "$0")/../.."
+echo "repo root: $(pwd)"
+echo "registry : $REGISTRY   push=$PUSH mirror=$MIRROR"
+
+# 镜像清单： "<Dockerfile> <repo:tag>"
+IMAGES=(
+  "deploy/Dockerfile.postgres-zhparser fe-radar/postgres-zhparser:pg16"
+  "deploy/Dockerfile.worker            fe-radar/worker:latest"
+  "deploy/Dockerfile.migrate           fe-radar/migrate:latest"
+  "deploy/Dockerfile.web               fe-radar/web:latest"
+)
+[ "$WITH_BACKUP" = "1" ] && IMAGES+=("deploy/Dockerfile.backup fe-radar/backup:latest")
+
+for entry in "${IMAGES[@]}"; do
+  dockerfile="${entry%% *}"
+  repo="${entry##* }"
+  tag="$REGISTRY/$repo"
+  echo "==> build $tag  (-f $dockerfile)"
+  docker build -f "$dockerfile" -t "$tag" .
+  if [ "$PUSH" = "1" ]; then
+    echo "==> push  $tag"
+    docker push "$tag"
+  fi
+done
+
+# 公共镜像同步（内网拉不到 Docker Hub 时需要）。leaf 名/标签按你 Harbor 实际约定，自行调整。
+if [ "$MIRROR" = "1" ]; then
+  RSSHUB_DIGEST="diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3df98bab0f979c03059"
+  echo "==> mirror redis:7-alpine"
+  docker pull redis:7-alpine
+  docker tag  redis:7-alpine "$REGISTRY/redis:7-alpine"
+  echo "==> mirror rsshub (pinned)"
+  docker pull "$RSSHUB_DIGEST"
+  docker tag  "$RSSHUB_DIGEST" "$REGISTRY/diygod/rsshub:pinned"
+  if [ "$PUSH" = "1" ]; then
+    docker push "$REGISTRY/redis:7-alpine"
+    docker push "$REGISTRY/diygod/rsshub:pinned"
+    echo "注意：若用 rsshub:pinned 标签，请把 compose/stack 里 rsshub 的 @sha256 改成 :pinned"
+  fi
+fi
+
+echo "done."
