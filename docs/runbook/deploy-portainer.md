@@ -62,6 +62,8 @@ stack.yml 引用 `fe-radar/web:latest`、`fe-radar/worker:latest`、`fe-radar/po
 
 ## 3. Portainer 部署步骤
 
+> **最省事路径（推荐首测）**：直接用现成的单机 compose `deploy/compose.fetch-smoke.yml` —— 纯 env、含一次性 migrate+seed、命令路径已对、不用建 secret、不用内联改 stack。Portainer → Stacks → Add stack → 贴该文件即可；或 `docker compose -f deploy/compose.fetch-smoke.yml up -d`。下面的逐条步骤是用「生产 stack.yml」手动部署时的参考。
+
 1. **建 overlay 网络**：stack.yml 已声明 `internal`（`internal: true`），Portainer 部署 stack 时自动建。
 2. **Stacks → Add stack**，名 `fe-radar`，把 `deploy/stack.yml` 贴进 Web editor（或用 Git repo 方式）。
 3. **首测精简版改动**（在贴入的 stack 内联改，避免动仓库文件）：
