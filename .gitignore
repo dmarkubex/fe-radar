@@ -8,6 +8,7 @@
 
 # OMC 本地状态（每会话生成，非项目资产）
 /.omc/
+.omc/
 
 # 本地 agent / CCB 运行态（非项目资产）
 /AGENTS.md
@@ -40,6 +41,9 @@ dist/
 
 # KYO-54 embedding benchmark datasets (regenerate via scripts/seed/generate-embedding-dataset.ts)
 generated/embedding/
+
+# 确定性生成的回测/评测样本（固定 seed，经 scripts/seed/ 重新生成，非版本库资产）
+scripts/samples/
 .next/
 **/.next/
 
