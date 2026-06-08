@@ -20,30 +20,42 @@
 
 ---
 
-## 1. 前置：构建 3 个自建镜像
+## 1. 前置：镜像全部走内网 Harbor `harborssl.fegroup.cn/custom-project`
 
-stack.yml 引用 `fe-radar/web:latest`、`fe-radar/worker:latest`、`fe-radar/postgres-zhparser:pg16`（+可选 `backup`）。Swarm 节点必须能取到这些镜像。**二选一**：
+stack.yml 与 compose.fetch-smoke.yml 的 **所有 image 已改为 Harbor 路径**。你把 compose 贴进 Portainer 前，需保证 Harbor 里有这些镜像、且 Portainer/Docker 主机能登录 Harbor 拉取。
 
-- **A. 推私有 registry（多节点 Swarm 推荐）**：在有 Docker 的构建机执行，`<registry>` 换成你的内网 registry。
-  ```bash
-  # 在仓库根目录
-  docker build -f deploy/Dockerfile.postgres-zhparser -t <registry>/fe-radar/postgres-zhparser:pg16 .
-  docker build -f deploy/Dockerfile.web     -t <registry>/fe-radar/web:latest .
-  docker build -f deploy/Dockerfile.worker  -t <registry>/fe-radar/worker:latest .
-  docker build -f deploy/Dockerfile.migrate -t <registry>/fe-radar/migrate:latest .   # 一次性迁移镜像
-  docker push <registry>/fe-radar/postgres-zhparser:pg16
-  docker push <registry>/fe-radar/web:latest
-  docker push <registry>/fe-radar/worker:latest
-  docker push <registry>/fe-radar/migrate:latest
-  # 然后把 stack.yml 里的 image 改成 <registry>/fe-radar/...
-  ```
-- **B. 单节点 Swarm（你的情况，默认按此）**：直接在该节点 `docker build` 出同名镜像即可，无需 registry（image 名与 stack.yml 一致）：
-  ```bash
-  docker build -f deploy/Dockerfile.postgres-zhparser -t fe-radar/postgres-zhparser:pg16 .
-  docker build -f deploy/Dockerfile.web     -t fe-radar/web:latest .
-  docker build -f deploy/Dockerfile.worker  -t fe-radar/worker:latest .
-  docker build -f deploy/Dockerfile.migrate -t fe-radar/migrate:latest .
-  ```
+**1.1 构建并推送 4 个自建镜像**（在有 Docker 的构建机，仓库根目录）：
+
+```bash
+docker login harborssl.fegroup.cn        # 先登录 Harbor
+
+R=harborssl.fegroup.cn/custom-project
+docker build -f deploy/Dockerfile.postgres-zhparser -t $R/fe-radar/postgres-zhparser:pg16 .
+docker build -f deploy/Dockerfile.worker  -t $R/fe-radar/worker:latest  .
+docker build -f deploy/Dockerfile.migrate -t $R/fe-radar/migrate:latest .
+docker build -f deploy/Dockerfile.web     -t $R/fe-radar/web:latest     .   # web 首测可不上
+docker push $R/fe-radar/postgres-zhparser:pg16
+docker push $R/fe-radar/worker:latest
+docker push $R/fe-radar/migrate:latest
+docker push $R/fe-radar/web:latest
+```
+
+**1.2 公共镜像也需进 Harbor**（内网拉不到 Docker Hub）：把 redis / rsshub（含 minio/grafana，全链路才用）镜像同步到 `custom-project`。例如：
+
+```bash
+docker pull redis:7-alpine && docker tag redis:7-alpine $R/redis:7-alpine && docker push $R/redis:7-alpine
+docker pull diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3df98bab0f979c03059 \
+  && docker tag diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3df98bab0f979c03059 $R/diygod/rsshub:pinned \
+  && docker push $R/diygod/rsshub:pinned
+# 全链路再同步 minio/minio、grafana/grafana
+```
+
+> ⚠️ **两点须核对**：
+>
+> 1. **leaf 仓库名**——我按"原 repo 路径前面加 `harborssl.fegroup.cn/custom-project/`"机械改的（如 `custom-project/minio/minio`、`custom-project/redis`）。**如果你 Harbor 里实际 push 的名字不同**（比如扁平成 `custom-project/redis` 已对、但 rsshub 你可能 push 成别的 tag），请按实际改 compose 里那几行 image。
+> 2. **rsshub 用 digest**：`@sha256:...` 只有在 Harbor 里是**同一 manifest**时才有效；若你 push 时 digest 变了，把 compose 里 rsshub 改成你 Harbor 的 tag（如上例 `$R/diygod/rsshub:pinned`）。
+>
+> **Portainer 拉取凭据**：Portainer → Registries 添加 `harborssl.fegroup.cn`（用户名/密码），或确保 Docker 主机已 `docker login harborssl.fegroup.cn`，否则 stack 起不来（ImagePullBackOff / no basic auth credentials）。
 
 > 镜像较大（worker 含 Playwright Chromium ~几百 MB），首次构建较慢。
 
