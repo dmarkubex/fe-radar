@@ -39,14 +39,17 @@ vi.mock("../../lib/briefing-render", () => ({
 
 // Shared spies so tests can assert briefing-push enqueue. Declared via
 // vi.hoisted so they exist before the hoisted vi.mock factory runs.
-const { pushQueueAdd, pushQueueClose } = vi.hoisted(() => ({
+const { pushQueueAdd, pushQueueClose, pushConnQuit } = vi.hoisted(() => ({
   pushQueueAdd: vi.fn().mockResolvedValue(undefined),
   pushQueueClose: vi.fn().mockResolvedValue(undefined),
+  pushConnQuit: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../../queues", () => ({
   QUEUE_QUOTES_FETCH: "fe-quotes-fetch",
-  createRedisConnection: vi.fn().mockReturnValue({}),
+  // Returns a connection with quit() so the leak-fix (conn.quit after close) is
+  // exercised; BullMQ won't quit a passed-in shared IORedis on queue.close().
+  createRedisConnection: vi.fn().mockReturnValue({ quit: pushConnQuit }),
   createBriefingPushQueue: vi.fn().mockReturnValue({
     add: pushQueueAdd,
     close: pushQueueClose,
@@ -316,6 +319,7 @@ describe("briefing-gen", () => {
   it("enqueues a briefing-push job after a successful generation", async () => {
     pushQueueAdd.mockClear();
     pushQueueClose.mockClear();
+    pushConnQuit.mockClear();
 
     const insertChain: Record<string, ReturnType<typeof vi.fn>> = {};
     insertChain.values = vi.fn().mockReturnValue(insertChain);
@@ -340,6 +344,8 @@ describe("briefing-gen", () => {
     // briefing-push enqueued with the persisted briefingId, then connection closed
     expect(pushQueueAdd).toHaveBeenCalledWith("briefing-push", { briefingId: 88 });
     expect(pushQueueClose).toHaveBeenCalledOnce();
+    // #4 leak-fix: the push queue's Redis connection must also be quit, not just close()d.
+    expect(pushConnQuit).toHaveBeenCalledOnce();
   });
 
   // ── Case 6: LLM error → gen_status=failed + gen_error text ────────────

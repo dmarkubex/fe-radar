@@ -201,7 +201,7 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
                 <input
                   className={FIELD}
                   data-testid="metric-keys-input"
-                  placeholder="cu_main_close,cu_main_change_pct"
+                  placeholder="cu_main_close,cu_change_pct"
                   onChange={(e) => {
                     const keys = e.target.value
                       .split(",")

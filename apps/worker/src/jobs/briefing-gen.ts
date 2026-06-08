@@ -432,7 +432,10 @@ export async function runBriefingGen(
   // briefing_pushes UNIQUE(briefing_id, target_id); enqueue failure degrades
   // gracefully to the cron fallback and never fails the gen job itself.
   if (briefingId > 0) {
-    const pushQueue = createBriefingPushQueue(createRedisConnection());
+    // Build the connection explicitly: BullMQ won't quit a passed-in ("shared")
+    // IORedis on queue.close(), so we own the quit() to avoid a per-briefing leak.
+    const pushConn = createRedisConnection();
+    const pushQueue = createBriefingPushQueue(pushConn);
     try {
       await pushQueue.add("briefing-push", { briefingId });
       logger.debug({ briefingId }, "briefing-gen: enqueued briefing-push job");
@@ -443,6 +446,7 @@ export async function runBriefingGen(
       );
     } finally {
       await pushQueue.close();
+      await pushConn.quit();
     }
   }
 

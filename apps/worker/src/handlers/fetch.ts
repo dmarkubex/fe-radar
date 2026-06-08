@@ -17,13 +17,18 @@ export async function handleFetchJob(job: { data: FetchSourceJob }): Promise<voi
   const sourceId = job.data.sourceId;
 
   if (sourceId === 0) {
-    const queue = await import("../queues").then((m) => m.createFetchQueue());
+    const { createFetchQueue } = await import("../queues");
+    // BullMQ marks a passed-in IORedis instance as "shared" and Queue.close()
+    // will NOT quit it (redis-connection.js: `if (!shared) quit()`). So build the
+    // connection explicitly and quit it ourselves, otherwise it leaks per cycle.
+    const conn = createRedisConnection();
+    const queue = createFetchQueue(conn);
     try {
       const count = await enqueueEnabledSources(db, queue);
       logger.info({ count }, "scheduled fetch cycle");
     } finally {
-      // createFetchQueue() owns its Redis connection; close() releases it.
       await queue.close();
+      await conn.quit();
     }
     return;
   }
