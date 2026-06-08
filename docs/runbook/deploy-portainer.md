@@ -156,17 +156,23 @@ docker exec <postgres容器> psql -U fe_radar -d fe_radar -c "SELECT to_tsvector
 
 scheduler 默认每 6 小时整点调度一轮（`0 */6 * * *`）。要立刻测，手动入队一次调度任务（向 Redis 推 `schedule-fetch-sources`，或临时把 cron 改密；最简单是直接观测下一个整点，或在 worker 容器内用一段 tsx 触发）。**最省事**：等下一整点，或重启 scheduler 让它补一次（视实现）。
 
-**观测抓取结果（不需要 LLM、不需要登录）**：
+**一键自检（推荐）**：
 
 ```bash
-# 各信源最近抓取时间与失败计数
+deploy/scripts/fetch-smoke-check.sh   # 输出：各类型 enabled 数 / 抓到条目数+最近抓取时间 / 失败源 / zhparser / rsshub
+```
+
+**或手动观测（不需要 LLM、不需要登录）**：
+
+```bash
+# 真正抓到的条目数 + 最近抓取时间（注意：sources 无 last_fetched_at 列，时间在 items.fetched_at）
 docker exec <postgres容器> psql -U fe_radar -d fe_radar -c \
- "SELECT fetcher_type, name, last_fetched_at, fail_count, left(last_error,60) FROM sources WHERE enabled ORDER BY last_fetched_at DESC NULLS LAST LIMIT 30;"
-# 真正抓到的条目数（按类型）
+ "SELECT s.fetcher_type, count(i.id) AS items, max(i.fetched_at) AS last_fetch FROM sources s LEFT JOIN items i ON i.source_id=s.id GROUP BY 1 ORDER BY items DESC;"
+# 失败源（fail_count / last_error）
 docker exec <postgres容器> psql -U fe_radar -d fe_radar -c \
- "SELECT s.fetcher_type, count(*) FROM items i JOIN sources s ON s.id=i.source_id GROUP BY 1 ORDER BY 2 DESC;"
+ "SELECT fetcher_type, name, fail_count, left(last_error,60) FROM sources WHERE enabled AND (fail_count>0 OR last_error IS NOT NULL) ORDER BY fail_count DESC LIMIT 30;"
 # worker 日志（看 'fetch succeeded' / 'fetch failed' + correlationId）
-docker service logs fe-radar_worker --since 10m | grep -E "fetch (succeeded|failed)|pipeline enqueued"
+docker compose -f deploy/compose.fetch-smoke.yml logs worker --since 10m | grep -E "fetch (succeeded|failed)|pipeline enqueued"
 ```
 
 **按 5 类逐项核对**（对应之前讨论的抓取方式）：
@@ -177,7 +183,7 @@ docker service logs fe-radar_worker --since 10m | grep -E "fetch (succeeded|fail
 - `announcement` —— sse/szse/cninfo；**已知 SSE smoke 不稳定**（handoff），szse/cninfo 预期可抓
 - `quotes` —— **默认 disabled**，本轮不抓；全链路阶段再 admin 启用
 
-> 抓取成功的判据：`items` 表有新行 + `sources.last_fetched_at` 更新 + 日志 `fetch succeeded count>0`。下游 prefilter 报 LLM 错是预期的（未配 Qwen），**不影响 fetch 结论**。
+> 抓取成功的判据：`items` 表有新行（`items.fetched_at` 为抓取时间）+ 日志 `fetch succeeded count>0`。下游 prefilter 报 LLM 错是预期的（未配 Qwen），**不影响 fetch 结论**。
 
 ---
 
