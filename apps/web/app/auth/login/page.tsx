@@ -1,8 +1,9 @@
-import { isDingtalkEnabled } from "@/lib/auth/dingtalk-provider";
+import { isDingtalkEnabled, isLocalLoginAllowed } from "@/lib/auth/dingtalk-provider";
 import { LoginPanel } from "./login-panel";
 
 export default function LoginPage(): React.JSX.Element {
   const dingtalkEnabled = isDingtalkEnabled();
+  const localLoginAllowed = isLocalLoginAllowed();
 
   return (
     <div className="h-screen grid grid-cols-[1.1fr_1fr] max-[900px]:grid-cols-1 overflow-hidden">
@@ -68,7 +69,7 @@ export default function LoginPage(): React.JSX.Element {
       {/* Right form panel - compact for 14" screens, clean single-method switching */}
       <main className="bg-bg flex items-center justify-center p-6 lg:p-8 xl:p-10 overflow-auto">
         <div className="w-full max-w-[420px] bg-surface p-7 lg:p-8 border border-border shadow-pop">
-          <LoginPanel dingtalkEnabled={dingtalkEnabled} />
+          <LoginPanel dingtalkEnabled={dingtalkEnabled} localLoginAllowed={localLoginAllowed} />
 
           <div className="mt-7 font-mono text-[9px] tracking-[1px] text-fg-soft uppercase flex justify-between border-t border-border pt-5">
             <span>© 远东控股集团</span>

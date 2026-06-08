@@ -6,9 +6,11 @@ import { LocalLoginForm } from "./local-login-form";
 
 interface LoginPanelProps {
   dingtalkEnabled: boolean;
+  /** 钉钉启用时，本地登录是否解锁（EMERGENCY_LOCAL_LOGIN）。未解锁则隐藏本地入口。 */
+  localLoginAllowed: boolean;
 }
 
-export function LoginPanel({ dingtalkEnabled }: LoginPanelProps) {
+export function LoginPanel({ dingtalkEnabled, localLoginAllowed }: LoginPanelProps) {
   const [mode, setMode] = useState<"dingtalk" | "local">(
     dingtalkEnabled ? "dingtalk" : "local"
   );
@@ -56,18 +58,20 @@ export function LoginPanel({ dingtalkEnabled }: LoginPanelProps) {
           </div>
         </div>
 
-        {/* Switch trigger - only one method visible */}
-        <div className="pt-6 text-center border-t border-border">
-          <button
-            onClick={() => setMode("local")}
-            className="text-accent tracking-[0.4px] uppercase text-xs bg-transparent border-0 hover:underline"
-          >
-            使用本地账号登录 →
-          </button>
-          <small className="block text-fg-soft mt-2 text-xs">
-            仅供 IT / 运维人员在 SSO 异常时使用
-          </small>
-        </div>
+        {/* Switch trigger - only shown when local login is unlocked (emergency break-glass) */}
+        {localLoginAllowed && (
+          <div className="pt-6 text-center border-t border-border">
+            <button
+              onClick={() => setMode("local")}
+              className="text-accent tracking-[0.4px] uppercase text-xs bg-transparent border-0 hover:underline"
+            >
+              使用本地账号登录 →
+            </button>
+            <small className="block text-fg-soft mt-2 text-xs">
+              仅供 IT / 运维人员在 SSO 异常时使用
+            </small>
+          </div>
+        )}
       </>
     );
   }

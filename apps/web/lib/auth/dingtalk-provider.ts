@@ -10,6 +10,20 @@ export function isDingtalkEnabled(): boolean {
   return process.env.DINGTALK_ENABLED === "true";
 }
 
+/**
+ * Local credential login policy (Antigravity #1 — emergency break-glass control).
+ *
+ * - DingTalk disabled (M0–M3): local accounts are the only login method → always allowed.
+ * - DingTalk enabled (M4+): local login is **emergency-only** and must be explicitly
+ *   unlocked via `EMERGENCY_LOCAL_LOGIN=true`. Without it, the credentials provider
+ *   rejects the login at the `authorize` layer AND the UI hides the local entry — the
+ *   "仅供运维应急" wording is no longer the only control.
+ */
+export function isLocalLoginAllowed(): boolean {
+  if (!isDingtalkEnabled()) return true;
+  return process.env.EMERGENCY_LOCAL_LOGIN === "true";
+}
+
 export function DingtalkProvider(): OAuthConfig<DingtalkProfile> {
   return {
     id: "dingtalk",
