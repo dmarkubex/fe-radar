@@ -26,5 +26,9 @@ describe("scheduler", () => {
     const queue = { add: vi.fn(async () => undefined) };
     await expect(enqueueEnabledSources(db as never, queue as never)).resolves.toBe(2);
     expect(queue.add).toHaveBeenCalledTimes(2);
+    const calls = queue.add.mock.calls as unknown as Array<[string, { sourceId: number }, { jobId: string }]>;
+    expect(calls[0]?.[2].jobId).toMatch(/^fetch-source-1-/);
+    expect(calls[1]?.[2].jobId).toMatch(/^fetch-source-2-/);
+    expect(calls[0]?.[2].jobId).not.toBe("fetch-source-1");
   });
 });

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { SourceRecord } from "@fe-radar/db";
 import { listSources, markSourceFailure, type DbClient } from "@fe-radar/db";
 import type { Queue } from "bullmq";
@@ -9,10 +10,11 @@ export const DISABLE_AFTER_FAIL_DAYS = 7;
 
 export async function enqueueEnabledSources(db: DbClient, queue: Queue<FetchSourceJob>): Promise<number> {
   const enabledSources = await listSources(db, { enabled: true });
+  const batchId = randomUUID();
   await Promise.all(
     enabledSources.map((source) =>
       queue.add("fetch-source", { sourceId: source.id }, {
-        jobId: `fetch-source-${source.id}`,
+        jobId: `fetch-source-${source.id}-${batchId}`,
         attempts: 3,
         backoff: { type: "exponential", delay: 200 }
       })
@@ -51,10 +53,11 @@ export async function enqueueEnabledQuotesSources(
 ): Promise<number> {
   const enabledSources = await listSources(db, { enabled: true });
   const quotesSources = enabledSources.filter((s) => s.fetcherType === "quotes");
+  const batchId = randomUUID();
   await Promise.all(
     quotesSources.map((source) =>
       queue.add("quotes-fetch", { sourceId: source.id }, {
-        jobId: `quotes-fetch-${source.id}`,
+        jobId: `quotes-fetch-${source.id}-${batchId}`,
         attempts: 3,
         backoff: { type: "exponential", delay: 200 }
       })
