@@ -2,24 +2,67 @@
   "title": "FE-Radar Operations",
   "schemaVersion": 39,
   "version": 1,
+  "uid": "fe-radar-operations",
+  "tags": ["v1.0", "ops"],
+  "refresh": "5m",
+  "time": { "from": "now-24h", "to": "now" },
   "panels": [
     {
+      "id": 1,
       "type": "stat",
       "title": "Priority backlog >24h ratio",
       "gridPos": { "x": 0, "y": 0, "w": 8, "h": 4 },
-      "targets": []
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.2 },
+              { "color": "red", "value": 0.3 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "WITH pending AS (\n  SELECT\n    ia.item_id,\n    i.fetched_at,\n    (\n      COALESCE(ia.d1_policy, 0) >= 85\n      OR COALESCE(ia.d2_chain, 0) >= 85\n      OR EXISTS (\n        SELECT 1\n        FROM item_entities ie\n        JOIN entities e ON e.id = ie.entity_id\n        WHERE ie.item_id = ia.item_id\n          AND e.circle = 'C1'\n      )\n    ) AS priority\n  FROM item_analysis ia\n  JOIN items i ON i.id = ia.item_id\n  WHERE ia.quota_state = 'pending_over_quota'\n)\nSELECT\n  now() AS time,\n  CASE\n    WHEN COUNT(*) FILTER (WHERE priority) = 0 THEN 0\n    ELSE COUNT(*) FILTER (WHERE priority AND fetched_at < now() - INTERVAL '24 hours')::float / COUNT(*) FILTER (WHERE priority)\n  END AS value\nFROM pending",
+          "format": "time_series",
+          "datasource": { "type": "postgres", "uid": "fe-radar-postgres" }
+        }
+      ]
     },
     {
+      "id": 2,
       "type": "stat",
       "title": "Scrubber manual review queue",
       "gridPos": { "x": 8, "y": 0, "w": 8, "h": 4 },
-      "targets": []
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT now() AS time, COUNT(*)::int AS value FROM item_analysis WHERE summary_zh = '[需人工脱敏]'",
+          "format": "time_series",
+          "datasource": { "type": "postgres", "uid": "fe-radar-postgres" }
+        }
+      ]
     },
     {
+      "id": 3,
       "type": "stat",
       "title": "Merge conflicts pending",
       "gridPos": { "x": 16, "y": 0, "w": 8, "h": 4 },
-      "targets": []
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT now() AS time, COUNT(*)::int AS value FROM merge_conflicts WHERE status = 'pending'",
+          "format": "time_series",
+          "datasource": { "type": "postgres", "uid": "fe-radar-postgres" }
+        }
+      ]
     }
   ]
 }

@@ -5,6 +5,7 @@ RUN apk add --no-cache bash postgresql16-client ca-certificates curl \
   && chmod +x /usr/local/bin/mc
 
 COPY scripts/minio-backup.sh /scripts/minio-backup.sh
-RUN chmod +x /scripts/minio-backup.sh
+COPY scripts/minio-provision.sh /scripts/minio-provision.sh
+RUN chmod +x /scripts/minio-backup.sh /scripts/minio-provision.sh
 
 ENTRYPOINT ["/scripts/minio-backup.sh"]

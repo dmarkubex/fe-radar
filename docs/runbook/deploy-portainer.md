@@ -12,11 +12,12 @@
 | **G1** | **`*_FILE` 密钥未在应用层读取**               | stack.yml 用 `NEXTAUTH_SECRET_FILE`/`DEEPSEEK_API_KEY_FILE`/… secret 约定，但代码只读纯 env，**只有 `PROXY_LIST_FILE` 真被读** → 照原样部署 web 起不来、LLM 无 key。 | ✅ **已修**：`deploy/docker-entrypoint-secrets.sh` + web/worker 镜像 ENTRYPOINT 把 `*_FILE` 注入纯 env；未设 `*_FILE` 时 no-op，故纯 env 与 secret 两种都能用。 |
 | **G2** | **stack 内没有 migration/seed 步骤**          | DB 启动是空库，runner 镜像不含 tsx/db 脚本。                                                                                                                         | ✅ **已修**：新增 `deploy/Dockerfile.migrate` 一次性镜像（见 §4）。                                                                                             |
 | **G6** | **stack.yml worker/scheduler command 路径错** | 原 `dist/main.js`/`dist/scheduler.js` 不存在（真实路径 `dist/apps/worker/src/...`）→ worker/scheduler 起来即崩。                                                     | ✅ **已修**：worker 用镜像默认 CMD；scheduler 改为正确路径。                                                                                                    |
-| **G3** | **Qwen/LLM 未配置**                           | worker **能正常启动**（`createQwenClient()` 缺 env 用默认值不抛错），fetch 阶段照常抓取写 `items`；下游 prefilter/NER/评分调用 LLM 时才失败。                        | ⏳ **fetch 验证不需要 LLM**；全链路再配 `QWEN_BASE_URL` + DeepSeek/Kimi key（§6）。                                                                             |
-| G4     | MinIO bucket 不自动建                         | 简报/备份需要 `fe-radar-briefings`/`fe-radar-backups`，fetch 测试不需要                                                                                              | ⏳ 全链路阶段用 `mc mb` 建桶（§6）                                                                                                                              |
+| **G3** | **Qwen/LLM 未配置**                           | worker 能启动但下游 prefilter/NER/embedding 会连容器内 `localhost:8001`，全链路必失败。                                                                              | ✅ **已修**：生产 stack 要求 Portainer env 设置 `QWEN_BASE_URL`，缺失时部署期直接失败；fetch-only compose 可继续不配 LLM。                                      |
+| G4     | MinIO bucket / lifecycle 漏配                 | 简报/备份需要 `fe-radar-briefings`/`fe-radar-backups`；漏建桶会 `NoSuchBucket`，漏 lifecycle 会违反 90 天 docx retention。                                           | ✅ **已修**：`deploy/scripts/minio-provision.sh` 可幂等建桶并给 `fe-radar-briefings` 写 90 天 lifecycle（§6）。                                                 |
 | G5     | `DB_PASSWORD` 双重身份                        | DATABASE_URL 里 `${DB_PASSWORD}` 是 **stack 部署期变量**（非 secret 文件）；postgres 自己读 `db_password` secret                                                     | ℹ️ 部署时在 Portainer stack environment 设 `DB_PASSWORD`，与 postgres 密码一致（§3）                                                                            |
+| G7     | web/worker 早于 migration 连空库              | Swarm 不等待 migration；应用直连空库会反复崩溃或写出半初始化状态。                                                                                                   | ✅ **已修**：web/worker/scheduler ENTRYPOINT 增加关键表探针；部署后必须立即执行 §4 migration 阻塞门，探针超时则 migrate 后强制重启应用服务。                    |
 
-> **结论**：阻塞性缺口 G1/G2/G6 已在仓库修好；首部署按下文走即可。注意这些镜像/脚本因本机无 Docker **未做构建自测**，请在 build server 首次构建时留意。
+> **结论**：阻塞性缺口 G1/G2/G3/G4/G6/G7 已在仓库修好；首部署按下文走即可。注意这些镜像/脚本因本机无 Docker **未做构建自测**，请在 build server 首次构建时留意。
 
 ---
 
@@ -107,15 +108,15 @@ docker pull diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3d
      ```
    - `DB_PASSWORD` 这个 `${...}` 插值：在 Portainer stack 的 **Environment variables** 里设 `DB_PASSWORD=CHANGE_ME_DBPW`（若改用上面写死的纯 env 则不需要）。
    - 首测可删 `web` 之外不需要的 `minio`/`grafana`/`backup`（fetch 不依赖）。
-4. **Deploy the stack**，等 `postgres`/`redis`/`worker`/`scheduler`/`rsshub` 起来（Portainer 里看 service 状态 = running）。
+4. **Deploy the stack**，先等 `postgres`/`redis`/`minio`/`rsshub` 起来。`web`/`worker`/`scheduler` 会在 entrypoint 里等待关键表存在；此时不要判定应用失败，立刻执行 §4 migration 阻塞门。
 
 > 生产正式部署再走 secret 方案（§6），首测以「能抓到」为先。
 
 ---
 
-## 4. 迁移 + seed（关键，G2）
+## 4. 迁移 + seed（阻塞门，G2/G7）
 
-用 §1 构建好的 `fe-radar/migrate:latest` 一次性镜像（已含 tsx + db 脚本），在能连 `internal` overlay 的 manager 节点执行：
+用 §1 构建好的 `fe-radar/migrate:latest` 一次性镜像（已含 tsx + db 脚本），在能连 `internal` overlay 的 manager 节点执行。**这是部署阻塞门**：未完成前不要开放 web，也不要开始抓取验证。
 
 ```bash
 # 1) 建表 + seed ~75 个 enabled 信源
@@ -148,6 +149,14 @@ docker run --rm --network fe-radar_internal \
 ```bash
 docker exec <postgres容器> psql -U fe_radar -d fe_radar -c "SELECT fetcher_type, count(*) FILTER (WHERE enabled) AS enabled, count(*) AS total FROM sources GROUP BY 1 ORDER BY 1;"
 docker exec <postgres容器> psql -U fe_radar -d fe_radar -c "SELECT to_tsvector('zhparser','电力电缆储能');"   -- zhparser 生效
+```
+
+若 `web`/`worker`/`scheduler` 在 migration 完成前因 180 秒 schema probe 超时重启，migration 成功后执行：
+
+```bash
+docker service update --force fe-radar_web
+docker service update --force fe-radar_worker
+docker service update --force fe-radar_scheduler
 ```
 
 ---
@@ -190,8 +199,21 @@ docker compose -f deploy/compose.fetch-smoke.yml logs worker --since 10m | grep 
 ## 6. 全链路 + 生产硬化（首测通过后再做）
 
 - **切回 secret 方案（G1 已修）**：entrypoint 已能读 `*_FILE`，正式部署时按 `deploy/README.md` 用 `docker secret create` 建好 9 个 secret，stack.yml 原生的 `*_FILE` + `secrets:` 段即可直接生效（无需改回纯 env）。
-- **LLM**：配 `QWEN_BASE_URL`（本地 Qwen）+ `DEEPSEEK_API_KEY` + `KIMI_API_KEY`，跑通 prefilter→评分→聚类→curator。
-- **MinIO 桶**：`mc mb fe-radar-briefings fe-radar-backups` + 90 天 lifecycle（简报/备份用）。
+- **LLM**：在 Portainer stack environment 设置 `QWEN_BASE_URL=http://<qwen-host>:8001/v1`（按真实内网地址替换）+ 建好 `deepseek_api_key` / `kimi_api_key` secrets，跑通 prefilter→评分→聚类→curator。
+- **MinIO 桶 + lifecycle**：用 backup 镜像内置 provisioning 脚本幂等初始化：
+  ```bash
+  docker run --rm --network fe-radar_internal \
+    --entrypoint /scripts/minio-provision.sh \
+    -e MINIO_ENDPOINT='http://minio:9000' \
+    -e MINIO_ACCESS_KEY='<minio-user>' \
+    -e MINIO_SECRET_KEY='<minio-password>' \
+    -e BRIEFING_MINIO_BUCKET='fe-radar-briefings' \
+    -e BACKUP_MINIO_BUCKET='fe-radar-backups' \
+    -e BRIEFING_RETENTION_DAYS=90 \
+    harborssl.fegroup.cn/custom-project/fe-radar/backup:latest
+  ```
+  验收输出必须包含 `briefing-docx-retention`，否则不要启用 v1.1 简报。
+- **Grafana**：生产 stack 通过 Swarm configs 挂载 `deploy/grafana` provisioning；Portainer env 必须设置 `GRAFANA_DINGTALK_WEBHOOK_URL=https://oapi.dingtalk.com/robot/send?...`，并确认 datasource UID 为 `fe-radar-postgres`。
 - **auth**：`DINGTALK_ENABLED=true` 上钉钉 SSO 时，本地登录默认关闭；应急才设 `EMERGENCY_LOCAL_LOGIN=true`（Gate 2 #1）。
 - **quotes 信源**：adapter 上线后 admin 后台逐个 `enabled=true` 并验证（NFR-102 数值不过 LLM）。
 - **代理池**：T1 政府站需要，配 `proxy_list` 后 `PROXY_POOL_ENABLED=true`。

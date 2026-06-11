@@ -22,7 +22,16 @@ printf '%s' '<deepseek-key>' | docker secret create deepseek_api_key -
 printf '%s' '<kimi-key>' | docker secret create kimi_api_key -
 printf '%s' '<minio-user>' | docker secret create minio_root_user -
 printf '%s' '<minio-password>' | docker secret create minio_root_password -
+printf '%s' '<grafana-admin-password>' | docker secret create grafana_admin_password -
 printf '%s\n' '# host:port[:user:pass]' | docker secret create proxy_list -
+```
+
+Portainer stack environment also needs these non-secret deployment values:
+
+```bash
+DB_PASSWORD=<db-password>
+QWEN_BASE_URL=http://<qwen-host>:8001/v1
+GRAFANA_DINGTALK_WEBHOOK_URL=https://oapi.dingtalk.com/robot/send?access_token=<token>
 ```
 
 ## Verification
@@ -33,6 +42,17 @@ All services set `TZ=Asia/Shanghai`. After deployment, verify:
 docker service ls
 docker exec <postgres-container> psql -U fe_radar -d fe_radar -c "SELECT to_tsvector('zhparser', '电力电缆');"
 docker exec <web-container> date
+```
+
+Before enabling v1.1 briefing, provision MinIO buckets and lifecycle:
+
+```bash
+docker run --rm --network fe-radar_internal \
+  --entrypoint /scripts/minio-provision.sh \
+  -e MINIO_ENDPOINT='http://minio:9000' \
+  -e MINIO_ACCESS_KEY='<minio-user>' \
+  -e MINIO_SECRET_KEY='<minio-password>' \
+  harborssl.fegroup.cn/custom-project/fe-radar/backup:latest
 ```
 
 ## v1.1 RSSHub 运维说明

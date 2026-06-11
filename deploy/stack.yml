@@ -10,9 +10,19 @@ services:
       REDIS_URL: redis://redis:6379
       NEXTAUTH_URL: http://fe-radar.internal
       NEXTAUTH_SECRET_FILE: /run/secrets/nextauth_secret
+      REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users,public.commodity_briefings,public.commodity_quotes,public.briefing_targets,public.briefing_template_fields
+      DB_WAIT_TIMEOUT_SECONDS: "180"
+      BRIEFING_MINIO_BUCKET: fe-radar-briefings
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY_FILE: /run/secrets/minio_root_user
+      MINIO_SECRET_KEY_FILE: /run/secrets/minio_root_password
     secrets:
       - nextauth_secret
       - db_password
+      - minio_root_user
+      - minio_root_password
     networks:
       - internal
     deploy:
@@ -28,16 +38,29 @@ services:
       TZ: Asia/Shanghai
       DATABASE_URL: postgres://fe_radar:${DB_PASSWORD}@postgres:5432/fe_radar
       REDIS_URL: redis://redis:6379
+      REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users,public.commodity_briefings,public.commodity_quotes,public.briefing_targets,public.briefing_template_fields
+      DB_WAIT_TIMEOUT_SECONDS: "180"
+      QWEN_BASE_URL: ${QWEN_BASE_URL:?set QWEN_BASE_URL in Portainer stack environment}
+      QWEN_MODEL: ${QWEN_MODEL:-qwen3.6-27b}
       PROXY_POOL_ENABLED: "false"
       PROXY_LIST_FILE: /run/secrets/proxy_list
       DEEPSEEK_API_KEY_FILE: /run/secrets/deepseek_api_key
       KIMI_API_KEY_FILE: /run/secrets/kimi_api_key
       RSSHUB_BASE_URL: http://rsshub:1200
+      BRIEFING_TEMPLATE_PATH: /app/design/templates/briefing.docx
+      BRIEFING_MINIO_BUCKET: fe-radar-briefings
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY_FILE: /run/secrets/minio_root_user
+      MINIO_SECRET_KEY_FILE: /run/secrets/minio_root_password
     secrets:
       - db_password
       - deepseek_api_key
       - kimi_api_key
       - proxy_list
+      - minio_root_user
+      - minio_root_password
     networks:
       - internal
     deploy:
@@ -53,6 +76,8 @@ services:
       TZ: Asia/Shanghai
       DATABASE_URL: postgres://fe_radar:${DB_PASSWORD}@postgres:5432/fe_radar
       REDIS_URL: redis://redis:6379
+      REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users,public.commodity_briefings,public.commodity_quotes,public.briefing_targets,public.briefing_template_fields
+      DB_WAIT_TIMEOUT_SECONDS: "180"
     secrets:
       - db_password
     networks:
@@ -138,9 +163,26 @@ services:
     image: harborssl.fegroup.cn/custom-project/grafana/grafana:12.1.1
     environment:
       TZ: Asia/Shanghai
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in Portainer stack environment}
+      GRAFANA_DINGTALK_WEBHOOK_URL: ${GRAFANA_DINGTALK_WEBHOOK_URL:?set GRAFANA_DINGTALK_WEBHOOK_URL in Portainer stack environment}
       GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
     secrets:
       - grafana_admin_password
+    configs:
+      - source: grafana_datasource_postgres
+        target: /etc/grafana/provisioning/datasources/postgres.yaml
+      - source: grafana_dashboard_provider
+        target: /etc/grafana/provisioning/dashboards/fe-radar.yaml
+      - source: grafana_alerts_commodity
+        target: /etc/grafana/provisioning/alerting/commodity-briefing.yaml
+      - source: grafana_alerts_core
+        target: /etc/grafana/provisioning/alerting/fe-radar-core.yaml
+      - source: grafana_contact_points
+        target: /etc/grafana/provisioning/alerting/contact-points.yaml
+      - source: grafana_dashboard_ops
+        target: /etc/grafana/dashboards/fe-radar.json
+      - source: grafana_dashboard_commodity
+        target: /etc/grafana/dashboards/commodity-briefing.json
     volumes:
       - grafana_data:/var/lib/grafana
     networks:
@@ -205,3 +247,19 @@ secrets:
     external: true
   grafana_admin_password:
     external: true
+
+configs:
+  grafana_datasource_postgres:
+    file: ./grafana/provisioning/datasources/postgres.yaml
+  grafana_dashboard_provider:
+    file: ./grafana/provisioning/dashboards/commodity-briefing.yaml
+  grafana_alerts_commodity:
+    file: ./grafana/provisioning/alerts/commodity-briefing.yaml
+  grafana_alerts_core:
+    file: ./grafana/provisioning/alerts/fe-radar-core.yaml
+  grafana_contact_points:
+    file: ./grafana/provisioning/alerts/contact-points.yaml
+  grafana_dashboard_ops:
+    file: ./grafana/dashboards/fe-radar.json
+  grafana_dashboard_commodity:
+    file: ./grafana/dashboards/commodity-briefing.json

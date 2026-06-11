@@ -60,11 +60,14 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/worker/node_modules ./apps/worker/node_modules
 COPY apps/worker/package.json ./apps/worker/package.json
 
-RUN pnpm --filter @fe-radar/worker exec playwright install --with-deps chromium && \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends postgresql-client && \
+    pnpm --filter @fe-radar/worker exec playwright install --with-deps chromium && \
     rm -rf /var/lib/apt/lists/*
 
 # 拷贝编译产物与 worker package.json（提供 `start` 脚本与运行期元信息）
 COPY --from=builder /app/apps/worker/dist ./apps/worker/dist
+COPY design/templates ./design/templates
 
 # 读取 Docker *_FILE 密钥到纯 env（DEEPSEEK_API_KEY_FILE→DEEPSEEK_API_KEY 等）；
 # 未设 *_FILE 时为 no-op，故纯 env 部署不受影响。

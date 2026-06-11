@@ -11,7 +11,11 @@ deploy/grafana/
 │   └── commodity-briefing.json     # v1.1 Commodity Briefing 面板（5 面板，tag=v1.1）
 └── provisioning/
     ├── alerts/
-    │   └── commodity-briefing.yaml # v1.1 告警规则（4 条）
+    │   ├── commodity-briefing.yaml # v1.1 告警规则（4 条）
+    │   ├── contact-points.yaml     # DingTalk contact point + notification policy
+    │   └── fe-radar-core.yaml      # v1.0 core 运维告警
+    ├── datasources/
+    │   └── postgres.yaml           # datasourceUid=fe-radar-postgres
     └── dashboards/
         └── commodity-briefing.yaml # v1.1 dashboard provisioning 注册
 ```
@@ -36,7 +40,7 @@ deploy/grafana/
 | Quotes Fetch 时延（P50 / P95）  | timeseries       | `commodity_quotes.fetched_at - observed_at` 中位数与 p95，按小时聚合                                                                                                                            |
 | Kimi 月度成本估算（CNY）        | stat + sparkline | 当月 briefing-gen Kimi token 用量折算成本（input ¥0.015/1K, output ¥0.06/1K）                                                                                                                   |
 
-## 告警规则（v1.1）
+## 告警规则
 
 `provisioning/alerts/commodity-briefing.yaml` 包含 4 条 Grafana Unified Alerting 规则：
 
@@ -49,13 +53,22 @@ deploy/grafana/
 
 > NFR-105 预算阈值默认 ¥100 CNY/月；admin 可在 Grafana 告警规则 UI 中调整。
 
+`provisioning/alerts/fe-radar-core.yaml` 包含 core 运维告警：
+
+| uid                       | 规则                             | 阈值              | 严重度   |
+| ------------------------- | -------------------------------- | ----------------- | -------- |
+| fe-priority-backlog-stale | Priority backlog >24h 占比 > 30% | stale_ratio > 0.3 | critical |
+
 ## 数据源
 
-所有面板与告警规则使用 datasourceUid `fe-radar-postgres`（Grafana Postgres 数据源，需在 Grafana UI 或 provisioning/datasources 中配置）。
+所有面板与告警规则使用 datasourceUid `fe-radar-postgres`，由 `provisioning/datasources/postgres.yaml` 自动创建。Grafana 容器需注入 `DB_PASSWORD` 环境变量。
+
+## 通知
+
+`provisioning/alerts/contact-points.yaml` 创建 `fe-radar-dingtalk` contact point 和默认 notification policy。Grafana 容器需注入 `GRAFANA_DINGTALK_WEBHOOK_URL` 环境变量。
 
 ## 部署说明
 
-1. `dashboards/*.json` 放入 Grafana `GF_PATHS_PROVISIONING/dashboards/` 对应目录（默认 `/etc/grafana/dashboards`）
-2. `provisioning/dashboards/commodity-briefing.yaml` 放入 `/etc/grafana/provisioning/dashboards/`
-3. `provisioning/alerts/commodity-briefing.yaml` 放入 `/etc/grafana/provisioning/alerting/`
-4. 重启或 reload Grafana（`grafana-cli admin reset-admin-password` 不需要；`POST /api/admin/provisioning/dashboards/reload`）
+1. 生产 `deploy/stack.yml` 使用 Swarm configs 挂载 datasource / dashboards / alerting 文件，无需进入 Grafana UI 手工创建。
+2. 若手工部署，`dashboards/*.json` 放入 `/etc/grafana/dashboards/`，`provisioning/dashboards/*.yaml` 放入 `/etc/grafana/provisioning/dashboards/`，`provisioning/alerts/*.yaml` 放入 `/etc/grafana/provisioning/alerting/`，`provisioning/datasources/*.yaml` 放入 `/etc/grafana/provisioning/datasources/`。
+3. 重启或 reload Grafana（`POST /api/admin/provisioning/dashboards/reload` + alerting provisioning reload）。

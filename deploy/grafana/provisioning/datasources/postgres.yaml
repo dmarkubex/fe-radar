@@ -1,0 +1,26 @@
+apiVersion: 1
+
+deleteDatasources:
+  - name: FE-Radar Postgres
+    orgId: 1
+
+prune: true
+
+datasources:
+  - name: FE-Radar Postgres
+    uid: fe-radar-postgres
+    type: postgres
+    access: proxy
+    orgId: 1
+    url: postgres:5432
+    user: fe_radar
+    database: fe_radar
+    isDefault: true
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: false
+    secureJsonData:
+      password: $DB_PASSWORD
+    version: 1
+    editable: false

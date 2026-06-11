@@ -1,0 +1,79 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: fe-radar-core
+    folder: FE-Radar
+    interval: 5m
+    rules:
+      - uid: fe-priority-backlog-stale
+        title: "Priority backlog >24h 占比 > 30%"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 86400
+              to: 0
+            datasourceUid: fe-radar-postgres
+            model:
+              rawSql: |
+                WITH pending AS (
+                  SELECT
+                    ia.item_id,
+                    i.fetched_at,
+                    (
+                      COALESCE(ia.d1_policy, 0) >= 85
+                      OR COALESCE(ia.d2_chain, 0) >= 85
+                      OR EXISTS (
+                        SELECT 1
+                        FROM item_entities ie
+                        JOIN entities e ON e.id = ie.entity_id
+                        WHERE ie.item_id = ia.item_id
+                          AND e.circle = 'C1'
+                      )
+                    ) AS priority
+                  FROM item_analysis ia
+                  JOIN items i ON i.id = ia.item_id
+                  WHERE ia.quota_state = 'pending_over_quota'
+                )
+                SELECT
+                  now() AS time,
+                  CASE
+                    WHEN COUNT(*) FILTER (WHERE priority) = 0 THEN 0
+                    ELSE COUNT(*) FILTER (
+                      WHERE priority
+                        AND fetched_at < now() - INTERVAL '24 hours'
+                    )::float / COUNT(*) FILTER (WHERE priority)
+                  END AS stale_ratio
+                FROM pending
+              format: table
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              type: reduce
+              refId: C
+              expression: A
+              reducer: last
+              conditions:
+                - evaluator:
+                    params: [0.3]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "Priority backlog 中超过 24 小时未处理的条目占比超过 30%"
+          description: "pending_over_quota 中的 priority 条目老化过高；请检查 quota drain、LLM 额度和 scorer backlog。"
+          runbook_url: "https://fe-radar.internal/runbook/priority-backlog"
+        labels:
+          severity: critical
+          team: infra
+          version: v1.0
