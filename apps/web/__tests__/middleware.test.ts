@@ -52,6 +52,16 @@ describe("middleware auth gate (Antigravity #5)", () => {
     expect((await mw("/api/sources/5")).status).toBe(403);
   });
 
+  it("returns 403 when a viewer hits the bare sources collection API path", async () => {
+    mockGetToken.mockResolvedValue({ role: "viewer", sub: "1" });
+    expect((await mw("/api/sources")).status).toBe(403);
+  });
+
+  it("returns 403 when a viewer hits the bare entities collection API path", async () => {
+    mockGetToken.mockResolvedValue({ role: "viewer", sub: "1" });
+    expect((await mw("/api/entities")).status).toBe(403);
+  });
+
   it("returns 403 when an editor hits an admin API path", async () => {
     mockGetToken.mockResolvedValue({ role: "editor", sub: "1" });
     expect((await mw("/api/users")).status).toBe(403);

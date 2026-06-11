@@ -19,6 +19,17 @@ export async function getRequestUser(request: NextRequest): Promise<{ id?: numbe
   };
 }
 
+export async function requireRequestRole(request: NextRequest, requiredRole: UserRole): Promise<Response | null> {
+  const user = await getRequestUser(request);
+  if (!user.role) {
+    return unauthorized();
+  }
+  if (!hasRole(user.role, requiredRole)) {
+    return forbidden();
+  }
+  return null;
+}
+
 export function canIncludeBlocked(role: UserRole | undefined, includeBlocked: boolean): boolean {
   return includeBlocked && hasRole(role, "admin");
 }

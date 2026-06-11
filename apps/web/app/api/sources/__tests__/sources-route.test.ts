@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // GET /api/sources route integration: DB layer + mock-mode mocked.
-const { mockListSources, mockGetDb, mockIsMockMode } = vi.hoisted(() => ({
+const { mockListSources, mockGetDb, mockIsMockMode, mockRequireRequestRole } = vi.hoisted(() => ({
   mockListSources: vi.fn(),
   mockGetDb: vi.fn(() => ({})),
   mockIsMockMode: vi.fn(() => false),
+  mockRequireRequestRole: vi.fn(async (): Promise<Response | null> => null),
 }));
 
 vi.mock("@fe-radar/db", () => ({
@@ -14,15 +15,19 @@ vi.mock("@fe-radar/db", () => ({
 }));
 vi.mock("@/lib/mock-mode", () => ({ isMockMode: mockIsMockMode }));
 vi.mock("@/lib/mock-data", () => ({ mockSources: [{ id: 99, name: "MOCK" }] }));
+vi.mock("@/lib/api/authz", () => ({ requireRequestRole: mockRequireRequestRole }));
 
 import { GET } from "../route";
 
-const req = (url: string): Request => ({ url } as unknown as Request);
+import type { NextRequest } from "next/server";
+
+const req = (url: string): NextRequest => ({ url } as unknown as NextRequest);
 const BASE = "http://localhost/api/sources";
 
 beforeEach(() => {
   vi.clearAllMocks();
   mockIsMockMode.mockReturnValue(false);
+  mockRequireRequestRole.mockResolvedValue(null);
   mockListSources.mockResolvedValue([{ id: 1, name: "S1", tier: "T1" }]);
 });
 
@@ -34,6 +39,16 @@ describe("GET /api/sources", () => {
     expect(mockListSources).toHaveBeenCalledOnce();
     const filters = mockListSources.mock.calls[0]![1] as { tier?: string };
     expect(filters.tier).toBe("T1");
+    expect(mockRequireRequestRole).toHaveBeenCalledWith(expect.anything(), "editor");
+  });
+
+  it("returns auth errors before hitting the DB", async () => {
+    mockRequireRequestRole.mockResolvedValue(
+      Response.json({ error: { code: "UNAUTHORIZED", message: "请先登录" } }, { status: 401 })
+    );
+    const res = await GET(req(BASE));
+    expect(res.status).toBe(401);
+    expect(mockListSources).not.toHaveBeenCalled();
   });
 
   it("ignores an invalid tier (passes undefined, no 400)", async () => {
