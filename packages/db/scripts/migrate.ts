@@ -35,7 +35,15 @@ async function main(): Promise<void> {
   try {
     for (const file of files) {
       const migration = toRunnableSql(readFileSync(join(migrationsDir, file), "utf8"));
-      await sql.unsafe(migration, [], { simple: true });
+      // Split multi-statement SQL — postgres extended protocol only supports one
+      // statement per query; simple:true is unreliable across library versions.
+      const statements = migration
+        .split(";")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      for (const stmt of statements) {
+        await sql.unsafe(stmt);
+      }
       console.log(`applied ${file}`);
     }
   } finally {
