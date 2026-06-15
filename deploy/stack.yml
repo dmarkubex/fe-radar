@@ -106,7 +106,7 @@ services:
         condition: on-failure
 
   redis:
-    image: redis:7-alpine
+    image: harborssl.fegroup.cn/custom-project/redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
     environment:
       TZ: Asia/Shanghai
@@ -120,7 +120,7 @@ services:
         condition: on-failure
 
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: harborssl.fegroup.cn/custom-project/minio:RELEASE.2025-09-07T16-13-09Z
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       TZ: Asia/Shanghai
@@ -160,7 +160,7 @@ services:
         condition: none
 
   grafana:
-    image: grafana/grafana:12.1.1
+    image: harborssl.fegroup.cn/custom-project/grafana:12.1.1
     environment:
       TZ: Asia/Shanghai
       DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in Portainer stack environment}
@@ -194,7 +194,7 @@ services:
 
   # v1.1 commodity-briefing: RSSHub 内网自部署（供 rsshub-extract adapter 使用）
   rsshub:
-    image: diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3df98bab0f979c03059
+    image: harborssl.fegroup.cn/custom-project/rsshub:20260615
     environment:
       TZ: Asia/Shanghai
       NODE_ENV: production

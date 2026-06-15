@@ -3,7 +3,8 @@
 # 与 deploy/stack.yml 的区别：
 #   - stack.yml 是 Swarm 风味（deploy.replicas / secrets:external / overlay internal），用 `docker stack deploy`
 #   - 本文件是 standalone 风味（restart / 纯 env / bridge 网络 / 一次性 migrate），用 `docker compose up`
-#     或直接贴进 Portainer 的 Compose stack。只起验证 fetch 所需的最小服务，不含 web/minio/grafana/LLM。
+#     或直接贴进 Portainer 的 Compose stack。最小服务集：postgres+redis+rsshub+migrate+worker+scheduler+web
+#     （不含 minio/grafana/LLM），抓取写入 items 表后即可在浏览器打开 web 验证时间线。
 #
 # 用法：
 #   1) 先在本机/服务器 build 三个镜像（见 docs/runbook/deploy-portainer.md §1·B）：
@@ -35,7 +36,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: harborssl.fegroup.cn/custom-project/redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
     environment:
       TZ: Asia/Shanghai
@@ -44,7 +45,7 @@ services:
     restart: unless-stopped
 
   rsshub:
-    image: diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3df98bab0f979c03059
+    image: harborssl.fegroup.cn/custom-project/rsshub:20260615
     environment:
       TZ: Asia/Shanghai
       NODE_ENV: production
@@ -100,6 +101,24 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_started
+    restart: unless-stopped
+  web:
+    image: harborssl.fegroup.cn/custom-project/fe-radar-web:latest
+    environment:
+      NODE_ENV: production
+      TZ: Asia/Shanghai
+      DATABASE_URL: postgres://fe_radar:${DB_PASSWORD:-fe_radar_dev}@postgres:5432/fe_radar
+      REDIS_URL: redis://redis:6379
+      # 从局域网/其他机器访问时必须设成实际访问地址，否则登录回调失败：
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-nextauth-secret-change-me-min-32-chars}
+      REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users
+      DB_WAIT_TIMEOUT_SECONDS: "180"
+    ports:
+      - "3000:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
 
 volumes:

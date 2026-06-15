@@ -35,7 +35,7 @@ async function main(): Promise<void> {
   try {
     for (const file of files) {
       const migration = toRunnableSql(readFileSync(join(migrationsDir, file), "utf8"));
-      await sql.unsafe(migration);
+      await sql.unsafe(migration, [], { simple: true });
       console.log(`applied ${file}`);
     }
   } finally {
