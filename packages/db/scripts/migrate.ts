@@ -2,6 +2,63 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import postgres from "postgres";
 
+/** Split a multi-statement SQL string on top-level `;`, respecting quotes and comments. */
+function splitStatements(sql: string): string[] {
+  const stmts: string[] = [];
+  let cur = "";
+  let inStr = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i];
+    const next = sql[i + 1];
+
+    if (inLineComment) {
+      cur += ch;
+      if (ch === "\n") inLineComment = false;
+      continue;
+    }
+    if (inBlockComment) {
+      cur += ch;
+      if (ch === "*" && next === "/") {
+        cur += next;
+        i++;
+        inBlockComment = false;
+      }
+      continue;
+    }
+    if (inStr) {
+      cur += ch;
+      if (ch === "'" && next === "'") {
+        cur += next;
+        i++;
+      } else if (ch === "'") {
+        inStr = false;
+      }
+      continue;
+    }
+
+    if (ch === "'") {
+      inStr = true;
+    } else if (ch === "-" && next === "-") {
+      inLineComment = true;
+    } else if (ch === "/" && next === "*") {
+      inBlockComment = true;
+    } else if (ch === ";") {
+      const trimmed = cur.trim();
+      if (trimmed) stmts.push(trimmed);
+      cur = "";
+      continue;
+    }
+    cur += ch;
+  }
+
+  const trimmed = cur.trim();
+  if (trimmed) stmts.push(trimmed);
+  return stmts;
+}
+
 function toRunnableSql(sql: string): string {
   if (process.env.MIGRATION_PROFILE !== "e2e") {
     return sql;
@@ -38,10 +95,7 @@ async function main(): Promise<void> {
       const migration = toRunnableSql(readFileSync(join(migrationsDir, file), "utf8"));
       // Split multi-statement SQL — postgres extended protocol only supports one
       // statement per query; simple:true is unreliable across library versions.
-      const statements = migration
-        .split(";")
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
+      const statements = splitStatements(migration);
       for (const stmt of statements) {
         await sql.unsafe(stmt);
       }
