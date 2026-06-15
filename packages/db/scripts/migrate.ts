@@ -66,9 +66,7 @@ function toRunnableSql(sql: string): string {
 
   return sql
     .replace(/^CREATE EXTENSION IF NOT EXISTS (vector|zhparser);\n/gm, "")
-    .replace(/^DROP TEXT SEARCH CONFIGURATION IF EXISTS zhparser;\n/gm, "")
-    .replace(/^CREATE TEXT SEARCH CONFIGURATION zhparser \(PARSER = zhparser\);\n/gm, "")
-    .replace(/^ALTER TEXT SEARCH CONFIGURATION zhparser ADD MAPPING FOR n,v,a,i,e,l WITH simple;\n/gm, "")
+    .replace(/DO \$\$ BEGIN[\s\S]*?END \$\$;\n/g, "")
     .replace(/embedding\s+vector\(1024\)/g, "embedding real[]")
     .replace(/centroid\s+vector\(1024\)/g, "centroid real[]")
     .replace(/CREATE INDEX items_fts_idx[\s\S]*?\);\n/g, "")
