@@ -82,7 +82,7 @@ function toRunnableSql(sql: string): string {
 
   return sql
     .replace(/^CREATE EXTENSION IF NOT EXISTS (vector|zhparser);\n/gm, "")
-    .replace(/DO \$\$ BEGIN[\s\S]*?END \$\$;\n/g, "")
+    .replace(/DO \$\$ BEGIN[\s\S]*?END\s*\$\$;\n/g, "")
     .replace(/embedding\s+vector\(1024\)/g, "embedding real[]")
     .replace(/centroid\s+vector\(1024\)/g, "centroid real[]")
     .replace(/CREATE INDEX items_fts_idx[\s\S]*?\);\n/g, "")

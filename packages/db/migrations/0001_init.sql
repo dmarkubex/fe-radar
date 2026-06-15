@@ -7,7 +7,7 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
-CREATE TABLE sources (
+CREATE TABLE IF NOT EXISTS sources (
   id           BIGSERIAL PRIMARY KEY,
   name         TEXT NOT NULL,
   url          TEXT NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE sources (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE entities (
+CREATE TABLE IF NOT EXISTS entities (
   id             BIGSERIAL PRIMARY KEY,
   type           TEXT NOT NULL,
   canonical_name TEXT NOT NULL,
@@ -31,9 +31,9 @@ CREATE TABLE entities (
   meta           JSONB,
   UNIQUE (type, canonical_name)
 );
-CREATE INDEX entities_aliases_gin ON entities USING gin (aliases);
+CREATE INDEX IF NOT EXISTS entities_aliases_gin ON entities USING gin (aliases);
 
-CREATE TABLE items (
+CREATE TABLE IF NOT EXISTS items (
   id            BIGSERIAL PRIMARY KEY,
   source_id     BIGINT NOT NULL REFERENCES sources(id),
   url           TEXT NOT NULL UNIQUE,
@@ -43,12 +43,12 @@ CREATE TABLE items (
   published_at  TIMESTAMPTZ NOT NULL,
   fetched_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX items_published_at_idx ON items (published_at DESC);
-CREATE INDEX items_fts_idx ON items USING gin (
+CREATE INDEX IF NOT EXISTS items_published_at_idx ON items (published_at DESC);
+CREATE INDEX IF NOT EXISTS items_fts_idx ON items USING gin (
   to_tsvector('zhparser', coalesce(title,'') || ' ' || coalesce(content,''))
 );
 
-CREATE TABLE item_analysis (
+CREATE TABLE IF NOT EXISTS item_analysis (
   item_id              BIGINT PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,
   is_industry_related  BOOLEAN,
   summary_zh           TEXT,
@@ -68,17 +68,17 @@ CREATE TABLE item_analysis (
   embedding            vector(1024),
   scored_at            TIMESTAMPTZ
 );
-CREATE INDEX analysis_quality_idx ON item_analysis (quality_score DESC) WHERE is_curated;
-CREATE INDEX analysis_emb_idx ON item_analysis USING ivfflat (embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS analysis_quality_idx ON item_analysis (quality_score DESC) WHERE is_curated;
+CREATE INDEX IF NOT EXISTS analysis_emb_idx ON item_analysis USING ivfflat (embedding vector_cosine_ops);
 
-CREATE TABLE item_entities (
+CREATE TABLE IF NOT EXISTS item_entities (
   item_id   BIGINT REFERENCES items(id) ON DELETE CASCADE,
   entity_id BIGINT REFERENCES entities(id),
   span      TEXT,
   PRIMARY KEY (item_id, entity_id)
 );
 
-CREATE TABLE clusters (
+CREATE TABLE IF NOT EXISTS clusters (
   id            BIGSERIAL PRIMARY KEY,
   centroid      vector(1024),
   lead_item_id  BIGINT REFERENCES items(id) ON DELETE SET NULL,
@@ -86,20 +86,20 @@ CREATE TABLE clusters (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE cluster_items (
+CREATE TABLE IF NOT EXISTS cluster_items (
   cluster_id BIGINT REFERENCES clusters(id) ON DELETE CASCADE,
   item_id    BIGINT REFERENCES items(id) ON DELETE CASCADE,
   similarity REAL,
   PRIMARY KEY (cluster_id, item_id)
 );
 
-CREATE TABLE daily_reports (
+CREATE TABLE IF NOT EXISTS daily_reports (
   date         DATE PRIMARY KEY,
   sections     JSONB NOT NULL,
   generated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id                    BIGSERIAL PRIMARY KEY,
   username              TEXT UNIQUE,
   password_hash         TEXT,
@@ -116,9 +116,9 @@ CREATE TABLE users (
     OR dingtalk_id IS NOT NULL
   )
 );
-CREATE INDEX users_active_idx ON users (id) WHERE disabled_at IS NULL;
+CREATE INDEX IF NOT EXISTS users_active_idx ON users (id) WHERE disabled_at IS NULL;
 
-CREATE TABLE merge_conflicts (
+CREATE TABLE IF NOT EXISTS merge_conflicts (
   id              BIGSERIAL PRIMARY KEY,
   unionid         TEXT NOT NULL,
   name            TEXT NOT NULL,
@@ -129,9 +129,9 @@ CREATE TABLE merge_conflicts (
   resolved_at     TIMESTAMPTZ,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX merge_conflicts_status_idx ON merge_conflicts (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS merge_conflicts_status_idx ON merge_conflicts (status, created_at DESC);
 
-CREATE TABLE feedbacks (
+CREATE TABLE IF NOT EXISTS feedbacks (
   id          BIGSERIAL PRIMARY KEY,
   item_id     BIGINT REFERENCES items(id) ON DELETE CASCADE,
   user_id     BIGINT REFERENCES users(id),
@@ -140,7 +140,7 @@ CREATE TABLE feedbacks (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE scoring_config (
+CREATE TABLE IF NOT EXISTS scoring_config (
   key        TEXT PRIMARY KEY,
   value      JSONB NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
