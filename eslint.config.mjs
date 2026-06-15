@@ -27,5 +27,16 @@ export default [
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/consistent-type-imports": "error"
     }
+  },
+  {
+    // 各包/根的 *.config.ts 不在任何 tsconfig include 内，关闭类型感知解析避免
+    // projectService 报 "not found by the project service"
+    files: ["**/*.config.ts", "**/*.config.mjs"],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: false
+      }
+    }
   }
 ];
