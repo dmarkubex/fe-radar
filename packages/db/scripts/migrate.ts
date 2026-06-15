@@ -2,13 +2,14 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import postgres from "postgres";
 
-/** Split a multi-statement SQL string on top-level `;`, respecting quotes and comments. */
+/** Split a multi-statement SQL string on top-level `;`, respecting quotes, comments, and dollar-quoting. */
 function splitStatements(sql: string): string[] {
   const stmts: string[] = [];
   let cur = "";
   let inStr = false;
   let inLineComment = false;
   let inBlockComment = false;
+  let inDollar = false;
 
   for (let i = 0; i < sql.length; i++) {
     const ch = sql[i];
@@ -28,6 +29,15 @@ function splitStatements(sql: string): string[] {
       }
       continue;
     }
+    if (inDollar) {
+      cur += ch;
+      if (ch === "$" && next === "$") {
+        cur += next;
+        i++;
+        inDollar = false;
+      }
+      continue;
+    }
     if (inStr) {
       cur += ch;
       if (ch === "'" && next === "'") {
@@ -41,6 +51,12 @@ function splitStatements(sql: string): string[] {
 
     if (ch === "'") {
       inStr = true;
+    } else if (ch === "$" && next === "$") {
+      inDollar = true;
+      cur += ch;
+      i++;
+      cur += next;
+      continue;
     } else if (ch === "-" && next === "-") {
       inLineComment = true;
     } else if (ch === "/" && next === "*") {
