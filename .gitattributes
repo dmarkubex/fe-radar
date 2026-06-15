@@ -1,0 +1,4 @@
+# 强制 shell 脚本始终以 LF 检出，避免 Windows/core.autocrlf 把 CRLF 带进 Docker 镜像，
+# 导致 `#!/bin/sh\r` shebang 让容器 `exec ...: no such file or directory` 崩溃。
+*.sh text eol=lf
+deploy/docker-entrypoint-secrets.sh text eol=lf
