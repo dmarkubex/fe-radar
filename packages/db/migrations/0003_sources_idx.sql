@@ -1,6 +1,7 @@
 DO $$ BEGIN
-  ALTER TABLE sources ADD CONSTRAINT sources_url_key UNIQUE (url);
-EXCEPTION WHEN duplicate_object THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'sources_url_key') THEN
+    ALTER TABLE sources ADD CONSTRAINT sources_url_key UNIQUE (url);
+  END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS sources_enabled_tier_idx ON sources (enabled, tier);
