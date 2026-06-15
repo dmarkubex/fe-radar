@@ -7,7 +7,7 @@
 #
 # 用法：
 #   1) 先在本机/服务器 build 三个镜像（见 docs/runbook/deploy-portainer.md §1·B）：
-#        fe-radar/postgres-zhparser:pg16 / fe-radar/worker:latest / fe-radar/migrate:latest
+#        fe-radar/postgres-zhparser:pg16 / fe-radar-worker:latest / fe-radar-migrate:latest
 #   2) docker compose -f deploy/compose.fetch-smoke.yml up -d
 #      （或 Portainer → Stacks → Add stack → 贴本文件）
 #   3) migrate 服务会自动建表 + seed ~75 个 enabled 信源 + 建 admin 账号，然后退出
@@ -35,7 +35,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: harborssl.fegroup.cn/custom-project/redis:7-alpine
+    image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
     environment:
       TZ: Asia/Shanghai
@@ -44,7 +44,7 @@ services:
     restart: unless-stopped
 
   rsshub:
-    image: harborssl.fegroup.cn/custom-project/diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3df98bab0f979c03059
+    image: diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3df98bab0f979c03059
     environment:
       TZ: Asia/Shanghai
       NODE_ENV: production
@@ -54,7 +54,7 @@ services:
 
   # 一次性迁移 + seed：建表、seed 信源、建 admin 账号，跑完即退出
   migrate:
-    image: harborssl.fegroup.cn/custom-project/fe-radar/migrate:latest
+    image: harborssl.fegroup.cn/custom-project/fe-radar-migrate:latest
     command:
       - sh
       - -c
@@ -70,7 +70,7 @@ services:
     restart: "no"
 
   worker:
-    image: harborssl.fegroup.cn/custom-project/fe-radar/worker:latest
+    image: harborssl.fegroup.cn/custom-project/fe-radar-worker:latest
     # 入口用镜像默认 CMD（dist/apps/worker/src/main.js），勿覆盖
     environment:
       NODE_ENV: production
@@ -88,7 +88,7 @@ services:
     restart: unless-stopped
 
   scheduler:
-    image: harborssl.fegroup.cn/custom-project/fe-radar/worker:latest
+    image: harborssl.fegroup.cn/custom-project/fe-radar-worker:latest
     command: ["node", "dist/apps/worker/src/scheduler.js"]
     environment:
       NODE_ENV: production

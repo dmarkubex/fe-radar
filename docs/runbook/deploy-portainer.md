@@ -21,42 +21,36 @@
 
 ---
 
-## 1. 前置：镜像全部走内网 Harbor `harborssl.fegroup.cn/custom-project`
+## 1. 前置：自建镜像走内网 Harbor `harborssl.fegroup.cn/custom-project`
 
-stack.yml 与 compose.fetch-smoke.yml 的 **所有 image 已改为 Harbor 路径**。你把 compose 贴进 Portainer 前，需保证 Harbor 里有这些镜像、且 Portainer/Docker 主机能登录 Harbor 拉取。
+stack.yml 与 compose.fetch-smoke.yml 的 **FE-Radar 自建镜像**已改为 Harbor 路径；公共镜像保持官方镜像名，由部署服务器直接拉取。你把 compose 贴进 Portainer 前，需保证 Harbor 里有 5 个自建镜像、且 Portainer/Docker 主机能登录 Harbor 拉取。下面命令均为手工逐条执行，不依赖自动脚本。
 
-**一键脚本**：`deploy/scripts/build-images.sh --push`（构建+推送 4 个自建镜像）、加 `--mirror` 同步公共镜像、`REGISTRY=...` 可改仓库。**逐个构建**（错误当场停在该镜像）：`deploy/scripts/build-images.sh worker --push` / `... postgres` / `... migrate` / `... web`。下面是等价的手敲命令：
-
-**1.1 构建并推送 4 个自建镜像**（在有 Docker 的构建机，仓库根目录）：
+**1.1 构建并推送 5 个自建镜像**（在有 Docker 的构建机，仓库根目录）：
 
 ```bash
 docker login harborssl.fegroup.cn        # 先登录 Harbor
 
 R=harborssl.fegroup.cn/custom-project
 docker build -f deploy/Dockerfile.postgres-zhparser -t $R/fe-radar/postgres-zhparser:pg16 .
-docker build -f deploy/Dockerfile.worker  -t $R/fe-radar/worker:latest  .
-docker build -f deploy/Dockerfile.migrate -t $R/fe-radar/migrate:latest .
-docker build -f deploy/Dockerfile.web     -t $R/fe-radar/web:latest     .   # web 首测可不上
+docker build -f deploy/Dockerfile.worker  -t $R/fe-radar-worker:latest  .
+docker build -f deploy/Dockerfile.migrate -t $R/fe-radar-migrate:latest .
+docker build -f deploy/Dockerfile.web     -t $R/fe-radar-web:latest     .   # web 首测可不上
+docker build -f deploy/Dockerfile.backup  -t $R/fe-radar-backup:latest  .
 docker push $R/fe-radar/postgres-zhparser:pg16
-docker push $R/fe-radar/worker:latest
-docker push $R/fe-radar/migrate:latest
-docker push $R/fe-radar/web:latest
+docker push $R/fe-radar-worker:latest
+docker push $R/fe-radar-migrate:latest
+docker push $R/fe-radar-web:latest
+docker push $R/fe-radar-backup:latest
 ```
 
-**1.2 公共镜像也需进 Harbor**（内网拉不到 Docker Hub）：把 redis / rsshub（含 minio/grafana，全链路才用）镜像同步到 `custom-project`。例如：
+**1.2 公共镜像不进 Harbor**
 
-```bash
-docker pull redis:7-alpine && docker tag redis:7-alpine $R/redis:7-alpine && docker push $R/redis:7-alpine
-docker pull diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3df98bab0f979c03059 \
-  && docker tag diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3df98bab0f979c03059 $R/diygod/rsshub:pinned \
-  && docker push $R/diygod/rsshub:pinned
-# 全链路再同步 minio/minio、grafana/grafana
-```
+公共镜像保持官方路径，部署服务器直接拉取：`redis:7-alpine`、`minio/minio:RELEASE.2025-09-07T16-13-09Z`、`grafana/grafana:12.1.1`、`diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3df98bab0f979c03059`。
 
 > ⚠️ **两点须核对**：
 >
-> 1. **leaf 仓库名**——我按"原 repo 路径前面加 `harborssl.fegroup.cn/custom-project/`"机械改的（如 `custom-project/minio/minio`、`custom-project/redis`）。**如果你 Harbor 里实际 push 的名字不同**（比如扁平成 `custom-project/redis` 已对、但 rsshub 你可能 push 成别的 tag），请按实际改 compose 里那几行 image。
-> 2. **rsshub 用 digest**：`@sha256:...` 只有在 Harbor 里是**同一 manifest**时才有效；若你 push 时 digest 变了，把 compose 里 rsshub 改成你 Harbor 的 tag（如上例 `$R/diygod/rsshub:pinned`）。
+> 1. **自建镜像名必须和 stack 一致**：`fe-radar-web`、`fe-radar-worker`、`fe-radar-migrate`、`fe-radar-backup`、`fe-radar/postgres-zhparser`。
+> 2. **公共镜像由服务器直连拉取**：如果部署服务器不能访问 Docker Hub / 公共 registry，再单独决定是否镜像到 Harbor。
 >
 > **Portainer 拉取凭据**：Portainer → Registries 添加 `harborssl.fegroup.cn`（用户名/密码），或确保 Docker 主机已 `docker login harborssl.fegroup.cn`，否则 stack 起不来（ImagePullBackOff / no basic auth credentials）。
 
@@ -116,19 +110,19 @@ docker pull diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3d
 
 ## 4. 迁移 + seed（阻塞门，G2/G7）
 
-用 §1 构建好的 `fe-radar/migrate:latest` 一次性镜像（已含 tsx + db 脚本），在能连 `internal` overlay 的 manager 节点执行。**这是部署阻塞门**：未完成前不要开放 web，也不要开始抓取验证。
+用 §1 构建好的 `harborssl.fegroup.cn/custom-project/fe-radar-migrate:latest` 一次性镜像（已含 tsx + db 脚本），在能连 `internal` overlay 的 manager 节点执行。**这是部署阻塞门**：未完成前不要开放 web，也不要开始抓取验证。
 
 ```bash
 # 1) 建表 + seed ~75 个 enabled 信源
 docker run --rm --network fe-radar_internal \
   -e DATABASE_URL='postgres://fe_radar:CHANGE_ME_DBPW@postgres:5432/fe_radar' \
-  fe-radar/migrate:latest
+  harborssl.fegroup.cn/custom-project/fe-radar-migrate:latest
 
 # 2) 建后台登录账号（可指定用户名/密码）
 docker run --rm --network fe-radar_internal \
   -e DATABASE_URL='postgres://fe_radar:CHANGE_ME_DBPW@postgres:5432/fe_radar' \
   -e SEED_ADMIN_USERNAME=admin -e SEED_ADMIN_PASSWORD='<强密码>' \
-  fe-radar/migrate:latest pnpm --filter @fe-radar/db seed:admin
+  harborssl.fegroup.cn/custom-project/fe-radar-migrate:latest pnpm --filter @fe-radar/db seed:admin
 ```
 
 > overlay 网络名通常是 `<stack名>_<网络名>`，即 `fe-radar_internal`；`docker network ls` 确认。
@@ -210,7 +204,7 @@ docker compose -f deploy/compose.fetch-smoke.yml logs worker --since 10m | grep 
     -e BRIEFING_MINIO_BUCKET='fe-radar-briefings' \
     -e BACKUP_MINIO_BUCKET='fe-radar-backups' \
     -e BRIEFING_RETENTION_DAYS=90 \
-    harborssl.fegroup.cn/custom-project/fe-radar/backup:latest
+    harborssl.fegroup.cn/custom-project/fe-radar-backup:latest
   ```
   验收输出必须包含 `briefing-docx-retention`，否则不要启用 v1.1 简报。
 - **Grafana**：生产 stack 通过 Swarm configs 挂载 `deploy/grafana` provisioning；Portainer env 必须设置 `GRAFANA_DINGTALK_WEBHOOK_URL=https://oapi.dingtalk.com/robot/send?...`，并确认 datasource UID 为 `fe-radar-postgres`。
@@ -230,7 +224,7 @@ docker compose -f deploy/compose.fetch-smoke.yml logs worker --since 10m | grep 
 
 **仍需你做（部署侧）**：
 
-1. 在 build server 上 `docker build` 4 个镜像（§1·B；本机无 Docker 未自测，留意首次构建）
+1. 在 build server 上手工 `docker build` / `docker push` 5 个自建镜像（§1.1；本机无 Docker 未自测，留意首次构建）
 2. 按 §3 贴精简 stack（纯 env）→ Portainer 部署 → §4 跑 migrate + seed:admin
 3. §5 等一轮抓取后用 SQL/日志核对 5 类信源
 4. 把抓取结果（`items` 计数 + `sources.last_error`）贴回来，我帮你判读哪些源 OK / 哪些要配代理或修适配器

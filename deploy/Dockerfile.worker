@@ -6,15 +6,25 @@
 #    dist/apps/worker/src/main.js（与 scheduler.js 同级），并非裸 dist/main.js。
 #    本镜像 WORKDIR=/app/apps/worker，故 `node dist/apps/worker/src/main.js` 即真实入口。
 #  - fetcher 使用 Playwright（chromium.launch headless）。Playwright 自带的 Chromium 需要
-#    glibc，alpine(musl) 无法运行，故运行期基于 node:20-bookworm-slim（glibc）。
+#    glibc，alpine(musl) 无法运行，故运行期基于 node:22-slim（glibc）。
 #  - 这是新增文件，不影响正在运行的应用。
 
 # ---------- deps：安装 monorepo 依赖 ----------
-FROM node:20-bookworm-slim AS deps
+ARG NODE_SLIM_IMAGE=docker.m.daocloud.io/library/node:22-slim
+ARG NPM_REGISTRY=https://registry.npmmirror.com
+ARG DEBIAN_MIRROR=https://mirrors.aliyun.com/debian
+ARG DEBIAN_SECURITY_MIRROR=https://mirrors.aliyun.com/debian-security
+ARG PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright
+FROM ${NODE_SLIM_IMAGE} AS deps
 ENV TZ=Asia/Shanghai
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+ARG NPM_REGISTRY
+ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
+ENV npm_config_registry=${NPM_REGISTRY}
+ARG PNPM_VERSION=11.0.9
 WORKDIR /app
 
-RUN corepack enable
+RUN command -v pnpm >/dev/null || npm install -g pnpm@${PNPM_VERSION} --registry=${NPM_REGISTRY} --no-audit --no-fund
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/web/package.json apps/web/package.json
@@ -24,19 +34,22 @@ COPY packages/llm/package.json packages/llm/package.json
 COPY packages/core/package.json packages/core/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm config set store-dir /pnpm/store && \
-    pnpm install --frozen-lockfile
+RUN pnpm config set registry ${NPM_REGISTRY} && \
+    pnpm install --frozen-lockfile --child-concurrency=1
 
 # ---------- builder：tsc 编译 worker ----------
-FROM node:20-bookworm-slim AS builder
+FROM ${NODE_SLIM_IMAGE} AS builder
 ENV TZ=Asia/Shanghai
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+ARG NPM_REGISTRY
+ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
+ENV npm_config_registry=${NPM_REGISTRY}
+ARG PNPM_VERSION=11.0.9
 WORKDIR /app
 
-RUN corepack enable
+RUN command -v pnpm >/dev/null || npm install -g pnpm@${PNPM_VERSION} --registry=${NPM_REGISTRY} --no-audit --no-fund
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/worker/node_modules ./apps/worker/node_modules
+COPY --from=deps /app ./
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json tsconfig.json ./
 COPY packages ./packages
@@ -45,14 +58,23 @@ COPY apps/worker ./apps/worker
 RUN pnpm --filter @fe-radar/worker build
 
 # ---------- runner：精简运行期镜像（含 Playwright Chromium） ----------
-FROM node:20-bookworm-slim AS runner
+FROM ${NODE_SLIM_IMAGE} AS runner
 ENV TZ=Asia/Shanghai
 ENV NODE_ENV=production
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+ARG NPM_REGISTRY
+ARG DEBIAN_MIRROR
+ARG DEBIAN_SECURITY_MIRROR
+ARG PLAYWRIGHT_DOWNLOAD_HOST
+ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
+ENV npm_config_registry=${NPM_REGISTRY}
+ENV PLAYWRIGHT_DOWNLOAD_HOST=${PLAYWRIGHT_DOWNLOAD_HOST}
+ARG PNPM_VERSION=11.0.9
 # Playwright 浏览器安装到固定路径，便于 root 安装、非 root 运行
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 WORKDIR /app
 
-RUN corepack enable
+RUN command -v pnpm >/dev/null || npm install -g pnpm@${PNPM_VERSION} --registry=${NPM_REGISTRY} --no-audit --no-fund
 
 # 复用 deps 阶段已安装好的 node_modules（含 playwright 包），随后安装 Chromium 及其系统依赖。
 # `playwright install --with-deps chromium` 会用 apt 拉齐 glibc 运行库。
@@ -60,9 +82,13 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/worker/node_modules ./apps/worker/node_modules
 COPY apps/worker/package.json ./apps/worker/package.json
 
-RUN apt-get update && \
+RUN sed -i \
+      -e "s#http://deb.debian.org/debian-security#${DEBIAN_SECURITY_MIRROR}#g" \
+      -e "s#http://deb.debian.org/debian#${DEBIAN_MIRROR}#g" \
+      /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true && \
+    apt-get update && \
     apt-get install -y --no-install-recommends postgresql-client && \
-    pnpm --filter @fe-radar/worker exec playwright install --with-deps chromium && \
+    ./apps/worker/node_modules/.bin/playwright install --with-deps chromium && \
     rm -rf /var/lib/apt/lists/*
 
 # 拷贝编译产物与 worker package.json（提供 `start` 脚本与运行期元信息）

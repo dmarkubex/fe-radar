@@ -6,20 +6,27 @@
 #   # 1) 建表 + seed ~75 个 enabled 信源（migrate.ts 顺序执行 migrations/*.sql）
 #   docker run --rm --network fe-radar_internal \
 #     -e DATABASE_URL='postgres://fe_radar:<DBPW>@postgres:5432/fe_radar' \
-#     fe-radar/migrate:latest
+#     harborssl.fegroup.cn/custom-project/fe-radar-migrate:latest
 #   # 2) 建后台登录账号（可用 SEED_ADMIN_USERNAME / SEED_ADMIN_PASSWORD 指定）
 #   docker run --rm --network fe-radar_internal \
 #     -e DATABASE_URL='postgres://fe_radar:<DBPW>@postgres:5432/fe_radar' \
 #     -e SEED_ADMIN_USERNAME=admin -e SEED_ADMIN_PASSWORD='<strong-pw>' \
-#     fe-radar/migrate:latest pnpm --filter @fe-radar/db seed:admin
+#     harborssl.fegroup.cn/custom-project/fe-radar-migrate:latest pnpm --filter @fe-radar/db seed:admin
 #
 # 注意：不设 NODE_ENV=production，否则 pnpm 跳过 devDependencies → tsx 缺失，迁移无法运行。
 
-FROM node:20-bookworm-slim
+ARG NODE_SLIM_IMAGE=docker.m.daocloud.io/library/node:22-slim
+ARG NPM_REGISTRY=https://registry.npmmirror.com
+FROM ${NODE_SLIM_IMAGE}
 ENV TZ=Asia/Shanghai
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+ARG NPM_REGISTRY
+ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
+ENV npm_config_registry=${NPM_REGISTRY}
+ARG PNPM_VERSION=11.0.9
 WORKDIR /app
 
-RUN corepack enable
+RUN command -v pnpm >/dev/null || npm install -g pnpm@${PNPM_VERSION} --registry=${NPM_REGISTRY} --no-audit --no-fund
 
 # workspace 清单 + lockfile，最大化层缓存
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json tsconfig.json ./
@@ -30,9 +37,8 @@ COPY packages/llm/package.json packages/llm/package.json
 COPY packages/core/package.json packages/core/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm config set store-dir /pnpm/store && \
-    pnpm install --frozen-lockfile
+RUN pnpm config set registry ${NPM_REGISTRY} && \
+    pnpm install --frozen-lockfile --child-concurrency=1
 
 # db 包源码（migrations/*.sql + scripts/*.ts）
 COPY packages ./packages

@@ -1,11 +1,16 @@
-FROM alpine:3.22
+ARG ALPINE_IMAGE=docker.m.daocloud.io/library/alpine:3.22
+FROM ${ALPINE_IMAGE}
 
-RUN apk add --no-cache bash postgresql16-client ca-certificates curl \
-  && curl -fsSL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc \
+ARG ALPINE_MIRROR=https://mirrors.aliyun.com/alpine
+ARG MINIO_MC_URL=https://dl.min.io/client/mc/release/linux-amd64/mc
+
+RUN sed -i "s#https\\?://dl-cdn.alpinelinux.org/alpine#${ALPINE_MIRROR}#g" /etc/apk/repositories \
+  && apk add --no-cache bash postgresql16-client ca-certificates curl \
+  && curl -fsSL "${MINIO_MC_URL}" -o /usr/local/bin/mc \
   && chmod +x /usr/local/bin/mc
 
-COPY scripts/minio-backup.sh /scripts/minio-backup.sh
-COPY scripts/minio-provision.sh /scripts/minio-provision.sh
+COPY deploy/scripts/minio-backup.sh /scripts/minio-backup.sh
+COPY deploy/scripts/minio-provision.sh /scripts/minio-provision.sh
 RUN chmod +x /scripts/minio-backup.sh /scripts/minio-provision.sh
 
 ENTRYPOINT ["/scripts/minio-backup.sh"]

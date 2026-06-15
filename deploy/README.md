@@ -2,13 +2,29 @@
 
 ## Images
 
-Build the Postgres image before deploying the stack:
+Run these commands manually from the repository root on the build server:
 
 ```bash
-docker build -f deploy/Dockerfile.postgres-zhparser -t fe-radar/postgres-zhparser:pg16 .
+docker login harborssl.fegroup.cn
+
+R=harborssl.fegroup.cn/custom-project
+
+# Self-built images used by deploy/stack.yml.
+docker build -f deploy/Dockerfile.postgres-zhparser -t $R/fe-radar/postgres-zhparser:pg16 .
+docker build -f deploy/Dockerfile.worker            -t $R/fe-radar-worker:latest .
+docker build -f deploy/Dockerfile.migrate           -t $R/fe-radar-migrate:latest .
+docker build -f deploy/Dockerfile.web               -t $R/fe-radar-web:latest .
+docker build -f deploy/Dockerfile.backup            -t $R/fe-radar-backup:latest .
+
+docker push $R/fe-radar/postgres-zhparser:pg16
+docker push $R/fe-radar-worker:latest
+docker push $R/fe-radar-migrate:latest
+docker push $R/fe-radar-web:latest
+docker push $R/fe-radar-backup:latest
+
 ```
 
-Build and publish `fe-radar/web:latest` and `fe-radar/worker:latest` from the monorepo CI pipeline.
+公共镜像不推送到 Harbor，由部署服务器直接拉取：`redis:7-alpine`、`minio/minio:RELEASE.2025-09-07T16-13-09Z`、`grafana/grafana:12.1.1`、`diygod/rsshub@sha256:0d40e1c9e5c3811da2c4eeaf7443e1bcdc6d7dc5510aa3df98bab0f979c03059`。
 
 ## Secrets
 
@@ -52,7 +68,7 @@ docker run --rm --network fe-radar_internal \
   -e MINIO_ENDPOINT='http://minio:9000' \
   -e MINIO_ACCESS_KEY='<minio-user>' \
   -e MINIO_SECRET_KEY='<minio-password>' \
-  harborssl.fegroup.cn/custom-project/fe-radar/backup:latest
+  harborssl.fegroup.cn/custom-project/fe-radar-backup:latest
 ```
 
 ## v1.1 RSSHub 运维说明
