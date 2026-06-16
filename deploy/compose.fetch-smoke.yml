@@ -51,6 +51,9 @@ services:
       NODE_ENV: production
       CACHE_EXPIRE: "3600"
       REDIS_URL: redis://redis:6379
+      # jiemian.com / yicai.com 回源慢（内网出口），放宽 RSSHub 上游超时 + 重试，避免反复 503
+      REQUEST_TIMEOUT: "30000"
+      REQUEST_RETRY: "2"
     restart: unless-stopped
 
   # 一次性迁移 + seed：建表、seed 信源、建 admin 账号，跑完即退出
@@ -80,7 +83,15 @@ services:
       REDIS_URL: redis://redis:6379
       RSSHUB_BASE_URL: http://rsshub:1200
       PROXY_POOL_ENABLED: "false"
-      # 首测不配 LLM：worker 仍能启动，fetch 照常抓取写 items；下游 prefilter 调 LLM 才失败（预期）
+      # worker RSS 抓 RSSHub 的超时（冷缓存回源慢，4s 默认太短）；需配套新 worker 镜像才生效
+      RSS_FETCH_TIMEOUT_MS: ${RSS_FETCH_TIMEOUT_MS:-15000}
+      # 本文件按设计不配 LLM：worker 启动、fetch 写 items 正常；下游 prefilter 调 LLM 失败（预期）。
+      # 要让流水线评分、页面真正出数据，填下面几项（与 compose.portainer-current.yml 同名，避免漂移）：
+      # QWEN_BASE_URL: http://10.10.x.x:8001/v1
+      # QWEN_MODEL: qwen3.6-27b
+      # DEEPSEEK_API_KEY: <key>
+      # DEEPSEEK_BASE_URL: https://api.deepseek.com/v1
+      # KIMI_API_KEY: <key>   # 仅日报需要，不影响 timeline
     depends_on:
       migrate:
         condition: service_completed_successfully
