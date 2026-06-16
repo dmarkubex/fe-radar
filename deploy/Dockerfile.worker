@@ -18,6 +18,7 @@ ARG PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright
 FROM ${NODE_SLIM_IMAGE} AS deps
 ENV TZ=Asia/Shanghai
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 ARG NPM_REGISTRY
 ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
 ENV npm_config_registry=${NPM_REGISTRY}
@@ -61,7 +62,6 @@ RUN pnpm --filter @fe-radar/worker build
 FROM ${NODE_SLIM_IMAGE} AS runner
 ENV TZ=Asia/Shanghai
 ENV NODE_ENV=production
-ENV NODE_OPTIONS="--import /app/apps/worker/register-aliases.mjs"
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 ARG NPM_REGISTRY
 ARG DEBIAN_MIRROR
@@ -84,7 +84,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/worker/node_modules ./apps/worker/node_modules
 COPY apps/worker/package.json ./apps/worker/package.json
 
-RUN sed -i \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates && \
+    sed -i \
       -e "s#http://deb.debian.org/debian-security#${DEBIAN_SECURITY_MIRROR}#g" \
       -e "s#http://deb.debian.org/debian#${DEBIAN_MIRROR}#g" \
       /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true && \
@@ -97,6 +99,9 @@ RUN sed -i \
 # 拷贝编译产物与 worker package.json（提供 `start` 脚本与运行期元信息）
 COPY --from=builder /app/apps/worker/dist ./apps/worker/dist
 COPY apps/worker/register-aliases.mjs ./apps/worker/register-aliases.mjs
+# NODE_OPTIONS 只在运行时生效：放在 register-aliases.mjs COPY 之后，
+# 避免构建期的 npm/pnpm 启动 node 时 import 尚不存在的文件而崩溃。
+ENV NODE_OPTIONS="--import /app/apps/worker/register-aliases.mjs"
 COPY design/templates ./design/templates
 
 # 读取 Docker *_FILE 密钥到纯 env（DEEPSEEK_API_KEY_FILE→DEEPSEEK_API_KEY 等）；
@@ -110,7 +115,7 @@ RUN sed -i 's/\r$//' /usr/local/bin/fe-entrypoint.sh && chmod 0755 /usr/local/bi
 # 非 root 运行，浏览器目录授予可读执行
 RUN groupadd -g 1001 nodejs && \
     useradd -u 1001 -g nodejs -m worker && \
-    chown -R worker:nodejs /ms-playwright
+    mkdir -p /ms-playwright && chown -R worker:nodejs /ms-playwright
 
 USER worker
 

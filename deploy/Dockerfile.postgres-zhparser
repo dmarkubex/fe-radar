@@ -4,10 +4,43 @@ FROM ${PGVECTOR_IMAGE}
 ARG DEBIAN_MIRROR=https://mirrors.aliyun.com/debian
 ARG DEBIAN_SECURITY_MIRROR=https://mirrors.aliyun.com/debian-security
 
-RUN sed -i \
+# zhparser 在 PGDG / Debian 源里没有预编译 deb 包，必须源码编译。
+# 依赖链：postgresql-server-dev-16（提供 pg_config + PGXS）→ SCWS（中文分词库）→ zhparser
+# 注意：base image 缺 ca-certificates，必须先装再切 HTTPS 镜像源。
+RUN set -eux; \
+    # 0) 先用原始 HTTP 源装 ca-certificates（否则后续 HTTPS 全部握手失败）
+    apt-get update; \
+    apt-get install -y --no-install-recommends ca-certificates; \
+    \
+    # 1) 切换国内镜像源（ca-certificates 已就位）
+    sed -i \
       -e "s#http://deb.debian.org/debian-security#${DEBIAN_SECURITY_MIRROR}#g" \
       -e "s#http://deb.debian.org/debian#${DEBIAN_MIRROR}#g" \
-      /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true \
-  && apt-get update \
-  && apt-get install -y --no-install-recommends postgresql-16-zhparser \
-  && rm -rf /var/lib/apt/lists/*
+      /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        postgresql-server-dev-16 \
+        build-essential \
+        wget bzip2 git; \
+    \
+    # 2) 编译安装 SCWS 1.2.3（zhparser 的分词库）
+    wget -q https://www.xunsearch.com/scws/down/scws-1.2.3.tar.bz2 -O /tmp/scws.tar.bz2; \
+    mkdir -p /tmp/scws; \
+    tar xjf /tmp/scws.tar.bz2 -C /tmp/scws --strip-components=1; \
+    cd /tmp/scws; \
+    ./configure --prefix=/usr/local; \
+    make -j"$(nproc)"; \
+    make install; \
+    ldconfig; \
+    \
+    # 3) 编译安装 zhparser
+    git clone --depth 1 https://github.com/amutu/zhparser.git /tmp/zhparser; \
+    cd /tmp/zhparser; \
+    SCWS_HOME=/usr/local PG_CONFIG=/usr/lib/postgresql/16/bin/pg_config make; \
+    make install; \
+    \
+    # 4) 清理源码与构建工具，缩小镜像（zhparser.so / .control / dict 已 install 进 PG 目录）
+    cd /; \
+    rm -rf /tmp/scws /tmp/scws.tar.bz2 /tmp/zhparser; \
+    apt-get purge -y --auto-remove build-essential postgresql-server-dev-16 wget bzip2 git; \
+    rm -rf /var/lib/apt/lists/*
