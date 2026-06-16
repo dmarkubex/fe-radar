@@ -190,6 +190,44 @@ docker compose -f deploy/compose.fetch-smoke.yml logs worker --since 10m | grep 
 
 ---
 
+## 5.1 故障：抓取成功但页面一条数据都没有（高频踩坑，2026-06-16 实战）
+
+**现象**：worker 日志 `fetch succeeded count=30`、`items` 表有数据，但 web 时间线空空如也。极易误判成"抓取失败"，其实抓取是好的。
+
+**根因因果链（无 LLM → 无 scoredAt → 页面空）**：
+
+1. 时间线只显示 **`item_analysis.scored_at IS NOT NULL`** 的 item —— 这是硬条件，见 `apps/web/lib/api/timeline-query.ts` 的 `visibleItemConditions`（`isNotNull(itemAnalysis.scoredAt)`）。
+2. `scored_at` 由流水线 **scorer 段**（调 **DeepSeek**）写入，见 `apps/worker/src/handlers/scorer.ts`。
+3. fetch 写入 item 后入 6 段 flow（`apps/worker/src/flows.ts`），执行顺序：
+   `prefilter(Qwen) → ner(Qwen) → scorer(DeepSeek) → embedder → cluster → curator`。
+4. **没配 LLM**（缺 `QWEN_BASE_URL` / `DEEPSEEK_API_KEY`）时，第一段 prefilter 就连不上 Qwen（默认回退 `http://localhost:8001/v1`）→ job 抛错重试到死 → **永远到不了 scorer** → `scored_at` 恒为 null → **页面恒空**，与 fetch 抓到多少条无关。
+
+**一句话**：fetch 成功是必要不充分条件；**页面出数据 = 流水线跑到 scorer = Qwen + DeepSeek 都可达**。
+
+**确诊 SQL**（抓到了但没评分 = 这个病）：
+
+```bash
+docker exec <postgres容器> psql -U fe_radar -d fe_radar -c \
+ "SELECT count(*) AS total, count(ia.scored_at) AS scored \
+  FROM items i LEFT JOIN item_analysis ia ON ia.item_id=i.id;"
+# total>0 且 scored=0 → 实锤：抓取 OK，流水线没跑（多半是没配 LLM 或 LLM 不可达）
+```
+
+**修复**：
+
+1. Portainer stack environment 填 **`QWEN_BASE_URL`**（内网 Qwen，如 `http://10.10.x.x:8001/v1`）+ **`DEEPSEEK_API_KEY`**；LLM env 只需挂在 **worker** 服务（scheduler/web 不需要）。`KIMI_API_KEY` 只影响日报，可暂缺。
+2. ⚠ **最大暗坑：DeepSeek 默认走公网 `api.deepseek.com`，内网出口未必可达**（与 jiemian/yicai 抓取超时同源）。配完务必在 worker 容器内验证：
+   ```bash
+   curl -sS -m8 -o/dev/null -w "qwen:%{http_code}\n" "$QWEN_BASE_URL/models"
+   curl -sS -m8 -o/dev/null -w "deepseek:%{http_code}\n" https://api.deepseek.com
+   ```
+   不可达就把 `DEEPSEEK_BASE_URL` 指向内网网关/代理，否则 scorer 照样失败、页面照样空。
+3. 配好后等一个抓取周期，再跑上面确诊 SQL，`scored>0` 即恢复。
+
+> 想"先验证抓取、暂不上 LLM"也行——但要清楚这种状态下**页面本就该是空的**，验证只能靠 §5 的 SQL/日志，不能靠看页面。
+
+---
+
 ## 6. 全链路 + 生产硬化（首测通过后再做）
 
 - **切回 secret 方案（G1 已修）**：entrypoint 已能读 `*_FILE`，正式部署时按 `deploy/README.md` 用 `docker secret create` 建好 9 个 secret，stack.yml 原生的 `*_FILE` + `secrets:` 段即可直接生效（无需改回纯 env）。
