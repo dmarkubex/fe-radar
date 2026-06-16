@@ -24,7 +24,14 @@ services:
       - minio_root_user
       - minio_root_password
     networks:
-      - internal
+      - internal # 连 postgres/redis/minio
+      - edge # 对外发布端口（internal 网络 internal:true，无法承载 ingress）
+    ports:
+      # 内网用户访问入口：http://<服务器IP>:8080 → 容器内 next start 监听的 3000
+      - target: 3000
+        published: 8080
+        protocol: tcp
+        mode: ingress
     deploy:
       replicas: 2
       restart_policy:
@@ -221,6 +228,9 @@ networks:
   internal:
     driver: overlay
     internal: true
+  edge:
+    driver: overlay
+    # 不设 internal:true：允许 web 通过 ingress 对外发布端口
 
 volumes:
   postgres_data:
