@@ -15,7 +15,7 @@ const authUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "";
 const useSecureCookie = authUrl ? authUrl.startsWith("https://") : process.env.NODE_ENV === "production";
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
-  trustHost: process.env.AUTH_TRUST_HOST === "true",
+  trustHost: process.env.AUTH_TRUST_HOST !== "false",
   session: {
     strategy: "jwt",
     maxAge: 60 * 60 * 2,
