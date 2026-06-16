@@ -14,7 +14,10 @@ ARG NODE_SLIM_IMAGE=docker.m.daocloud.io/library/node:22-slim
 ARG NPM_REGISTRY=https://registry.npmmirror.com
 ARG DEBIAN_MIRROR=https://mirrors.aliyun.com/debian
 ARG DEBIAN_SECURITY_MIRROR=https://mirrors.aliyun.com/debian-security
-ARG PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright
+# Playwright 浏览器走官方 CDN（cdn.playwright.dev，版本最全）；
+# npmmirror 镜像未同步 playwright 1.59 的 build v1217（404），故不用国内镜像源。
+# 如需切回 npmmirror：docker build --build-arg PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright
+ARG PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.playwright.dev
 FROM ${NODE_SLIM_IMAGE} AS deps
 ENV TZ=Asia/Shanghai
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
@@ -78,8 +81,8 @@ WORKDIR /app
 RUN command -v pnpm >/dev/null || npm install -g pnpm@${PNPM_VERSION} --registry=${NPM_REGISTRY} --no-audit --no-fund
 
 # 复用 deps 阶段已安装好的 node_modules（含 playwright 包），随后安装浏览器系统依赖。
-# worker 仅用 headless=true（fetchers/playwright.ts），Playwright 1.59 该模式走 chromium-headless-shell。
-# 只装 headless-shell：npmmirror 镜像缺完整 chromium(v1217) 的 zip（404），且 worker 不需要 headed 模式。
+# worker 仅用 headless=true（fetchers/playwright.ts），Playwright 1.59 该模式走 chromium-headless-shell；
+# worker 无 headed 场景，只装 headless-shell 即可（比完整 chromium 体积小）。
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/worker/node_modules ./apps/worker/node_modules
 COPY apps/worker/package.json ./apps/worker/package.json
