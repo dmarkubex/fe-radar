@@ -96,6 +96,7 @@ services:
       TZ: Asia/Shanghai
       DATABASE_URL: postgres://fe_radar:${DB_PASSWORD:-fe_radar_dev}@postgres:5432/fe_radar
       REDIS_URL: redis://redis:6379
+      FETCH_ON_STARTUP: ${FETCH_ON_STARTUP:-false}
     depends_on:
       migrate:
         condition: service_completed_successfully

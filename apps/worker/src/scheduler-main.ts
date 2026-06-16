@@ -40,8 +40,8 @@ interface RepeatQueue<T> {
     name: string,
     data: T,
     options: {
-      repeat: { pattern: string; tz: string };
-      jobId: string;
+      repeat?: { pattern: string; tz: string };
+      jobId?: string;
     }
   ): Promise<unknown>;
   close(): Promise<unknown>;
@@ -120,11 +120,25 @@ export async function registerRepeatJobs(
   logger.info({ queue: QUEUE_BRIEFING_PUSH, pattern: BRIEFING_PUSH_SCHEDULE_CRON, tz: BRIEFING_PUSH_SCHEDULE_TZ }, "registered repeat job");
 }
 
+export function shouldFetchOnStartup(value = process.env.FETCH_ON_STARTUP): boolean {
+  return ["1", "true", "yes", "on"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+export async function enqueueStartupFetch(
+  queues: Pick<SchedulerRepeatQueues, "fetch">,
+  logger: SchedulerLogger = schedulerLogger
+): Promise<void> {
+  const jobId = `startup-fetch-sources-${Date.now()}`;
+  await queues.fetch.add("schedule-fetch-sources", { sourceId: 0 }, { jobId });
+  logger.info({ queue: QUEUES.fetch, jobId }, "enqueued startup fetch job");
+}
+
 interface SchedulerOptions {
   connection?: RedisConnection;
   queues?: SchedulerRepeatQueues;
   logger?: SchedulerLogger;
   keepAlive?: boolean;
+  fetchOnStartup?: boolean;
 }
 
 export async function startScheduler(options: SchedulerOptions = {}): Promise<SchedulerRuntime> {
@@ -137,10 +151,14 @@ export async function startScheduler(options: SchedulerOptions = {}): Promise<Sc
 
   try {
     await registerRepeatJobs(queues, logger);
+    const fetchOnStartup = options.fetchOnStartup ?? shouldFetchOnStartup();
+    if (fetchOnStartup) {
+      await enqueueStartupFetch(queues, logger);
+    }
     if (keepAlive) {
       keepAliveTimer = setInterval(() => undefined, 60 * 60 * 1000);
     }
-    logger.info({ keepAlive }, "scheduler started; repeat jobs registered");
+    logger.info({ keepAlive, fetchOnStartup }, "scheduler started; repeat jobs registered");
   } catch (error) {
     await Promise.all(Object.values(queues).map((queue) => queue.close().catch(() => undefined)));
     await connection.quit().catch(() => undefined);

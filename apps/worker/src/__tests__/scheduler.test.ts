@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ } from "../queues";
 import { enqueueEnabledSources, shouldDisableSource } from "../scheduler";
-import { registerRepeatJobs, type SchedulerRepeatQueues } from "../scheduler-main";
+import { enqueueStartupFetch, registerRepeatJobs, shouldFetchOnStartup, type SchedulerRepeatQueues } from "../scheduler-main";
 
 describe("scheduler", () => {
   it("uses 6h Asia/Shanghai cron", () => {
@@ -78,5 +78,27 @@ describe("scheduler", () => {
       expect.objectContaining({ jobId: "schedule-briefing-push" })
     );
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ queue: "fe-fetch" }), "registered repeat job");
+  });
+
+  it("parses the startup fetch switch conservatively", () => {
+    expect(shouldFetchOnStartup("true")).toBe(true);
+    expect(shouldFetchOnStartup("1")).toBe(true);
+    expect(shouldFetchOnStartup("yes")).toBe(true);
+    expect(shouldFetchOnStartup("false")).toBe(false);
+    expect(shouldFetchOnStartup(undefined)).toBe(false);
+  });
+
+  it("enqueues one immediate fetch cycle when startup fetch is enabled", async () => {
+    const queue = { add: vi.fn(async () => undefined) };
+    const logger = { info: vi.fn(), error: vi.fn() };
+
+    await enqueueStartupFetch({ fetch: queue } as unknown as Pick<SchedulerRepeatQueues, "fetch">, logger);
+
+    expect(queue.add).toHaveBeenCalledWith(
+      "schedule-fetch-sources",
+      { sourceId: 0 },
+      expect.objectContaining({ jobId: expect.stringMatching(/^startup-fetch-sources-\d+$/) })
+    );
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ queue: "fe-fetch" }), "enqueued startup fetch job");
   });
 });
