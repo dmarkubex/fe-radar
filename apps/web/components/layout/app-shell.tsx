@@ -153,14 +153,9 @@ export function AppShell({
         )}
 
         {isLoggedIn && (
-          <div className="sticky top-0 z-10 flex items-center gap-3 px-5 py-2 bg-bg border-b border-border max-[760px]:px-4">
+          <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-2 bg-bg border-b border-border max-[760px]:px-4">
             <div className="text-[10px] text-fg-muted tracking-[0.4px] uppercase shrink-0 max-[760px]:hidden">
               {getBreadcrumb(currentPath)}
-            </div>
-            <div className="flex-1 max-w-[380px] flex items-center gap-1.5 bg-surface border border-border px-2.5 py-1 text-xs text-fg-soft">
-              <span>⌕</span>
-              <input placeholder="搜索…" className="flex-1 border-0 bg-transparent outline-none text-fg font-[inherit]" />
-              <kbd className="font-mono text-[9px] bg-surface border border-border px-1 text-fg-muted">⌘K</kbd>
             </div>
             <div className="flex items-center">
               <AlertBadge />
