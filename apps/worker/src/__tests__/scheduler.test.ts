@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ } from "../queues";
 import { enqueueEnabledSources, shouldDisableSource } from "../scheduler";
+import { registerRepeatJobs, type SchedulerRepeatQueues } from "../scheduler-main";
 
 describe("scheduler", () => {
   it("uses 6h Asia/Shanghai cron", () => {
@@ -30,5 +31,52 @@ describe("scheduler", () => {
     expect(calls[0]?.[2].jobId).toMatch(/^fetch-source-1-/);
     expect(calls[1]?.[2].jobId).toMatch(/^fetch-source-2-/);
     expect(calls[0]?.[2].jobId).not.toBe("fetch-source-1");
+  });
+
+  it("registers all repeat jobs from the scheduler main entrypoint", async () => {
+    const makeQueue = () => ({ add: vi.fn(async () => undefined), close: vi.fn(async () => undefined) });
+    const queues = {
+      fetch: makeQueue(),
+      daily: makeQueue(),
+      cleanup: makeQueue(),
+      quotesFetch: makeQueue(),
+      briefingGen: makeQueue(),
+      briefingPush: makeQueue(),
+    } as unknown as SchedulerRepeatQueues;
+    const logger = { info: vi.fn(), error: vi.fn() };
+
+    await registerRepeatJobs(queues, logger);
+
+    expect(queues.fetch.add).toHaveBeenCalledWith(
+      "schedule-fetch-sources",
+      { sourceId: 0 },
+      expect.objectContaining({ jobId: "schedule-fetch-sources" })
+    );
+    expect(queues.daily.add).toHaveBeenCalledWith(
+      "schedule-daily-report",
+      {},
+      expect.objectContaining({ jobId: "schedule-daily-report" })
+    );
+    expect(queues.cleanup.add).toHaveBeenCalledWith(
+      "schedule-cleanup",
+      {},
+      expect.objectContaining({ jobId: "schedule-cleanup" })
+    );
+    expect(queues.quotesFetch.add).toHaveBeenCalledWith(
+      "schedule-quotes-fetch",
+      { sourceId: 0 },
+      expect.objectContaining({ jobId: "schedule-quotes-fetch" })
+    );
+    expect(queues.briefingGen.add).toHaveBeenCalledWith(
+      "schedule-briefing-gen",
+      {},
+      expect.objectContaining({ jobId: "schedule-briefing-gen" })
+    );
+    expect(queues.briefingPush.add).toHaveBeenCalledWith(
+      "schedule-briefing-push",
+      { briefingId: 0 },
+      expect.objectContaining({ jobId: "schedule-briefing-push" })
+    );
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ queue: "fe-fetch" }), "registered repeat job");
   });
 });

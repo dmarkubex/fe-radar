@@ -90,7 +90,7 @@ services:
 
   scheduler:
     image: harborssl.fegroup.cn/custom-project/fe-radar-worker:latest
-    command: ["node", "dist/apps/worker/src/scheduler.js"]
+    command: ["node", "dist/apps/worker/src/scheduler-main.js"]
     environment:
       NODE_ENV: production
       TZ: Asia/Shanghai

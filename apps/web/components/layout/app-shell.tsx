@@ -189,7 +189,7 @@ function NavSection({
 
   return (
     <>
-      <div className="px-3 pt-2.5 pb-0.5 text-[8px] tracking-[1.2px] uppercase text-white/40">
+      <div className="px-3 pt-3 pb-1 text-[10px] tracking-[1.2px] uppercase text-white/50">
         {title}
       </div>
       <nav>
@@ -203,10 +203,10 @@ function NavSection({
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center justify-between px-3 py-1 text-[11px] border-l-2
+              className={`flex items-center justify-between px-3 py-1.5 text-[13px] font-medium leading-5 border-l-2 transition-colors
                 ${isActive
-                  ? "bg-sunshine-700/18 text-white border-l-accent"
-                  : "text-white/82 border-l-transparent hover:bg-white/[0.04] hover:text-white"
+                  ? "bg-accent text-white border-l-sunshine-500"
+                  : "text-white/86 border-l-transparent hover:bg-accent/90 hover:text-white hover:border-l-sunshine-500"
                 }`}
             >
               <span>{item.label}</span>

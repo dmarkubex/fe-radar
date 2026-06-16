@@ -3,7 +3,7 @@
 # 说明：
 #  - worker 通过 `tsc -p tsconfig.json` 编译到 dist/。因 tsconfig.base.json 的 paths 将
 #    @fe-radar/* 解析到 packages/*/src，tsc 把 packages 源码纳入编译图，实际产物路径为
-#    dist/apps/worker/src/main.js（与 scheduler.js 同级），并非裸 dist/main.js。
+#    dist/apps/worker/src/main.js（与 scheduler-main.js 同级），并非裸 dist/main.js。
 #    本镜像 WORKDIR=/app/apps/worker，故 `node dist/apps/worker/src/main.js` 即真实入口。
 #  - fetcher 使用 Playwright（chromium.launch headless）。Playwright 自带的 Chromium 需要
 #    glibc，alpine(musl) 无法运行，故运行期基于 node:22-slim（glibc）。
@@ -115,7 +115,7 @@ USER worker
 WORKDIR /app/apps/worker
 
 # 默认入口 worker；scheduler 服务复用同镜像并在 stack.yml override command 为
-# ["node", "dist/apps/worker/src/scheduler.js"]。ENTRYPOINT 负责 *_FILE 密钥注入，
+# ["node", "dist/apps/worker/src/scheduler-main.js"]。ENTRYPOINT 负责 *_FILE 密钥注入，
 # command override 会作为参数透传给它。
 ENTRYPOINT ["/usr/local/bin/fe-entrypoint.sh"]
 CMD ["node", "dist/apps/worker/src/main.js"]
