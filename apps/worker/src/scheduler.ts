@@ -10,9 +10,10 @@ export const DISABLE_AFTER_FAIL_DAYS = 7;
 
 export async function enqueueEnabledSources(db: DbClient, queue: Queue<FetchSourceJob>): Promise<number> {
   const enabledSources = await listSources(db, { enabled: true });
+  const newsSources = enabledSources.filter((source) => source.fetcherType !== "quotes");
   const batchId = randomUUID();
   await Promise.all(
-    enabledSources.map((source) =>
+    newsSources.map((source) =>
       queue.add("fetch-source", { sourceId: source.id }, {
         jobId: `fetch-source-${source.id}-${batchId}`,
         attempts: 3,
@@ -20,7 +21,7 @@ export async function enqueueEnabledSources(db: DbClient, queue: Queue<FetchSour
       })
     )
   );
-  return enabledSources.length;
+  return newsSources.length;
 }
 
 export async function scheduleFetchCron(queue: Queue<FetchSourceJob>): Promise<void> {

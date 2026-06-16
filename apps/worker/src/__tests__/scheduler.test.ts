@@ -14,12 +14,16 @@ describe("scheduler", () => {
     expect(shouldDisableSource({ failCount: 7 })).toBe(true);
   });
 
-  it("enqueues enabled sources", async () => {
+  it("enqueues enabled non-quotes sources", async () => {
     const db = {
       select: vi.fn(() => ({
         from: vi.fn(() => ({
           orderBy: vi.fn(() => ({
-            where: vi.fn(async () => [{ id: 1 }, { id: 2 }])
+            where: vi.fn(async () => [
+              { id: 1, fetcherType: "rss" },
+              { id: 2, fetcherType: "playwright" },
+              { id: 3, fetcherType: "quotes" }
+            ])
           }))
         }))
       }))
@@ -30,6 +34,7 @@ describe("scheduler", () => {
     const calls = queue.add.mock.calls as unknown as Array<[string, { sourceId: number }, { jobId: string }]>;
     expect(calls[0]?.[2].jobId).toMatch(/^fetch-source-1-/);
     expect(calls[1]?.[2].jobId).toMatch(/^fetch-source-2-/);
+    expect(calls.map((call) => call[1].sourceId)).not.toContain(3);
     expect(calls[0]?.[2].jobId).not.toBe("fetch-source-1");
   });
 
