@@ -167,14 +167,13 @@ describe("sseAdapter.fetch", () => {
     });
   });
 
-  it("throws when API responds with rate limiting", async () => {
+  it("returns empty when API responds with rate limiting", async () => {
     mockFetch
       .mockResolvedValueOnce(jsonpResponse({}, 429))
       .mockResolvedValueOnce(jsonpResponse({}, 429));
 
-    await expect(sse.sseAdapter.fetch({ sourceName: "上交所公告" })).rejects.toMatchObject({
-      code: "FETCH_429",
-    });
+    const items = await sse.sseAdapter.fetch({ sourceName: "上交所公告" });
+    expect(items).toEqual([]);
   });
 
   it("skips malformed records while keeping valid ones", async () => {

@@ -51,6 +51,23 @@ describe("crawl risk-filter", () => {
     })).toHaveLength(1);
   });
 
+  it("passes through items when riskFilter is not enabled", () => {
+    const items = [
+      {
+        title: "行业周报",
+        url: "https://b",
+        content: "无关内容",
+        publishedAt: new Date(),
+      },
+    ];
+
+    expect(filterRiskResults(items, {
+      type: "crawl",
+      adapter: "firecrawl",
+      queries: ["x"],
+    })).toEqual(items);
+  });
+
   it("requires risk keywords from source config when riskFilter is enabled", () => {
     expect(() => filterRiskResults([{
       title: "远东控股收到行政处罚告知书",

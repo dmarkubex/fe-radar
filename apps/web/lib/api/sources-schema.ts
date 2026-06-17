@@ -138,7 +138,7 @@ function crawlRiskKeywordsConfigured(value: {
     includeDomains?: string[];
   };
 }): boolean {
-  if (value.config?.type !== "crawl" || value.config.riskFilter === false) {
+  if (value.config?.type !== "crawl" || value.config.riskFilter !== true) {
     return true;
   }
   return Boolean(value.config.entityKeywords?.length && value.config.riskKeywords?.length && value.config.includeDomains?.length);

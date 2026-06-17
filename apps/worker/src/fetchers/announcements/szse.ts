@@ -15,6 +15,7 @@ import { acquireUserAgent } from "../../lib/ua-pool";
 import type { AnnouncementSourceConfig, FetchContext, StandardItem } from "../types";
 import type { AnnouncementAdapter } from "./types";
 import { filterItemsByTitleKeywords, resolveTitleKeywords } from "./litigation-filter";
+import { isRateLimitFetchError } from "./rate-limit";
 
 const DEFAULT_ENDPOINT = "http://www.szse.cn/api/disc/announcement/annList";
 const BASE_URL = "http://www.szse.cn";
@@ -252,6 +253,9 @@ export async function fetchJsonPostWithPolicy(
   }
 
   if (lastError instanceof SourceFetchError) {
+    if (isRateLimitFetchError(lastError)) {
+      return {};
+    }
     throw lastError;
   }
   throw new SourceFetchError("FETCH_TIMEOUT", "SZSE request failed after retries", { url, cause: lastError });

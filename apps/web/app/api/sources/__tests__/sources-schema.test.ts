@@ -79,8 +79,25 @@ describe("sources api schema", () => {
         adapter: "firecrawl",
         queries: ["远东控股 诉讼"],
         limit: 5,
+        riskFilter: true,
         entityKeywords: ["远东控股"],
         riskKeywords: ["诉讼"],
+        includeDomains: ["www.gov.cn"],
+      },
+    }).success).toBe(true);
+  });
+
+  it("accepts crawl config without riskFilter when keywords are omitted", () => {
+    expect(createSourceSchema.safeParse({
+      name: "Firecrawl-通用检索",
+      url: "https://internal.fe-radar/crawl/generic",
+      fetcherType: "crawl",
+      tier: "T2",
+      config: {
+        type: "crawl",
+        adapter: "firecrawl",
+        queries: ["电线电缆 政策"],
+        limit: 5,
         includeDomains: ["www.gov.cn"],
       },
     }).success).toBe(true);
@@ -98,6 +115,7 @@ describe("sources api schema", () => {
         adapter: "firecrawl",
         queries: ["远东控股 诉讼"],
         limit: 5,
+        riskFilter: true,
       },
     }).success).toBe(false);
   });
@@ -114,6 +132,7 @@ describe("sources api schema", () => {
         adapter: "firecrawl",
         queries: ["远东控股 诉讼"],
         limit: 5,
+        riskFilter: true,
         entityKeywords: ["远东控股"],
         riskKeywords: ["诉讼"],
       },

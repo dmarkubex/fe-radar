@@ -76,7 +76,7 @@ export function filterRiskResults(
   items: StandardItem[],
   config: CrawlSourceConfig
 ): StandardItem[] {
-  if (config.riskFilter === false) {
+  if (config.riskFilter !== true) {
     return items;
   }
 

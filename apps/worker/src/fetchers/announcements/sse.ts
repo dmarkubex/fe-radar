@@ -14,6 +14,7 @@ import { assertRobotsAllowed } from "../../lib/robots";
 import { acquireUserAgent } from "../../lib/ua-pool";
 import type { AnnouncementSourceConfig, FetchContext, StandardItem } from "../types";
 import type { AnnouncementAdapter } from "./types";
+import { isRateLimitFetchError } from "./rate-limit";
 
 const DEFAULT_ENDPOINT = "http://query.sse.com.cn/security/stock/queryCompanyBulletin.do";
 const SSE_BASE_URL = "https://www.sse.com.cn";
@@ -231,7 +232,7 @@ export function mapSseResponseToStandardItems(response: SseApiResponse): Standar
     .filter((item): item is StandardItem => item !== null);
 }
 
-async function fetchTextWithPolicy(url: string, options: FetchTextOptions): Promise<string> {
+async function fetchTextWithPolicy(url: string, options: FetchTextOptions): Promise<string | null> {
   const userAgent = acquireUserAgent(options.useRealUa);
   const fetchImpl = options.fetchImpl ?? undiciFetch;
   await assertRobotsAllowed(url, userAgent, fetchImpl as unknown as typeof fetch);
@@ -273,6 +274,9 @@ async function fetchTextWithPolicy(url: string, options: FetchTextOptions): Prom
   }
 
   if (lastError instanceof SourceFetchError) {
+    if (isRateLimitFetchError(lastError)) {
+      return null;
+    }
     throw lastError;
   }
   throw new SourceFetchError("FETCH_TIMEOUT", "SSE request failed after retries", { url, cause: lastError });
@@ -292,6 +296,9 @@ export const sseAdapter: AnnouncementAdapter = {
       timeoutMs: 8000,
       useRealUa: ctx.useRealUa ?? true,
     });
+    if (body === null) {
+      return [];
+    }
     const parsed = parseSseJsonp(body);
     if (!parsed) {
       throw new SourceFetchError("FETCH_PARSE_ERROR", "SSE JSONP response cannot be parsed", { endpoint });

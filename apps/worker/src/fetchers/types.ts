@@ -42,11 +42,8 @@ export interface AnnouncementSourceConfig {
   [key: string]: unknown;
 }
 
-export interface CrawlSourceConfig {
-  type: "crawl";
-  adapter: string;
-  queries: string[];
-  [key: string]: unknown;
-}
+import type { CrawlSourceConfig } from "./crawl/types";
+
+export type { CrawlSourceConfig };
 
 export type SourceConfig = RssSourceConfig | HtmlSourceConfig | PlaywrightSourceConfig | AnnouncementSourceConfig | CrawlSourceConfig;

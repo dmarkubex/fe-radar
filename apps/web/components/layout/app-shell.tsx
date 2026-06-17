@@ -200,8 +200,8 @@ function NavSection({
               href={item.href}
               className={`flex items-center justify-between px-3 py-1.5 text-[13px] font-medium leading-5 border-l-2 transition-colors
                 ${isActive
-                  ? "bg-accent text-white border-l-sunshine-500"
-                  : "text-white/86 border-l-transparent hover:bg-accent/90 hover:text-white hover:border-l-sunshine-500"
+                  ? "bg-white/15 text-white border-l-sunshine-500"
+                  : "text-white/86 border-l-transparent hover:bg-white/10 hover:text-white hover:border-l-sunshine-500/80"
                 }`}
             >
               <span>{item.label}</span>

@@ -4,15 +4,7 @@ export function isRiskSearchSourceCategory(sourceCategory?: string | null): bool
   return sourceCategory?.trim() === RISK_SEARCH_SOURCE_CATEGORY;
 }
 
-export function matchesC1Keywords(text: string, keywords: readonly string[]): boolean {
-  const normalized = text.trim();
-  if (!normalized) {
-    return false;
-  }
-  return keywords.some((keyword) => normalized.includes(keyword));
-}
-
-export function matchesRiskKeywords(text: string, keywords: readonly string[]): boolean {
+export function matchesAnyKeyword(text: string, keywords: readonly string[]): boolean {
   const normalized = text.trim();
   if (!normalized) {
     return false;
@@ -27,5 +19,5 @@ export function isRelevantRiskResult(
   riskKeywords: readonly string[]
 ): boolean {
   const combined = `${title}\n${description}`;
-  return matchesC1Keywords(combined, entityKeywords) && matchesRiskKeywords(combined, riskKeywords);
+  return matchesAnyKeyword(combined, entityKeywords) && matchesAnyKeyword(combined, riskKeywords);
 }

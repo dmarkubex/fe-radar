@@ -113,8 +113,13 @@ a {
   text-decoration: none;
 }
 
-a:hover {
+/* 仅主内容区链接 hover 变 accent；侧栏深色底上的导航不受此规则影响 */
+main a:hover {
   color: #00618f;
+}
+
+aside a:hover {
+  color: inherit;
 }
 
 button {

@@ -201,14 +201,13 @@ describe("cninfoAdapter.fetch", () => {
     });
   });
 
-  it("throws when API responds with rate limiting", async () => {
+  it("returns empty when API responds with rate limiting", async () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse({}, 429))
       .mockResolvedValueOnce(jsonResponse({}, 429));
 
-    await expect(cninfo.cninfoAdapter.fetch({ sourceName: "巨潮资讯" })).rejects.toMatchObject({
-      code: "FETCH_429",
-    });
+    const items = await cninfo.cninfoAdapter.fetch({ sourceName: "巨潮资讯" });
+    expect(items).toEqual([]);
   });
 
   it("rejects unapproved endpoint overrides", async () => {

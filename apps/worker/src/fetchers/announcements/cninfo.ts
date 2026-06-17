@@ -15,6 +15,7 @@ import { acquireUserAgent } from "../../lib/ua-pool";
 import type { AnnouncementSourceConfig, FetchContext, StandardItem } from "../types";
 import type { AnnouncementAdapter } from "./types";
 import { dedupeStandardItems, filterItemsByTitleKeywords, resolveTitleKeywords } from "./litigation-filter";
+import { isRateLimitFetchError } from "./rate-limit";
 
 const DEFAULT_ENDPOINT = "http://www.cninfo.com.cn/new/hisAnnouncement/query";
 const BASE_URL = "http://www.cninfo.com.cn";
@@ -268,6 +269,9 @@ export async function fetchFormPostWithPolicy(
   }
 
   if (lastError instanceof SourceFetchError) {
+    if (isRateLimitFetchError(lastError)) {
+      return {};
+    }
     throw lastError;
   }
   throw new SourceFetchError("FETCH_TIMEOUT", "CNINFO request failed after retries", {
@@ -328,6 +332,9 @@ export const cninfoAdapter: AnnouncementAdapter = {
     }
 
     if (failedStocks.length === stockCodes.length) {
+      if (isRateLimitFetchError(lastError)) {
+        return [];
+      }
       if (lastError instanceof SourceFetchError) {
         throw lastError;
       }

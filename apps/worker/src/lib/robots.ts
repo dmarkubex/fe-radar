@@ -31,27 +31,17 @@ async function getRobotsParser(target: URL, fetchImpl: typeof fetch): Promise<Re
   }
 
   const robotsUrl = new URL("/robots.txt", origin).toString();
-  let body = "";
+  // robots.txt 不可达时 fail-open（允许抓取），避免网络抖动导致整源失败；明确 Disallow 仍拦截。
+  let body = "User-agent: *\nAllow: /";
   try {
     const response = await fetchImpl(robotsUrl, { signal: AbortSignal.timeout(3000) });
-    if (!response.ok) {
-      throw new SourceFetchError("ROBOTS_UNAVAILABLE", `robots.txt fetch failed with ${response.status}`, {
-        origin,
-        robotsUrl,
-        status: response.status,
-      });
+    if (response.ok) {
+      body = await response.text();
+    } else {
+      logger.warn({ origin, robotsUrl, status: response.status }, "robots.txt unavailable, fail-open");
     }
-    body = await response.text();
   } catch (error) {
-    if (error instanceof SourceFetchError) {
-      throw error;
-    }
-    logger.warn({ error, origin }, "robots.txt fetch failed, blocking fetch");
-    throw new SourceFetchError("ROBOTS_UNAVAILABLE", "robots.txt fetch failed", {
-      origin,
-      robotsUrl,
-      cause: error,
-    });
+    logger.warn({ error, origin }, "robots.txt fetch failed, fail-open");
   }
 
   const parser = robotsParser(robotsUrl, body);

@@ -14,11 +14,9 @@ describe("robots guard", () => {
     await expect(assertRobotsAllowed("https://example.com/news", "FE-Radar Bot", fetchImpl as typeof fetch)).resolves.toBeUndefined();
   });
 
-  it("blocks when robots.txt cannot be fetched", async () => {
+  it("allows fetch when robots.txt cannot be fetched (fail-open)", async () => {
     clearRobotsCache();
     const fetchImpl = async () => new Response("not found", { status: 404 });
-    await expect(assertRobotsAllowed("https://example.com/news", "FE-Radar Bot", fetchImpl as typeof fetch)).rejects.toMatchObject({
-      code: "ROBOTS_UNAVAILABLE",
-    });
+    await expect(assertRobotsAllowed("https://example.com/news", "FE-Radar Bot", fetchImpl as typeof fetch)).resolves.toBeUndefined();
   });
 });

@@ -16,7 +16,7 @@ export interface CrawlSourceConfig {
   location?: string;
   /** Firecrawl tbs，默认 qdr:w（近一周） */
   tbs?: string;
-  /** 结果须同时命中实体词 + 风险词，默认 true */
+  /** 为 true 时结果须同时命中 entityKeywords + riskKeywords；未设置或 false 时不做风险过滤 */
   riskFilter?: boolean;
   entityKeywords?: string[];
   riskKeywords?: string[];

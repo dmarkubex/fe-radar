@@ -8,6 +8,7 @@ export * from "./announcements/types";
 export { fetchAnnouncements, registerAnnouncementAdapter } from "./announcements/index";
 export type {
   CrawlAdapter,
+  CrawlSourceConfig,
   FirecrawlSearchResult,
   FirecrawlSearchResponse,
   FirecrawlSearchRequest,

@@ -159,14 +159,13 @@ describe("szseAdapter.fetch", () => {
     });
   });
 
-  it("throws when API responds with rate limiting", async () => {
+  it("returns empty when API responds with rate limiting", async () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse({}, 429))
       .mockResolvedValueOnce(jsonResponse({}, 429));
 
-    await expect(szse.szseAdapter.fetch({ sourceName: "深交所披露" })).rejects.toMatchObject({
-      code: "FETCH_429",
-    });
+    const items = await szse.szseAdapter.fetch({ sourceName: "深交所披露" });
+    expect(items).toEqual([]);
   });
 
   it("rejects unapproved endpoint overrides", async () => {
