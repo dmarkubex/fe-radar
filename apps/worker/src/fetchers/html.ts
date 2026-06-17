@@ -12,7 +12,7 @@ function firstSelectorMatch(root: Cheerio<Element>, selector: string): Cheerio<E
 }
 
 export async function fetchHtml(config: HtmlSourceConfig, context: FetchContext, fetchImpl?: typeof fetch): Promise<StandardItem[]> {
-  const html = await fetchTextWithPolicy(config.listUrl, { timeoutMs: 5000, useRealUa: context.useRealUa, fetchImpl });
+  const html = await fetchTextWithPolicy(config.listUrl, { timeoutMs: 15000, useRealUa: context.useRealUa, fetchImpl });
   const $ = cheerio.load(html);
   const items: StandardItem[] = [];
 
@@ -38,6 +38,12 @@ export async function fetchHtml(config: HtmlSourceConfig, context: FetchContext,
   });
 
   if (items.length === 0) {
+    if (html.includes("aliyun_waf") || html.includes("acw_sc__v2")) {
+      throw new SourceFetchError("FETCH_WAF_CHALLENGE", "page blocked by Aliyun WAF challenge", {
+        source: context.sourceName,
+        listUrl: config.listUrl,
+      });
+    }
     throw new SourceFetchError("FETCH_HTML_EMPTY", "HTML selectors matched no items", { source: context.sourceName });
   }
 

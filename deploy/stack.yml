@@ -53,12 +53,8 @@ services:
       PROXY_LIST_FILE: /run/secrets/proxy_list
       DEEPSEEK_API_KEY_FILE: /run/secrets/deepseek_api_key
       KIMI_API_KEY_FILE: /run/secrets/kimi_api_key
-      # Firecrawl C1 风险检索默认关闭（信源 enabled=false）。启用步骤：
-      #   1) docker secret create firecrawl_api_key <(printf 'fc-xxx')
-      #   2) 取消注释下方 FIRECRAWL_API_KEY_FILE、worker secrets 的 firecrawl_api_key、
-      #      以及文件末尾 secrets 段的 firecrawl_api_key
-      #   3) admin 后台将该信源 enabled 改为 true
-      # FIRECRAWL_API_KEY_FILE: /run/secrets/firecrawl_api_key
+      # Firecrawl C1 风险检索：先创建 secret → docker secret create firecrawl_api_key <(printf 'fc-xxx')
+      FIRECRAWL_API_KEY_FILE: /run/secrets/firecrawl_api_key
       RSSHUB_BASE_URL: http://rsshub:1200
       BRIEFING_TEMPLATE_PATH: /app/design/templates/briefing.docx
       BRIEFING_MINIO_BUCKET: fe-radar-briefings
@@ -71,7 +67,7 @@ services:
       - db_password
       - deepseek_api_key
       - kimi_api_key
-      # - firecrawl_api_key  # 启用 Firecrawl 时取消注释（见上方说明）
+      - firecrawl_api_key
       - proxy_list
       - minio_root_user
       - minio_root_password
@@ -265,10 +261,8 @@ secrets:
     external: true
   grafana_admin_password:
     external: true
-  # Firecrawl 默认关闭，故不声明为必需 external secret（否则 secret 不存在时 stack deploy 失败）。
-  # 启用时创建 secret 并取消注释此处与 worker secrets / FIRECRAWL_API_KEY_FILE：
-  # firecrawl_api_key:
-  #   external: true
+  firecrawl_api_key:
+    external: true
 
 configs:
   grafana_datasource_postgres:
