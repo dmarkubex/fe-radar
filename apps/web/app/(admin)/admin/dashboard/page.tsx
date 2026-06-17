@@ -19,6 +19,7 @@ function kpiDelta(tone: string | undefined): string {
 
 function alertBadge(type: string): string {
   if (type === "own") return "bg-danger/10 text-danger";
+  if (type === "legal") return "bg-fg/10 text-fg";
   if (type === "safety") return "bg-warn/10 text-warn";
   return "bg-accent/10 text-accent";
 }
@@ -61,9 +62,11 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
 
   const alertEntries: { type: string; count: number }[] = [
     { type: "own", count: data.alertsToday.own },
+    { type: "legal", count: data.alertsToday.legal },
     { type: "safety", count: data.alertsToday.safety },
     { type: "policy", count: data.alertsToday.policy }
   ];
+  const alertsTotal = data.alertsToday.own + data.alertsToday.legal + data.alertsToday.safety + data.alertsToday.policy;
 
   const scrubberPending = data.scrubberPending;
   const mergeConflictsPending = data.mergeConflictsPending;
@@ -157,7 +160,7 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
             <div className="flex items-baseline justify-between border-b border-hairline pb-3">
               <h3 className="font-display text-base font-semibold text-fg">今日告警</h3>
               <span className="font-mono text-[11px] text-fg-soft">
-                共 {data.alertsToday.own + data.alertsToday.safety + data.alertsToday.policy} 条
+                共 {alertsTotal} 条
               </span>
             </div>
             <div className="mt-4 space-y-0 divide-y divide-hairline">
@@ -173,6 +176,7 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
                   </span>
                   <span className="text-sm text-fg">
                     {entry.type === "own" && "自家公司相关"}
+                    {entry.type === "legal" && "竞品涉诉"}
                     {entry.type === "safety" && "安全合规"}
                     {entry.type === "policy" && "政策变动"}
                   </span>

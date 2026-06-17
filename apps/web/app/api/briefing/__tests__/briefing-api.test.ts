@@ -23,30 +23,12 @@
  *  12.  GET  /api/briefing/targets — sign_secret masked as "***"
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-
-// ---------------------------------------------------------------------------
-// Helpers to build minimal NextRequest mocks
-// ---------------------------------------------------------------------------
-
-function makeRequest(
-  url: string,
-  options: { method?: string; body?: unknown; role?: string } = {}
-): { request: Request; nextRequest: unknown } {
-  const { method = "GET", body } = options;
-  const req = new Request(url, {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: body !== undefined ? JSON.stringify(body) : undefined
-  });
-  return { request: req, nextRequest: req };
-}
+import { describe, it, expect, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Briefing schema tests (Zod validation — no DB required)
 // ---------------------------------------------------------------------------
 
-import { describe as d2, it as it2, expect as e2 } from "vitest";
 import {
   createTargetSchema,
   updateTargetSchema,

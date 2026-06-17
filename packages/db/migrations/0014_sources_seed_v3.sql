@@ -2,7 +2,7 @@
 -- KYO-57: government/association HTML news source selector fixes (seed v3)
 -- 策略：
 --   B 组（URL 变更）：UPDATE WHERE name=... AND url=<旧 url>
---   A 组（URL 不变）：INSERT ... ON CONFLICT (url) DO UPDATE SET 目标字段
+--   A 组（URL 不变）：INSERT ... ON CONFLICT (url) DO NOTHING，避免重跑覆盖 admin 后台配置
 
 BEGIN;
 
@@ -76,11 +76,6 @@ VALUES
      '{"type":"html","listUrl":"https://www.in-en.com/news/","useRealUa":true,"selectors":{"item":"ul.infoList > li","title":".listTxt h5 a","link":"a","date":"span"}}'::jsonb,
      'T2', '媒体-垂直', true)
 
-ON CONFLICT (url) DO UPDATE
-    SET fetcher_type = EXCLUDED.fetcher_type,
-        config       = EXCLUDED.config,
-        enabled      = EXCLUDED.enabled,
-        category     = EXCLUDED.category,
-        tier         = EXCLUDED.tier;
+ON CONFLICT (url) DO NOTHING;
 
 COMMIT;

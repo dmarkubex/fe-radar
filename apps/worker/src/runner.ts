@@ -4,5 +4,5 @@ import { handleFetchJob } from "./handlers/fetch";
 
 export type { WorkerRuntime };
 export { startWorker };
-export { workerName } from "./index";
+export { workerName } from "./identity";
 export const __testables = { handleFetchJob, createWorkerRuntime };

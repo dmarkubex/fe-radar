@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { NextRequest } from "next/server";
+import type * as AuthzModule from "@/lib/api/authz";
 
 // Route-level integration test: real zod schema + real canIncludeBlocked,
 // query layer + getRequestUser mocked. Asserts request wiring, validation, RBAC gating.
@@ -10,7 +11,7 @@ const { mockFetchTimeline, mockGetRequestUser } = vi.hoisted(() => ({
 
 vi.mock("@/lib/api/timeline-query", () => ({ fetchTimeline: mockFetchTimeline }));
 vi.mock("@/lib/api/authz", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/api/authz")>();
+  const actual = await importOriginal<typeof AuthzModule>();
   return { ...actual, getRequestUser: mockGetRequestUser };
 });
 

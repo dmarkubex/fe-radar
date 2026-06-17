@@ -23,16 +23,16 @@ const config: Config = {
         accent: {
           DEFAULT: "#00618f",
           flame: "#008fc4",
-          block: "#0aa2cf",
+          block: "#008fc4",
         },
         sunshine: {
-          900: "#00749f",
+          900: "#00618f",
           700: "#0098c8",
-          500: "#4bb9d6",
+          500: "#0098c8",
           300: "#9dd8e8",
         },
         gold: "#cfeaf4",
-        yellow: "#e6f6fb",
+        yellow: "#e8f3f8",
         border: {
           DEFAULT: "#d5e6ee",
           strong: "#a9c9d8",
@@ -66,10 +66,8 @@ const config: Config = {
         ],
       },
       boxShadow: {
-        card:
-          "rgba(0,91,134,0.10) -2px 4px 12px, rgba(0,91,134,0.06) -8px 16px 28px, rgba(0,91,134,0.04) -20px 40px 56px",
-        pop:
-          "rgba(0,91,134,0.14) -8px 16px 39px, rgba(0,91,134,0.10) -33px 64px 72px, rgba(0,91,134,0.06) -73px 144px 97px",
+        card: "none",
+        pop: "0 12px 32px rgba(0, 97, 143, 0.12)",
       },
       letterSpacing: {
         tightest: "-2.4px",

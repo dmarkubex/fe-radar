@@ -15,6 +15,7 @@ import { isMockMode } from "@/lib/mock-mode";
 import { mockFetchDashboardData } from "@/lib/mock-data";
 
 const MANUAL_SCRUB_SUMMARY = "[需人工脱敏]";
+type DashboardAlertType = keyof DashboardData["alertsToday"];
 
 export interface DashboardMetric {
   label: string;
@@ -40,10 +41,24 @@ export interface DashboardData {
     own: number;
     safety: number;
     policy: number;
+    legal: number;
   };
   mergeConflictsPending: number;
   scrubberPending: number;
   recentAuditCount: number;
+}
+
+export function countAlertsByType(rows: Array<{ alertType: string | null }>): DashboardData["alertsToday"] {
+  const alertsToday: DashboardData["alertsToday"] = { own: 0, safety: 0, policy: 0, legal: 0 };
+  const knownTypes = new Set<DashboardAlertType>(["own", "safety", "policy", "legal"]);
+
+  for (const row of rows) {
+    if (row.alertType && knownTypes.has(row.alertType as DashboardAlertType)) {
+      alertsToday[row.alertType as DashboardAlertType] += 1;
+    }
+  }
+
+  return alertsToday;
 }
 
 export async function fetchDashboardData(db?: DbClient): Promise<DashboardData> {
@@ -95,12 +110,7 @@ export async function fetchDashboardData(db?: DbClient): Promise<DashboardData> 
   const oldPending = oldPendingTotals?.total ?? 0;
   const oldPendingRatio = pending === 0 ? 0 : oldPending / pending;
   const backlogTone = oldPendingRatio > 0.5 ? "critical" : oldPendingRatio > 0.3 ? "warning" : "default";
-  const alertsToday = { own: 0, safety: 0, policy: 0 };
-  for (const row of alertRows) {
-    if (row.alertType === "own" || row.alertType === "safety" || row.alertType === "policy") {
-      alertsToday[row.alertType] += 1;
-    }
-  }
+  const alertsToday = countAlertsByType(alertRows);
 
   return {
     metrics: [

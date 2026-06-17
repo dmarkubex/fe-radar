@@ -1,5 +1,4 @@
 import fs from "node:fs/promises";
-import path from "node:path";
 
 import { eq } from "drizzle-orm";
 import { Client as MinioClient } from "minio";

@@ -1,5 +1,5 @@
 import robotsParser from "robots-parser";
-import { createLogger } from "@fe-radar/shared";
+import { createLogger, SourceFetchError } from "@fe-radar/shared";
 import { DEFAULT_USER_AGENT } from "./ua-pool";
 
 const logger = createLogger({ service: "robots" });
@@ -16,7 +16,10 @@ export async function assertRobotsAllowed(url: string, userAgent = DEFAULT_USER_
   const target = new URL(url);
   const parser = await getRobotsParser(target, fetchImpl);
   if (!parser.isAllowed(url, userAgent)) {
-    throw new Error(`robots.txt disallows ${target.pathname}`);
+    throw new SourceFetchError("ROBOTS_DISALLOWED", `robots.txt disallows ${target.pathname}`, {
+      origin: target.origin,
+      path: target.pathname,
+    });
   }
 }
 
@@ -31,10 +34,24 @@ async function getRobotsParser(target: URL, fetchImpl: typeof fetch): Promise<Re
   let body = "";
   try {
     const response = await fetchImpl(robotsUrl, { signal: AbortSignal.timeout(3000) });
-    body = response.ok ? await response.text() : "";
+    if (!response.ok) {
+      throw new SourceFetchError("ROBOTS_UNAVAILABLE", `robots.txt fetch failed with ${response.status}`, {
+        origin,
+        robotsUrl,
+        status: response.status,
+      });
+    }
+    body = await response.text();
   } catch (error) {
-    logger.debug({ error, origin }, "robots.txt fetch failed, treating as empty");
-    body = "";
+    if (error instanceof SourceFetchError) {
+      throw error;
+    }
+    logger.warn({ error, origin }, "robots.txt fetch failed, blocking fetch");
+    throw new SourceFetchError("ROBOTS_UNAVAILABLE", "robots.txt fetch failed", {
+      origin,
+      robotsUrl,
+      cause: error,
+    });
   }
 
   const parser = robotsParser(robotsUrl, body);

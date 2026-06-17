@@ -30,7 +30,7 @@ export default async function HomePage({ searchParams }: { searchParams: PageSea
     category: first(params.category),
     circle: first(params.circle) as "C1" | "C2" | "C3" | undefined,
     tier: first(params.tier) as "T1" | "T2" | "T3" | undefined,
-    alertType: first(params.alertType) as "own" | "safety" | "policy" | undefined,
+    alertType: first(params.alertType) as "own" | "safety" | "policy" | "legal" | undefined,
     eventType: first(params.eventType)
   };
   const initialData = await fetchTimeline({ filters });

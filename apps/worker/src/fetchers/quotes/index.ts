@@ -64,7 +64,6 @@ export async function fetchQuotes(
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const adapter = adapterRegistry[adapterName]!;
   return adapter.fetch(ctx);
 }

@@ -1,4 +1,4 @@
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 import { getDb, commodityQuotes } from "@fe-radar/db";
 import { getRequestUser } from "@/lib/api/authz";
 

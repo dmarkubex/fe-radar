@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SourceForm } from "./source-form";
 
-type FetcherType = "rss" | "html" | "playwright" | "quotes";
+type FetcherType = "rss" | "html" | "playwright" | "quotes" | "announcement" | "crawl";
 
 interface SourceRow {
   id: number;

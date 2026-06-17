@@ -8,7 +8,18 @@ export function alertStripClass(alertType: string | null, circle: string | null)
   if (alertType === "policy") {
     return "bg-accent";
   }
+  if (alertType === "legal") {
+    return "bg-fg";
+  }
   return circle === "C1" ? "bg-accent-flame" : circle === "C2" ? "bg-sunshine-700" : "bg-gold";
+}
+
+export function alertTypeLabel(alertType: string | null): string {
+  if (alertType === "own") return "自家公司";
+  if (alertType === "legal") return "竞品涉诉";
+  if (alertType === "safety") return "安全事故";
+  if (alertType === "policy") return "政策突发";
+  return "情报告警";
 }
 
 export function AlertStrip({ alertType, circle }: { alertType: string | null; circle: string | null }): React.JSX.Element {

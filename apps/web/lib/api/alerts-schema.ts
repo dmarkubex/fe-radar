@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const alertQuerySchema = z.object({
-  type: z.enum(["own", "safety", "policy"]).optional(),
+  type: z.enum(["own", "safety", "policy", "legal"]).optional(),
   level: z.enum(["L1", "L2", "L3"]).optional(),
   source: z.coerce.number().int().positive().optional(),
   cursor: z.string().min(1).optional(),

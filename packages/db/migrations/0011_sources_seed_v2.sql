@@ -5,7 +5,7 @@
 -- 编号：0008/0009/0010 已被 v1.1 commodity_briefing schema 预留（见 spec/v1.1-commodity-briefing/tasks.md T-CB-02a + DMA-50/DMA-156 plan），seed v2 放 0011
 -- 策略：
 --   B 组（URL 变更）：UPDATE WHERE name=... AND url=<旧 url>，先改 url 再做后续操作
---   A 组（URL 不变）：INSERT ... ON CONFLICT (url) DO UPDATE SET 目标字段
+--   A 组（URL 不变）：INSERT ... ON CONFLICT (url) DO NOTHING，避免重跑覆盖 admin 后台配置
 -- Migration runner 按文件名去重，0011 仅执行一次；ON CONFLICT / WHERE 双重防御保证幂等
 
 BEGIN;
@@ -82,8 +82,8 @@ WHERE name = '北极星售电网'
 
 -- ============================================================
 -- A 组：URL 不变，仅调 enabled / config / selectors / fetcher_type
---   使用 INSERT ... ON CONFLICT (url) DO UPDATE；
---   name 字段不在 DO UPDATE 中（保留 admin 改名权）。
+--   使用 INSERT ... ON CONFLICT (url) DO NOTHING；
+--   已存在源的修复必须走显式 backfill migration，保留 admin 手工配置。
 -- ============================================================
 
 INSERT INTO sources (name, url, fetcher_type, config, tier, category, enabled)
@@ -165,11 +165,6 @@ VALUES
      '{"type":"playwright","listUrl":"https://www.zhihu.com/topic/19577810","waitFor":"body","extractor":"() => Array.from(document.querySelectorAll(''a'')).slice(0,10).map(a => ({ title: a.textContent || '''', url: a.href }))"}'::jsonb,
      'T3', '自媒体', false)
 
-ON CONFLICT (url) DO UPDATE
-    SET fetcher_type = EXCLUDED.fetcher_type,
-        config       = EXCLUDED.config,
-        enabled      = EXCLUDED.enabled,
-        category     = EXCLUDED.category,
-        tier         = EXCLUDED.tier;
+ON CONFLICT (url) DO NOTHING;
 
 COMMIT;

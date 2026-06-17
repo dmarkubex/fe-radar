@@ -6,6 +6,7 @@ import { CIRCLE_FILTERS } from "@/components/timeline/meta";
 const TIERS = ["T1", "T2", "T3"];
 const ALERTS = [
   { value: "own", label: "自家" },
+  { value: "legal", label: "涉诉" },
   { value: "safety", label: "事故" },
   { value: "policy", label: "政策" }
 ];

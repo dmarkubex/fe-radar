@@ -4,7 +4,7 @@
  * Endpoint: GET http://query.sse.com.cn/security/stock/queryCompanyBulletin.do
  * JSONP 响应；优先官方 JSON API，不使用 Playwright。
  *
- * NFR: 禁止 LLM；失败返回 []。
+ * NFR: 禁止 LLM；抓取失败抛错交给 fetch handler 记录 source failure。
  */
 
 import { SourceFetchError } from "@fe-radar/shared";
@@ -21,6 +21,8 @@ const DEFAULT_PAGE_SIZE = 30;
 const DEFAULT_BEGIN_PAGE = 0;
 const DEFAULT_LOOKBACK_DAYS = 7;
 const SSE_REFERER = "http://www.sse.com.cn/disclosure/bulletin/company/";
+const ALLOWED_ENDPOINT_HOST = "query.sse.com.cn";
+const ALLOWED_ENDPOINT_PATH = "/security/stock/queryCompanyBulletin.do";
 
 export interface SseBulletinRecord {
   title?: string;
@@ -125,7 +127,9 @@ export function buildSseQueryUrl(config: AnnouncementSourceConfig, now = new Dat
 
   const stock =
     asStringArray(config.stock) ??
+    asStringArray(config.stocks) ??
     asStringArray(config.stockCode) ??
+    asStringArray(config.secCode) ??
     asStringArray(config.securityCode) ??
     (typeof config.securityCode === "string" && config.securityCode.trim()
       ? [config.securityCode.trim()]
@@ -146,6 +150,14 @@ export function buildSseQueryUrl(config: AnnouncementSourceConfig, now = new Dat
   }
 
   return `${DEFAULT_ENDPOINT}?${params.toString()}`;
+}
+
+export function validateSseEndpoint(endpoint: string): string {
+  const parsed = new URL(endpoint);
+  if (parsed.hostname !== ALLOWED_ENDPOINT_HOST || parsed.pathname !== ALLOWED_ENDPOINT_PATH) {
+    throw new SourceFetchError("FETCH_CONFIG", `SSE endpoint is not allowed: ${endpoint}`, { endpoint });
+  }
+  return endpoint;
 }
 
 export function parseSseJsonp(text: string): SseApiResponse | null {
@@ -272,20 +284,18 @@ export const sseAdapter: AnnouncementAdapter = {
   async fetch(ctx: FetchContext): Promise<StandardItem[]> {
     const config = (ctx.sourceConfig ?? {}) as AnnouncementSourceConfig;
     const endpoint =
-      (typeof config.endpoint === "string" && config.endpoint.trim()) || buildSseQueryUrl(config);
+      typeof config.endpoint === "string" && config.endpoint.trim()
+        ? validateSseEndpoint(config.endpoint.trim())
+        : buildSseQueryUrl(config);
 
-    try {
-      const body = await fetchTextWithPolicy(endpoint, {
-        timeoutMs: 8000,
-        useRealUa: ctx.useRealUa ?? true,
-      });
-      const parsed = parseSseJsonp(body);
-      if (!parsed) {
-        return [];
-      }
-      return mapSseResponseToStandardItems(parsed);
-    } catch {
-      return [];
+    const body = await fetchTextWithPolicy(endpoint, {
+      timeoutMs: 8000,
+      useRealUa: ctx.useRealUa ?? true,
+    });
+    const parsed = parseSseJsonp(body);
+    if (!parsed) {
+      throw new SourceFetchError("FETCH_PARSE_ERROR", "SSE JSONP response cannot be parsed", { endpoint });
     }
+    return mapSseResponseToStandardItems(parsed);
   },
 };

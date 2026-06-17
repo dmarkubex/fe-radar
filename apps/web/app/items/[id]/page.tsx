@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { fetchItemDetail } from "@/lib/api/timeline-query";
-import { formatAppTime, scoreLabel } from "@/components/timeline/meta";
-import { alertStripClass } from "@/components/shared/alert-strip";
+import { formatAppTime, scoreLabel, SCORE_DIMENSIONS, entityTypeLabel } from "@/components/timeline/meta";
+import { alertStripClass, alertTypeLabel } from "@/components/shared/alert-strip";
 import { FeedbackButtons } from "@/components/timeline/feedback-buttons";
 import {
   ExternalLink,
@@ -13,23 +13,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const DIMENSIONS = [
-  { key: "d1Policy", label: "政策", abbr: "D1" },
-  { key: "d2Chain", label: "产业链", abbr: "D2" },
-  { key: "d3Market", label: "市场", abbr: "D3" },
-  { key: "d4Tech", label: "技术", abbr: "D4" },
-  { key: "d5Business", label: "商业", abbr: "D5" },
-] as const;
-
-const ENTITY_TYPE_LABELS: Record<string, string> = {
-  company: "企业",
-  person: "人物",
-  product: "产品",
-  technology: "技术",
-  region: "地区",
-  event: "事件",
-  organization: "机构",
-};
+const DIMENSIONS = SCORE_DIMENSIONS;
 
 function dimBarColor(value: number | null): string {
   if (value === null) return "bg-border";
@@ -255,7 +239,7 @@ export default async function ItemDetailPage({
                   <div key={entity.id} className="flex items-center justify-between">
                     <span className="text-[12px] text-fg">{entity.canonicalName}</span>
                     <span className="text-[10px] font-mono text-fg-soft">
-                      {ENTITY_TYPE_LABELS[entity.type] ?? entity.type}
+                      {entityTypeLabel(entity.type)}
                       {entity.circle ? ` · ${entity.circle}` : ""}
                     </span>
                   </div>
@@ -298,7 +282,7 @@ export default async function ItemDetailPage({
               <div className="flex items-center gap-2">
                 <div className={`w-2.5 h-2.5 rounded-full ${alertStripClass(item.alertType, item.topCircle).replace("bg-", "bg-")}`} />
                 <span className="text-[12px] text-fg">
-                  {item.alertType === "own" ? "自家公司" : item.alertType === "safety" ? "安全事故" : "政策突发"}
+                  {alertTypeLabel(item.alertType)}
                 </span>
                 {item.alertLevel && (
                   <span className="text-[10px] font-mono text-fg-soft ml-auto">

@@ -12,7 +12,7 @@ export const timelineFilterSchema = z.object({
   circle: z.enum(["C1", "C2", "C3"]).optional(),
   tier: z.enum(["T1", "T2", "T3"]).optional(),
   eventType: z.string().min(1).optional(),
-  alertType: z.enum(["own", "safety", "policy"]).optional(),
+  alertType: z.enum(["own", "safety", "policy", "legal"]).optional(),
   curated: queryBoolean
 });
 

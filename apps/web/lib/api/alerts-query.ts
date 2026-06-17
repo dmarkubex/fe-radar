@@ -86,7 +86,7 @@ export async function fetchAlerts(query: AlertQuery, db?: DbClient): Promise<{ i
   };
 }
 
-export async function fetchAlertCount(db?: DbClient): Promise<{ own: number; safety: number; policy: number }> {
+export async function fetchAlertCount(db?: DbClient): Promise<{ own: number; safety: number; policy: number; legal: number }> {
   if (isMockMode()) {
     return mockFetchAlertCount();
   }
@@ -100,9 +100,9 @@ export async function fetchAlertCount(db?: DbClient): Promise<{ own: number; saf
     .leftJoin(clusters, eq(clusters.id, clusterItems.clusterId))
     .where(baseAlertConditions({}, true));
 
-  const count = { own: 0, safety: 0, policy: 0 };
+  const count = { own: 0, safety: 0, policy: 0, legal: 0 };
   for (const row of rows) {
-    if (row.alertType === "own" || row.alertType === "safety" || row.alertType === "policy") {
+    if (row.alertType === "own" || row.alertType === "safety" || row.alertType === "policy" || row.alertType === "legal") {
       count[row.alertType] += 1;
     }
   }

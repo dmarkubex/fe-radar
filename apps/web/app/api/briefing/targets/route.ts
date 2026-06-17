@@ -1,4 +1,4 @@
-import { eq, isNull } from "drizzle-orm";
+import { isNull } from "drizzle-orm";
 import { getDb, briefingTargets } from "@fe-radar/db";
 import { getRequestUser, unauthorized, forbidden } from "@/lib/api/authz";
 import { createTargetSchema, validationError } from "@/lib/api/briefing-schema";

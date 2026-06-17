@@ -201,7 +201,6 @@ describe("DINGTALK_REDACT_PATHS", () => {
   });
 
   it("does not log raw webhookUrl in error context (maskedUrl used)", async () => {
-    const loggedObjects: unknown[] = [];
     // We verify the implementation never passes the raw webhook to logger by
     // checking that the signWebhook call is the only place the URL is used.
     // Here we do a structural check: mock fetch to throw, capture logger output.

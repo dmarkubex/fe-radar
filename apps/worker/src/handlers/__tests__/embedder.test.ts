@@ -57,7 +57,7 @@ describe("handleEmbedderJob", () => {
   });
 
   it("boundary: null summaryZh falls back to title as embedding source", async () => {
-    const db = makeDb([{ title: "仅标题", summaryZh: null }]);
+    makeDb([{ title: "仅标题", summaryZh: null }]);
     mockRunEmbedder.mockResolvedValue([0.5]);
 
     await handleEmbedderJob({ data: { itemId: 22 } as never });

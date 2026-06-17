@@ -4,7 +4,6 @@ import {
   encodeBriefingCursor,
   decodeBriefingCursor,
   createTargetSchema,
-  updateTargetSchema,
   regenerateSchema,
 } from "../../../../lib/api/briefing-schema";
 

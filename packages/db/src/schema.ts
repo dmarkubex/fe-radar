@@ -38,7 +38,7 @@ export const sources = pgTable("sources", {
   lastErrorAt: timestamp("last_error_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 }, (table) => ({
-  fetcherTypeCheck: check("sources_fetcher_type_check", sql`${table.fetcherType} IN ('rss', 'html', 'playwright', 'quotes', 'announcement')`),
+  fetcherTypeCheck: check("sources_fetcher_type_check", sql`${table.fetcherType} IN ('rss', 'html', 'playwright', 'quotes', 'announcement', 'crawl')`),
   tierCheck: check("sources_tier_check", sql`${table.tier} IN ('T1', 'T2', 'T3')`),
   enabledTierIdx: index("sources_enabled_tier_idx").on(table.enabled, table.tier),
   categoryIdx: index("sources_category_idx").on(table.category),

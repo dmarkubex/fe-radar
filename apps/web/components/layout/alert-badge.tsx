@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const EMPTY = { own: 0, safety: 0, policy: 0 };
+const EMPTY = { own: 0, safety: 0, policy: 0, legal: 0 };
 
 export function AlertBadge(): React.JSX.Element {
   const [count, setCount] = useState(EMPTY);
@@ -23,7 +23,7 @@ export function AlertBadge(): React.JSX.Element {
     };
   }, []);
 
-  const total = count.own + count.safety + count.policy;
+  const total = count.own + count.safety + count.policy + count.legal;
   if (total === 0) return <></>;
 
   return (

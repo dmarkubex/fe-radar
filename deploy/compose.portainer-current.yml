@@ -1,0 +1,160 @@
+# FE-Radar — 当前 Portainer 线上 stack（已修复 entrypoint 清空 CMD 的坑）
+#
+# 修复点（相对你贴出的线上版本）：
+#   - web:    覆盖 entrypoint 会清空镜像 CMD ["pnpm","start"] → 补回 command:，否则 Next.js 不启动、容器空转重启、3013 端口连不上
+#   - worker: 同理补回 command: ["node","dist/apps/worker/src/main.js"]
+#   - scheduler 本来就有 command:，正常，无需改
+#
+# 这是你手改的「跳过 migrate / 3013 端口」恢复版，不是仓库 canonical 文件（canonical 见 stack.yml）。
+# 粘贴进 Portainer → Stacks → 你的 stack → Editor → Update the stack 即可。
+
+services:
+  postgres:
+    image: harborssl.fegroup.cn/custom-project/fe-radar/postgres-zhparser:pg16
+    environment:
+      POSTGRES_DB: fe_radar
+      POSTGRES_USER: fe_radar
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?在 Portainer stack 环境变量填 DB_PASSWORD}
+      TZ: Asia/Shanghai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # 映射到宿主机，方便 psql 直接查（测试用；生产关闭）
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fe_radar -d fe_radar"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: harborssl.fegroup.cn/custom-project/redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  rsshub:
+    image: harborssl.fegroup.cn/custom-project/rsshub:latest
+    environment:
+      TZ: Asia/Shanghai
+      NODE_ENV: production
+      CACHE_EXPIRE: "3600"
+      REDIS_URL: redis://redis:6379
+      # jiemian.com / yicai.com 回源慢（内网出口），放宽 RSSHub 上游超时 + 重试，避免反复 503
+      REQUEST_TIMEOUT: "30000"
+      REQUEST_RETRY: "2"
+    restart: unless-stopped
+
+  # 一次性迁移 + seed：真迁移已恢复（migrate.ts 顺序跑 migrations/*.sql）。
+  # 全部幂等可重跑：建表 IF NOT EXISTS、约束 DO$$ IF NOT EXISTS pg_constraint、
+  # 0005 索引 DROP IF EXISTS 再建、信源 seed ON CONFLICT(url) DO NOTHING。
+  # ⚠ 副作用：0005 会重建 ivfflat 索引；信源 seed 不覆盖 admin 后台配置。
+  # ⚠ 0017 等最新 migration 生效，必须用最新源码重建并推送 fe-radar-migrate:latest。
+  migrate:
+    image: harborssl.fegroup.cn/custom-project/fe-radar-migrate:latest
+    command:
+      - sh
+      - -c
+      - "pnpm --filter @fe-radar/db migrate && pnpm --filter @fe-radar/db seed:admin"
+    environment:
+      TZ: Asia/Shanghai
+      DATABASE_URL: postgres://fe_radar:${DB_PASSWORD:?在 Portainer stack 环境变量填 DB_PASSWORD}@postgres:5432/fe_radar
+      SEED_ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      SEED_ADMIN_PASSWORD: ${ADMIN_PASSWORD:?在 Portainer stack 环境变量填 ADMIN_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  worker:
+    image: harborssl.fegroup.cn/custom-project/fe-radar-worker:latest
+    entrypoint:
+      - /bin/sh
+      - "-c"
+      - 'tr -d ''\015'' < /usr/local/bin/fe-entrypoint.sh > /tmp/fe-entrypoint.sh && exec /bin/sh /tmp/fe-entrypoint.sh "$@"'
+      - "--"
+    command: ["node", "dist/apps/worker/src/main.js"] # 覆盖 entrypoint 会清空镜像 CMD，必须补回
+    environment:
+      NODE_ENV: production
+      TZ: Asia/Shanghai
+      DATABASE_URL: postgres://fe_radar:${DB_PASSWORD:?在 Portainer stack 环境变量填 DB_PASSWORD}@postgres:5432/fe_radar
+      REDIS_URL: redis://redis:6379
+      RSSHUB_BASE_URL: http://rsshub:1200
+      PROXY_POOL_ENABLED: "false"
+      # worker RSS 抓 RSSHub 的超时（冷缓存回源慢，4s 默认太短）；需配套新 worker 镜像才生效
+      RSS_FETCH_TIMEOUT_MS: ${RSS_FETCH_TIMEOUT_MS:-15000}
+      # ── LLM 配置（页面出数据的前提：流水线 prefilter/ner 调 Qwen、scorer 调 DeepSeek 写 scoredAt）──
+      # 必填：内网 Qwen OpenAI 兼容端点，如 http://10.10.x.x:8001/v1（在 Portainer stack 环境变量里填）
+      QWEN_BASE_URL: ${QWEN_BASE_URL:?在 Portainer stack 环境变量填内网 Qwen 地址，如 http://10.10.x.x:8001/v1}
+      QWEN_MODEL: ${QWEN_MODEL:-qwen3.6-27b}
+      # Qwen embedding 端点（聚类用）；若 Qwen 同端点提供 embeddings 可省略，默认回退到 QWEN_BASE_URL
+      QWEN_EMBEDDING_BASE_URL: ${QWEN_EMBEDDING_BASE_URL:-}
+      QWEN_EMBEDDING_MODEL: ${QWEN_EMBEDDING_MODEL:-qwen-embedding-1024}
+      # 必填：DeepSeek key（scorer 评分/摘要，写 scoredAt → 决定 item 是否在 timeline 可见）
+      # ⚠ DeepSeek 是公网 api.deepseek.com，内网服务器须确认有出口可达；不可达则改 DEEPSEEK_BASE_URL 指向内网网关
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?在 Portainer stack 环境变量填 DeepSeek API key}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-pro}
+      # 选填：Kimi key（只影响每日日报，不影响 timeline 出数据，可暂缺）
+      KIMI_API_KEY: ${KIMI_API_KEY:-}
+      # Firecrawl 源默认 disabled；启用前创建 Docker secret 并取消注释下一行，避免 API key 出现在普通 env 中。
+      # FIRECRAWL_API_KEY_FILE: /run/secrets/firecrawl_api_key
+      FIRECRAWL_BASE_URL: ${FIRECRAWL_BASE_URL:-https://api.firecrawl.dev/v2}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  scheduler:
+    image: harborssl.fegroup.cn/custom-project/fe-radar-worker:latest
+    entrypoint:
+      - /bin/sh
+      - "-c"
+      - 'tr -d ''\015'' < /usr/local/bin/fe-entrypoint.sh > /tmp/fe-entrypoint.sh && exec /bin/sh /tmp/fe-entrypoint.sh "$@"'
+      - "--"
+    command: ["node", "dist/apps/worker/src/scheduler-main.js"]
+    environment:
+      NODE_ENV: production
+      TZ: Asia/Shanghai
+      DATABASE_URL: postgres://fe_radar:${DB_PASSWORD:?在 Portainer stack 环境变量填 DB_PASSWORD}@postgres:5432/fe_radar
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  web:
+    image: harborssl.fegroup.cn/custom-project/fe-radar-web:latest
+    entrypoint:
+      - /bin/sh
+      - "-c"
+      - 'tr -d ''\015'' < /usr/local/bin/fe-entrypoint.sh > /tmp/fe-entrypoint.sh && exec /bin/sh /tmp/fe-entrypoint.sh "$@"'
+      - "--"
+    command: ["pnpm", "start"] # 覆盖 entrypoint 会清空镜像 CMD ["pnpm","start"]，必须补回，否则 Next.js 不启动
+    environment:
+      NODE_ENV: production
+      TZ: Asia/Shanghai
+      DATABASE_URL: postgres://fe_radar:${DB_PASSWORD:?在 Portainer stack 环境变量填 DB_PASSWORD}@postgres:5432/fe_radar
+      REDIS_URL: redis://redis:6379
+      # 从局域网/其他机器访问时必须设成实际访问地址，否则登录回调失败：
+      NEXTAUTH_URL: ${NEXTAUTH_URL:?在 Portainer stack 环境变量填实际访问地址，如 http://10.x.x.x:3013}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?在 Portainer stack 环境变量填 NEXTAUTH_SECRET}
+      REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users
+      DB_WAIT_TIMEOUT_SECONDS: "180"
+    ports:
+      - "3013:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -85,22 +85,22 @@ export const mockTimelineItems: TimelineItemDto[] = [
     relatedCount: 3
   },
   {
-    id: 5,
-    title: "电解铜均价上探 78,400 元/吨，创近 18 个月新高",
-    url: "https://example.com/mock/5",
-    sourceName: "第一财经能源",
+    id: 6,
+    title: "亨通光电：关于涉及诉讼的公告",
+    url: "https://example.com/mock/6",
+    sourceName: "巨潮-C2电缆竞品涉诉",
     sourceTier: "T1",
-    sourceCategory: "市场",
-    publishedAt: iso(20),
-    scoredAt: iso(18),
-    summaryZh: "铜价上涨可能压缩电缆毛利，建议供应链评估锁价策略。",
-    category: "market",
+    sourceCategory: "上市公司涉诉",
+    publishedAt: iso(6),
+    scoredAt: iso(5),
+    summaryZh: "竞品亨通光电新增诉讼披露，建议法务与销售侧评估供应链与投标影响。",
+    category: "company",
     topCircle: "C2",
-    qualityScore: 6.1,
-    alertType: null,
-    alertLevel: null,
-    clusterId: 1005,
-    eventType: "价格异动",
+    qualityScore: 7.4,
+    alertType: "legal",
+    alertLevel: "L2",
+    clusterId: 1006,
+    eventType: "涉诉",
     relatedCount: 0
   }
 ];
@@ -196,11 +196,13 @@ export function mockFetchAlerts(query: AlertQuery): { items: TimelineItemDto[]; 
   return { items, nextCursor: null };
 }
 
-export function mockFetchAlertCount(): { own: number; safety: number; policy: number } {
+export function mockFetchAlertCount(): { own: number; safety: number; policy: number; legal: number } {
   return mockTimelineItems.reduce((acc, item) => {
-    if (item.alertType === "own" || item.alertType === "safety" || item.alertType === "policy") acc[item.alertType] += 1;
+    if (item.alertType === "own" || item.alertType === "safety" || item.alertType === "policy" || item.alertType === "legal") {
+      acc[item.alertType] += 1;
+    }
     return acc;
-  }, { own: 0, safety: 0, policy: 0 });
+  }, { own: 0, safety: 0, policy: 0, legal: 0 });
 }
 
 export function mockFetchDashboardData(): DashboardData {

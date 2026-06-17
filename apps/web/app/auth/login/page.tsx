@@ -60,8 +60,6 @@ export default function LoginPage(): React.JSX.Element {
           <i className="flex-1 bg-yellow" />
           <i className="flex-1 bg-gold" />
           <i className="flex-1 bg-sunshine-700" />
-          <i className="flex-1 bg-accent-block" />
-          <i className="flex-1 bg-accent-flame" />
           <i className="flex-1 bg-accent" />
         </div>
       </aside>

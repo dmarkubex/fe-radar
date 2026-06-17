@@ -2,7 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): React.JSX.Element {
-  return <div className={cn("border border-border bg-surface text-fg shadow-card", className)} {...props} />;
+  return <div className={cn("panel-surface text-fg", className)} {...props} />;
 }
 
 export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): React.JSX.Element {

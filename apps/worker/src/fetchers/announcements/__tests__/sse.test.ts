@@ -64,6 +64,16 @@ describe("sse adapter helpers", () => {
     expect(url).toContain("pageHelp.beginPage=1");
   });
 
+  it("treats stocks as an alias for securityCode filters", () => {
+    const url = sse.buildSseQueryUrl({
+      type: "announcement",
+      adapter: "sse",
+      stocks: ["600869"],
+    });
+
+    expect(url).toContain("securityCode=600869");
+  });
+
   it("parses JSONP wrapper into API payload", () => {
     const parsed = sse.parseSseJsonp(`jsonpCallback(${loadFixture("sse-ok.json")})`);
     expect(parsed?.success).toBe("true");
@@ -149,20 +159,22 @@ describe("sseAdapter.fetch", () => {
     expect(items).toEqual([]);
   });
 
-  it("returns [] when HTTP fetch fails", async () => {
-    mockFetch.mockRejectedValueOnce(new Error("network error"));
+  it("throws when HTTP fetch fails", async () => {
+    mockFetch.mockRejectedValue(new Error("network error"));
 
-    const items = await sse.sseAdapter.fetch({ sourceName: "上交所公告" });
-    expect(items).toEqual([]);
+    await expect(sse.sseAdapter.fetch({ sourceName: "上交所公告" })).rejects.toMatchObject({
+      code: "FETCH_TIMEOUT",
+    });
   });
 
-  it("returns [] when API responds with rate limiting", async () => {
+  it("throws when API responds with rate limiting", async () => {
     mockFetch
       .mockResolvedValueOnce(jsonpResponse({}, 429))
       .mockResolvedValueOnce(jsonpResponse({}, 429));
 
-    const items = await sse.sseAdapter.fetch({ sourceName: "上交所公告" });
-    expect(items).toEqual([]);
+    await expect(sse.sseAdapter.fetch({ sourceName: "上交所公告" })).rejects.toMatchObject({
+      code: "FETCH_429",
+    });
   });
 
   it("skips malformed records while keeping valid ones", async () => {
@@ -177,13 +189,25 @@ describe("sseAdapter.fetch", () => {
     });
   });
 
-  it("returns [] when JSONP body cannot be parsed", async () => {
+  it("throws when JSONP body cannot be parsed", async () => {
     mockFetch.mockResolvedValueOnce(
       new Response("not-jsonp", { status: 200 }) as unknown as Awaited<ReturnType<typeof undiciFetch>>
     );
 
-    const items = await sse.sseAdapter.fetch({ sourceName: "上交所公告" });
-    expect(items).toEqual([]);
+    await expect(sse.sseAdapter.fetch({ sourceName: "上交所公告" })).rejects.toMatchObject({
+      code: "FETCH_PARSE_ERROR",
+    });
+  });
+
+  it("rejects unapproved endpoint overrides", async () => {
+    await expect(sse.sseAdapter.fetch({
+      sourceName: "上交所公告",
+      sourceConfig: {
+        type: "announcement",
+        adapter: "sse",
+        endpoint: "http://169.254.169.254/latest/meta-data",
+      },
+    })).rejects.toMatchObject({ code: "FETCH_CONFIG" });
   });
 });
 

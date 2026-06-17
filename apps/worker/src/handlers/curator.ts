@@ -15,13 +15,22 @@ export async function handleCuratorJob(job: { data: PipelineJob }): Promise<void
 
   const [itemRow] = await db.select({
     sourceId: items.sourceId,
+    title: items.title,
+    content: items.content,
   }).from(items).where(eq(items.id, itemId)).limit(1);
   if (!itemRow) return;
 
   const [sourceRow] = await db.select({
     tier: sources.tier,
+    category: sources.category,
+    config: sources.config,
   }).from(sources).where(eq(sources.id, itemRow.sourceId)).limit(1);
   if (!sourceRow) return;
+
+  // 风险检索关键词必须来自 source config，避免用代码默认词绕过数据库配置。
+  const sourceConfig = (sourceRow.config ?? {}) as Record<string, unknown>;
+  const riskEntityKeywords = toStringArray(sourceConfig.entityKeywords);
+  const riskKeywords = toStringArray(sourceConfig.riskKeywords);
 
   const [analysis] = await db.select().from(itemAnalysis).where(eq(itemAnalysis.itemId, itemId)).limit(1);
   if (!analysis) return;
@@ -54,6 +63,11 @@ export async function handleCuratorJob(job: { data: PipelineJob }): Promise<void
     entities: entityHits,
     config,
     category: analysis.category ?? "公司与资本",
+    title: itemRow.title,
+    content: itemRow.content ?? undefined,
+    sourceCategory: sourceRow.category,
+    riskEntityKeywords,
+    riskKeywords,
   });
 
   await db.update(itemAnalysis).set({
@@ -65,4 +79,10 @@ export async function handleCuratorJob(job: { data: PipelineJob }): Promise<void
     alertLevel: result.alertLevel ?? null,
     scoredAt: new Date(),
   }).where(eq(itemAnalysis.itemId, itemId));
+}
+
+function toStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const cleaned = value.filter((v): v is string => typeof v === "string" && v.trim().length > 0).map((v) => v.trim());
+  return cleaned.length > 0 ? cleaned : undefined;
 }

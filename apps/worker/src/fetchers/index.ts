@@ -6,3 +6,10 @@ export * from "./quotes/types";
 export { fetchQuotes, registerAdapter } from "./quotes/index";
 export * from "./announcements/types";
 export { fetchAnnouncements, registerAnnouncementAdapter } from "./announcements/index";
+export type {
+  CrawlAdapter,
+  FirecrawlSearchResult,
+  FirecrawlSearchResponse,
+  FirecrawlSearchRequest,
+} from "./crawl/types";
+export { fetchCrawl, registerCrawlAdapter } from "./crawl/index";

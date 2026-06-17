@@ -5,7 +5,7 @@ import { eq, sql } from "drizzle-orm";
 import type { FetchSourceJob } from "../queues";
 import { createRedisConnection } from "../queues";
 import { enqueueEnabledSources, recordSourceFailure } from "../scheduler";
-import { fetchRss, fetchHtml, fetchPlaywright, fetchAnnouncements } from "../fetchers";
+import { fetchRss, fetchHtml, fetchPlaywright, fetchAnnouncements, fetchCrawl } from "../fetchers";
 import type { SourceConfig, StandardItem, FetchContext } from "../fetchers";
 import { dedupItems, type DedupCandidate, type ExistingItemFingerprint } from "../dedup";
 import { createPlaywrightPool } from "../fetchers/playwright";
@@ -59,6 +59,9 @@ export async function handleFetchJob(job: { data: FetchSourceJob }): Promise<voi
         break;
       case "announcement":
         rawItems = await fetchAnnouncements(config, context);
+        break;
+      case "crawl":
+        rawItems = await fetchCrawl(config, context);
         break;
       default:
         throw new Error(`Unknown fetcher type: ${(config as { type: string }).type}`);

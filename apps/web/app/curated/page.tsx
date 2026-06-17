@@ -196,7 +196,7 @@ export default async function CuratedPage({ searchParams }: { searchParams: Page
       {gridItems.length > 0 ? (
         <section className="pick-grid grid gap-4 sm:grid-cols-3">
           {gridItems.map((item) => (
-            <article key={item.id} className="group flex flex-col gap-3 border border-hairline bg-surface p-5 transition-shadow hover:shadow-card">
+            <article key={item.id} className="group flex flex-col gap-3 border border-hairline bg-surface p-5 transition-colors hover:border-border-strong">
               <div className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
                 <span className="rounded-none bg-gold px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[1px] text-accent">
                   {item.sourceTier}

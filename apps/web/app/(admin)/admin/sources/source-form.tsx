@@ -1,38 +1,8 @@
 "use client";
 
 import { useState } from "react";
-
-type FetcherType = "rss" | "html" | "playwright" | "quotes";
-
-const DEFAULT_CONFIGS: Record<FetcherType, unknown> = {
-  rss: { type: "rss", url: "https://news.bjx.com.cn/rss.xml" },
-  html: {
-    type: "html",
-    listUrl: "https://example.com/news",
-    selectors: {
-      item: ".news-item",
-      title: ".title",
-      link: "a",
-      date: ".date",
-      content: ".content"
-    },
-    useRealUa: false
-  },
-  playwright: {
-    type: "playwright",
-    listUrl: "https://example.com/news",
-    waitFor: ".news-list",
-    extractor: "() => []",
-    useRealUa: true
-  },
-  quotes: {
-    type: "quotes",
-    adapter: "shfe",
-    metric_keys: ["cu_main_close"],
-    endpoint: "http://www.shfe.com.cn/data/dailydata/kx/kx{YYYYMMDD}.dat",
-    retry: { max: 3, backoffMs: 2000 }
-  }
-};
+import { DEFAULT_SOURCE_CATEGORIES, DEFAULT_SOURCE_CONFIGS } from "./source-default-configs";
+import type { FetcherType } from "./source-default-configs";
 
 export interface EditingSource {
   id: number;
@@ -55,15 +25,20 @@ const FIELD =
 
 export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps): React.JSX.Element {
   const isEdit = Boolean(editing);
-  const [fetcherType, setFetcherType] = useState<FetcherType>(editing?.fetcherType ?? "rss");
+  const initialFetcherType = editing?.fetcherType ?? "rss";
+  const [fetcherType, setFetcherType] = useState<FetcherType>(initialFetcherType);
+  const [category, setCategory] = useState(editing?.category ?? DEFAULT_SOURCE_CATEGORIES[initialFetcherType] ?? "");
   const [config, setConfig] = useState(
-    JSON.stringify(editing?.config ?? DEFAULT_CONFIGS.rss, null, 2),
+    JSON.stringify(editing?.config ?? DEFAULT_SOURCE_CONFIGS.rss, null, 2),
   );
   const [error, setError] = useState<string | null>(null);
 
   function handleFetcherTypeChange(next: FetcherType): void {
     setFetcherType(next);
-    setConfig(JSON.stringify(DEFAULT_CONFIGS[next], null, 2));
+    setConfig(JSON.stringify(DEFAULT_SOURCE_CONFIGS[next], null, 2));
+    if (!isEdit) {
+      setCategory(DEFAULT_SOURCE_CATEGORIES[next] ?? "");
+    }
   }
 
   async function submit(formData: FormData): Promise<void> {
@@ -74,7 +49,7 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
         url: String(formData.get("url") ?? ""),
         tier: formData.get("tier"),
         fetcherType: formData.get("fetcherType"),
-        category: String(formData.get("category") ?? ""),
+        category,
         config: JSON.parse(config) as unknown,
       };
       const response = await fetch(
@@ -154,6 +129,8 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
               <option value="html">HTML</option>
               <option value="playwright">Playwright</option>
               <option value="quotes">Quotes</option>
+              <option value="announcement">Announcement (公告)</option>
+              <option value="crawl">Crawl (Firecrawl)</option>
             </select>
           </div>
         </div>
@@ -161,7 +138,13 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
           <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
             分类
           </label>
-          <input className={FIELD} name="category" placeholder="分类" defaultValue={editing?.category ?? ""} />
+          <input
+            className={FIELD}
+            name="category"
+            placeholder="分类"
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+          />
         </div>
 
         {fetcherType === "quotes" ? (

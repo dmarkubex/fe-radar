@@ -4,7 +4,7 @@
  * Endpoint: POST http://www.cninfo.com.cn/new/hisAnnouncement/query
  * POST form-urlencoded API，不使用 Playwright。
  *
- * NFR: 禁止 LLM；失败返回 []。
+ * NFR: 禁止 LLM；抓取失败抛错交给 fetch handler 记录 source failure。
  */
 
 import { SourceFetchError } from "@fe-radar/shared";
@@ -14,6 +14,7 @@ import { assertRobotsAllowed } from "../../lib/robots";
 import { acquireUserAgent } from "../../lib/ua-pool";
 import type { AnnouncementSourceConfig, FetchContext, StandardItem } from "../types";
 import type { AnnouncementAdapter } from "./types";
+import { dedupeStandardItems, filterItemsByTitleKeywords, resolveTitleKeywords } from "./litigation-filter";
 
 const DEFAULT_ENDPOINT = "http://www.cninfo.com.cn/new/hisAnnouncement/query";
 const BASE_URL = "http://www.cninfo.com.cn";
@@ -21,6 +22,8 @@ const STATIC_BASE_URL = "http://static.cninfo.com.cn";
 const DEFAULT_PAGE_SIZE = 30;
 const DEFAULT_PAGE_NUM = 1;
 const DEFAULT_LOOKBACK_DAYS = 7;
+const ALLOWED_ENDPOINT_HOST = "www.cninfo.com.cn";
+const ALLOWED_ENDPOINT_PATH = "/new/hisAnnouncement/query";
 
 export interface CninfoAnnouncementRecord {
   id?: string;
@@ -60,9 +63,16 @@ function formatShanghaiDate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-function defaultDateRange(now = new Date()): string {
+function resolveLookbackDays(config: AnnouncementSourceConfig): number {
+  if (typeof config.lookbackDays === "number" && Number.isFinite(config.lookbackDays) && config.lookbackDays > 0) {
+    return Math.floor(config.lookbackDays);
+  }
+  return DEFAULT_LOOKBACK_DAYS;
+}
+
+function defaultDateRangeForLookback(lookbackDays: number, now = new Date()): string {
   const end = formatShanghaiDate(now);
-  const startDate = new Date(now.getTime() - DEFAULT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+  const startDate = new Date(now.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
   const start = formatShanghaiDate(startDate);
   return `${start}~${end}`;
 }
@@ -81,7 +91,7 @@ export function resolveCninfoDateRange(config: AnnouncementSourceConfig): string
     return `${beginDate}~${beginDate}`;
   }
 
-  return defaultDateRange();
+  return defaultDateRangeForLookback(resolveLookbackDays(config));
 }
 
 export function buildCninfoFormParams(config: AnnouncementSourceConfig): Record<string, string> {
@@ -131,6 +141,15 @@ export function buildCninfoFormParams(config: AnnouncementSourceConfig): Record<
 
 export function buildCninfoFormBody(params: Record<string, string>): string {
   return new URLSearchParams(params).toString();
+}
+
+export function resolveCninfoEndpoint(config: AnnouncementSourceConfig): string {
+  const endpoint = typeof config.endpoint === "string" && config.endpoint.trim() ? config.endpoint.trim() : DEFAULT_ENDPOINT;
+  const parsed = new URL(endpoint);
+  if (parsed.hostname !== ALLOWED_ENDPOINT_HOST || parsed.pathname !== ALLOWED_ENDPOINT_PATH) {
+    throw new SourceFetchError("FETCH_CONFIG", `CNINFO endpoint is not allowed: ${endpoint}`, { endpoint });
+  }
+  return endpoint;
 }
 
 export function parseCninfoTimestamp(value: number | undefined): Date | null {
@@ -257,22 +276,68 @@ export async function fetchFormPostWithPolicy(
   });
 }
 
+export function resolveCninfoStockCodes(config: AnnouncementSourceConfig): string[] {
+  const stocks = config.stocks;
+  if (Array.isArray(stocks)) {
+    return stocks
+      .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
+      .map((entry) => entry.trim());
+  }
+
+  const stock = typeof config.stock === "string" ? config.stock.trim() : "";
+  return stock ? [stock] : [];
+}
+
 export const cninfoAdapter: AnnouncementAdapter = {
   name: "cninfo",
 
   async fetch(ctx: FetchContext): Promise<StandardItem[]> {
     const config = (ctx.sourceConfig ?? {}) as AnnouncementSourceConfig;
-    const endpoint =
-      (typeof config.endpoint === "string" && config.endpoint.trim()) || DEFAULT_ENDPOINT;
+    const endpoint = resolveCninfoEndpoint(config);
+    const stockCodes = resolveCninfoStockCodes(config);
+    const titleKeywords = resolveTitleKeywords(config);
 
-    try {
+    if (stockCodes.length === 0) {
       const response = await fetchFormPostWithPolicy(endpoint, buildCninfoFormParams(config), {
         timeoutMs: 8000,
         useRealUa: ctx.useRealUa ?? true,
       });
-      return mapCninfoResponseToStandardItems(response);
-    } catch {
-      return [];
+      return filterItemsByTitleKeywords(mapCninfoResponseToStandardItems(response), titleKeywords);
     }
+
+    // Per-stock 错误隔离：任一 stock 失败不丢弃已成功结果；仅当全部失败才向上抛出，
+    // 让 fetch handler 走 source failure 路径（不把空结果误判为成功）。
+    const merged: StandardItem[] = [];
+    const failedStocks: string[] = [];
+    let lastError: unknown;
+    for (const stock of stockCodes) {
+      try {
+        const response = await fetchFormPostWithPolicy(
+          endpoint,
+          buildCninfoFormParams({ ...config, stock }),
+          {
+            timeoutMs: 8000,
+            useRealUa: ctx.useRealUa ?? true,
+          }
+        );
+        merged.push(...mapCninfoResponseToStandardItems(response));
+      } catch (error) {
+        failedStocks.push(stock);
+        lastError = error;
+      }
+    }
+
+    if (failedStocks.length === stockCodes.length) {
+      if (lastError instanceof SourceFetchError) {
+        throw lastError;
+      }
+      throw new SourceFetchError(
+        "FETCH_ALL_STOCKS_FAILED",
+        `CNINFO multi-stock fetch failed for all ${stockCodes.length} stock(s): ${failedStocks.join(",")}`,
+        { url: endpoint, cause: lastError }
+      );
+    }
+
+    return filterItemsByTitleKeywords(dedupeStandardItems(merged), titleKeywords);
   },
 };

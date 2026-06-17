@@ -1,6 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import PizZip from "pizzip";
-import Docxtemplater from "docxtemplater";
 
 import { BriefingRenderError } from "@fe-radar/shared";
 import { renderBriefing } from "../briefing-render";

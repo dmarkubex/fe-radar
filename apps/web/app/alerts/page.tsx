@@ -20,7 +20,7 @@ const LEVEL_META: Record<string, { title: string; small: string; pri: string; ca
 
 export default async function AlertsPage({ searchParams }: { searchParams: PageSearchParams }): Promise<React.JSX.Element> {
   const params = await searchParams;
-  const filterType = first(params.type) as "own" | "safety" | "policy" | undefined;
+  const filterType = first(params.type) as "own" | "safety" | "policy" | "legal" | undefined;
   const filterLevel = first(params.level) as "L1" | "L2" | "L3" | undefined;
 
   const [{ items }, counts] = await Promise.all([
@@ -28,7 +28,7 @@ export default async function AlertsPage({ searchParams }: { searchParams: PageS
     fetchAlertCount()
   ]);
 
-  const total = counts.own + counts.safety + counts.policy;
+  const total = counts.own + counts.safety + counts.policy + counts.legal;
   const p1Count = items.filter((i) => i.alertLevel === "L1").length;
   const grouped = groupByLevel(items);
 
@@ -40,13 +40,14 @@ export default async function AlertsPage({ searchParams }: { searchParams: PageS
           {total} 条告警 · {p1Count} 条 P1 需立即关注
         </h1>
         <p className="m-0 text-xs leading-6 text-fg-muted">
-          三类告警共用通道：<b className="font-normal text-fg">自家公司</b>（C1 + 总分 ≥70）· <b className="font-normal text-fg">安全事故</b>（NER=事故 + D5 ≥70）· <b className="font-normal text-fg">政策突发</b>（T1 政府 + D1 ≥80）。订阅规则可推送至钉钉群。
+          四类告警共用通道：<b className="font-normal text-fg">自家公司</b>（C1 + 总分 ≥70）· <b className="font-normal text-fg">竞品涉诉</b>（C2 + 交易所涉诉公告）· <b className="font-normal text-fg">安全事故</b>（NER=事故 + D5 ≥70）· <b className="font-normal text-fg">政策突发</b>（T1 政府 + D1 ≥80）。订阅规则可推送至钉钉群。
         </p>
       </header>
 
       <div className="pad-fluid-x py-5">
-        <div className="mb-4 grid grid-cols-3 gap-px border border-border bg-border max-[720px]:grid-cols-1">
+        <div className="mb-4 grid grid-cols-2 gap-px border border-border bg-border max-[720px]:grid-cols-1 sm:grid-cols-4">
           <SummaryCell active={filterType === "own"} href="/alerts?type=own" count={counts.own} label="自家公司 · C1" delta="含 P1 事故与中标动态" pip="bg-accent" />
+          <SummaryCell active={filterType === "legal"} href="/alerts?type=legal" count={counts.legal} label="竞品涉诉 · C2" delta="交易所法定披露" pip="bg-fg" />
           <SummaryCell active={filterType === "safety"} href="/alerts?type=safety" count={counts.safety} label="安全事故" delta="行业内 · 最近 6h" pip="bg-warn" />
           <SummaryCell active={filterType === "policy"} href="/alerts?type=policy" count={counts.policy} label="政策突发" delta="能源局 / 工信部政策" pip="bg-sunshine-700" />
         </div>
@@ -145,11 +146,16 @@ function groupByLevel(items: TimelineItemDto[]): Record<string, TimelineItemDto[
 }
 
 function alertLabel(type: string): string {
-  return type === "own" ? "自家公司" : type === "safety" ? "事故" : type === "policy" ? "政策突发" : type;
+  if (type === "own") return "自家公司";
+  if (type === "legal") return "竞品涉诉";
+  if (type === "safety") return "事故";
+  if (type === "policy") return "政策突发";
+  return type;
 }
 
 function channelText(type: string | null): string {
   if (type === "own") return "战略部群（4 / 4 已读）";
+  if (type === "legal") return "法务合规群（2 / 6 已读）";
   if (type === "safety") return "安环群（6 / 8 已读）";
   if (type === "policy") return "技术中心群（5 / 12 已读）";
   return "情报订阅群";

@@ -57,6 +57,12 @@ export interface AlertInput {
   scores: ScoreAtoms;
   entities: EntityHit[];
   category?: string;
+  title?: string;
+  content?: string;
+  sourceCategory?: string | null;
+  /** 风险检索关键词（来自 source config）；缺省不触发风险检索告警 */
+  riskEntityKeywords?: string[];
+  riskKeywords?: string[];
 }
 
 export interface AlertResult {
@@ -87,6 +93,12 @@ export interface CuratorInput {
   entities: EntityHit[];
   config: ScoringConfig;
   category: string;
+  title?: string;
+  content?: string;
+  sourceCategory?: string | null;
+  /** 风险检索关键词（来自 source config）；缺省不触发风险检索告警 */
+  riskEntityKeywords?: string[];
+  riskKeywords?: string[];
 }
 
 export interface CuratorResult extends QualityScoreResult {

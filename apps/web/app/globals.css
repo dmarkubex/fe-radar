@@ -1,6 +1,30 @@
 @import "tailwindcss";
 
+/*
+ * FE-Radar design tokens — restrained palette (Linear-inspired, light brand).
+ *
+ * Hierarchy:
+ *   accent          primary brand / links / C1 emphasis
+ *   accent-flame    hover / progress / C1 alert strip
+ *   sunshine-700    C2 circle & nav active marker
+ *   gold            C3 circle & tier/badge tint (background)
+ *   sunshine-300    de-emphasized chart bars
+ *
+ * Aliased to reduce duplicate blues (safe to override at one source):
+ *   accent-block, sunshine-900 → accent or accent-flame
+ *   sunshine-500 → sunshine-700
+ *   yellow → bg-deep (login hero only)
+ *
+ * Elevation: hairline borders on panels; no multi-layer card shadows.
+ * shadow-pop reserved for modals / login card only.
+ */
 @theme {
+  --fe-accent: #00618f;
+  --fe-accent-hover: #008fc4;
+  --fe-accent-muted: #0098c8;
+  --fe-accent-subtle: #9dd8e8;
+  --fe-accent-tint: #cfeaf4;
+
   --color-bg: #f5f9fc;
   --color-bg-deep: #e8f3f8;
   --color-surface: #ffffff;
@@ -10,15 +34,15 @@
   --color-fg-muted: #4d6674;
   --color-fg-soft: #7690a0;
   --color-fg-on-dark: #ffffff;
-  --color-accent: #00618f;
-  --color-accent-flame: #008fc4;
-  --color-accent-block: #0aa2cf;
-  --color-sunshine-900: #00749f;
-  --color-sunshine-700: #0098c8;
-  --color-sunshine-500: #4bb9d6;
-  --color-sunshine-300: #9dd8e8;
-  --color-gold: #cfeaf4;
-  --color-yellow: #e6f6fb;
+  --color-accent: var(--fe-accent);
+  --color-accent-flame: var(--fe-accent-hover);
+  --color-accent-block: var(--fe-accent-hover);
+  --color-sunshine-900: var(--fe-accent);
+  --color-sunshine-700: var(--fe-accent-muted);
+  --color-sunshine-500: var(--fe-accent-muted);
+  --color-sunshine-300: var(--fe-accent-subtle);
+  --color-gold: var(--fe-accent-tint);
+  --color-yellow: var(--color-bg-deep);
   --color-border: #d5e6ee;
   --color-border-strong: #a9c9d8;
   --color-hairline: #e4edf2;
@@ -31,13 +55,8 @@
   --font-mono:
     "JetBrains Mono", ui-monospace, "IBM Plex Mono", Menlo, monospace;
 
-  --shadow-card:
-    rgba(0, 91, 134, 0.1) -2px 4px 12px, rgba(0, 91, 134, 0.06) -8px 16px 28px,
-    rgba(0, 91, 134, 0.04) -20px 40px 56px;
-  --shadow-pop:
-    rgba(0, 91, 134, 0.14) -8px 16px 39px,
-    rgba(0, 91, 134, 0.1) -33px 64px 72px,
-    rgba(0, 91, 134, 0.06) -73px 144px 97px;
+  --shadow-card: none;
+  --shadow-pop: 0 12px 32px rgba(0, 97, 143, 0.12);
 
   --tracking-tightest: -2.4px;
 }
@@ -63,6 +82,12 @@
 @utility display-fluid {
   font-size: clamp(1.5rem, 3.4cqi, 1.95rem);
   line-height: 1.12;
+}
+
+/* Panel surface: hairline border, no shadow — default for cards & sections. */
+@utility panel-surface {
+  border: 1px solid var(--color-hairline);
+  background: var(--color-surface);
 }
 
 html,

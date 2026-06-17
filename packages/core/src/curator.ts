@@ -8,12 +8,22 @@ export function curateItem(input: CuratorInput): CuratorResult {
     d2Chain: computeD2Chain(input.entities)
   };
   const score = computeQualityScore(atoms, input.source, input.entities, input.config);
-  const alert = computeAlert({ source: input.source, scores: score, entities: input.entities, category: input.category });
+  const alert = computeAlert({
+    source: input.source,
+    scores: score,
+    entities: input.entities,
+    category: input.category,
+    title: input.title,
+    content: input.content,
+    sourceCategory: input.sourceCategory,
+    riskEntityKeywords: input.riskEntityKeywords,
+    riskKeywords: input.riskKeywords,
+  });
   const threshold = input.config.thresholds?.[input.category]?.[score.topCircle] ?? 70;
 
   return {
     ...score,
     ...alert,
-    isCurated: score.qualityScore >= threshold || alert.alertType === "own"
+    isCurated: score.qualityScore >= threshold || alert.alertType === "own" || alert.alertType === "legal"
   };
 }

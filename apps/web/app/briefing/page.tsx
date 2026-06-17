@@ -1,7 +1,7 @@
 import { desc } from "drizzle-orm";
 import { commodityBriefings, getDb } from "@fe-radar/db";
 import { dayjs, APP_TIMEZONE } from "@fe-radar/shared";
-import { ChevronRight, FileText, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { ChevronRight, FileText, Clock } from "lucide-react";
 import Link from "next/link";
 import { PageFrame } from "@/components/layout/page-frame";
 import { PageHeader } from "@/components/layout/page-header";

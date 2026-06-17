@@ -4,7 +4,7 @@
  * Endpoint: POST http://www.szse.cn/api/disc/announcement/annList
  * 优先 JSON API，不使用 Playwright。
  *
- * NFR: 禁止 LLM；失败返回 []。
+ * NFR: 禁止 LLM；抓取失败抛错交给 fetch handler 记录 source failure。
  */
 
 import { SourceFetchError } from "@fe-radar/shared";
@@ -14,6 +14,7 @@ import { assertRobotsAllowed } from "../../lib/robots";
 import { acquireUserAgent } from "../../lib/ua-pool";
 import type { AnnouncementSourceConfig, FetchContext, StandardItem } from "../types";
 import type { AnnouncementAdapter } from "./types";
+import { filterItemsByTitleKeywords, resolveTitleKeywords } from "./litigation-filter";
 
 const DEFAULT_ENDPOINT = "http://www.szse.cn/api/disc/announcement/annList";
 const BASE_URL = "http://www.szse.cn";
@@ -22,6 +23,8 @@ const DEFAULT_CHANNEL_CODE = "listedNotice_disc";
 const DEFAULT_PAGE_SIZE = 30;
 const DEFAULT_PAGE_NUM = 1;
 const DEFAULT_LOOKBACK_DAYS = 7;
+const ALLOWED_ENDPOINT_HOST = "www.szse.cn";
+const ALLOWED_ENDPOINT_PATH = "/api/disc/announcement/annList";
 
 export interface SzseAnnouncementRecord {
   id?: string;
@@ -71,6 +74,15 @@ function asStringArray(value: unknown): string[] | undefined {
   return undefined;
 }
 
+export function resolveSzseEndpoint(config: AnnouncementSourceConfig): string {
+  const endpoint = typeof config.endpoint === "string" && config.endpoint.trim() ? config.endpoint.trim() : DEFAULT_ENDPOINT;
+  const parsed = new URL(endpoint);
+  if (parsed.hostname !== ALLOWED_ENDPOINT_HOST || parsed.pathname !== ALLOWED_ENDPOINT_PATH) {
+    throw new SourceFetchError("FETCH_CONFIG", `SZSE endpoint is not allowed: ${endpoint}`, { endpoint });
+  }
+  return endpoint;
+}
+
 function resolveDateRange(config: AnnouncementSourceConfig): [string, string] {
   const explicitRange = config.seDate;
   if (Array.isArray(explicitRange) && explicitRange.length === 2) {
@@ -97,6 +109,7 @@ export function buildSzseRequestBody(config: AnnouncementSourceConfig): Record<s
   const seDate = resolveDateRange(config);
   const stock =
     asStringArray(config.stock) ??
+    asStringArray(config.stocks) ??
     asStringArray(config.stockCode) ??
     asStringArray(config.secCode);
 
@@ -249,17 +262,13 @@ export const szseAdapter: AnnouncementAdapter = {
 
   async fetch(ctx: FetchContext): Promise<StandardItem[]> {
     const config = (ctx.sourceConfig ?? {}) as AnnouncementSourceConfig;
-    const endpoint =
-      (typeof config.endpoint === "string" && config.endpoint.trim()) || DEFAULT_ENDPOINT;
+    const endpoint = resolveSzseEndpoint(config);
 
-    try {
-      const response = await fetchJsonPostWithPolicy(endpoint, buildSzseRequestBody(config), {
-        timeoutMs: 8000,
-        useRealUa: ctx.useRealUa ?? true,
-      });
-      return mapSzseResponseToStandardItems(response);
-    } catch {
-      return [];
-    }
+    const response = await fetchJsonPostWithPolicy(endpoint, buildSzseRequestBody(config), {
+      timeoutMs: 8000,
+      useRealUa: ctx.useRealUa ?? true,
+    });
+    const items = mapSzseResponseToStandardItems(response);
+    return filterItemsByTitleKeywords(items, resolveTitleKeywords(config));
   },
 };

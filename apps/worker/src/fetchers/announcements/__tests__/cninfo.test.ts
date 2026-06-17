@@ -193,20 +193,33 @@ describe("cninfoAdapter.fetch", () => {
     expect(items).toEqual([]);
   });
 
-  it("returns [] when HTTP fetch fails", async () => {
-    mockFetch.mockRejectedValueOnce(new Error("network error"));
+  it("throws when HTTP fetch fails", async () => {
+    mockFetch.mockRejectedValue(new Error("network error"));
 
-    const items = await cninfo.cninfoAdapter.fetch({ sourceName: "巨潮资讯" });
-    expect(items).toEqual([]);
+    await expect(cninfo.cninfoAdapter.fetch({ sourceName: "巨潮资讯" })).rejects.toMatchObject({
+      code: "FETCH_TIMEOUT",
+    });
   });
 
-  it("returns [] when API responds with rate limiting", async () => {
+  it("throws when API responds with rate limiting", async () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse({}, 429))
       .mockResolvedValueOnce(jsonResponse({}, 429));
 
-    const items = await cninfo.cninfoAdapter.fetch({ sourceName: "巨潮资讯" });
-    expect(items).toEqual([]);
+    await expect(cninfo.cninfoAdapter.fetch({ sourceName: "巨潮资讯" })).rejects.toMatchObject({
+      code: "FETCH_429",
+    });
+  });
+
+  it("rejects unapproved endpoint overrides", async () => {
+    await expect(cninfo.cninfoAdapter.fetch({
+      sourceName: "巨潮资讯",
+      sourceConfig: {
+        type: "announcement",
+        adapter: "cninfo",
+        endpoint: "http://169.254.169.254/latest/meta-data",
+      },
+    })).rejects.toMatchObject({ code: "FETCH_CONFIG" });
   });
 
   it("skips malformed records while keeping valid ones", async () => {

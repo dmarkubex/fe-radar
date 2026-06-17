@@ -13,4 +13,12 @@ describe("robots guard", () => {
     const fetchImpl = async () => new Response("User-agent: *\nDisallow: /private\n");
     await expect(assertRobotsAllowed("https://example.com/news", "FE-Radar Bot", fetchImpl as typeof fetch)).resolves.toBeUndefined();
   });
+
+  it("blocks when robots.txt cannot be fetched", async () => {
+    clearRobotsCache();
+    const fetchImpl = async () => new Response("not found", { status: 404 });
+    await expect(assertRobotsAllowed("https://example.com/news", "FE-Radar Bot", fetchImpl as typeof fetch)).rejects.toMatchObject({
+      code: "ROBOTS_UNAVAILABLE",
+    });
+  });
 });

@@ -1,7 +1,7 @@
 -- 0013_announcement_sources_seed.sql
 -- 用途：统一 seed 三个 announcement 公告源（SSE / SZSE / CNINFO）
 -- 编号：片4 独占写此 migration，片1/2/3 不写 seed
--- 策略：INSERT ... ON CONFLICT (url) DO UPDATE 保证幂等
+-- 策略：INSERT ... ON CONFLICT (url) DO NOTHING，避免重跑覆盖 admin 后台配置
 --   通过 smoke 的源 enabled=true，未通过的 enabled=false 并注释原因
 
 BEGIN;
@@ -30,12 +30,7 @@ VALUES
      '{"type":"announcement","adapter":"cninfo","useRealUa":true}'::jsonb,
      'T1', '上市公司公告', true)
 
-ON CONFLICT (url) DO UPDATE
-    SET fetcher_type = EXCLUDED.fetcher_type,
-        config       = EXCLUDED.config,
-        enabled      = EXCLUDED.enabled,
-        category     = EXCLUDED.category,
-        tier         = EXCLUDED.tier;
+ON CONFLICT (url) DO NOTHING;
 
 COMMIT;
 

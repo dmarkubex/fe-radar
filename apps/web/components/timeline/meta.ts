@@ -24,3 +24,32 @@ export function formatAppTime(value: string | null): string {
 export function scoreLabel(value: number | null): string {
   return value === null ? "-" : value.toFixed(1);
 }
+
+/** 五维评分 — 业务界面展示用中文标签 */
+export const SCORE_DIMENSIONS = [
+  { key: "d1Policy", label: "政策与标准", abbr: "D1" },
+  { key: "d2Chain", label: "产业链关联", abbr: "D2" },
+  { key: "d3Market", label: "市场与价格", abbr: "D3" },
+  { key: "d4Tech", label: "技术与产品", abbr: "D4" },
+  { key: "d5Business", label: "商业与风险", abbr: "D5" },
+] as const;
+
+export type ScoreDimensionKey = (typeof SCORE_DIMENSIONS)[number]["key"];
+
+export const ENTITY_TYPE_LABELS: Record<string, string> = {
+  company: "企业",
+  person: "人物",
+  product: "产品",
+  policy: "政策",
+  technology: "技术",
+  region: "地区",
+  event: "事件",
+  event_type: "事件类型",
+  project_type: "项目类型",
+  money: "金额",
+  organization: "机构",
+};
+
+export function entityTypeLabel(type: string): string {
+  return ENTITY_TYPE_LABELS[type] ?? type;
+}

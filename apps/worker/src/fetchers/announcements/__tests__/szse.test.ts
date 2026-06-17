@@ -71,6 +71,16 @@ describe("szse adapter helpers", () => {
     });
   });
 
+  it("treats stocks as an alias for stock filters", () => {
+    const body = szse.buildSzseRequestBody({
+      type: "announcement",
+      adapter: "szse",
+      stocks: ["000001", "000002"],
+    });
+
+    expect(body.stock).toEqual(["000001", "000002"]);
+  });
+
   it("maps summary to content when body is absent", () => {
     const item = szse.mapSzseRecordToStandardItem({
       id: "abc",
@@ -141,20 +151,33 @@ describe("szseAdapter.fetch", () => {
     expect(items).toEqual([]);
   });
 
-  it("returns [] when HTTP fetch fails", async () => {
-    mockFetch.mockRejectedValueOnce(new Error("network error"));
+  it("throws when HTTP fetch fails", async () => {
+    mockFetch.mockRejectedValue(new Error("network error"));
 
-    const items = await szse.szseAdapter.fetch({ sourceName: "深交所披露" });
-    expect(items).toEqual([]);
+    await expect(szse.szseAdapter.fetch({ sourceName: "深交所披露" })).rejects.toMatchObject({
+      code: "FETCH_TIMEOUT",
+    });
   });
 
-  it("returns [] when API responds with rate limiting", async () => {
+  it("throws when API responds with rate limiting", async () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse({}, 429))
       .mockResolvedValueOnce(jsonResponse({}, 429));
 
-    const items = await szse.szseAdapter.fetch({ sourceName: "深交所披露" });
-    expect(items).toEqual([]);
+    await expect(szse.szseAdapter.fetch({ sourceName: "深交所披露" })).rejects.toMatchObject({
+      code: "FETCH_429",
+    });
+  });
+
+  it("rejects unapproved endpoint overrides", async () => {
+    await expect(szse.szseAdapter.fetch({
+      sourceName: "深交所披露",
+      sourceConfig: {
+        type: "announcement",
+        adapter: "szse",
+        endpoint: "http://169.254.169.254/latest/meta-data",
+      },
+    })).rejects.toMatchObject({ code: "FETCH_CONFIG" });
   });
 
   it("skips malformed records while keeping valid ones", async () => {

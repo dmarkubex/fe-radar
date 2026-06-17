@@ -1,6 +1,5 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getToken } from "next-auth/jwt";
 import { TargetTable } from "@/components/briefing/target-table";
 
 // Server-side RBAC guard (second layer after middleware)

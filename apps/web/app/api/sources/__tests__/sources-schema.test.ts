@@ -66,4 +66,92 @@ describe("sources api schema", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("accepts crawl config for firecrawl risk search", () => {
+    expect(createSourceSchema.safeParse({
+      name: "Firecrawl-C1风险检索",
+      url: "https://internal.fe-radar/crawl/c1-risk",
+      fetcherType: "crawl",
+      tier: "T2",
+      category: "风险检索",
+      config: {
+        type: "crawl",
+        adapter: "firecrawl",
+        queries: ["远东控股 诉讼"],
+        limit: 5,
+        entityKeywords: ["远东控股"],
+        riskKeywords: ["诉讼"],
+        includeDomains: ["www.gov.cn"],
+      },
+    }).success).toBe(true);
+  });
+
+  it("rejects risk-filtered crawl config without database keywords", () => {
+    expect(createSourceSchema.safeParse({
+      name: "Firecrawl-C1风险检索",
+      url: "https://internal.fe-radar/crawl/c1-risk",
+      fetcherType: "crawl",
+      tier: "T2",
+      category: "风险检索",
+      config: {
+        type: "crawl",
+        adapter: "firecrawl",
+        queries: ["远东控股 诉讼"],
+        limit: 5,
+      },
+    }).success).toBe(false);
+  });
+
+  it("rejects risk-filtered crawl config without include domains", () => {
+    expect(createSourceSchema.safeParse({
+      name: "Firecrawl-C1风险检索",
+      url: "https://internal.fe-radar/crawl/c1-risk",
+      fetcherType: "crawl",
+      tier: "T2",
+      category: "风险检索",
+      config: {
+        type: "crawl",
+        adapter: "firecrawl",
+        queries: ["远东控股 诉讼"],
+        limit: 5,
+        entityKeywords: ["远东控股"],
+        riskKeywords: ["诉讼"],
+      },
+    }).success).toBe(false);
+  });
+
+  it("accepts announcement config for litigation sources", () => {
+    expect(createSourceSchema.safeParse({
+      name: "深交所公告-竞品涉诉",
+      url: "https://www.szse.cn/disclosure/listed/notice/index.html",
+      fetcherType: "announcement",
+      tier: "T1",
+      category: "上市公司涉诉",
+      config: {
+        type: "announcement",
+        adapter: "szse",
+        litigationFilter: true,
+        titleKeywords: ["诉讼", "仲裁"],
+        stocks: ["000533"],
+        pageSize: 50,
+      },
+    }).success).toBe(true);
+  });
+
+  it("rejects announcement config with an unapproved endpoint", () => {
+    expect(createSourceSchema.safeParse({
+      name: "bad announcement",
+      url: "https://example.com/source",
+      fetcherType: "announcement",
+      tier: "T2",
+      category: "上市公司涉诉",
+      config: {
+        type: "announcement",
+        adapter: "szse",
+        litigationFilter: true,
+        titleKeywords: ["诉讼"],
+        endpoint: "http://169.254.169.254/latest/meta-data",
+      },
+    }).success).toBe(false);
+  });
 });

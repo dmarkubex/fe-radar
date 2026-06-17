@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getDb, briefingTargets } from "@fe-radar/db";
 import { getRequestUser, unauthorized, forbidden, notFound } from "@/lib/api/authz";
 

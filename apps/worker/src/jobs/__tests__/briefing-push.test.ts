@@ -3,10 +3,6 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 // ---------------------------------------------------------------------------
 // Mock @fe-radar/db
 // ---------------------------------------------------------------------------
-let mockBriefing: Record<string, unknown> | null = null;
-let mockTargets: Record<string, unknown>[] = [];
-let mockExistingPush: Record<string, unknown> | null = null;
-
 const mockInsertValues = vi.fn().mockReturnValue({
   onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
 });
@@ -86,17 +82,9 @@ vi.mock("../../lib/dingtalk-bot", () => ({
 // Mock p-limit to a simple passthrough in tests (preserves concurrency contract)
 // ---------------------------------------------------------------------------
 vi.mock("p-limit", () => ({
-  default: (n: number) => {
-    // Real implementation but synchronous tracking of concurrency is sufficient
-    // for unit tests. We just wrap calls.
-    const queue: Array<() => Promise<unknown>> = [];
-    let active = 0;
-    const run = async (fn: () => Promise<unknown>) => {
-      active++;
-      try { return await fn(); } finally { active--; }
-    };
-    return (fn: () => Promise<unknown>) => run(fn);
-  },
+  // Passthrough limiter: invoke each task immediately. Concurrency enforcement is
+  // not relevant to these unit tests, only that every queued task runs.
+  default: (_concurrency: number) => (fn: () => Promise<unknown>) => fn(),
 }));
 
 // ---------------------------------------------------------------------------
@@ -117,9 +105,6 @@ beforeEach(() => {
   capturedSendActionCardCalls.length = 0;
   sendActionCardImpl = async () => undefined;
   businessDay = true;
-  mockBriefing = null;
-  mockTargets = [];
-  mockExistingPush = null;
 
   mockInsertValues.mockReturnValue({ onConflictDoUpdate: vi.fn().mockResolvedValue(undefined) });
   mockInsert.mockReturnValue({ values: mockInsertValues });
@@ -232,8 +217,6 @@ describe("briefing-push job", () => {
     // We verify by checking mock logger was not called with those values
     // Logger is a module-level mock — check that no call had them as direct fields
     // (This is structural: briefing-push.ts only logs targetId/targetName, never URL/secret)
-    const { createLogger } = await import("@fe-radar/shared");
-    // createLogger was called once; the returned logger object is used internally
     // We assert the test infrastructure: sendActionCard received the credentials,
     // proving the job passed them to the SDK (which handles redaction), not to logger.
     expect(capturedSendActionCardCalls).toHaveLength(1);
