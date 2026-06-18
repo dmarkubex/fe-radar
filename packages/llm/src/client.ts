@@ -6,6 +6,22 @@ import type { EmbeddingRequest, JsonSchemaRequest, LlmClient, LlmResult } from "
 
 const logger = pino({ name: "fe-radar-llm" });
 
+/** Strip optional markdown code fences (e.g. ```json … ```) before JSON.parse. */
+export function stripMarkdownJsonFence(content: string): string {
+  const trimmed = content.trim();
+  const closedFence = trimmed.match(/^```(?:json)?\s*\r?\n?([\s\S]*?)\r?\n?```$/i);
+  if (closedFence?.[1]) {
+    return closedFence[1].trim();
+  }
+
+  const openFence = trimmed.match(/^```(?:json)?\s*\r?\n([\s\S]+)$/i);
+  if (openFence?.[1]) {
+    return openFence[1].replace(/\r?\n?```\s*$/i, "").trim();
+  }
+
+  return trimmed;
+}
+
 export interface OpenAiCompatibleOptions {
   provider: string;
   apiKey: string;
@@ -50,7 +66,7 @@ export class OpenAiCompatibleClient implements LlmClient {
         if (!content) {
           throw new LlmError("LLM_EMPTY", "LLM returned empty content");
         }
-        const value = JSON.parse(content) as T;
+        const value = JSON.parse(stripMarkdownJsonFence(content)) as T;
         const usage = this.usage(response.usage?.prompt_tokens ?? 0, response.usage?.completion_tokens ?? 0);
         logger.info({ provider: this.options.provider, tokens: usage, latencyMs: Date.now() - startedAt }, "llm chat_json complete");
         return { value, usage, provider: this.options.provider };

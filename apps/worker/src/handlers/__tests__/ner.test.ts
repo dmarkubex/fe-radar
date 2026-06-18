@@ -22,7 +22,7 @@ vi.mock("drizzle-orm", () => ({
 vi.mock("../../jobs/ner", () => ({ runNer: mockRunNer }));
 vi.mock("../context", () => ({
   logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() },
-  handlerContext: { qwen: { id: "qwen" } },
+  handlerContext: { qwen: { id: "qwen" }, deepSeek: { id: "deepseek" } },
   loadEntityDictionary: mockLoadEntityDictionary,
 }));
 
@@ -73,7 +73,7 @@ describe("handleNerJob", () => {
 
     await handleNerJob({ data: { itemId: 100 } as never });
 
-    expect(mockRunNer).toHaveBeenCalledWith("远东电缆\n中标", expect.anything(), expect.anything());
+    expect(mockRunNer).toHaveBeenCalledWith("远东电缆\n中标", expect.anything(), expect.anything(), expect.anything());
     expect(db._insertValues).toHaveBeenCalledWith({ itemId: 100, entityId: 5, span: "远东电缆" });
   });
 

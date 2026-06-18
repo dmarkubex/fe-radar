@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { SourceFetchError } from "@fe-radar/shared";
 import type { FirecrawlSearchRequest, FirecrawlSearchResponse } from "./types";
 
@@ -10,8 +11,26 @@ export interface FirecrawlClientOptions {
   fetchImpl?: typeof fetch;
 }
 
+function readEnvOrSecretFile(envName: string, fileEnvName: string): string | undefined {
+  const direct = process.env[envName]?.trim();
+  if (direct) {
+    return direct;
+  }
+
+  const filePath = process.env[fileEnvName]?.trim();
+  if (!filePath) {
+    return undefined;
+  }
+
+  try {
+    return readFileSync(filePath, "utf8").trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function resolveFirecrawlApiKey(explicit?: string): string | undefined {
-  const key = explicit?.trim() || process.env.FIRECRAWL_API_KEY?.trim();
+  const key = explicit?.trim() || readEnvOrSecretFile("FIRECRAWL_API_KEY", "FIRECRAWL_API_KEY_FILE");
   return key || undefined;
 }
 

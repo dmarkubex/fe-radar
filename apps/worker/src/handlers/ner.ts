@@ -21,7 +21,12 @@ export async function handleNerJob(job: { data: PipelineJob }): Promise<void> {
 
   const text = `${row.title}\n${row.content ?? ""}`;
   const dict = await loadEntityDictionary();
-  const result = await runNer(text, dict, withScrubber(handlerContext.qwen));
+  const result = await runNer(
+    text,
+    dict,
+    withScrubber(handlerContext.qwen),
+    withScrubber(handlerContext.deepSeek),
+  );
 
   for (const entity of result.entities) {
     if (entity.canonicalName) {

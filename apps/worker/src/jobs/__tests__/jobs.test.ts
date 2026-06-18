@@ -16,10 +16,26 @@ describe("pipeline jobs", () => {
   });
 
   it("NER combines dictionary, policy regex, and LLM hits", async () => {
-    const llm = { chatJson: vi.fn(async () => ({ value: { entities: [{ type: "region", text: "江苏" }] }, usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 }, provider: "qwen" })) } as unknown as LlmClient;
-    const result = await runNer("远东电缆 GB/T 12706 江苏", new EntityDictionary([{ id: 1, type: "company", canonicalName: "远东电缆", aliases: [], circle: "C1" }]), llm);
+    const qwen = { chatJson: vi.fn(async () => ({ value: { entities: [{ type: "region", text: "江苏" }] }, usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 }, provider: "qwen" })) } as unknown as LlmClient;
+    const deepseek = { chatJson: vi.fn() } as unknown as LlmClient;
+    const result = await runNer("远东电缆 GB/T 12706 江苏", new EntityDictionary([{ id: 1, type: "company", canonicalName: "远东电缆", aliases: [], circle: "C1" }]), qwen, deepseek);
     expect(result.entities.map((entity) => entity.type)).toContain("policy");
     expect(result.entities.map((entity) => entity.canonicalName)).toContain("远东电缆");
+  });
+
+  it("NER falls back to DeepSeek when Qwen fails", async () => {
+    const qwen = { chatJson: vi.fn(async () => { throw new Error("down"); }) } as unknown as LlmClient;
+    const deepseek = { chatJson: vi.fn(async () => ({ value: { entities: [{ type: "region", text: "江苏" }] }, usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 }, provider: "deepseek" })) } as unknown as LlmClient;
+    const result = await runNer("远东电缆 GB/T 12706 江苏", new EntityDictionary([]), qwen, deepseek);
+    expect(result.entities).toEqual(expect.arrayContaining([{ type: "region", text: "江苏" }]));
+  });
+
+  it("NER continues with dictionary/policy hits when both LLMs fail", async () => {
+    const qwen = { chatJson: vi.fn(async () => { throw new Error("down"); }) } as unknown as LlmClient;
+    const deepseek = { chatJson: vi.fn(async () => { throw new Error("also down"); }) } as unknown as LlmClient;
+    const result = await runNer("远东电缆 GB/T 12706", new EntityDictionary([{ id: 1, type: "company", canonicalName: "远东电缆", aliases: [], circle: "C1" }]), qwen, deepseek);
+    expect(result.entities.map((entity) => entity.canonicalName)).toContain("远东电缆");
+    expect(result.entities.map((entity) => entity.type)).toContain("policy");
   });
 
   it("scorer maps scrubber block to manual summary", async () => {

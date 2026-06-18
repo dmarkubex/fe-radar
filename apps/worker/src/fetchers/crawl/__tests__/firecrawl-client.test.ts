@@ -1,7 +1,21 @@
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { firecrawlSearch, resolveFirecrawlApiKey } from "../firecrawl-client";
 
 describe("firecrawl client", () => {
+  it("reads API key from FIRECRAWL_API_KEY_FILE when plain env is unset", () => {
+    const dir = mkdtempSync(join(tmpdir(), "firecrawl-key-"));
+    const keyFile = join(dir, "firecrawl_api_key");
+    writeFileSync(keyFile, "fc-from-file\n", "utf8");
+
+    vi.stubEnv("FIRECRAWL_API_KEY", "");
+    vi.stubEnv("FIRECRAWL_API_KEY_FILE", keyFile);
+    expect(resolveFirecrawlApiKey()).toBe("fc-from-file");
+    vi.unstubAllEnvs();
+  });
+
   it("requires API key", async () => {
     vi.stubEnv("FIRECRAWL_API_KEY", "");
     expect(resolveFirecrawlApiKey()).toBeUndefined();

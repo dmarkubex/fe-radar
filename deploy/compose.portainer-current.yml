@@ -100,7 +100,10 @@ services:
       DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-pro}
       # 选填：Kimi key（只影响每日日报，不影响 timeline 出数据，可暂缺）
       KIMI_API_KEY: ${KIMI_API_KEY:-}
-      # Firecrawl 源默认 disabled；启用前创建 Docker secret 并取消注释下一行，避免 API key 出现在普通 env 中。
+      # Firecrawl C1 风险检索：二选一
+      # ① Portainer stack 环境变量填 FIRECRAWL_API_KEY（compose 必须显式引用才会注入容器）
+      FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
+      # ② secret 方案：docker secret create firecrawl_api_key … 后取消注释下一行
       # FIRECRAWL_API_KEY_FILE: /run/secrets/firecrawl_api_key
       FIRECRAWL_BASE_URL: ${FIRECRAWL_BASE_URL:-https://api.firecrawl.dev/v2}
     depends_on:
