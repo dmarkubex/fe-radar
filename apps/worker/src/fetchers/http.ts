@@ -1,18 +1,48 @@
-import { SourceFetchError } from "@fe-radar/shared";
-import { fetch as undiciFetch, ProxyAgent } from "undici";
+import { createLogger, SourceFetchError } from "@fe-radar/shared";
+import { Agent, fetch as undiciFetch, ProxyAgent } from "undici";
+import type { Dispatcher } from "undici";
 import { proxyPool } from "../lib/proxy-pool";
 import { assertRobotsAllowed } from "../lib/robots";
 import { acquireUserAgent } from "../lib/ua-pool";
 
+const logger = createLogger({ service: "fetch-http" });
+
+type FetchInitWithDispatcher = RequestInit & { dispatcher?: Dispatcher };
+
 export interface FetchTextOptions {
   timeoutMs: number;
   useRealUa?: boolean;
-  fetchImpl?: (input: string, init: RequestInit & { dispatcher?: ProxyAgent }) => Promise<Response>;
+  insecureTLS?: boolean;
+  source?: string;
+  fetchImpl?: (input: string, init: FetchInitWithDispatcher) => Promise<Response>;
+}
+
+function buildDispatcher(proxyServer: string | undefined, insecureTLS: boolean): Dispatcher | undefined {
+  if (proxyServer) {
+    if (insecureTLS) {
+      return new ProxyAgent({
+        uri: proxyServer,
+        requestTls: { rejectUnauthorized: false }
+      });
+    }
+    return new ProxyAgent(proxyServer);
+  }
+
+  if (insecureTLS) {
+    return new Agent({ connect: { rejectUnauthorized: false } });
+  }
+
+  return undefined;
 }
 
 export async function fetchTextWithPolicy(url: string, options: FetchTextOptions): Promise<string> {
   const userAgent = acquireUserAgent(options.useRealUa);
   await assertRobotsAllowed(url, userAgent, (options.fetchImpl ?? fetch) as typeof fetch);
+  const insecureTLS = options.insecureTLS === true;
+
+  if (insecureTLS) {
+    logger.warn({ source: options.source ?? "unknown", url }, "fetch using insecure TLS");
+  }
 
   let proxy = proxyPool.acquire();
   let lastError: unknown;
@@ -23,7 +53,7 @@ export async function fetchTextWithPolicy(url: string, options: FetchTextOptions
       const response = await fetchImpl(url, {
         headers: { "user-agent": userAgent },
         signal: AbortSignal.timeout(options.timeoutMs),
-        dispatcher: proxy?.server ? new ProxyAgent(proxy.server) : undefined
+        dispatcher: buildDispatcher(proxy?.server, insecureTLS)
       });
 
       if (response.status === 403 || response.status === 429) {

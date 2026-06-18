@@ -1,5 +1,5 @@
-import { asc } from "drizzle-orm";
-import { getDb, sources } from "@fe-radar/db";
+import { asc, count, gte } from "drizzle-orm";
+import { getDb, items, sources } from "@fe-radar/db";
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
 
 import type { DbClient } from "@fe-radar/db";
@@ -31,6 +31,7 @@ export interface SourceHealthSummary {
   stale: number;
   failing: number;
   disabled: number;
+  fetched24h: number;
 }
 
 export interface SourceHealthPayload {
@@ -95,9 +96,10 @@ function buildPayload(
     failCount: number;
     lastError: string | null;
     lastErrorAt: Date | null;
-  }>
+  }>,
+  fetched24h: number
 ): SourceHealthPayload {
-  const summary: SourceHealthSummary = { healthy: 0, stale: 0, failing: 0, disabled: 0 };
+  const summary: SourceHealthSummary = { healthy: 0, stale: 0, failing: 0, disabled: 0, fetched24h };
 
   const mapped: SourceHealthRow[] = rows.map((row) => {
     const health = computeHealth(row.enabled, row.failCount, row.lastOkAt);
@@ -127,10 +129,10 @@ function buildPayload(
   return { summary, sources: mapped };
 }
 
-function mockSourceHealth(): SourceHealthPayload {
+export function mockSourceHealth(): SourceHealthPayload {
   const nextFetchIso = computeNextFetchIso();
   return {
-    summary: { healthy: 2, stale: 1, failing: 1, disabled: 1 },
+    summary: { healthy: 2, stale: 1, failing: 1, disabled: 1, fetched24h: 42 },
     sources: [
       {
         id: 4,
@@ -210,21 +212,31 @@ export async function fetchSourceHealth(db?: DbClient): Promise<SourceHealthPayl
   if (isMockMode()) {
     return mockSourceHealth();
   }
-  db ??= getDb();
-  const rows = await db
-    .select({
-      id: sources.id,
-      name: sources.name,
-      tier: sources.tier,
-      fetcherType: sources.fetcherType,
-      enabled: sources.enabled,
-      lastOkAt: sources.lastOkAt,
-      failCount: sources.failCount,
-      lastError: sources.lastError,
-      lastErrorAt: sources.lastErrorAt
-    })
-    .from(sources)
-    .orderBy(asc(sources.id));
+  const client = db ?? getDb();
+  const [rows, fetched24hRows] = await Promise.all([
+    client
+      .select({
+        id: sources.id,
+        name: sources.name,
+        tier: sources.tier,
+        fetcherType: sources.fetcherType,
+        enabled: sources.enabled,
+        lastOkAt: sources.lastOkAt,
+        failCount: sources.failCount,
+        lastError: sources.lastError,
+        lastErrorAt: sources.lastErrorAt
+      })
+      .from(sources)
+      .orderBy(asc(sources.id)),
+    (async () => {
+      const cutoff = dayjs().tz(APP_TIMEZONE).subtract(24, "hour").toDate();
+      const [row] = await client
+        .select({ value: count() })
+        .from(items)
+        .where(gte(items.fetchedAt, cutoff));
+      return Number(row?.value ?? 0);
+    })()
+  ]);
 
-  return buildPayload(rows);
+  return buildPayload(rows, fetched24hRows);
 }

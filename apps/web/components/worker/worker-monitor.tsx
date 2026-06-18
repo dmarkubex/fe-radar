@@ -2,6 +2,9 @@
 
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
+import type { PipelineFlowPayload } from "@/lib/api/pipeline-flow-query";
+
+import { PipelineFlow } from "./pipeline-flow";
 
 const REFRESH_MS = 10000;
 
@@ -99,11 +102,13 @@ const HEALTH_LABEL: Record<SourceHealth, string> = {
 export function WorkerMonitor(): React.JSX.Element {
   const [worker, setWorker] = useState<WorkerStatus | null>(null);
   const [health, setHealth] = useState<SourceHealthResponse | null>(null);
+  const [pipelineFlow, setPipelineFlow] = useState<PipelineFlowPayload | null>(null);
   const [loading, setLoading] = useState(true);
   // Independent per-panel errors so a flaky source-health (DB) query doesn't
   // hide live worker/Redis status, and vice versa.
   const [workerError, setWorkerError] = useState<string | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
+  const [pipelineFlowError, setPipelineFlowError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   const load = useCallback(async (): Promise<void> => {
@@ -113,9 +118,10 @@ export function WorkerMonitor(): React.JSX.Element {
       return (await res.json()) as T;
     };
 
-    const [workerResult, healthResult] = await Promise.allSettled([
+    const [workerResult, healthResult, pipelineFlowResult] = await Promise.allSettled([
       fetchJson<WorkerStatus>("/api/admin/worker"),
       fetchJson<SourceHealthResponse>("/api/admin/source-health"),
+      fetchJson<PipelineFlowPayload>("/api/admin/pipeline-flow"),
     ]);
 
     if (workerResult.status === "fulfilled") {
@@ -130,6 +136,16 @@ export function WorkerMonitor(): React.JSX.Element {
       setHealthError(null);
     } else {
       setHealthError(healthResult.reason instanceof Error ? healthResult.reason.message : "请求失败");
+    }
+
+    if (pipelineFlowResult.status === "fulfilled") {
+      setPipelineFlow(pipelineFlowResult.value);
+      setPipelineFlowError(null);
+    } else {
+      setPipelineFlow(null);
+      setPipelineFlowError(
+        pipelineFlowResult.reason instanceof Error ? pipelineFlowResult.reason.message : "请求失败"
+      );
     }
 
     setLastUpdated(dayjs().tz(APP_TIMEZONE).format("HH:mm:ss"));
@@ -168,6 +184,14 @@ export function WorkerMonitor(): React.JSX.Element {
 
   return (
     <div className="space-y-8">
+      {/* ---- Pipeline flow (top) ---- */}
+      <PipelineFlow
+        payload={pipelineFlow}
+        error={pipelineFlowError}
+        onRetry={() => void load()}
+        queues={worker?.queues}
+      />
+
       {/* ---- Worker status header ---- */}
       <section className="border border-border bg-surface p-6 shadow-card">
         <div className="flex items-baseline justify-between border-b border-hairline pb-3">

@@ -20,6 +20,7 @@ export interface RssSourceConfig {
 export interface HtmlSourceConfig {
   type: "html";
   listUrl: string;
+  insecureTLS?: boolean;
   selectors: {
     item: string;
     title: string;

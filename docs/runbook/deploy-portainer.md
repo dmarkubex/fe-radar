@@ -248,7 +248,77 @@ docker exec <postgres容器> psql -U fe_radar -d fe_radar -c \
 - **Grafana**：生产 stack 通过 Swarm configs 挂载 `deploy/grafana` provisioning；Portainer env 必须设置 `GRAFANA_DINGTALK_WEBHOOK_URL=https://oapi.dingtalk.com/robot/send?...`，并确认 datasource UID 为 `fe-radar-postgres`。
 - **auth**：`DINGTALK_ENABLED=true` 上钉钉 SSO 时，本地登录默认关闭；应急才设 `EMERGENCY_LOCAL_LOGIN=true`（Gate 2 #1）。
 - **quotes 信源**：adapter 上线后 admin 后台逐个 `enabled=true` 并验证（NFR-102 数值不过 LLM）。
-- **代理池**：T1 政府站需要，配 `proxy_list` 后 `PROXY_POOL_ENABLED=true`。
+- **代理池**：T1 政府站需要，配 `proxy_list` 后 `PROXY_POOL_ENABLED=true`（详见 §7.1）。
+
+---
+
+## 7. 信源能力通电（住宅代理 / Firecrawl）— 零代码，纯运维
+
+> 背景：2026-06-17 信源抓取可行性复核结论 = **不缺架构缺通电**。代理池与 Firecrawl 发现层代码均已就绪并接入 dispatch，仅靠部署侧配置即可激活。本节两步互相独立，可分别落地。
+> 任务卡：`spec/source-fetch-optimization/tasks.md` T-SRC-01。
+
+### 7.1 住宅代理通电（救机房 IP 403 簇）
+
+**解决对象**：被机房 IP 段封锁的源——发改委、工信部、中电联、中国能源报（`paper.people.com.cn` 403）等。基建见 `apps/worker/src/lib/proxy-pool.ts`，已接入 `fetchers/http.ts` 与 `playwright.ts`。
+
+**步骤**：
+
+```bash
+# 1) 采购住宅代理，拿到 host:port 列表（支持 http/https/socks，可带账密）
+#    写成每行一个代理的清单（# 开头为注释）：
+docker secret create proxy_list <(printf 'http://user:pass@res1.example.com:8000\nhttp://user:pass@res2.example.com:8000\n')
+
+# 2) stack environment 打开开关（PROXY_LIST_FILE=/run/secrets/proxy_list 已在 stack.yml 配好）
+#    PROXY_POOL_ENABLED: "true"
+# 3) 重部署 worker 服务
+```
+
+**重新启用之前因 403 禁用的源**（代理不会自动重启已禁用源）：admin 后台把发改委 / 工信部 / 中电联 / 中国能源报 `enabled=true`，或 SQL：
+
+```sql
+UPDATE sources SET enabled = true, fail_count = 0, last_error = NULL
+WHERE name IN ('国家发改委','工信部','中电联','中国能源报');
+```
+
+**验收**（等一轮抓取后）：
+
+```sql
+-- 这些源应 fail_count 归零、last_ok_at 刷新到本轮
+SELECT name, enabled, fail_count, last_ok_at, last_error FROM sources
+WHERE name IN ('国家发改委','工信部','中电联','中国能源报') ORDER BY name;
+```
+
+**rollback**：stack env `PROXY_POOL_ENABLED=false` → 重部署 worker。代码在关闭时自动 bypass 代理（`proxy-pool.ts` `acquire()` 直接返回 undefined），无副作用。
+
+> **⚠️ 合规底线**：代理**仅用于绕 IP 封禁**。雪球（robots `/k`）、搜狗微信（robots `/weixin`，电缆头条/储能头条）、索比光伏（robots `/news/`）因 robots.txt 被禁用，**不得借代理重启**——`assertRobotsAllowed` 会照样拦截，强行绕过违反项目合规约束。
+
+### 7.2 Firecrawl C1 风险检索通电（发现层 + 诉讼监测）
+
+**作用**：SERP 式搜索「远东 诉讼/行政处罚/事故」等关键词，补回裁判文书网等抓不到的风险信号（合规替代路径）。代码见 `fetchers/crawl/firecrawl-client.ts` + `handlers/fetch.ts` `case 'crawl'`；源 `Firecrawl-C1风险检索` 由迁移 0024 置 `enabled=true`。
+
+**步骤**：
+
+```bash
+# 1) 获取 Firecrawl API key（fc-xxx）
+# 2) 建 secret（stack.yml 已配 FIRECRAWL_API_KEY_FILE=/run/secrets/firecrawl_api_key）
+docker secret create firecrawl_api_key <(printf 'fc-xxx')
+# 3) 确认源已启用（迁移 0024 已置 true；若被 admin 关过则重开）
+# 4) 重部署 worker → 等一轮抓取（crawl 走新闻 cron 0 */6 * * *）
+```
+
+**验收**：
+
+```sql
+-- 应出现来自 Firecrawl 源的入库条目，且该源 fail_count=0 / last_ok_at 刷新
+SELECT s.name, s.fail_count, s.last_ok_at,
+       count(i.id) FILTER (WHERE i.fetched_at > now() - interval '24 hours') AS items_24h
+FROM sources s LEFT JOIN items i ON i.source_id = s.id
+WHERE s.name = 'Firecrawl-C1风险检索' GROUP BY s.id, s.name, s.fail_count, s.last_ok_at;
+```
+
+**rollback**：admin 后台把该源 `enabled=false`（或 SQL 同理）。
+
+> **注意**：未配 key 时该源抓取必然失败（`SourceFetchError FETCH_CONFIG`），`fail_count` 递增属预期；配好 key 后恢复正常。该源不影响其它源抓取。
 
 ---
 

@@ -12,7 +12,13 @@ function firstSelectorMatch(root: Cheerio<Element>, selector: string): Cheerio<E
 }
 
 export async function fetchHtml(config: HtmlSourceConfig, context: FetchContext, fetchImpl?: typeof fetch): Promise<StandardItem[]> {
-  const html = await fetchTextWithPolicy(config.listUrl, { timeoutMs: 15000, useRealUa: context.useRealUa, fetchImpl });
+  const html = await fetchTextWithPolicy(config.listUrl, {
+    timeoutMs: 15000,
+    useRealUa: context.useRealUa,
+    insecureTLS: config.insecureTLS,
+    source: context.sourceName,
+    fetchImpl
+  });
   const $ = cheerio.load(html);
   const items: StandardItem[] = [];
 

@@ -22,6 +22,25 @@ describe("sources api schema", () => {
     }).success).toBe(false);
   });
 
+  it("accepts html insecureTLS config and preserves it", () => {
+    const result = createSourceSchema.safeParse({
+      name: "电缆网 cableabc",
+      url: "https://www.cableabc.com/news/",
+      fetcherType: "html",
+      tier: "T2",
+      category: "媒体-垂直",
+      config: {
+        type: "html",
+        listUrl: "https://www.cableabc.com/news/",
+        insecureTLS: true,
+        selectors: { item: "li", title: "a", link: "a", date: "span" }
+      }
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.success ? result.data.config : null).toMatchObject({ type: "html", insecureTLS: true });
+  });
+
   it("accepts quotes config with snake_case regex rules and relative endpoint", () => {
     const result = createSourceSchema.safeParse({
       name: "RSSHub 数值抽取-SMM 铜",

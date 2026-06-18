@@ -45,6 +45,7 @@ export const sourceConfigSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("html"),
     listUrl: z.string().url(),
+    insecureTLS: z.boolean().optional(),
     selectors: z.object({
       item: z.string().min(1),
       title: z.string().min(1),

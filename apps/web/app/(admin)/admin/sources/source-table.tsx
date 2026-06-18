@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
 import { SourceForm } from "./source-form";
 
 type FetcherType = "rss" | "html" | "playwright" | "quotes" | "announcement" | "crawl";
@@ -29,6 +30,67 @@ const TIER_CHIPS: { key: TierFilter; label: string }[] = [
   { key: "DISABLED", label: "已停用" },
 ];
 
+// ---- health wire types (mirror /api/admin/source-health response) ----
+
+type SourceHealth = "healthy" | "stale" | "failing" | "disabled";
+
+interface HealthRow {
+  id: number;
+  health: SourceHealth;
+  staleHours: number | null;
+  nextFetchIso: string | null;
+  lastError: string | null;
+  lastErrorAtIso: string | null;
+}
+
+interface HealthSummary {
+  healthy: number;
+  stale: number;
+  failing: number;
+  disabled: number;
+  fetched24h: number;
+}
+
+interface HealthPayload {
+  summary: HealthSummary;
+  sources: HealthRow[];
+}
+
+const HEALTH_BADGE: Record<SourceHealth, string> = {
+  healthy: "text-ok",
+  stale: "text-warn",
+  failing: "text-danger",
+  disabled: "text-fg-soft"
+};
+
+const HEALTH_LABEL: Record<SourceHealth, string> = {
+  healthy: "正常",
+  stale: "陈旧",
+  failing: "失败",
+  disabled: "停用"
+};
+
+// Manual relative-time formatter: the shared dayjs build only extends utc +
+// timezone (no relativeTime plugin), so we compute the diff by hand. Handles
+// both past ("N 分钟前") and future ("N 分钟后") timestamps. Copied locally
+// from components/worker/worker-monitor.tsx because that file is a sibling
+// client component and cannot be imported from this route.
+function relativeFromNow(iso: string | null): string {
+  if (!iso) return "—";
+  const t = dayjs(iso);
+  if (!t.isValid()) return "—";
+  const diffSec = t.tz(APP_TIMEZONE).diff(dayjs().tz(APP_TIMEZONE), "second");
+  const suffix = diffSec >= 0 ? "后" : "前";
+  const abs = Math.abs(diffSec);
+  if (abs < 60) return `${abs} 秒${suffix}`;
+  const mins = Math.round(abs / 60);
+  if (mins < 60) return `${mins} 分钟${suffix}`;
+  const hours = Math.round(abs / 3600);
+  if (hours < 24) return `${hours} 小时${suffix}`;
+  const days = Math.round(abs / 86400);
+  return `${days} 天${suffix}`;
+}
+
 function tierColor(tier: "T1" | "T2" | "T3"): string {
   if (tier === "T1") return "bg-accent/15 text-accent";
   if (tier === "T2") return "bg-gold/15 text-gold";
@@ -40,6 +102,8 @@ export function SourceTable(): React.JSX.Element {
   const [rows, setRows] = useState<SourceRow[]>([]);
   const [editingSource, setEditingSource] = useState<SourceRow | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [health, setHealth] = useState<HealthPayload | null>(null);
+  const [healthError, setHealthError] = useState<string | null>(null);
 
   const filteredRows = useMemo(() => {
     if (filter === "ALL") return rows;
@@ -49,26 +113,70 @@ export function SourceTable(): React.JSX.Element {
   }, [rows, filter]);
 
   const totalCount = rows.length;
-  const healthyCount = rows.filter((r) => r.enabled && r.failCount < 3).length;
+  const failedCount = rows.filter((r) => r.failCount >= 3).length;
 
+  // 健康率: healthy / (total - disabled)，分母 ≤ 0 显示 "—"
+  const disabledSummary = health?.summary.disabled ?? 0;
+  const healthySummary = health?.summary.healthy ?? 0;
+  const healthDenominator = totalCount - disabledSummary;
+  const healthRateStr =
+    health && healthDenominator > 0
+      ? `${Math.round((healthySummary / healthDenominator) * 100)}%`
+      : "—";
+
+  // 下次抓取: 所有 nextFetchIso 中最小的（最近）一个
+  const nextFetchIso = health
+    ? health.sources
+        .map((s) => s.nextFetchIso)
+        .filter((iso): iso is string => iso !== null)
+        .sort()[0] ?? null
+    : null;
 
   const kpis = [
     { label: "信源总数", value: totalCount },
-    { label: "近 7 天成功率", value: totalCount > 0 ? `${Math.round((healthyCount / totalCount) * 100)}%` : "—" },
-    { label: "近 24h 抓取量", value: "—" },
-    { label: "失败信源", value: rows.filter((r) => r.failCount >= 3).length },
-    { label: "下次抓取", value: "—" },
+    { label: "当前健康率", value: healthRateStr },
+    { label: "近 24h 抓取量", value: health ? health.summary.fetched24h : "—" },
+    { label: "失败信源", value: failedCount },
+    { label: "下次抓取", value: relativeFromNow(nextFetchIso) }
   ];
+
+  // merge: health.sources → Map<id, HealthRow>，表格渲染时按 id lookup
+  const healthMap = useMemo(() => {
+    if (!health) return new Map<number, HealthRow>();
+    return new Map(health.sources.map((h) => [h.id, h]));
+  }, [health]);
 
   const loadRows = useCallback(async () => {
     setError(null);
-    try {
-      const response = await fetch("/api/sources", { cache: "no-store" });
-      if (!response.ok) throw new Error("信源加载失败");
-      const payload = (await response.json()) as { items: SourceRow[] };
-      setRows(payload.items);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "信源加载失败");
+    setHealthError(null);
+    // Promise.allSettled: 双 fetch 并行，单侧失败不白屏，沿用 per-panel error 模式
+    const [sourcesResult, healthResult] = await Promise.allSettled([
+      fetch("/api/sources", { cache: "no-store" }).then((r) => {
+        if (!r.ok) throw new Error("信源加载失败");
+        return r.json() as Promise<{ items: SourceRow[] }>;
+      }),
+      fetch("/api/admin/source-health", { cache: "no-store" }).then((r) => {
+        if (!r.ok) throw new Error("健康数据加载失败");
+        return r.json() as Promise<HealthPayload>;
+      })
+    ]);
+
+    if (sourcesResult.status === "fulfilled") {
+      setRows(sourcesResult.value.items);
+    } else {
+      setError(
+        sourcesResult.reason instanceof Error ? sourcesResult.reason.message : "信源加载失败"
+      );
+    }
+
+    if (healthResult.status === "fulfilled") {
+      setHealth(healthResult.value);
+    } else {
+      setHealthError(
+        healthResult.reason instanceof Error
+          ? healthResult.reason.message
+          : "健康数据加载失败"
+      );
     }
   }, []);
 
@@ -80,7 +188,7 @@ export function SourceTable(): React.JSX.Element {
     await fetch(`/api/sources/${row.id}`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ enabled: !row.enabled }),
+      body: JSON.stringify({ enabled: !row.enabled })
     });
     await loadRows();
   }
@@ -151,6 +259,12 @@ export function SourceTable(): React.JSX.Element {
               {filteredRows.length} 条
             </span>
           </div>
+          {/* health 内联错误：不全屏报错 */}
+          {healthError ? (
+            <p className="px-6 py-2 font-mono text-[11px] text-warn">
+              健康数据暂不可用: {healthError}
+            </p>
+          ) : null}
           <div className="overflow-x-auto">
             {error ? (
               <p className="px-6 py-4 font-mono text-sm text-danger">{error}</p>
@@ -163,6 +277,7 @@ export function SourceTable(): React.JSX.Element {
                   <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">Tier</th>
                   <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">URL</th>
                   <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">状态</th>
+                  <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">健康</th>
                   <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">最近成功</th>
                   <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">失败</th>
                   <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">操作</th>
@@ -171,97 +286,129 @@ export function SourceTable(): React.JSX.Element {
               <tbody className="divide-y divide-hairline">
                 {filteredRows.length === 0 ? (
                   <tr>
-                    <td className="px-6 py-8 text-fg-muted" colSpan={8}>
+                    <td className="px-6 py-8 text-fg-muted" colSpan={9}>
                       暂无匹配信源。
                     </td>
                   </tr>
                 ) : (
-                  filteredRows.map((row) => (
-                    <tr
-                      key={row.id}
-                      data-testid={`source-row-${row.id}`}
-                      className={`transition-colors ${
-                        editingSource?.id === row.id
-                          ? "bg-accent/5 ring-1 ring-inset ring-accent"
-                          : row.failCount >= 7
-                            ? "bg-danger/5"
-                            : row.failCount >= 3
-                              ? "bg-warn/5"
-                              : "hover:bg-bg-deep"
-                      }`}
-                    >
-                      <td className="px-6 py-3 font-mono text-xs tabular-nums text-fg-soft">
-                        {row.id}
-                      </td>
-                      <td className="px-3 py-3 font-medium text-fg">
-                        {row.name}
-                      </td>
-                      <td className="px-3 py-3">
-                        <span
-                          className={`inline-block rounded-none px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${tierColor(row.tier)}`}
-                        >
-                          {row.tier}
-                        </span>
-                      </td>
-                      <td className="max-w-[200px] truncate px-3 py-3 text-fg-muted">
-                        {row.url}
-                      </td>
-                      <td className="px-3 py-3">
-                        <span
-                          className={`font-mono text-xs ${
-                            row.enabled ? "text-ok" : "text-fg-soft"
+                  filteredRows.map((row) => {
+                    const healthRow = healthMap.get(row.id);
+                    return (
+                      <Fragment key={row.id}>
+                        <tr
+                          data-testid={`source-row-${row.id}`}
+                          className={`transition-colors ${
+                            editingSource?.id === row.id
+                              ? "bg-accent/5 ring-1 ring-inset ring-accent"
+                              : row.failCount >= 7
+                                ? "bg-danger/5"
+                                : row.failCount >= 3
+                                  ? "bg-warn/5"
+                                  : "hover:bg-bg-deep"
                           }`}
                         >
-                          {row.enabled ? "启用" : "停用"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 font-mono text-xs tabular-nums text-fg-muted">
-                        {row.lastOkAt ?? "—"}
-                      </td>
-                      <td className="px-3 py-3 font-mono text-xs tabular-nums">
-                        <span
-                          className={
-                            row.failCount >= 7
-                              ? "text-danger"
-                              : row.failCount >= 3
-                                ? "text-warn"
-                                : "text-fg-muted"
-                          }
-                        >
-                          {row.failCount}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <div className="flex gap-1">
-                          <button
-                            type="button"
-                            className={`rounded-none px-2 py-1 font-mono text-[11px] hover:bg-accent/10 ${
-                              editingSource?.id === row.id ? "bg-accent/10 text-accent" : "text-accent"
-                            }`}
-                            onClick={() => beginEdit(row)}
-                          >
-                            编辑
-                          </button>
-                          <button
-                            type="button"
-                            className={`rounded-none px-2 py-1 font-mono text-[11px] hover:bg-bg-deep ${
-                              row.enabled ? "text-warn" : "text-ok"
-                            }`}
-                            onClick={() => void toggleEnabled(row)}
-                          >
-                            {row.enabled ? "停用" : "启用"}
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-none px-2 py-1 font-mono text-[11px] text-danger hover:bg-danger/10"
-                            onClick={() => void deleteSource(row)}
-                          >
-                            删除
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                          <td className="px-6 py-3 font-mono text-xs tabular-nums text-fg-soft">
+                            {row.id}
+                          </td>
+                          <td className="px-3 py-3 font-medium text-fg">
+                            {row.name}
+                          </td>
+                          <td className="px-3 py-3">
+                            <span
+                              className={`inline-block rounded-none px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${tierColor(row.tier)}`}
+                            >
+                              {row.tier}
+                            </span>
+                          </td>
+                          <td className="max-w-[200px] truncate px-3 py-3 text-fg-muted">
+                            {row.url}
+                          </td>
+                          <td className="px-3 py-3">
+                            <span
+                              className={`font-mono text-xs ${
+                                row.enabled ? "text-ok" : "text-fg-soft"
+                              }`}
+                            >
+                              {row.enabled ? "启用" : "停用"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3">
+                            {healthRow ? (
+                              <span className={`font-mono text-xs ${HEALTH_BADGE[healthRow.health]}`}>
+                                {HEALTH_LABEL[healthRow.health]}
+                              </span>
+                            ) : (
+                              <span className="font-mono text-xs text-fg-soft">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 font-mono text-xs tabular-nums text-fg-muted">
+                            {row.lastOkAt ?? "—"}
+                          </td>
+                          <td className="px-3 py-3 font-mono text-xs tabular-nums">
+                            <span
+                              className={
+                                row.failCount >= 7
+                                  ? "text-danger"
+                                  : row.failCount >= 3
+                                    ? "text-warn"
+                                    : "text-fg-muted"
+                              }
+                            >
+                              {row.failCount}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="flex gap-1">
+                              <button
+                                type="button"
+                                className={`rounded-none px-2 py-1 font-mono text-[11px] hover:bg-accent/10 ${
+                                  editingSource?.id === row.id ? "bg-accent/10 text-accent" : "text-accent"
+                                }`}
+                                onClick={() => beginEdit(row)}
+                              >
+                                编辑
+                              </button>
+                              <button
+                                type="button"
+                                className={`rounded-none px-2 py-1 font-mono text-[11px] hover:bg-bg-deep ${
+                                  row.enabled ? "text-warn" : "text-ok"
+                                }`}
+                                onClick={() => void toggleEnabled(row)}
+                              >
+                                {row.enabled ? "停用" : "启用"}
+                              </button>
+                              <button
+                                type="button"
+                                className="rounded-none px-2 py-1 font-mono text-[11px] text-danger hover:bg-danger/10"
+                                onClick={() => void deleteSource(row)}
+                              >
+                                删除
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {healthRow?.lastError ? (
+                          <tr>
+                            <td colSpan={9} className="px-3 pb-3 pt-0">
+                              <div className="flex items-start gap-2 border-l-2 border-danger/40 bg-danger/5 px-3 py-2">
+                                <span className="shrink-0 font-mono text-[10px] uppercase tracking-widest text-danger">
+                                  最近错误
+                                </span>
+                                <span className="font-mono text-[11px] leading-relaxed text-fg-muted break-all">
+                                  {healthRow.lastError}
+                                  {healthRow.lastErrorAtIso ? (
+                                    <span className="ml-2 text-fg-soft">
+                                      · {relativeFromNow(healthRow.lastErrorAtIso)}
+                                    </span>
+                                  ) : null}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })
                 )}
               </tbody>
             </table>
