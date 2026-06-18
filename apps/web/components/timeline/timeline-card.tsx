@@ -49,7 +49,7 @@ export function TimelineCard({
               {alertTypeLabel(item.alertType)}
             </span>
           ) : null}
-          <span>{formatAppTime(item.scoredAt ?? item.publishedAt)}</span>
+          <span>{formatAppTime(item.publishedAt)}</span>
         </div>
 
         <a

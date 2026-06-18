@@ -1,5 +1,7 @@
+import { dayjs } from "@fe-radar/shared";
+
 export interface CursorPayload {
-  scoredAt: string;
+  at: string;
   id: number;
 }
 
@@ -13,10 +15,14 @@ export function decodeCursor(cursor: string | undefined): CursorPayload | null {
   }
   try {
     const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as Partial<CursorPayload>;
-    if (!parsed.scoredAt || typeof parsed.id !== "number") {
+    const id = parsed.id;
+    if (!parsed.at || typeof parsed.at !== "string" || typeof id !== "number" || !Number.isInteger(id) || !Number.isFinite(id)) {
       return null;
     }
-    return { scoredAt: parsed.scoredAt, id: parsed.id };
+    if (!dayjs(parsed.at).isValid()) {
+      return null;
+    }
+    return { at: parsed.at, id };
   } catch {
     return null;
   }

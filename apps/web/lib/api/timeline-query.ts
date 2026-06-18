@@ -9,6 +9,7 @@ import {
   items,
   sources
 } from "@fe-radar/db";
+import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
 
 import type { DbClient } from "@fe-radar/db";
 import type { TimelineFilters } from "@/lib/api/timeline-schema";
@@ -18,6 +19,13 @@ import { isMockMode } from "@/lib/mock-mode";
 import { mockFetchItemDetail, mockFetchTimeline } from "@/lib/mock-data";
 
 const DEFAULT_LIMIT = 50;
+
+export type TimelineKeysetAxis = "publishedAt" | "scoredAt";
+
+export interface TimelinePaginationPlan {
+  orderBy: "publishedAt" | "qualityScore";
+  keysetAxis: TimelineKeysetAxis;
+}
 
 export interface TimelineItemDto {
   id: number;
@@ -42,6 +50,12 @@ export interface TimelineItemDto {
 export interface TimelineResult {
   items: TimelineItemDto[];
   nextCursor: string | null;
+}
+
+export interface TimelineCursorRow {
+  id: number;
+  publishedAt: Date;
+  scoredAt: Date | null;
 }
 
 export interface ItemDetailDto extends TimelineItemDto {
@@ -71,6 +85,15 @@ export interface ItemDetailDto extends TimelineItemDto {
   }>;
 }
 
+export function resolveTimelinePaginationPlan(filters: Pick<TimelineFilters, "curated"> = {}): TimelinePaginationPlan {
+  return filters.curated ? { orderBy: "qualityScore", keysetAxis: "scoredAt" } : { orderBy: "publishedAt", keysetAxis: "publishedAt" };
+}
+
+export function encodeTimelineCursor(row: TimelineCursorRow, axis: TimelineKeysetAxis): string | null {
+  const at = axis === "publishedAt" ? row.publishedAt : row.scoredAt;
+  return at ? encodeCursor({ at: at.toISOString(), id: row.id }) : null;
+}
+
 function visibleItemConditions(filters: TimelineFilters, includeBlocked: boolean, cursor?: string, search?: string, useFts = true) {
   const conditions = [
     isNotNull(itemAnalysis.scoredAt),
@@ -87,8 +110,13 @@ function visibleItemConditions(filters: TimelineFilters, includeBlocked: boolean
 
   const parsedCursor = decodeCursor(cursor);
   if (parsedCursor) {
-    const scoredAt = new Date(parsedCursor.scoredAt);
-    conditions.push(or(lt(itemAnalysis.scoredAt, scoredAt), and(eq(itemAnalysis.scoredAt, scoredAt), lt(items.id, parsedCursor.id))));
+    const plan = resolveTimelinePaginationPlan(filters);
+    const at = dayjs(parsedCursor.at).tz(APP_TIMEZONE).toDate();
+    conditions.push(
+      plan.keysetAxis === "publishedAt"
+        ? or(lt(items.publishedAt, at), and(eq(items.publishedAt, at), lt(items.id, parsedCursor.id)))
+        : or(lt(itemAnalysis.scoredAt, at), and(eq(itemAnalysis.scoredAt, at), lt(items.id, parsedCursor.id)))
+    );
   }
 
   if (search) {
@@ -141,6 +169,7 @@ async function fetchRows(
   }
 ) {
   const limit = options.limit ?? DEFAULT_LIMIT;
+  const plan = resolveTimelinePaginationPlan({ curated: options.curatedOrder });
   return db
     .select({
       id: items.id,
@@ -167,7 +196,7 @@ async function fetchRows(
     .leftJoin(clusterItems, eq(clusterItems.itemId, items.id))
     .leftJoin(clusters, eq(clusters.id, clusterItems.clusterId))
     .where(visibleItemConditions(options.filters, options.includeBlocked, options.cursor, options.search, options.useFts))
-    .orderBy(options.curatedOrder ? desc(itemAnalysis.qualityScore) : desc(itemAnalysis.scoredAt), desc(items.id))
+    .orderBy(plan.orderBy === "qualityScore" ? desc(itemAnalysis.qualityScore) : desc(items.publishedAt), desc(items.id))
     .limit(limit + 1);
 }
 
@@ -213,9 +242,19 @@ export async function fetchTimeline(options: {
 
   const page = rows.slice(0, limit);
   const last = page.at(-1);
+  const plan = resolveTimelinePaginationPlan(filters);
+  let nextCursor: string | null = null;
+  if (rows.length > limit && last) {
+    if (plan.keysetAxis === "scoredAt") {
+      // at = scoredAt ISO, keyset column intentionally unchanged
+      nextCursor = encodeTimelineCursor(last, "scoredAt");
+    } else {
+      nextCursor = encodeTimelineCursor(last, "publishedAt");
+    }
+  }
   return {
     items: page.map(toTimelineItem),
-    nextCursor: rows.length > limit && last?.scoredAt ? encodeCursor({ scoredAt: last.scoredAt.toISOString(), id: last.id }) : null
+    nextCursor
   };
 }
 

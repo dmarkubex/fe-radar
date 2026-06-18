@@ -3,20 +3,35 @@ import type { TimelineItemDto, ItemDetailDto, TimelineResult } from "@/lib/api/t
 import type { TimelineFilters } from "@/lib/api/timeline-schema";
 import type { AlertQuery } from "@/lib/api/alerts-schema";
 import type { ScoringConfigBody } from "@/lib/api/scoring-config-schema";
+import { decodeCursor, encodeCursor } from "@/lib/api/cursor";
+import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
 
-const now = Date.now();
-const iso = (hoursAgo: number) => new Date(now - hoursAgo * 60 * 60 * 1000).toISOString();
+const mockBaseDay = dayjs().tz(APP_TIMEZONE).startOf("day").subtract(1, "day");
+const iso = (hoursAgo: number) => dayjs().tz(APP_TIMEZONE).subtract(hoursAgo, "hour").toISOString();
+const mockPublishedAt = (daysBeforeBase: number, hour: number, minute: number) =>
+  mockBaseDay.subtract(daysBeforeBase, "day").hour(hour).minute(minute).second(0).millisecond(0).toISOString();
+const mockScoredAt = (publishedAt: string, minutesLater: number) => dayjs(publishedAt).tz(APP_TIMEZONE).add(minutesLater, "minute").toISOString();
+
+const p0Evening = mockPublishedAt(0, 20, 15);
+const p0Afternoon = mockPublishedAt(0, 14, 5);
+const p0Morning = mockPublishedAt(0, 9, 30);
+const p1Evening = mockPublishedAt(1, 19, 40);
+const p1Afternoon = mockPublishedAt(1, 13, 20);
+const p1Morning = mockPublishedAt(1, 8, 15);
+const p2Evening = mockPublishedAt(2, 18, 10);
+const p2Afternoon = mockPublishedAt(2, 15, 45);
+const p2Morning = mockPublishedAt(2, 7, 50);
 
 export const mockTimelineItems: TimelineItemDto[] = [
   {
-    id: 1,
-    title: "远东智慧能源中标国网江苏 2026 一批次招标，电缆标包金额待披露",
-    url: "https://example.com/mock/1",
+    id: 30,
+    title: "远东智慧能源中标国网江苏电缆框架采购，标包金额待披露",
+    url: "https://example.com/mock/30",
     sourceName: "电缆网",
     sourceTier: "T2",
     sourceCategory: "项目招标",
-    publishedAt: iso(2),
-    scoredAt: iso(1),
+    publishedAt: p0Evening,
+    scoredAt: mockScoredAt(p0Evening, 30),
     summaryZh: "自家公司直接中标项目，建议跟进合同金额、交付周期和竞品份额变化。",
     category: "project",
     topCircle: "C1",
@@ -28,14 +43,14 @@ export const mockTimelineItems: TimelineItemDto[] = [
     relatedCount: 2
   },
   {
-    id: 2,
-    title: "工信部发布《电线电缆行业规范条件（2026 修订）》征求意见稿",
-    url: "https://example.com/mock/2",
+    id: 29,
+    title: "工信部发布电线电缆行业规范条件修订征求意见稿",
+    url: "https://example.com/mock/29",
     sourceName: "工信部官网",
     sourceTier: "T1",
     sourceCategory: "政府",
-    publishedAt: iso(5),
-    scoredAt: iso(4),
+    publishedAt: p0Evening,
+    scoredAt: mockScoredAt(p0Evening, 30),
     summaryZh: "新版规范提高质量追溯和环保准入要求，利好头部企业，需评估产线合规成本。",
     category: "policy",
     topCircle: "C2",
@@ -47,14 +62,14 @@ export const mockTimelineItems: TimelineItemDto[] = [
     relatedCount: 1
   },
   {
-    id: 3,
-    title: "紫金电缆某生产车间发生火情，无人员伤亡，部分产线临时停产",
-    url: "https://example.com/mock/3",
+    id: 28,
+    title: "紫金电缆生产车间发生火情，无人员伤亡，部分产线临时停产",
+    url: "https://example.com/mock/28",
     sourceName: "第一财经能源",
     sourceTier: "T1",
     sourceCategory: "媒体-综合",
-    publishedAt: iso(8),
-    scoredAt: iso(7),
+    publishedAt: p0Afternoon,
+    scoredAt: mockScoredAt(p0Afternoon, 25),
     summaryZh: "竞品安全事故可能影响短期交付能力，建议销售侧关注客户替代需求。",
     category: "company",
     topCircle: "C2",
@@ -66,14 +81,14 @@ export const mockTimelineItems: TimelineItemDto[] = [
     relatedCount: 0
   },
   {
-    id: 4,
-    title: "南方电网 2026 第二批次海缆招标启动，总额预计 78 亿元",
-    url: "https://example.com/mock/4",
+    id: 27,
+    title: "南方电网第二批电缆与海缆招标启动，总额预计 78 亿元",
+    url: "https://example.com/mock/27",
     sourceName: "北极星电力",
     sourceTier: "T2",
     sourceCategory: "媒体-垂直",
-    publishedAt: iso(13),
-    scoredAt: iso(12),
+    publishedAt: p0Morning,
+    scoredAt: mockScoredAt(p0Morning, 35),
     summaryZh: "新增 380kV 海缆专项，宝胜、亨通、东方电缆已报名，值得持续跟踪。",
     category: "project",
     topCircle: "C2",
@@ -85,14 +100,14 @@ export const mockTimelineItems: TimelineItemDto[] = [
     relatedCount: 3
   },
   {
-    id: 6,
-    title: "亨通光电：关于涉及诉讼的公告",
-    url: "https://example.com/mock/6",
+    id: 26,
+    title: "亨通光电披露电缆业务涉诉公告，投标影响待评估",
+    url: "https://example.com/mock/26",
     sourceName: "巨潮-C2电缆竞品涉诉",
     sourceTier: "T1",
     sourceCategory: "上市公司涉诉",
-    publishedAt: iso(6),
-    scoredAt: iso(5),
+    publishedAt: p1Evening,
+    scoredAt: mockScoredAt(p1Evening, 20),
     summaryZh: "竞品亨通光电新增诉讼披露，建议法务与销售侧评估供应链与投标影响。",
     category: "company",
     topCircle: "C2",
@@ -102,6 +117,101 @@ export const mockTimelineItems: TimelineItemDto[] = [
     clusterId: 1006,
     eventType: "涉诉",
     relatedCount: 0
+  },
+  {
+    id: 25,
+    title: "铜价上行推高电缆成本，头部企业启动锁价复核",
+    url: "https://example.com/mock/25",
+    sourceName: "上海有色网 SMM",
+    sourceTier: "T2",
+    sourceCategory: "原料价格",
+    publishedAt: p1Afternoon,
+    scoredAt: mockScoredAt(p1Afternoon, 20),
+    summaryZh: "铜价波动对电缆毛利形成压力，采购侧需复核套保与长协策略。",
+    category: "market",
+    topCircle: "C2",
+    qualityScore: 6.9,
+    alertType: null,
+    alertLevel: null,
+    clusterId: 1007,
+    eventType: "价格波动",
+    relatedCount: 1
+  },
+  {
+    id: 24,
+    title: "中汽协更新新能源车产销数据，带动高压电缆需求预期",
+    url: "https://example.com/mock/24",
+    sourceName: "中汽协",
+    sourceTier: "T1",
+    sourceCategory: "协会",
+    publishedAt: p1Morning,
+    scoredAt: mockScoredAt(p1Morning, 20),
+    summaryZh: "新能源车产销增长提升高压线束与电缆需求预期，建议关注车企订单节奏。",
+    category: "market",
+    topCircle: "C3",
+    qualityScore: 6.6,
+    alertType: null,
+    alertLevel: null,
+    clusterId: 1008,
+    eventType: "需求变化",
+    relatedCount: 2
+  },
+  {
+    id: 23,
+    title: "国家能源局发布储能并网通知，电缆配套验收要求趋严",
+    url: "https://example.com/mock/23",
+    sourceName: "国家能源局",
+    sourceTier: "T1",
+    sourceCategory: "政府",
+    publishedAt: p2Evening,
+    scoredAt: mockScoredAt(p2Evening, 15),
+    summaryZh: "储能并网验收要求强化，可能带动电缆配套检测和交付资料标准化。",
+    category: "policy",
+    topCircle: "C2",
+    qualityScore: 7.1,
+    alertType: "policy",
+    alertLevel: "L2",
+    clusterId: 1009,
+    eventType: "政策发布",
+    relatedCount: 1
+  },
+  {
+    id: 22,
+    title: "海外海风项目释放电缆订单，东方电缆与中天科技入围",
+    url: "https://example.com/mock/22",
+    sourceName: "北极星电力",
+    sourceTier: "T2",
+    sourceCategory: "媒体-垂直",
+    publishedAt: p2Afternoon,
+    scoredAt: mockScoredAt(p2Afternoon, 15),
+    summaryZh: "海外海风项目释放海缆订单，竞品入围情况值得跟踪。",
+    category: "project",
+    topCircle: "C2",
+    qualityScore: 6.7,
+    alertType: null,
+    alertLevel: null,
+    clusterId: 1010,
+    eventType: "入围",
+    relatedCount: 2
+  },
+  {
+    id: 21,
+    title: "地方电网启动配网改造，低压电缆集采节奏提前",
+    url: "https://example.com/mock/21",
+    sourceName: "电缆网",
+    sourceTier: "T2",
+    sourceCategory: "项目招标",
+    publishedAt: p2Morning,
+    scoredAt: mockScoredAt(p2Morning, 15),
+    summaryZh: "配网改造项目提前释放低压电缆集采需求，需关注区域客户预算窗口。",
+    category: "project",
+    topCircle: "C3",
+    qualityScore: 6.4,
+    alertType: null,
+    alertLevel: null,
+    clusterId: 1011,
+    eventType: "招标",
+    relatedCount: 1
   }
 ];
 
@@ -129,7 +239,7 @@ export function mockDailyReport(date: string) {
   return {
     id: 1,
     date,
-    generatedAt: new Date().toISOString(),
+    generatedAt: dayjs().tz(APP_TIMEZONE).toISOString(),
     sections: {
       hero_title: "今日重点：政策准入收紧叠加海缆招标放量",
       hero_summary: "mock mode 日报用于无数据库预览。今日信号显示，电线电缆行业规范修订与南网海缆招标同时出现，短期应关注投标窗口、铜价成本和竞品交付风险。",
@@ -162,10 +272,54 @@ function matchesFilters(item: TimelineItemDto, filters: TimelineFilters = {}, se
   return true;
 }
 
-export function mockFetchTimeline(options: { filters?: TimelineFilters; limit?: number; search?: string }): TimelineResult {
+function compareIsoDesc(a: string | null, b: string | null): number {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return dayjs(b).valueOf() - dayjs(a).valueOf();
+}
+
+function sortTimelineItems(items: TimelineItemDto[], filters: TimelineFilters = {}): TimelineItemDto[] {
+  return [...items].sort((a, b) => {
+    const primary = filters.curated ? (b.qualityScore ?? 0) - (a.qualityScore ?? 0) : compareIsoDesc(a.publishedAt, b.publishedAt);
+    return primary || b.id - a.id;
+  });
+}
+
+function cursorAtForTimeline(item: TimelineItemDto, filters: TimelineFilters = {}): string | null {
+  return filters.curated ? item.scoredAt : item.publishedAt;
+}
+
+function afterKeysetCursor(item: TimelineItemDto, cursor: string | undefined, filters: TimelineFilters = {}): boolean {
+  const parsed = decodeCursor(cursor);
+  if (!parsed) return true;
+  const at = cursorAtForTimeline(item, filters);
+  if (!at) return false;
+  const itemAt = dayjs(at).valueOf();
+  const cursorAt = dayjs(parsed.at).valueOf();
+  return itemAt < cursorAt || (itemAt === cursorAt && item.id < parsed.id);
+}
+
+function encodeTimelineMockCursor(item: TimelineItemDto, filters: TimelineFilters = {}): string | null {
+  const at = cursorAtForTimeline(item, filters);
+  return at ? encodeCursor({ at, id: item.id }) : null;
+}
+
+export function mockFetchTimeline(options: { filters?: TimelineFilters; limit?: number; search?: string; cursor?: string }): TimelineResult {
   const limit = options.limit ?? 50;
-  const items = mockTimelineItems.filter((item) => matchesFilters(item, options.filters, options.search)).slice(0, limit);
-  return { items, nextCursor: null };
+  const filters = options.filters ?? {};
+  const rows = sortTimelineItems(
+    mockTimelineItems
+      .filter((item) => matchesFilters(item, filters, options.search))
+      .filter((item) => afterKeysetCursor(item, options.cursor, filters)),
+    filters
+  );
+  const page = rows.slice(0, limit);
+  const last = page.at(-1);
+  return {
+    items: page,
+    nextCursor: rows.length > limit && last ? encodeTimelineMockCursor(last, filters) : null
+  };
 }
 
 export function mockFetchItemDetail(id: number): ItemDetailDto | null {
@@ -192,8 +346,22 @@ export function mockFetchItemDetail(id: number): ItemDetailDto | null {
 }
 
 export function mockFetchAlerts(query: AlertQuery): { items: TimelineItemDto[]; nextCursor: string | null } {
-  const items = mockTimelineItems.filter((item) => item.alertType && (!query.type || item.alertType === query.type) && (!query.level || item.alertLevel === query.level)).slice(0, query.limit);
-  return { items, nextCursor: null };
+  const cursor = decodeCursor(query.cursor);
+  const rows = mockTimelineItems
+    .filter((item) => item.alertType && (!query.type || item.alertType === query.type) && (!query.level || item.alertLevel === query.level))
+    .filter((item) => {
+      if (!cursor || !item.scoredAt) return !cursor;
+      const itemAt = dayjs(item.scoredAt).valueOf();
+      const cursorAt = dayjs(cursor.at).valueOf();
+      return itemAt < cursorAt || (itemAt === cursorAt && item.id < cursor.id);
+    })
+    .sort((a, b) => compareIsoDesc(a.scoredAt, b.scoredAt) || b.id - a.id);
+  const page = rows.slice(0, query.limit);
+  const last = page.at(-1);
+  return {
+    items: page,
+    nextCursor: rows.length > query.limit && last?.scoredAt ? encodeCursor({ at: last.scoredAt, id: last.id }) : null
+  };
 }
 
 export function mockFetchAlertCount(): { own: number; safety: number; policy: number; legal: number } {

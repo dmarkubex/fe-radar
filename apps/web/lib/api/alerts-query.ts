@@ -10,8 +10,19 @@ import { decodeCursor, encodeCursor } from "@/lib/api/cursor";
 import { isMockMode } from "@/lib/mock-mode";
 import { mockFetchAlertCount, mockFetchAlerts } from "@/lib/mock-data";
 
+export interface AlertCursorRow {
+  id: number;
+  scoredAt: Date | null;
+}
+
+export function encodeAlertCursor(row: AlertCursorRow): string | null {
+  // at = scoredAt ISO, keyset column intentionally unchanged
+  return row.scoredAt ? encodeCursor({ at: row.scoredAt.toISOString(), id: row.id }) : null;
+}
+
 function baseAlertConditions(query: Pick<AlertQuery, "type" | "level" | "source" | "cursor">, fromStartOfDay = false) {
   const cursor = decodeCursor(query.cursor);
+  const cursorAt = cursor ? dayjs(cursor.at).tz(APP_TIMEZONE).toDate() : null;
   return and(
     isNotNull(itemAnalysis.alertType),
     isNotNull(itemAnalysis.scoredAt),
@@ -22,7 +33,7 @@ function baseAlertConditions(query: Pick<AlertQuery, "type" | "level" | "source"
     query.level ? eq(itemAnalysis.alertLevel, query.level) : undefined,
     query.source ? eq(sources.id, query.source) : undefined,
     fromStartOfDay ? gte(itemAnalysis.scoredAt, dayjs().tz(APP_TIMEZONE).startOf("day").toDate()) : undefined,
-    cursor ? or(lt(itemAnalysis.scoredAt, new Date(cursor.scoredAt)), and(eq(itemAnalysis.scoredAt, new Date(cursor.scoredAt)), lt(items.id, cursor.id))) : undefined
+    cursor && cursorAt ? or(lt(itemAnalysis.scoredAt, cursorAt), and(eq(itemAnalysis.scoredAt, cursorAt), lt(items.id, cursor.id))) : undefined
   );
 }
 
@@ -82,7 +93,7 @@ export async function fetchAlerts(query: AlertQuery, db?: DbClient): Promise<{ i
       eventType: row.eventType,
       relatedCount: Number(row.relatedCount ?? 0)
     })),
-    nextCursor: rows.length > query.limit && last?.scoredAt ? encodeCursor({ scoredAt: last.scoredAt.toISOString(), id: last.id }) : null
+    nextCursor: rows.length > query.limit && last ? encodeAlertCursor(last) : null
   };
 }
 

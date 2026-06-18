@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { ItemDetailDialog } from "@/components/timeline/item-detail-dialog";
 import { TimelineCard } from "@/components/timeline/timeline-card";
 import { useTimeline } from "@/hooks/use-timeline";
+import { groupTimeline } from "@/components/timeline/timeline-grouping";
 
 import type { TimelineResult } from "@/lib/api/timeline-query";
-import type { TimelineItemDto } from "@/lib/api/timeline-query";
 
 export function TimelineList({
   endpoint,
@@ -27,27 +27,76 @@ export function TimelineList({
   );
 }
 
-function TimelineListInner({ endpoint, initialData, variant }: { endpoint: string; initialData: TimelineResult; variant: "list" | "timeline" }): React.JSX.Element {
+function TimelineListInner({
+  endpoint,
+  initialData,
+  variant
+}: {
+  endpoint: string;
+  initialData: TimelineResult;
+  variant: "list" | "timeline";
+}): React.JSX.Element {
   const [activeItemId, setActiveItemId] = useState<number | null>(null);
   const timeline = useTimeline(endpoint, initialData);
+  // 在全量 flatMap 后的 items 上分组，跨页同日合并
   const items = timeline.data?.pages.flatMap((page) => page.items) ?? [];
-  const groups = groupByDay(items);
+  const dayGroups = groupTimeline(items);
 
   return (
-    <div className={variant === "timeline" ? "relative pl-8 before:absolute before:bottom-0 before:left-2 before:top-2 before:w-px before:bg-border-strong" : "flex flex-col gap-3"}>
+    <div
+      className={
+        variant === "timeline"
+          ? "relative pl-8 before:absolute before:bottom-0 before:left-2 before:top-2 before:w-px before:bg-border-strong"
+          : "flex flex-col gap-3"
+      }
+    >
       {items.length > 0 ? (
-        variant === "timeline" ? groups.map((group) => (
-          <section className="relative pb-1 pt-5" key={group.key}>
-            <span className="absolute -left-8 top-9 h-4 w-4 border-[3px] border-bg bg-accent" aria-hidden="true" />
-            <h3 className="mb-1 font-display text-[22px] leading-none tracking-[-0.6px] text-fg">{group.title}</h3>
-            <div className="mb-3 font-mono text-[11px] tracking-[0.6px] text-fg-soft">
-              {group.items.length} 条 · 按评分与时间倒序
-            </div>
-            <div className="space-y-3">
-              {group.items.map((item) => <TimelineCard item={item} key={item.id} onOpen={setActiveItemId} />)}
-            </div>
-          </section>
-        )) : items.map((item) => <TimelineCard item={item} key={item.id} onOpen={setActiveItemId} />)
+        variant === "timeline" ? (
+          dayGroups.map((dayGroup) => (
+            <section className="relative" key={dayGroup.dayKey}>
+              {/* 粗节点：日期，sticky 吸顶，z-[5] 低于 app-shell header (z-10/z-30) */}
+              <div
+                className="sticky top-10 z-[5] -ml-8 mb-2 flex items-center gap-3 bg-bg py-1 pr-2"
+                role="heading"
+                aria-level={2}
+              >
+                <span
+                  className="ml-2 h-4 w-4 shrink-0 border-[3px] border-bg bg-accent"
+                  aria-hidden="true"
+                />
+                <h2 className="font-display text-[22px] leading-none tracking-[-0.6px] text-fg">
+                  {dayGroup.dayLabel}
+                </h2>
+              </div>
+
+              {/* 细节点：时段带，非空段倒序（晚间→下午→上午→凌晨） */}
+              <div className="space-y-4 pb-4">
+                {dayGroup.periods.map((periodGroup) => (
+                  <div className="relative" key={periodGroup.period}>
+                    {/* 细节点圆点 */}
+                    <div className="relative mb-2 flex items-center gap-3">
+                      <span
+                        className="absolute -left-[1.625rem] h-2 w-2 border-2 border-bg bg-fg-soft"
+                        aria-hidden="true"
+                      />
+                      <p className="font-mono text-[11px] tracking-[0.6px] text-fg-soft">
+                        {periodGroup.label} · {periodGroup.items.length} 条
+                      </p>
+                    </div>
+                    <div className="space-y-3">
+                      {periodGroup.items.map((item) => (
+                        <TimelineCard item={item} key={item.id} onOpen={setActiveItemId} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))
+        ) : (
+          // variant="list": 扁平卡片流，不分组，不依赖 groupTimeline
+          items.map((item) => <TimelineCard item={item} key={item.id} onOpen={setActiveItemId} />)
+        )
       ) : (
         <div className="border border-border bg-surface p-8 text-center text-sm text-fg-soft">暂无条目</div>
       )}
@@ -67,22 +116,4 @@ function TimelineListInner({ endpoint, initialData, variant }: { endpoint: strin
       <ItemDetailDialog itemId={activeItemId} onClose={() => setActiveItemId(null)} />
     </div>
   );
-}
-
-function groupByDay(items: TimelineItemDto[]): Array<{ key: string; title: string; items: TimelineItemDto[] }> {
-  const formatter = new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "long" });
-  const groups = new Map<string, { key: string; title: string; items: TimelineItemDto[] }>();
-
-  for (const item of items) {
-    const date = new Date(item.scoredAt ?? item.publishedAt);
-    const key = date.toISOString().slice(0, 10);
-    const existing = groups.get(key);
-    if (existing) {
-      existing.items.push(item);
-    } else {
-      groups.set(key, { key, title: formatter.format(date), items: [item] });
-    }
-  }
-
-  return Array.from(groups.values());
 }
