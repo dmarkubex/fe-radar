@@ -8,6 +8,7 @@ import { lmeAdapter } from "./lme";
 import { pbocAdapter } from "./pboc";
 import { chinabondAdapter } from "./chinabond";
 import { rsshubExtractAdapter } from "./rsshub-extract";
+import { smmHqAdapter } from "./smm-hq";
 
 /**
  * Registry of quotes adapters keyed by adapter name.
@@ -38,6 +39,7 @@ interface QuotesSourceConfig {
   retry?: { max: number; backoffMs: number };
   raw_text_keep?: boolean;
   regex_rules?: unknown[];
+  items?: unknown[];
 }
 
 /**
@@ -65,10 +67,19 @@ export async function fetchQuotes(
   }
 
   const adapter = adapterRegistry[adapterName]!;
-  return adapter.fetch(ctx);
+  return adapter.fetch({
+    ...ctx,
+    sourceConfig: config as unknown as Record<string, unknown>,
+  });
 }
 
 // T-CB-07 + T-CB-08 wire: 6 个 adapter 在 module load 时一次性注册
-[shfeAdapter, gfexAdapter, lmeAdapter, pbocAdapter, chinabondAdapter, rsshubExtractAdapter].forEach(
-  registerAdapter
-);
+[
+  shfeAdapter,
+  gfexAdapter,
+  lmeAdapter,
+  pbocAdapter,
+  chinabondAdapter,
+  rsshubExtractAdapter,
+  smmHqAdapter,
+].forEach(registerAdapter);

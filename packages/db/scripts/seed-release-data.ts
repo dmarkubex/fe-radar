@@ -5,6 +5,14 @@ const BLOCKED_URL = `${SEED_URL_PREFIX}blocked-m3-e2e`;
 const MANUAL_SCRUB_SUMMARY = "[需人工脱敏]";
 
 const DAILY_REPORT_DATES = ["2026-05-24", "2026-05-25", "2026-05-26"] as const;
+const SCORE_SCALE = 10;
+const CATEGORY_LABELS: Record<string, string> = {
+  policy: "政策与标准",
+  market: "市场与价格",
+  tech: "技术与产品",
+  project: "项目与招投标",
+  company: "公司与资本"
+};
 
 function env(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
@@ -27,27 +35,285 @@ interface TimelineSeed {
   blocked?: boolean;
 }
 
+function scaleScore(score: number): number {
+  return Math.round(score * SCORE_SCALE * 100) / 100;
+}
+
+function normalizeTimelineSeed(seed: TimelineSeed) {
+  return {
+    category: CATEGORY_LABELS[seed.category] ?? seed.category,
+    quality: scaleScore(seed.quality),
+    scores: {
+      d1: scaleScore(seed.scores.d1),
+      d2: scaleScore(seed.scores.d2),
+      d3: scaleScore(seed.scores.d3),
+      d4: scaleScore(seed.scores.d4),
+      d5: scaleScore(seed.scores.d5)
+    }
+  };
+}
+
 const TIMELINE_SEEDS: TimelineSeed[] = [
-  { slug: "001", title: "国家能源局发布《2026 储能并网技术导则》征求意见稿，9 月 1 日起施行", sourceName: "能源局官网", tier: "T1", category: "policy", circle: "C2", scores: { d1: 9.2, d2: 6.5, d3: 7.0, d4: 7.1, d5: 5.8 }, quality: 7.2, alertType: "policy", alertLevel: "L2", summaryZh: "新导则对储能并网频率响应、SOC 管理、二次设备配置提出量化要求。" },
-  { slug: "002", title: "紫金电缆某车间发生火灾，无人员伤亡", sourceName: "第一财经能源", tier: "T1", category: "company", circle: "C2", scores: { d1: 6.4, d2: 7.0, d3: 5.5, d4: 3.0, d5: 8.1 }, quality: 6.0, alertType: "own", alertLevel: "L1", summaryZh: "紫金电缆是竞品企业，安全事故可能影响其产能和订单交付。" },
-  { slug: "003", title: "远东智慧能源中标国网江苏 2026 一批次招标", sourceName: "电缆网", tier: "T2", category: "project", circle: "C1", scores: { d1: 5.0, d2: 7.8, d3: 6.5, d4: 4.0, d5: 7.0 }, quality: 6.1, alertType: "own", alertLevel: "L2", summaryZh: "自家公司直接中标项目，金额待公告。" },
-  { slug: "004", title: "亨通光电公布 2026 Q1 业绩，营收同比 +14.2%", sourceName: "上交所公告", tier: "T1", category: "company", circle: "C2", scores: { d1: 3.0, d2: 6.0, d3: 7.2, d4: 4.5, d5: 7.2 }, quality: 5.6, alertType: null, alertLevel: null, summaryZh: "竞品亨通光电业绩稳健增长，海缆与光通信板块贡献主要增量。" },
-  { slug: "005", title: "南方电网 2026 第二批次招标启动，标包总额 78 亿，含 380kV 海缆", sourceName: "电缆网", tier: "T2", category: "project", circle: "C2", scores: { d1: 4.0, d2: 8.5, d3: 7.0, d4: 5.0, d5: 6.8 }, quality: 6.3, alertType: "policy", alertLevel: "L3", summaryZh: "本批次新增海缆专项 18 亿，宝胜、亨通、东方电缆已报名。" },
-  { slug: "006", title: "电解铜均价上探 78,400 元/吨，创近 18 个月新高", sourceName: "第一财经能源", tier: "T1", category: "market", circle: "C2", scores: { d1: 4.0, d2: 5.5, d3: 9.0, d4: 3.0, d5: 7.5 }, quality: 5.8, alertType: null, alertLevel: null, summaryZh: "LME + 国内现货同步上涨，对铜杆采购成本和电缆毛利传导需评估。" },
-  { slug: "007", title: "工信部发布《电线电缆行业规范条件（2026 修订）》", sourceName: "能源局官网", tier: "T1", category: "policy", circle: "C2", scores: { d1: 8.5, d2: 7.0, d3: 5.0, d4: 6.0, d5: 5.0 }, quality: 6.3, alertType: "policy", alertLevel: "L2", summaryZh: "新版规范条件提高了准入门槛，强化了质量追溯和环保要求。" },
-  { slug: "008", title: "江苏省 2026 年新能源消纳保障机制征求意见", sourceName: "北极星电力", tier: "T2", category: "policy", circle: "C2", scores: { d1: 7.5, d2: 6.0, d3: 6.5, d4: 5.5, d5: 4.0 }, quality: 5.9, alertType: null, alertLevel: null, summaryZh: "江苏本省新能源消纳机制调整，可能影响储能与配电网投资节奏。" },
-  { slug: "009", title: "宝胜股份中标海上风电项目大单", sourceName: "上交所公告", tier: "T1", category: "project", circle: "C2", scores: { d1: 3.0, d2: 7.5, d3: 6.0, d4: 4.5, d5: 7.0 }, quality: 5.6, alertType: null, alertLevel: null, summaryZh: "竞品宝胜拿下海上风电海缆订单，值得关注其产能与技术路线。" },
-  { slug: "010", title: "中国电力企业联合会发布 2026 年度电力供需形势分析报告", sourceName: "第一财经能源", tier: "T1", category: "market", circle: "C3", scores: { d1: 5.0, d2: 4.0, d3: 8.0, d4: 5.0, d5: 5.5 }, quality: 5.5, alertType: null, alertLevel: null, summaryZh: "报告预测 2026 年全社会用电量增长 5.5%，新能源装机占比将超 40%。" },
-  { slug: "011", title: "全钒液流电池成本再降 12%，产业化加速", sourceName: "北极星电力", tier: "T2", category: "tech", circle: "C3", scores: { d1: 3.0, d2: 5.0, d3: 5.5, d4: 8.5, d5: 6.0 }, quality: 5.6, alertType: null, alertLevel: null, summaryZh: "液流电池技术路线在长时储能场景的经济性持续改善。" },
-  { slug: "012", title: "远东智慧能源参加国际线缆展览会", sourceName: "电缆网", tier: "T2", category: "company", circle: "C1", scores: { d1: 2.0, d2: 4.0, d3: 3.0, d4: 3.5, d5: 5.5 }, quality: 3.6, alertType: null, alertLevel: null, summaryZh: "自家公司参展信息，品牌曝光。非高分条目，仅 C1 归档。" },
-  { slug: "013", title: "固体电池中试线在合肥投产", sourceName: "北极星电力", tier: "T2", category: "tech", circle: "C3", scores: { d1: 2.0, d2: 3.5, d3: 4.0, d4: 9.0, d5: 5.0 }, quality: 4.7, alertType: null, alertLevel: null, summaryZh: "固态电池产业化进程加速，对传统锂电产业链的影响需要持续跟踪。" },
-  { slug: "014", title: "国网浙江省电力 2026 配网物资协议库存招标公告", sourceName: "电缆网", tier: "T2", category: "project", circle: "C2", scores: { d1: 3.5, d2: 7.0, d3: 6.0, d4: 3.0, d5: 5.5 }, quality: 5.0, alertType: null, alertLevel: null, summaryZh: "浙江配网常规招标，电缆品类体量较大。" },
-  { slug: "015", title: "锂电池回收利用管理办法征求意见", sourceName: "能源局官网", tier: "T1", category: "policy", circle: "C3", scores: { d1: 7.0, d2: 4.0, d3: 4.5, d4: 5.0, d5: 4.0 }, quality: 4.9, alertType: null, alertLevel: null, summaryZh: "锂电池回收新规对储能电池退役后的处理提出要求。" },
-  { slug: "016", title: "远东电缆 220kV 交联电缆通过国网入网检测", sourceName: "电缆网", tier: "T2", category: "tech", circle: "C1", scores: { d1: 4.5, d2: 8.0, d3: 5.5, d4: 7.5, d5: 6.5 }, quality: 6.4, alertType: "own", alertLevel: "L3", summaryZh: "自家产品线通过关键检测，有利于后续国网投标。" },
-  { slug: "017", title: "铝价回落 2.3%，电缆铝杆采购窗口打开", sourceName: "第一财经能源", tier: "T1", category: "market", circle: "C2", scores: { d1: 3.5, d2: 5.0, d3: 8.5, d4: 2.5, d5: 6.0 }, quality: 5.2, alertType: null, alertLevel: null, summaryZh: "沪铝主力合约回落，建议采购部门评估锁价策略。" },
-  { slug: "018", title: "国家能源局开展分布式光伏并网专项检查", sourceName: "能源局官网", tier: "T1", category: "policy", circle: "C2", scores: { d1: 8.0, d2: 5.5, d3: 6.0, d4: 4.5, d5: 4.5 }, quality: 5.8, alertType: "policy", alertLevel: "L2", summaryZh: "专项检查聚焦并网验收与消纳责任，或影响分布式项目节奏。" },
-  { slug: "019", title: "东方电缆获海上风电 35kV 阵列缆订单", sourceName: "上交所公告", tier: "T1", category: "project", circle: "C2", scores: { d1: 3.0, d2: 7.0, d3: 6.5, d4: 5.5, d5: 7.5 }, quality: 5.9, alertType: null, alertLevel: null, summaryZh: "竞品东方电缆继续巩固海上风电海缆份额。" },
-  { slug: "020", title: "远东智慧能源储能电站 EPC 项目并网投运", sourceName: "北极星电力", tier: "T2", category: "project", circle: "C1", scores: { d1: 5.5, d2: 8.2, d3: 6.0, d4: 7.0, d5: 7.8 }, quality: 6.8, alertType: "own", alertLevel: "L2", summaryZh: "自家储能 EPC 项目顺利并网，可作为案例跟踪运营数据。" },
+  {
+    slug: "001",
+    title: "国家能源局发布《2026 储能并网技术导则》征求意见稿，9 月 1 日起施行",
+    sourceName: "能源局官网",
+    tier: "T1",
+    category: "policy",
+    circle: "C2",
+    scores: { d1: 9.2, d2: 6.5, d3: 7.0, d4: 7.1, d5: 5.8 },
+    quality: 7.2,
+    alertType: "policy",
+    alertLevel: "L2",
+    summaryZh: "新导则对储能并网频率响应、SOC 管理、二次设备配置提出量化要求。"
+  },
+  {
+    slug: "002",
+    title: "紫金电缆某车间发生火灾，无人员伤亡",
+    sourceName: "第一财经能源",
+    tier: "T1",
+    category: "company",
+    circle: "C2",
+    scores: { d1: 6.4, d2: 7.0, d3: 5.5, d4: 3.0, d5: 8.1 },
+    quality: 6.0,
+    alertType: "safety",
+    alertLevel: "L1",
+    summaryZh: "紫金电缆是竞品企业，安全事故可能影响其产能和订单交付。"
+  },
+  {
+    slug: "003",
+    title: "远东智慧能源中标国网江苏 2026 一批次招标",
+    sourceName: "电缆网",
+    tier: "T2",
+    category: "project",
+    circle: "C1",
+    scores: { d1: 5.0, d2: 7.8, d3: 6.5, d4: 4.0, d5: 7.0 },
+    quality: 6.1,
+    alertType: "own",
+    alertLevel: "L2",
+    summaryZh: "自家公司直接中标项目，金额待公告。"
+  },
+  {
+    slug: "004",
+    title: "亨通光电公布 2026 Q1 业绩，营收同比 +14.2%",
+    sourceName: "上交所公告",
+    tier: "T1",
+    category: "company",
+    circle: "C2",
+    scores: { d1: 3.0, d2: 6.0, d3: 7.2, d4: 4.5, d5: 7.2 },
+    quality: 5.6,
+    alertType: null,
+    alertLevel: null,
+    summaryZh: "竞品亨通光电业绩稳健增长，海缆与光通信板块贡献主要增量。"
+  },
+  {
+    slug: "005",
+    title: "南方电网 2026 第二批次招标启动，标包总额 78 亿，含 380kV 海缆",
+    sourceName: "电缆网",
+    tier: "T2",
+    category: "project",
+    circle: "C2",
+    scores: { d1: 4.0, d2: 8.5, d3: 7.0, d4: 5.0, d5: 6.8 },
+    quality: 6.3,
+    alertType: "policy",
+    alertLevel: "L3",
+    summaryZh: "本批次新增海缆专项 18 亿，宝胜、亨通、东方电缆已报名。"
+  },
+  {
+    slug: "006",
+    title: "电解铜均价上探 78,400 元/吨，创近 18 个月新高",
+    sourceName: "第一财经能源",
+    tier: "T1",
+    category: "market",
+    circle: "C2",
+    scores: { d1: 4.0, d2: 5.5, d3: 9.0, d4: 3.0, d5: 7.5 },
+    quality: 5.8,
+    alertType: null,
+    alertLevel: null,
+    summaryZh: "LME + 国内现货同步上涨，对铜杆采购成本和电缆毛利传导需评估。"
+  },
+  {
+    slug: "007",
+    title: "工信部发布《电线电缆行业规范条件（2026 修订）》",
+    sourceName: "能源局官网",
+    tier: "T1",
+    category: "policy",
+    circle: "C2",
+    scores: { d1: 8.5, d2: 7.0, d3: 5.0, d4: 6.0, d5: 5.0 },
+    quality: 6.3,
+    alertType: "policy",
+    alertLevel: "L2",
+    summaryZh: "新版规范条件提高了准入门槛，强化了质量追溯和环保要求。"
+  },
+  {
+    slug: "008",
+    title: "江苏省 2026 年新能源消纳保障机制征求意见",
+    sourceName: "北极星电力",
+    tier: "T2",
+    category: "policy",
+    circle: "C2",
+    scores: { d1: 7.5, d2: 6.0, d3: 6.5, d4: 5.5, d5: 4.0 },
+    quality: 5.9,
+    alertType: null,
+    alertLevel: null,
+    summaryZh: "江苏本省新能源消纳机制调整，可能影响储能与配电网投资节奏。"
+  },
+  {
+    slug: "009",
+    title: "宝胜股份中标海上风电项目大单",
+    sourceName: "上交所公告",
+    tier: "T1",
+    category: "project",
+    circle: "C2",
+    scores: { d1: 3.0, d2: 7.5, d3: 6.0, d4: 4.5, d5: 7.0 },
+    quality: 5.6,
+    alertType: null,
+    alertLevel: null,
+    summaryZh: "竞品宝胜拿下海上风电海缆订单，值得关注其产能与技术路线。"
+  },
+  {
+    slug: "010",
+    title: "中国电力企业联合会发布 2026 年度电力供需形势分析报告",
+    sourceName: "第一财经能源",
+    tier: "T1",
+    category: "market",
+    circle: "C3",
+    scores: { d1: 5.0, d2: 4.0, d3: 8.0, d4: 5.0, d5: 5.5 },
+    quality: 5.5,
+    alertType: null,
+    alertLevel: null,
+    summaryZh: "报告预测 2026 年全社会用电量增长 5.5%，新能源装机占比将超 40%。"
+  },
+  {
+    slug: "011",
+    title: "全钒液流电池成本再降 12%，产业化加速",
+    sourceName: "北极星电力",
+    tier: "T2",
+    category: "tech",
+    circle: "C3",
+    scores: { d1: 3.0, d2: 5.0, d3: 5.5, d4: 8.5, d5: 6.0 },
+    quality: 5.6,
+    alertType: null,
+    alertLevel: null,
+    summaryZh: "液流电池技术路线在长时储能场景的经济性持续改善。"
+  },
+  {
+    slug: "012",
+    title: "远东智慧能源参加国际线缆展览会",
+    sourceName: "电缆网",
+    tier: "T2",
+    category: "company",
+    circle: "C1",
+    scores: { d1: 2.0, d2: 4.0, d3: 3.0, d4: 3.5, d5: 5.5 },
+    quality: 3.6,
+    alertType: null,
+    alertLevel: null,
+    summaryZh: "自家公司参展信息，品牌曝光。非高分条目，仅 C1 归档。"
+  },
+  {
+    slug: "013",
+    title: "固体电池中试线在合肥投产",
+    sourceName: "北极星电力",
+    tier: "T2",
+    category: "tech",
+    circle: "C3",
+    scores: { d1: 2.0, d2: 3.5, d3: 4.0, d4: 9.0, d5: 5.0 },
+    quality: 4.7,
+    alertType: null,
+    alertLevel: null,
+    summaryZh: "固态电池产业化进程加速，对传统锂电产业链的影响需要持续跟踪。"
+  },
+  {
+    slug: "014",
+    title: "国网浙江省电力 2026 配网物资协议库存招标公告",
+    sourceName: "电缆网",
+    tier: "T2",
+    category: "project",
+    circle: "C2",
+    scores: { d1: 3.5, d2: 7.0, d3: 6.0, d4: 3.0, d5: 5.5 },
+    quality: 5.0,
+    alertType: null,
+    alertLevel: null,
+    summaryZh: "浙江配网常规招标，电缆品类体量较大。"
+  },
+  {
+    slug: "015",
+    title: "锂电池回收利用管理办法征求意见",
+    sourceName: "能源局官网",
+    tier: "T1",
+    category: "policy",
+    circle: "C3",
+    scores: { d1: 7.0, d2: 4.0, d3: 4.5, d4: 5.0, d5: 4.0 },
+    quality: 4.9,
+    alertType: null,
+    alertLevel: null,
+    summaryZh: "锂电池回收新规对储能电池退役后的处理提出要求。"
+  },
+  {
+    slug: "016",
+    title: "远东电缆 220kV 交联电缆通过国网入网检测",
+    sourceName: "电缆网",
+    tier: "T2",
+    category: "tech",
+    circle: "C1",
+    scores: { d1: 4.5, d2: 8.0, d3: 5.5, d4: 7.5, d5: 6.5 },
+    quality: 6.4,
+    alertType: "own",
+    alertLevel: "L3",
+    summaryZh: "自家产品线通过关键检测，有利于后续国网投标。"
+  },
+  {
+    slug: "017",
+    title: "铝价回落 2.3%，电缆铝杆采购窗口打开",
+    sourceName: "第一财经能源",
+    tier: "T1",
+    category: "market",
+    circle: "C2",
+    scores: { d1: 3.5, d2: 5.0, d3: 8.5, d4: 2.5, d5: 6.0 },
+    quality: 5.2,
+    alertType: null,
+    alertLevel: null,
+    summaryZh: "沪铝主力合约回落，建议采购部门评估锁价策略。"
+  },
+  {
+    slug: "018",
+    title: "国家能源局开展分布式光伏并网专项检查",
+    sourceName: "能源局官网",
+    tier: "T1",
+    category: "policy",
+    circle: "C2",
+    scores: { d1: 8.0, d2: 5.5, d3: 6.0, d4: 4.5, d5: 4.5 },
+    quality: 5.8,
+    alertType: "policy",
+    alertLevel: "L2",
+    summaryZh: "专项检查聚焦并网验收与消纳责任，或影响分布式项目节奏。"
+  },
+  {
+    slug: "019",
+    title: "东方电缆获海上风电 35kV 阵列缆订单",
+    sourceName: "上交所公告",
+    tier: "T1",
+    category: "project",
+    circle: "C2",
+    scores: { d1: 3.0, d2: 7.0, d3: 6.5, d4: 5.5, d5: 7.5 },
+    quality: 5.9,
+    alertType: null,
+    alertLevel: null,
+    summaryZh: "竞品东方电缆继续巩固海上风电海缆份额。"
+  },
+  {
+    slug: "020",
+    title: "远东智慧能源储能电站 EPC 项目并网投运",
+    sourceName: "北极星电力",
+    tier: "T2",
+    category: "project",
+    circle: "C1",
+    scores: { d1: 5.5, d2: 8.2, d3: 6.0, d4: 7.0, d5: 7.8 },
+    quality: 6.8,
+    alertType: "own",
+    alertLevel: "L2",
+    summaryZh: "自家储能 EPC 项目顺利并网，可作为案例跟踪运营数据。"
+  },
   {
     slug: "blocked-m3-e2e",
     title: "内部项目代号 ZX-2026 电缆试验数据泄露风险通报",
@@ -60,15 +326,27 @@ const TIMELINE_SEEDS: TimelineSeed[] = [
     alertType: null,
     alertLevel: null,
     summaryZh: MANUAL_SCRUB_SUMMARY,
-    blocked: true,
-  },
+    blocked: true
+  }
 ];
 
 function dailySections(date: string, variant: number) {
   const themes = [
-    { hero: "政策密集出台、铜价创新高、竞品安全事故频发", statFetched: "1,284", statCurated: "42" },
-    { hero: "南网海缆招标启动、铝价回落、分布式光伏专项检查", statFetched: "1,156", statCurated: "38" },
-    { hero: "储能 EPC 并网、220kV 电缆入网、竞品订单动态", statFetched: "1,402", statCurated: "45" },
+    {
+      hero: "政策密集出台、铜价创新高、竞品安全事故频发",
+      statFetched: "1,284",
+      statCurated: "42"
+    },
+    {
+      hero: "南网海缆招标启动、铝价回落、分布式光伏专项检查",
+      statFetched: "1,156",
+      statCurated: "38"
+    },
+    {
+      hero: "储能 EPC 并网、220kV 电缆入网、竞品订单动态",
+      statFetched: "1,402",
+      statCurated: "45"
+    }
   ];
   const t = themes[variant] ?? themes[0]!;
   return {
@@ -80,11 +358,26 @@ function dailySections(date: string, variant: number) {
     stat_own: "3",
     stat_safety: "1",
     stat_policy: "3",
-    policy: { summary: "政策与标准板块摘要（seed）", items: [{ title: "储能并网导则征求意见", source: "能源局 · T1" }] },
-    market: { summary: "市场与价格板块摘要（seed）", items: [{ title: "电解铜价格跟踪", source: "第一财经 · T1" }] },
-    project: { summary: "项目与招投标板块摘要（seed）", items: [{ title: "南网海缆招标", source: "电缆网 · T2" }] },
-    tech: { summary: "技术与产品板块摘要（seed）", items: [{ title: "液流电池成本下降", source: "北极星 · T2" }] },
-    company: { summary: "公司与资本板块摘要（seed）", items: [{ title: "竞品业绩与订单", source: "上交所 · T1" }] },
+    policy: {
+      summary: "政策与标准板块摘要（seed）",
+      items: [{ title: "储能并网导则征求意见", source: "能源局 · T1" }]
+    },
+    market: {
+      summary: "市场与价格板块摘要（seed）",
+      items: [{ title: "电解铜价格跟踪", source: "第一财经 · T1" }]
+    },
+    project: {
+      summary: "项目与招投标板块摘要（seed）",
+      items: [{ title: "南网海缆招标", source: "电缆网 · T2" }]
+    },
+    tech: {
+      summary: "技术与产品板块摘要（seed）",
+      items: [{ title: "液流电池成本下降", source: "北极星 · T2" }]
+    },
+    company: {
+      summary: "公司与资本板块摘要（seed）",
+      items: [{ title: "竞品业绩与订单", source: "上交所 · T1" }]
+    }
   };
 }
 
@@ -92,7 +385,9 @@ async function main(): Promise<void> {
   const sql = postgres(env("DATABASE_URL"), { max: 1, prepare: false });
 
   try {
-    console.log("=== seeding release data (KYO-54 · fixed seed · idempotent) ===\n");
+    console.log(
+      "=== seeding release data (KYO-54 · fixed seed · idempotent) ===\n"
+    );
 
     let sources = await sql`SELECT id, name, tier FROM sources LIMIT 10`;
     if (sources.length === 0) {
@@ -122,6 +417,7 @@ async function main(): Promise<void> {
       const content = seed.blocked
         ? "联系人：张三 13800138000，内网地址 192.168.1.100，项目代号 ZX-2026。"
         : `这是关于"${seed.title}"的 release seed 正文。KYO-54 fixed seed item ${seed.slug}.`;
+      const normalized = normalizeTimelineSeed(seed);
 
       const [item] = await sql`
         INSERT INTO items (source_id, url, title, content, lang, published_at)
@@ -132,7 +428,7 @@ async function main(): Promise<void> {
           published_at = EXCLUDED.published_at
         RETURNING id`;
 
-      const isCurated = !seed.blocked && seed.quality >= 5.0;
+      const isCurated = !seed.blocked && normalized.quality >= 50;
 
       await sql`
         INSERT INTO item_analysis (
@@ -142,8 +438,8 @@ async function main(): Promise<void> {
           alert_level, alert_type, quota_state, scored_at
         ) VALUES (
           ${item!.id}, true, ${seed.summaryZh},
-          ${seed.scores.d1}, ${seed.scores.d2}, ${seed.scores.d3}, ${seed.scores.d4}, ${seed.scores.d5},
-          ${seed.quality}, ${seed.category}, ${seed.circle}, ${isCurated},
+          ${normalized.scores.d1}, ${normalized.scores.d2}, ${normalized.scores.d3}, ${normalized.scores.d4}, ${normalized.scores.d5},
+          ${normalized.quality}, ${normalized.category}, ${seed.circle}, ${isCurated},
           ${seed.alertLevel}, ${seed.alertType}, 'admitted', ${scoredAt}
         )
         ON CONFLICT (item_id) DO UPDATE SET
@@ -163,7 +459,9 @@ async function main(): Promise<void> {
           scored_at = EXCLUDED.scored_at`;
     }
 
-    console.log(`timeline items: ${TIMELINE_SEEDS.length} (${TIMELINE_SEEDS.length - 1} visible + 1 blocked M3 E2E)`);
+    console.log(
+      `timeline items: ${TIMELINE_SEEDS.length} (${TIMELINE_SEEDS.length - 1} visible + 1 blocked M3 E2E)`
+    );
 
     for (let i = 0; i < DAILY_REPORT_DATES.length; i += 1) {
       const date = DAILY_REPORT_DATES[i]!;
@@ -172,7 +470,9 @@ async function main(): Promise<void> {
         VALUES (${date}, ${JSON.stringify(dailySections(date, i))}::jsonb)
         ON CONFLICT (date) DO UPDATE SET sections = EXCLUDED.sections, generated_at = now()`;
     }
-    console.log(`daily_reports: ${DAILY_REPORT_DATES.length} (${DAILY_REPORT_DATES.join(", ")})`);
+    console.log(
+      `daily_reports: ${DAILY_REPORT_DATES.length} (${DAILY_REPORT_DATES.join(", ")})`
+    );
 
     const [blocked] = await sql`
       SELECT i.id FROM items i WHERE i.url = ${BLOCKED_URL} LIMIT 1`;

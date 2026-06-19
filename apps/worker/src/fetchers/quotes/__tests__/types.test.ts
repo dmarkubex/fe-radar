@@ -69,6 +69,34 @@ describe("fetchQuotes dispatcher", () => {
       });
     });
 
+    it("passes source config into the adapter context", async () => {
+      let seenConfig: Record<string, unknown> | undefined;
+      const configAwareAdapter: QuotesAdapter = {
+        name: "config-aware-adapter",
+        fetch: async (adapterCtx) => {
+          seenConfig = adapterCtx.sourceConfig;
+          return [SAMPLE];
+        },
+      };
+      registerAdapter(configAwareAdapter);
+
+      const source = {
+        name: "config-source",
+        config: {
+          adapter: "config-aware-adapter",
+          endpoint: "https://example.com/quotes",
+          metric_keys: ["cu_main_close"],
+        },
+      };
+
+      await fetchQuotes(source, { sourceName: "config-source" });
+      expect(seenConfig).toMatchObject({
+        adapter: "config-aware-adapter",
+        endpoint: "https://example.com/quotes",
+        metric_keys: ["cu_main_close"],
+      });
+    });
+
     it("returns [] when a registered adapter returns empty array", async () => {
       const emptyAdapter: QuotesAdapter = {
         name: "empty-test-adapter",

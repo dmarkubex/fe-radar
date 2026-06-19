@@ -1,16 +1,36 @@
 import type { DashboardData } from "@/lib/api/dashboard-query";
-import type { TimelineItemDto, ItemDetailDto, TimelineResult } from "@/lib/api/timeline-query";
-import type { TimelineFilters } from "@/lib/api/timeline-schema";
+import type {
+  TimelineItemDto,
+  ItemDetailDto,
+  TimelineResult
+} from "@/lib/api/timeline-query";
+import {
+  normalizeTimelineFilters,
+  resolveAcquisitionLabel,
+  type TimelineFilters
+} from "@/lib/api/timeline-schema";
 import type { AlertQuery } from "@/lib/api/alerts-schema";
 import type { ScoringConfigBody } from "@/lib/api/scoring-config-schema";
 import { decodeCursor, encodeCursor } from "@/lib/api/cursor";
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
 
 const mockBaseDay = dayjs().tz(APP_TIMEZONE).startOf("day").subtract(1, "day");
-const iso = (hoursAgo: number) => dayjs().tz(APP_TIMEZONE).subtract(hoursAgo, "hour").toISOString();
-const mockPublishedAt = (daysBeforeBase: number, hour: number, minute: number) =>
-  mockBaseDay.subtract(daysBeforeBase, "day").hour(hour).minute(minute).second(0).millisecond(0).toISOString();
-const mockScoredAt = (publishedAt: string, minutesLater: number) => dayjs(publishedAt).tz(APP_TIMEZONE).add(minutesLater, "minute").toISOString();
+const iso = (hoursAgo: number) =>
+  dayjs().tz(APP_TIMEZONE).subtract(hoursAgo, "hour").toISOString();
+const mockPublishedAt = (
+  daysBeforeBase: number,
+  hour: number,
+  minute: number
+) =>
+  mockBaseDay
+    .subtract(daysBeforeBase, "day")
+    .hour(hour)
+    .minute(minute)
+    .second(0)
+    .millisecond(0)
+    .toISOString();
+const mockScoredAt = (publishedAt: string, minutesLater: number) =>
+  dayjs(publishedAt).tz(APP_TIMEZONE).add(minutesLater, "minute").toISOString();
 
 const p0Evening = mockPublishedAt(0, 20, 15);
 const p0Afternoon = mockPublishedAt(0, 14, 5);
@@ -22,7 +42,29 @@ const p2Evening = mockPublishedAt(2, 18, 10);
 const p2Afternoon = mockPublishedAt(2, 15, 45);
 const p2Morning = mockPublishedAt(2, 7, 50);
 
-export const mockTimelineItems: TimelineItemDto[] = [
+type MockTimelineItemInput = Omit<
+  TimelineItemDto,
+  "displayUrl" | "sourceFetcherType" | "acquisitionLabel"
+> & {
+  sourceFetcherType?: string | null;
+};
+
+function mockTimelineItem(input: MockTimelineItemInput): TimelineItemDto {
+  const sourceFetcherType = input.sourceFetcherType ?? "html";
+  const acquisitionLabel = resolveAcquisitionLabel(
+    sourceFetcherType,
+    input.sourceCategory
+  );
+  return {
+    ...input,
+    url: acquisitionLabel ? `/items/${input.id}` : input.url,
+    displayUrl: acquisitionLabel ? null : input.url,
+    sourceFetcherType,
+    acquisitionLabel
+  };
+}
+
+const mockTimelineItemInputs: MockTimelineItemInput[] = [
   {
     id: 30,
     title: "远东智慧能源中标国网江苏电缆框架采购，标包金额待披露",
@@ -32,10 +74,11 @@ export const mockTimelineItems: TimelineItemDto[] = [
     sourceCategory: "项目招标",
     publishedAt: p0Evening,
     scoredAt: mockScoredAt(p0Evening, 30),
-    summaryZh: "自家公司直接中标项目，建议跟进合同金额、交付周期和竞品份额变化。",
-    category: "project",
+    summaryZh:
+      "自家公司直接中标项目，建议跟进合同金额、交付周期和竞品份额变化。",
+    category: "项目与招投标",
     topCircle: "C1",
-    qualityScore: 8.6,
+    qualityScore: 86,
     alertType: "own",
     alertLevel: "L1",
     clusterId: 1001,
@@ -51,10 +94,11 @@ export const mockTimelineItems: TimelineItemDto[] = [
     sourceCategory: "政府",
     publishedAt: p0Evening,
     scoredAt: mockScoredAt(p0Evening, 30),
-    summaryZh: "新版规范提高质量追溯和环保准入要求，利好头部企业，需评估产线合规成本。",
-    category: "policy",
+    summaryZh:
+      "新版规范提高质量追溯和环保准入要求，利好头部企业，需评估产线合规成本。",
+    category: "政策与标准",
     topCircle: "C2",
-    qualityScore: 7.9,
+    qualityScore: 79,
     alertType: "policy",
     alertLevel: "L2",
     clusterId: 1002,
@@ -71,9 +115,9 @@ export const mockTimelineItems: TimelineItemDto[] = [
     publishedAt: p0Afternoon,
     scoredAt: mockScoredAt(p0Afternoon, 25),
     summaryZh: "竞品安全事故可能影响短期交付能力，建议销售侧关注客户替代需求。",
-    category: "company",
+    category: "公司与资本",
     topCircle: "C2",
-    qualityScore: 7.2,
+    qualityScore: 72,
     alertType: "safety",
     alertLevel: "L1",
     clusterId: 1003,
@@ -89,10 +133,11 @@ export const mockTimelineItems: TimelineItemDto[] = [
     sourceCategory: "媒体-垂直",
     publishedAt: p0Morning,
     scoredAt: mockScoredAt(p0Morning, 35),
-    summaryZh: "新增 380kV 海缆专项，宝胜、亨通、东方电缆已报名，值得持续跟踪。",
-    category: "project",
+    summaryZh:
+      "新增 380kV 海缆专项，宝胜、亨通、东方电缆已报名，值得持续跟踪。",
+    category: "项目与招投标",
     topCircle: "C2",
-    qualityScore: 6.8,
+    qualityScore: 68,
     alertType: null,
     alertLevel: null,
     clusterId: 1004,
@@ -103,15 +148,17 @@ export const mockTimelineItems: TimelineItemDto[] = [
     id: 26,
     title: "亨通光电披露电缆业务涉诉公告，投标影响待评估",
     url: "https://example.com/mock/26",
-    sourceName: "巨潮-C2电缆竞品涉诉",
+    sourceName: "Firecrawl-C2风险检索",
     sourceTier: "T1",
-    sourceCategory: "上市公司涉诉",
+    sourceCategory: "风险检索",
+    sourceFetcherType: "crawl",
     publishedAt: p1Evening,
     scoredAt: mockScoredAt(p1Evening, 20),
-    summaryZh: "竞品亨通光电新增诉讼披露，建议法务与销售侧评估供应链与投标影响。",
-    category: "company",
+    summaryZh:
+      "竞品亨通光电新增诉讼披露，建议法务与销售侧评估供应链与投标影响。",
+    category: "公司与资本",
     topCircle: "C2",
-    qualityScore: 7.4,
+    qualityScore: 74,
     alertType: "legal",
     alertLevel: "L2",
     clusterId: 1006,
@@ -128,9 +175,9 @@ export const mockTimelineItems: TimelineItemDto[] = [
     publishedAt: p1Afternoon,
     scoredAt: mockScoredAt(p1Afternoon, 20),
     summaryZh: "铜价波动对电缆毛利形成压力，采购侧需复核套保与长协策略。",
-    category: "market",
+    category: "市场与价格",
     topCircle: "C2",
-    qualityScore: 6.9,
+    qualityScore: 69,
     alertType: null,
     alertLevel: null,
     clusterId: 1007,
@@ -146,10 +193,11 @@ export const mockTimelineItems: TimelineItemDto[] = [
     sourceCategory: "协会",
     publishedAt: p1Morning,
     scoredAt: mockScoredAt(p1Morning, 20),
-    summaryZh: "新能源车产销增长提升高压线束与电缆需求预期，建议关注车企订单节奏。",
-    category: "market",
+    summaryZh:
+      "新能源车产销增长提升高压线束与电缆需求预期，建议关注车企订单节奏。",
+    category: "市场与价格",
     topCircle: "C3",
-    qualityScore: 6.6,
+    qualityScore: 66,
     alertType: null,
     alertLevel: null,
     clusterId: 1008,
@@ -166,9 +214,9 @@ export const mockTimelineItems: TimelineItemDto[] = [
     publishedAt: p2Evening,
     scoredAt: mockScoredAt(p2Evening, 15),
     summaryZh: "储能并网验收要求强化，可能带动电缆配套检测和交付资料标准化。",
-    category: "policy",
+    category: "政策与标准",
     topCircle: "C2",
-    qualityScore: 7.1,
+    qualityScore: 71,
     alertType: "policy",
     alertLevel: "L2",
     clusterId: 1009,
@@ -185,9 +233,9 @@ export const mockTimelineItems: TimelineItemDto[] = [
     publishedAt: p2Afternoon,
     scoredAt: mockScoredAt(p2Afternoon, 15),
     summaryZh: "海外海风项目释放海缆订单，竞品入围情况值得跟踪。",
-    category: "project",
+    category: "项目与招投标",
     topCircle: "C2",
-    qualityScore: 6.7,
+    qualityScore: 67,
     alertType: null,
     alertLevel: null,
     clusterId: 1010,
@@ -204,9 +252,9 @@ export const mockTimelineItems: TimelineItemDto[] = [
     publishedAt: p2Morning,
     scoredAt: mockScoredAt(p2Morning, 15),
     summaryZh: "配网改造项目提前释放低压电缆集采需求，需关注区域客户预算窗口。",
-    category: "project",
+    category: "项目与招投标",
     topCircle: "C3",
-    qualityScore: 6.4,
+    qualityScore: 64,
     alertType: null,
     alertLevel: null,
     clusterId: 1011,
@@ -215,11 +263,62 @@ export const mockTimelineItems: TimelineItemDto[] = [
   }
 ];
 
+export const mockTimelineItems: TimelineItemDto[] =
+  mockTimelineItemInputs.map(mockTimelineItem);
+
 export const mockSources = [
-  { id: 1, name: "工信部官网", url: "https://www.miit.gov.cn", fetcherType: "html", tier: "T1", category: "政府", enabled: true, failCount: 0, lastFetchedAt: iso(1), lastError: null, config: { type: "html", listUrl: "https://www.miit.gov.cn" } },
-  { id: 2, name: "第一财经能源", url: "https://example.com/yicai", fetcherType: "rss", tier: "T1", category: "媒体-综合", enabled: true, failCount: 1, lastFetchedAt: iso(2), lastError: null, config: { type: "rss", url: "https://example.com/feed" } },
-  { id: 3, name: "电缆网", url: "https://example.com/cable", fetcherType: "html", tier: "T2", category: "媒体-垂直", enabled: true, failCount: 0, lastFetchedAt: iso(3), lastError: null, config: { type: "html", listUrl: "https://example.com/cable" } },
-  { id: 4, name: "演示失效信源", url: "https://example.com/broken", fetcherType: "html", tier: "T3", category: "测试", enabled: false, failCount: 8, lastFetchedAt: iso(48), lastError: "连续超时，已自动停用", config: { type: "html", listUrl: "https://example.com/broken" } }
+  {
+    id: 1,
+    name: "工信部官网",
+    url: "https://www.miit.gov.cn",
+    fetcherType: "html",
+    tier: "T1",
+    category: "政府",
+    enabled: true,
+    failCount: 0,
+    lastFetchedAt: iso(1),
+    lastError: null,
+    config: { type: "html", listUrl: "https://www.miit.gov.cn" }
+  },
+  {
+    id: 2,
+    name: "第一财经能源",
+    url: "https://example.com/yicai",
+    fetcherType: "rss",
+    tier: "T1",
+    category: "媒体-综合",
+    enabled: true,
+    failCount: 1,
+    lastFetchedAt: iso(2),
+    lastError: null,
+    config: { type: "rss", url: "https://example.com/feed" }
+  },
+  {
+    id: 3,
+    name: "电缆网",
+    url: "https://example.com/cable",
+    fetcherType: "html",
+    tier: "T2",
+    category: "媒体-垂直",
+    enabled: true,
+    failCount: 0,
+    lastFetchedAt: iso(3),
+    lastError: null,
+    config: { type: "html", listUrl: "https://example.com/cable" }
+  },
+  {
+    id: 4,
+    name: "演示失效信源",
+    url: "https://example.com/broken",
+    fetcherType: "html",
+    tier: "T3",
+    category: "测试",
+    enabled: false,
+    failCount: 8,
+    lastFetchedAt: iso(48),
+    lastError: "连续超时，已自动停用",
+    config: { type: "html", listUrl: "https://example.com/broken" }
+  }
 ];
 
 export const mockScoringConfig: ScoringConfigBody = {
@@ -242,8 +341,13 @@ export function mockDailyReport(date: string) {
     generatedAt: dayjs().tz(APP_TIMEZONE).toISOString(),
     sections: {
       hero_title: "今日重点：政策准入收紧叠加海缆招标放量",
-      hero_summary: "mock mode 日报用于无数据库预览。今日信号显示，电线电缆行业规范修订与南网海缆招标同时出现，短期应关注投标窗口、铜价成本和竞品交付风险。",
-      briefs: ["远东智慧能源中标国网江苏批次", "工信部行业规范修订征求意见", "紫金电缆火情导致部分产线停产"],
+      hero_summary:
+        "mock mode 日报用于无数据库预览。今日信号显示，电线电缆行业规范修订与南网海缆招标同时出现，短期应关注投标窗口、铜价成本和竞品交付风险。",
+      briefs: [
+        "远东智慧能源中标国网江苏批次",
+        "工信部行业规范修订征求意见",
+        "紫金电缆火情导致部分产线停产"
+      ],
       stat_fetched: "128",
       stat_curated: "18",
       stat_own: "1",
@@ -258,15 +362,20 @@ export function mockDailyReport(date: string) {
   };
 }
 
-function matchesFilters(item: TimelineItemDto, filters: TimelineFilters = {}, search?: string): boolean {
+function matchesFilters(
+  item: TimelineItemDto,
+  filters: TimelineFilters = {},
+  search?: string
+): boolean {
   if (filters.category && item.category !== filters.category) return false;
   if (filters.circle && item.topCircle !== filters.circle) return false;
   if (filters.tier && item.sourceTier !== filters.tier) return false;
   if (filters.eventType && item.eventType !== filters.eventType) return false;
   if (filters.alertType && item.alertType !== filters.alertType) return false;
-  if (filters.curated && (item.qualityScore ?? 0) < 6.5) return false;
+  if (filters.curated && (item.qualityScore ?? 0) < 65) return false;
   if (search) {
-    const haystack = `${item.title} ${item.summaryZh ?? ""} ${item.sourceName}`.toLowerCase();
+    const haystack =
+      `${item.title} ${item.summaryZh ?? ""} ${item.sourceName}`.toLowerCase();
     if (!haystack.includes(search.toLowerCase())) return false;
   }
   return true;
@@ -279,18 +388,30 @@ function compareIsoDesc(a: string | null, b: string | null): number {
   return dayjs(b).valueOf() - dayjs(a).valueOf();
 }
 
-function sortTimelineItems(items: TimelineItemDto[], filters: TimelineFilters = {}): TimelineItemDto[] {
+function sortTimelineItems(
+  items: TimelineItemDto[],
+  filters: TimelineFilters = {}
+): TimelineItemDto[] {
   return [...items].sort((a, b) => {
-    const primary = filters.curated ? (b.qualityScore ?? 0) - (a.qualityScore ?? 0) : compareIsoDesc(a.publishedAt, b.publishedAt);
+    const primary = filters.curated
+      ? (b.qualityScore ?? 0) - (a.qualityScore ?? 0)
+      : compareIsoDesc(a.publishedAt, b.publishedAt);
     return primary || b.id - a.id;
   });
 }
 
-function cursorAtForTimeline(item: TimelineItemDto, filters: TimelineFilters = {}): string | null {
+function cursorAtForTimeline(
+  item: TimelineItemDto,
+  filters: TimelineFilters = {}
+): string | null {
   return filters.curated ? item.scoredAt : item.publishedAt;
 }
 
-function afterKeysetCursor(item: TimelineItemDto, cursor: string | undefined, filters: TimelineFilters = {}): boolean {
+function afterKeysetCursor(
+  item: TimelineItemDto,
+  cursor: string | undefined,
+  filters: TimelineFilters = {}
+): boolean {
   const parsed = decodeCursor(cursor);
   if (!parsed) return true;
   const at = cursorAtForTimeline(item, filters);
@@ -300,14 +421,22 @@ function afterKeysetCursor(item: TimelineItemDto, cursor: string | undefined, fi
   return itemAt < cursorAt || (itemAt === cursorAt && item.id < parsed.id);
 }
 
-function encodeTimelineMockCursor(item: TimelineItemDto, filters: TimelineFilters = {}): string | null {
+function encodeTimelineMockCursor(
+  item: TimelineItemDto,
+  filters: TimelineFilters = {}
+): string | null {
   const at = cursorAtForTimeline(item, filters);
   return at ? encodeCursor({ at, id: item.id }) : null;
 }
 
-export function mockFetchTimeline(options: { filters?: TimelineFilters; limit?: number; search?: string; cursor?: string }): TimelineResult {
+export function mockFetchTimeline(options: {
+  filters?: TimelineFilters;
+  limit?: number;
+  search?: string;
+  cursor?: string;
+}): TimelineResult {
   const limit = options.limit ?? 50;
-  const filters = options.filters ?? {};
+  const filters = normalizeTimelineFilters(options.filters ?? {});
   const rows = sortTimelineItems(
     mockTimelineItems
       .filter((item) => matchesFilters(item, filters, options.search))
@@ -318,7 +447,10 @@ export function mockFetchTimeline(options: { filters?: TimelineFilters; limit?: 
   const last = page.at(-1);
   return {
     items: page,
-    nextCursor: rows.length > limit && last ? encodeTimelineMockCursor(last, filters) : null
+    nextCursor:
+      rows.length > limit && last
+        ? encodeTimelineMockCursor(last, filters)
+        : null
   };
 }
 
@@ -329,26 +461,57 @@ export function mockFetchItemDetail(id: number): ItemDetailDto | null {
     ...item,
     content: `${item.title}\n\n这是 mock mode 下的正文，用于本机无数据库预览。`,
     translationZh: null,
-    scores: { d1Policy: 7.5, d2Chain: 8.2, d3Market: 6.5, d4Tech: 5.8, d5Business: 7.1 },
+    scores: {
+      d1Policy: 75,
+      d2Chain: 82,
+      d3Market: 65,
+      d4Tech: 58,
+      d5Business: 71
+    },
     entities: [
-      { id: 1, type: "company", canonicalName: "远东智慧能源", circle: "C1", span: "远东" },
-      { id: 2, type: "organization", canonicalName: "国家电网", circle: "C2", span: "国网" }
+      {
+        id: 1,
+        type: "company",
+        canonicalName: "远东智慧能源",
+        circle: "C1",
+        span: "远东"
+      },
+      {
+        id: 2,
+        type: "organization",
+        canonicalName: "国家电网",
+        circle: "C2",
+        span: "国网"
+      }
     ],
-    clusterItems: mockTimelineItems.filter((entry) => entry.clusterId === item.clusterId && entry.id !== id).map((entry) => ({
-      id: entry.id,
-      title: entry.title,
-      url: entry.url,
-      sourceName: entry.sourceName,
-      publishedAt: entry.publishedAt,
-      similarity: 0.86
-    }))
+    clusterItems: mockTimelineItems
+      .filter((entry) => entry.clusterId === item.clusterId && entry.id !== id)
+      .map((entry) => ({
+        id: entry.id,
+        title: entry.title,
+        url: entry.url,
+        displayUrl: entry.displayUrl,
+        sourceName: entry.sourceName,
+        sourceFetcherType: entry.sourceFetcherType,
+        acquisitionLabel: entry.acquisitionLabel,
+        publishedAt: entry.publishedAt,
+        similarity: 0.86
+      }))
   };
 }
 
-export function mockFetchAlerts(query: AlertQuery): { items: TimelineItemDto[]; nextCursor: string | null } {
+export function mockFetchAlerts(query: AlertQuery): {
+  items: TimelineItemDto[];
+  nextCursor: string | null;
+} {
   const cursor = decodeCursor(query.cursor);
   const rows = mockTimelineItems
-    .filter((item) => item.alertType && (!query.type || item.alertType === query.type) && (!query.level || item.alertLevel === query.level))
+    .filter(
+      (item) =>
+        item.alertType &&
+        (!query.type || item.alertType === query.type) &&
+        (!query.level || item.alertLevel === query.level)
+    )
     .filter((item) => {
       if (!cursor || !item.scoredAt) return !cursor;
       const itemAt = dayjs(item.scoredAt).valueOf();
@@ -360,22 +523,40 @@ export function mockFetchAlerts(query: AlertQuery): { items: TimelineItemDto[]; 
   const last = page.at(-1);
   return {
     items: page,
-    nextCursor: rows.length > query.limit && last?.scoredAt ? encodeCursor({ at: last.scoredAt, id: last.id }) : null
+    nextCursor:
+      rows.length > query.limit && last?.scoredAt
+        ? encodeCursor({ at: last.scoredAt, id: last.id })
+        : null
   };
 }
 
-export function mockFetchAlertCount(): { own: number; safety: number; policy: number; legal: number } {
-  return mockTimelineItems.reduce((acc, item) => {
-    if (item.alertType === "own" || item.alertType === "safety" || item.alertType === "policy" || item.alertType === "legal") {
-      acc[item.alertType] += 1;
-    }
-    return acc;
-  }, { own: 0, safety: 0, policy: 0, legal: 0 });
+export function mockFetchAlertCount(): {
+  own: number;
+  safety: number;
+  policy: number;
+  legal: number;
+} {
+  return mockTimelineItems.reduce(
+    (acc, item) => {
+      if (
+        item.alertType === "own" ||
+        item.alertType === "safety" ||
+        item.alertType === "policy" ||
+        item.alertType === "legal"
+      ) {
+        acc[item.alertType] += 1;
+      }
+      return acc;
+    },
+    { own: 0, safety: 0, policy: 0, legal: 0 }
+  );
 }
 
 export function mockFetchDashboardData(): DashboardData {
   const scored = mockTimelineItems.length;
-  const curated = mockTimelineItems.filter((item) => (item.qualityScore ?? 0) >= 6.5).length;
+  const curated = mockTimelineItems.filter(
+    (item) => (item.qualityScore ?? 0) >= 65
+  ).length;
   const disabled = mockSources.filter((source) => !source.enabled).length;
   return {
     metrics: [
@@ -387,7 +568,13 @@ export function mockFetchDashboardData(): DashboardData {
       { label: "合并冲突", value: 1, tone: "warning" },
       { label: "Priority 老化", value: "12%" }
     ],
-    backlog: { pending: 8, droppedExpired: 1, oldPending: 1, oldPendingRatio: 0.12, tone: "default" },
+    backlog: {
+      pending: 8,
+      droppedExpired: 1,
+      oldPending: 1,
+      oldPendingRatio: 0.12,
+      tone: "default"
+    },
     sources: { total: mockSources.length, disabled, failedSevenDays: 1 },
     alertsToday: mockFetchAlertCount(),
     mergeConflictsPending: 1,

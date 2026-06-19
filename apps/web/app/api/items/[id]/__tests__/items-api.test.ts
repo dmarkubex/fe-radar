@@ -39,7 +39,10 @@ const getDbMock = vi.hoisted(() => vi.fn());
 const fetchItemDetailMock = vi.hoisted(() => vi.fn());
 
 vi.mock("drizzle-orm", () => ({
-  and: vi.fn((...conditions: Array<QueryPredicate | undefined>) => ({ op: "and", conditions: conditions.filter(Boolean) })),
+  and: vi.fn((...conditions: Array<QueryPredicate | undefined>) => ({
+    op: "and",
+    conditions: conditions.filter(Boolean)
+  })),
   desc: vi.fn((column) => ({ direction: "desc", column })),
   eq: vi.fn((column, value) => ({ op: "eq", column, value })),
   ilike: vi.fn((column, value) => ({ op: "ilike", column, value })),
@@ -49,15 +52,27 @@ vi.mock("drizzle-orm", () => ({
   lt: vi.fn((column, value) => ({ op: "lt", column, value })),
   ne: vi.fn((column, value) => ({ op: "ne", column, value })),
   not: vi.fn((condition) => ({ op: "not", condition })),
-  or: vi.fn((...conditions: Array<QueryPredicate | undefined>) => ({ op: "or", conditions: conditions.filter(Boolean) })),
+  or: vi.fn((...conditions: Array<QueryPredicate | undefined>) => ({
+    op: "or",
+    conditions: conditions.filter(Boolean)
+  })),
   sql: vi.fn(() => "sql")
 }));
 
 vi.mock("@/lib/api/authz", () => ({
-  canIncludeBlocked: (role: User["role"], includeBlocked: boolean) => includeBlocked && role === "admin",
+  canIncludeBlocked: (role: User["role"], includeBlocked: boolean) =>
+    includeBlocked && role === "admin",
   getRequestUser: vi.fn(async () => users.current),
-  notFound: () => Response.json({ error: { code: "NOT_FOUND", message: "条目不存在或不可访问" } }, { status: 404 }),
-  unauthorized: () => Response.json({ error: { code: "UNAUTHORIZED", message: "请先登录" } }, { status: 401 })
+  notFound: () =>
+    Response.json(
+      { error: { code: "NOT_FOUND", message: "条目不存在或不可访问" } },
+      { status: 404 }
+    ),
+  unauthorized: () =>
+    Response.json(
+      { error: { code: "UNAUTHORIZED", message: "请先登录" } },
+      { status: 401 }
+    )
 }));
 
 vi.mock("@/lib/api/timeline-query", () => ({
@@ -70,11 +85,18 @@ vi.mock("@/lib/api/cursor", () => ({
 }));
 
 vi.mock("@/lib/api/item-visibility", () => ({
-  BLOCKED_QUOTA_STATES: ["pending_over_quota", "dropped_quota_expired", "dropped_filter"],
+  BLOCKED_QUOTA_STATES: [
+    "pending_over_quota",
+    "dropped_quota_expired",
+    "dropped_filter"
+  ],
   MANUAL_SCRUB_SUMMARY: "[需人工脱敏]"
 }));
 
-vi.mock("@/lib/api/timeline-schema", async () => import("../../../../../lib/api/timeline-schema"));
+vi.mock(
+  "@/lib/api/timeline-schema",
+  async () => import("../../../../../lib/api/timeline-schema")
+);
 
 vi.mock("@/lib/mock-data", () => ({
   mockFetchItemDetail: vi.fn(),
@@ -141,6 +163,7 @@ vi.mock("@fe-radar/db", () => ({
   },
   sources: {
     category: "sources.category",
+    fetcherType: "sources.fetcherType",
     id: "sources.id",
     name: "sources.name",
     tier: "sources.tier"
@@ -170,7 +193,10 @@ function createFakeDb() {
     select: () => ({
       from: () => ({
         where: (condition: { value: number }) => ({
-          limit: async () => (dbState.existingItems.has(condition.value) ? [{ id: condition.value }] : [])
+          limit: async () =>
+            dbState.existingItems.has(condition.value)
+              ? [{ id: condition.value }]
+              : []
         })
       })
     }),
@@ -203,18 +229,29 @@ function columnValue(row: DetailSourceRow, columnOrValue: unknown) {
   return columnOrValue;
 }
 
-function matchesPredicate(row: DetailSourceRow, predicate: QueryPredicate): boolean {
+function matchesPredicate(
+  row: DetailSourceRow,
+  predicate: QueryPredicate
+): boolean {
   switch (predicate.op) {
     case "and":
-      return predicate.conditions.every((condition) => matchesPredicate(row, condition));
+      return predicate.conditions.every((condition) =>
+        matchesPredicate(row, condition)
+      );
     case "or":
-      return predicate.conditions.some((condition) => matchesPredicate(row, condition));
+      return predicate.conditions.some((condition) =>
+        matchesPredicate(row, condition)
+      );
     case "not":
       return !matchesPredicate(row, predicate.condition);
     case "eq":
-      return columnValue(row, predicate.column) === columnValue(row, predicate.value);
+      return (
+        columnValue(row, predicate.column) === columnValue(row, predicate.value)
+      );
     case "ne":
-      return columnValue(row, predicate.column) !== columnValue(row, predicate.value);
+      return (
+        columnValue(row, predicate.column) !== columnValue(row, predicate.value)
+      );
     case "inArray":
       return predicate.values.includes(columnValue(row, predicate.column));
     case "isNull":
@@ -252,6 +289,7 @@ function createDetailFixture(quotaState: string): DetailSourceRow {
     "items.title": "blocked detail",
     "items.url": "https://radar.test/item/42",
     "sources.category": "news",
+    "sources.fetcherType": "html",
     "sources.id": 1,
     "sources.name": "Test Source",
     "sources.tier": "tier1",
@@ -262,6 +300,7 @@ function createDetailFixture(quotaState: string): DetailSourceRow {
       sourceName: "Test Source",
       sourceTier: "tier1",
       sourceCategory: "news",
+      sourceFetcherType: "html",
       publishedAt,
       scoredAt,
       summaryZh: "visible summary",
@@ -288,6 +327,9 @@ function createDetailFixture(quotaState: string): DetailSourceRow {
       sourceName: "Test Source",
       sourceTier: "tier1",
       sourceCategory: "news",
+      sourceFetcherType: "html",
+      displayUrl: "https://radar.test/item/42",
+      acquisitionLabel: null,
       publishedAt: publishedAt.toISOString(),
       scoredAt: scoredAt.toISOString(),
       summaryZh: "visible summary",
@@ -318,15 +360,23 @@ function createFakeDetailDb(sourceRow: DetailSourceRow) {
   return {
     select: () => ({
       from: (table: unknown) => {
-        const isItemsTable = typeof table === "object" && table !== null && "id" in table && table.id === "items.id";
+        const isItemsTable =
+          typeof table === "object" &&
+          table !== null &&
+          "id" in table &&
+          table.id === "items.id";
         const query = {
           innerJoin: () => query,
           leftJoin: () => query,
-          where: (condition: QueryPredicate) => (
+          where: (condition: QueryPredicate) =>
             isItemsTable
-              ? { limit: async () => (matchesPredicate(sourceRow, condition) ? [sourceRow.dbRow] : []) }
+              ? {
+                  limit: async () =>
+                    matchesPredicate(sourceRow, condition)
+                      ? [sourceRow.dbRow]
+                      : []
+                }
               : Promise.resolve([])
-          )
         };
         return query;
       }
@@ -350,39 +400,81 @@ describe("/api/items/[id]", () => {
       users.current = { id: 1, role: "viewer" };
       fetchItemDetailMock.mockResolvedValue(null);
 
-      const response = await GET(makeNextRequest("https://radar.test/api/items/42"), params("42"));
+      const response = await GET(
+        makeNextRequest("https://radar.test/api/items/42"),
+        params("42")
+      );
 
       expect(response.status).toBe(404);
-      expect(fetchItemDetailMock).toHaveBeenCalledWith(42, { includeBlocked: false });
+      expect(fetchItemDetailMock).toHaveBeenCalledWith(42, {
+        includeBlocked: false
+      });
     });
 
     it.each(["pending_over_quota", "dropped_quota_expired", "dropped_filter"])(
       "filters %s rows through fetchItemDetail quota visibility",
       async (quotaState) => {
-        const { fetchItemDetail } = await vi.importActual<{ fetchItemDetail: typeof actualFetchItemDetail }>(
-          "../../../../../lib/api/timeline-query"
-        );
-        const db = createFakeDetailDb(createDetailFixture(quotaState)) as unknown as DbClient;
+        const { fetchItemDetail } = await vi.importActual<{
+          fetchItemDetail: typeof actualFetchItemDetail;
+        }>("../../../../../lib/api/timeline-query");
+        const db = createFakeDetailDb(
+          createDetailFixture(quotaState)
+        ) as unknown as DbClient;
 
         const hidden = await fetchItemDetail(42, { db, includeBlocked: false });
         const visible = await fetchItemDetail(42, { db, includeBlocked: true });
 
         expect(hidden).toBeNull();
-        expect(visible).toMatchObject({ id: 42, title: "blocked detail", entities: [], clusterItems: [] });
+        expect(visible).toMatchObject({
+          id: 42,
+          title: "blocked detail",
+          entities: [],
+          clusterItems: []
+        });
       }
     );
+
+    it("hides crawl/risk-search original URL in the detail DTO", async () => {
+      const { fetchItemDetail } = await vi.importActual<{
+        fetchItemDetail: typeof actualFetchItemDetail;
+      }>("../../../../../lib/api/timeline-query");
+      const fixture = createDetailFixture("admitted");
+      fixture["sources.category"] = "风险检索";
+      fixture["sources.fetcherType"] = "crawl";
+      fixture.dbRow.sourceCategory = "风险检索";
+      fixture.dbRow.sourceFetcherType = "crawl";
+      const db = createFakeDetailDb(fixture) as unknown as DbClient;
+
+      const detail = await fetchItemDetail(42, { db });
+
+      expect(detail).toMatchObject({
+        id: 42,
+        url: "/items/42",
+        displayUrl: null,
+        sourceFetcherType: "crawl",
+        acquisitionLabel: "AI检索摘要"
+      });
+    });
 
     it("allows only admins to request blocked item visibility", async () => {
       const { GET } = await import("../route");
       users.current = { id: 1, role: "admin" };
-      fetchItemDetailMock.mockResolvedValue({ id: 42, title: "blocked detail" });
+      fetchItemDetailMock.mockResolvedValue({
+        id: 42,
+        title: "blocked detail"
+      });
 
-      const response = await GET(makeNextRequest("https://radar.test/api/items/42?includeBlocked=true"), params("42"));
+      const response = await GET(
+        makeNextRequest("https://radar.test/api/items/42?includeBlocked=true"),
+        params("42")
+      );
       const body = await response.json();
 
       expect(response.status).toBe(200);
       expect(body.item).toMatchObject({ id: 42, title: "blocked detail" });
-      expect(fetchItemDetailMock).toHaveBeenCalledWith(42, { includeBlocked: true });
+      expect(fetchItemDetailMock).toHaveBeenCalledWith(42, {
+        includeBlocked: true
+      });
     });
 
     it("ignores includeBlocked for non-admin users", async () => {
@@ -390,10 +482,15 @@ describe("/api/items/[id]", () => {
       users.current = { id: 1, role: "editor" };
       fetchItemDetailMock.mockResolvedValue(null);
 
-      const response = await GET(makeNextRequest("https://radar.test/api/items/42?includeBlocked=true"), params("42"));
+      const response = await GET(
+        makeNextRequest("https://radar.test/api/items/42?includeBlocked=true"),
+        params("42")
+      );
 
       expect(response.status).toBe(404);
-      expect(fetchItemDetailMock).toHaveBeenCalledWith(42, { includeBlocked: false });
+      expect(fetchItemDetailMock).toHaveBeenCalledWith(42, {
+        includeBlocked: false
+      });
     });
   });
 
@@ -402,7 +499,10 @@ describe("/api/items/[id]", () => {
       const { POST } = await import("../feedback/route");
       users.current = {};
 
-      const response = await POST(jsonRequest("https://radar.test/api/items/42/feedback", { vote: 1 }), params("42"));
+      const response = await POST(
+        jsonRequest("https://radar.test/api/items/42/feedback", { vote: 1 }),
+        params("42")
+      );
 
       expect(response.status).toBe(401);
       expect(getDbMock).not.toHaveBeenCalled();
@@ -410,12 +510,18 @@ describe("/api/items/[id]", () => {
 
     it.each([
       { body: { vote: 2 }, name: "invalid vote" },
-      { body: { vote: 1, reason: "x".repeat(501) }, name: "reason over 500 chars" }
+      {
+        body: { vote: 1, reason: "x".repeat(501) },
+        name: "reason over 500 chars"
+      }
     ])("rejects $name", async ({ body }) => {
       const { POST } = await import("../feedback/route");
       users.current = { id: 7, role: "viewer" };
 
-      const response = await POST(jsonRequest("https://radar.test/api/items/42/feedback", body), params("42"));
+      const response = await POST(
+        jsonRequest("https://radar.test/api/items/42/feedback", body),
+        params("42")
+      );
       const payload = await response.json();
 
       expect(response.status).toBe(400);
@@ -427,7 +533,10 @@ describe("/api/items/[id]", () => {
       const { POST } = await import("../feedback/route");
       users.current = { id: 7, role: "viewer" };
 
-      const response = await POST(jsonRequest("https://radar.test/api/items/404/feedback", { vote: 1 }), params("404"));
+      const response = await POST(
+        jsonRequest("https://radar.test/api/items/404/feedback", { vote: 1 }),
+        params("404")
+      );
 
       expect(response.status).toBe(404);
       expect(dbState.feedbacks.size).toBe(0);
@@ -437,23 +546,53 @@ describe("/api/items/[id]", () => {
       const { POST } = await import("../feedback/route");
       users.current = { id: 7, role: "viewer" };
 
-      const first = await POST(jsonRequest("https://radar.test/api/items/42/feedback", { vote: 1, reason: "useful" }), params("42"));
-      const second = await POST(jsonRequest("https://radar.test/api/items/42/feedback", { vote: -1, reason: "duplicate" }), params("42"));
+      const first = await POST(
+        jsonRequest("https://radar.test/api/items/42/feedback", {
+          vote: 1,
+          reason: "useful"
+        }),
+        params("42")
+      );
+      const second = await POST(
+        jsonRequest("https://radar.test/api/items/42/feedback", {
+          vote: -1,
+          reason: "duplicate"
+        }),
+        params("42")
+      );
       const secondBody = await second.json();
 
       expect(first.status).toBe(200);
       expect(second.status).toBe(200);
       expect(dbState.feedbacks.size).toBe(1);
-      expect(secondBody.feedback).toMatchObject({ id: 1, itemId: 42, userId: 7, vote: -1, reason: "duplicate" });
+      expect(secondBody.feedback).toMatchObject({
+        id: 1,
+        itemId: 42,
+        userId: 7,
+        vote: -1,
+        reason: "duplicate"
+      });
     });
 
     it("keeps feedback scoped by user", async () => {
       const { POST } = await import("../feedback/route");
 
       users.current = { id: 7, role: "viewer" };
-      await POST(jsonRequest("https://radar.test/api/items/42/feedback", { vote: 1, reason: "alice" }), params("42"));
+      await POST(
+        jsonRequest("https://radar.test/api/items/42/feedback", {
+          vote: 1,
+          reason: "alice"
+        }),
+        params("42")
+      );
       users.current = { id: 8, role: "viewer" };
-      const response = await POST(jsonRequest("https://radar.test/api/items/42/feedback", { vote: -1, reason: "bob" }), params("42"));
+      const response = await POST(
+        jsonRequest("https://radar.test/api/items/42/feedback", {
+          vote: -1,
+          reason: "bob"
+        }),
+        params("42")
+      );
 
       expect(response.status).toBe(200);
       expect([...dbState.feedbacks.values()]).toEqual([

@@ -33,6 +33,37 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
   );
   const [error, setError] = useState<string | null>(null);
 
+  function parseConfigRecord(): Record<string, unknown> | null {
+    try {
+      return JSON.parse(config) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  }
+
+  function currentQuotesAdapter(): string {
+    const parsed = parseConfigRecord();
+    return typeof parsed?.["adapter"] === "string" ? parsed["adapter"] : "smm-hq";
+  }
+
+  function currentMetricKeys(): string {
+    const parsed = parseConfigRecord();
+    const keys = parsed?.["metric_keys"];
+    return Array.isArray(keys) ? keys.filter((key) => typeof key === "string").join(",") : "";
+  }
+
+  function currentEndpoint(): string {
+    const parsed = parseConfigRecord();
+    return typeof parsed?.["endpoint"] === "string" ? parsed["endpoint"] : "";
+  }
+
+  function updateConfig(mutator: (draft: Record<string, unknown>) => void): void {
+    const parsed = parseConfigRecord();
+    if (!parsed) return;
+    mutator(parsed);
+    setConfig(JSON.stringify(parsed, null, 2));
+  }
+
   function handleFetcherTypeChange(next: FetcherType): void {
     setFetcherType(next);
     setConfig(JSON.stringify(DEFAULT_SOURCE_CONFIGS[next], null, 2));
@@ -163,11 +194,19 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
                   className={FIELD}
                   data-testid="adapter-select"
                   onChange={(e) => {
-                    const parsed = JSON.parse(config) as Record<string, unknown>;
-                    parsed["adapter"] = e.target.value;
-                    setConfig(JSON.stringify(parsed, null, 2));
+                    updateConfig((parsed) => {
+                      const nextAdapter = e.target.value;
+                      parsed["adapter"] = nextAdapter;
+                      if (nextAdapter === "smm-hq") {
+                        Object.assign(parsed, DEFAULT_SOURCE_CONFIGS.quotes);
+                        return;
+                      }
+                      if (nextAdapter !== "smm-hq") {
+                        delete parsed["items"];
+                      }
+                    });
                   }}
-                  defaultValue="shfe"
+                  value={currentQuotesAdapter()}
                 >
                   <option value="shfe">shfe（上期所）</option>
                   <option value="gfex">gfex（广期所）</option>
@@ -175,6 +214,7 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
                   <option value="pboc">pboc（央行汇率）</option>
                   <option value="chinabond">chinabond（中国货币网）</option>
                   <option value="rsshub-extract">rsshub-extract</option>
+                  <option value="smm-hq">smm-hq（上海有色网）</option>
                 </select>
               </div>
               <div>
@@ -185,14 +225,15 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
                   className={FIELD}
                   data-testid="metric-keys-input"
                   placeholder="cu_main_close,cu_change_pct"
+                  value={currentMetricKeys()}
                   onChange={(e) => {
                     const keys = e.target.value
                       .split(",")
                       .map((k) => k.trim())
                       .filter(Boolean);
-                    const parsed = JSON.parse(config) as Record<string, unknown>;
-                    parsed["metric_keys"] = keys;
-                    setConfig(JSON.stringify(parsed, null, 2));
+                    updateConfig((parsed) => {
+                      parsed["metric_keys"] = keys;
+                    });
                   }}
                 />
               </div>
@@ -203,11 +244,12 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
               </label>
               <input
                 className={FIELD}
-                placeholder="http://www.shfe.com.cn/data/dailydata/kx/kx{YYYYMMDD}.dat"
+                placeholder="https://hq.smm.cn/h5/cu"
+                value={currentEndpoint()}
                 onChange={(e) => {
-                  const parsed = JSON.parse(config) as Record<string, unknown>;
-                  parsed["endpoint"] = e.target.value;
-                  setConfig(JSON.stringify(parsed, null, 2));
+                  updateConfig((parsed) => {
+                    parsed["endpoint"] = e.target.value;
+                  });
                 }}
               />
             </div>

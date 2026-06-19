@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 1,
+  "artifactDate": "2026-06-18",
+  "defaultEnabled": false,
+  "notes": "Candidate-only international source prep. No DB writes, no source enabling, no entity circle assignment.",
+  "candidates": [
+    {
+      "id": "intl-storage-eia-today-in-energy",
+      "name": "U.S. Energy Information Administration - Today in Energy",
+      "homepageUrl": "https://www.eia.gov/todayinenergy/",
+      "country": "US",
+      "lang": "en",
+      "topicTags": ["storage", "grid", "power-market", "policy"],
+      "sourceIntent": "official_energy_market_context",
+      "tier": "T1",
+      "fetcherGuess": {
+        "type": "rss",
+        "url": "https://www.eia.gov/rss/todayinenergy.xml"
+      },
+      "robotsUrl": "https://www.eia.gov/robots.txt",
+      "robotsStatus": "pending_manual_check",
+      "enabledDefault": false,
+      "entityCircleAssignment": null
+    },
+    {
+      "id": "intl-storage-iea-data-centres",
+      "name": "International Energy Agency - Data Centres and Data Transmission Networks",
+      "homepageUrl": "https://www.iea.org/energy-system/buildings/data-centres-and-data-transmission-networks",
+      "country": "Global",
+      "lang": "en",
+      "topicTags": ["data-center", "energy-demand", "grid", "policy"],
+      "sourceIntent": "official_energy_demand_context",
+      "tier": "T1",
+      "fetcherGuess": {
+        "type": "html",
+        "listUrl": "https://www.iea.org/energy-system/buildings/data-centres-and-data-transmission-networks",
+        "selectorsStatus": "not_defined"
+      },
+      "robotsUrl": "https://www.iea.org/robots.txt",
+      "robotsStatus": "pending_manual_check",
+      "enabledDefault": false,
+      "entityCircleAssignment": null
+    },
+    {
+      "id": "intl-storage-energy-storage-news",
+      "name": "Energy Storage News",
+      "homepageUrl": "https://www.energy-storage.news/",
+      "country": "UK",
+      "lang": "en",
+      "topicTags": ["storage", "battery", "grid-storage"],
+      "sourceIntent": "storage_market_news",
+      "tier": "T2",
+      "fetcherGuess": {
+        "type": "rss",
+        "url": "https://www.energy-storage.news/feed/"
+      },
+      "robotsUrl": "https://www.energy-storage.news/robots.txt",
+      "robotsStatus": "pending_manual_check",
+      "enabledDefault": false,
+      "entityCircleAssignment": null
+    },
+    {
+      "id": "intl-storage-ess-news",
+      "name": "ESS News",
+      "homepageUrl": "https://www.ess-news.com/",
+      "country": "Global",
+      "lang": "en",
+      "topicTags": ["storage", "battery", "grid-scale-storage"],
+      "sourceIntent": "storage_market_news",
+      "tier": "T2",
+      "fetcherGuess": {
+        "type": "html",
+        "listUrl": "https://www.ess-news.com/",
+        "selectorsStatus": "not_defined"
+      },
+      "robotsUrl": "https://www.ess-news.com/robots.txt",
+      "robotsStatus": "pending_manual_check",
+      "enabledDefault": false,
+      "entityCircleAssignment": null
+    },
+    {
+      "id": "intl-cable-europacable-news",
+      "name": "Europacable - News",
+      "homepageUrl": "https://europacable.eu/news/",
+      "country": "EU",
+      "lang": "en",
+      "topicTags": ["cable", "power-cable", "grid", "regulation"],
+      "sourceIntent": "industry_association_news",
+      "tier": "T1",
+      "fetcherGuess": {
+        "type": "html",
+        "listUrl": "https://europacable.eu/news/",
+        "selectorsStatus": "not_defined"
+      },
+      "robotsUrl": "https://europacable.eu/robots.txt",
+      "robotsStatus": "pending_manual_check",
+      "enabledDefault": false,
+      "entityCircleAssignment": null
+    },
+    {
+      "id": "intl-cable-iwma-news",
+      "name": "International Wire and Machinery Association - News",
+      "homepageUrl": "https://iwma.org/",
+      "country": "UK",
+      "lang": "en",
+      "topicTags": ["cable", "wire", "manufacturing", "supply-chain"],
+      "sourceIntent": "wire_cable_industry_news",
+      "tier": "T2",
+      "fetcherGuess": {
+        "type": "html",
+        "listUrl": "https://iwma.org/",
+        "selectorsStatus": "not_defined"
+      },
+      "robotsUrl": "https://iwma.org/robots.txt",
+      "robotsStatus": "pending_manual_check",
+      "enabledDefault": false,
+      "entityCircleAssignment": null
+    },
+    {
+      "id": "intl-cable-wire-cable-tips",
+      "name": "Wire and Cable Tips",
+      "homepageUrl": "https://www.wireandcabletips.com/",
+      "country": "US",
+      "lang": "en",
+      "topicTags": ["cable", "wire", "components", "manufacturing"],
+      "sourceIntent": "wire_cable_trade_media",
+      "tier": "T3",
+      "fetcherGuess": {
+        "type": "rss",
+        "url": "https://www.wireandcabletips.com/feed/"
+      },
+      "robotsUrl": "https://www.wireandcabletips.com/robots.txt",
+      "robotsStatus": "pending_manual_check",
+      "enabledDefault": false,
+      "entityCircleAssignment": null
+    },
+    {
+      "id": "intl-data-center-dcd",
+      "name": "Data Center Dynamics",
+      "homepageUrl": "https://www.datacenterdynamics.com/en/",
+      "country": "UK",
+      "lang": "en",
+      "topicTags": [
+        "data-center",
+        "power-demand",
+        "cooling",
+        "ai-infrastructure"
+      ],
+      "sourceIntent": "data_center_industry_news",
+      "tier": "T2",
+      "fetcherGuess": {
+        "type": "html",
+        "listUrl": "https://www.datacenterdynamics.com/en/news/",
+        "selectorsStatus": "not_defined"
+      },
+      "robotsUrl": "https://www.datacenterdynamics.com/robots.txt",
+      "robotsStatus": "pending_manual_check",
+      "enabledDefault": false,
+      "entityCircleAssignment": null
+    },
+    {
+      "id": "intl-data-center-uptime-resources",
+      "name": "Uptime Institute - Resources",
+      "homepageUrl": "https://uptimeinstitute.com/resources",
+      "country": "US",
+      "lang": "en",
+      "topicTags": ["data-center", "resilience", "power", "operations"],
+      "sourceIntent": "data_center_reliability_research",
+      "tier": "T2",
+      "fetcherGuess": {
+        "type": "html",
+        "listUrl": "https://uptimeinstitute.com/resources",
+        "selectorsStatus": "not_defined"
+      },
+      "robotsUrl": "https://uptimeinstitute.com/robots.txt",
+      "robotsStatus": "pending_manual_check",
+      "enabledDefault": false,
+      "entityCircleAssignment": null
+    },
+    {
+      "id": "intl-data-center-data-centre-magazine",
+      "name": "Data Centre Magazine",
+      "homepageUrl": "https://datacentremagazine.com/",
+      "country": "UK",
+      "lang": "en",
+      "topicTags": [
+        "data-center",
+        "power-demand",
+        "sustainability",
+        "ai-infrastructure"
+      ],
+      "sourceIntent": "data_center_trade_media",
+      "tier": "T3",
+      "fetcherGuess": {
+        "type": "html",
+        "listUrl": "https://datacentremagazine.com/data-centres",
+        "selectorsStatus": "not_defined"
+      },
+      "robotsUrl": "https://datacentremagazine.com/robots.txt",
+      "robotsStatus": "pending_manual_check",
+      "enabledDefault": false,
+      "entityCircleAssignment": null
+    }
+  ]
+}

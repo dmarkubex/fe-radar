@@ -1,31 +1,57 @@
 import { LlmError } from "@fe-radar/shared";
-import { SCORING_SYSTEM_PROMPT, type LlmClient, type ScoringResult } from "@fe-radar/llm";
+import {
+  SCORING_SYSTEM_PROMPT,
+  type LlmClient,
+  type ScoringResult
+} from "@fe-radar/llm";
 
 export const BLOCKED_SUMMARY = "[需人工脱敏]";
 
 const schema = {
   type: "object",
   properties: {
-    d1Policy: { type: "number" },
-    d3Market: { type: "number" },
-    d4Tech: { type: "number" },
-    d5Business: { type: "number" },
+    d1Policy: { type: "number", minimum: 0, maximum: 100 },
+    d3Market: { type: "number", minimum: 0, maximum: 100 },
+    d4Tech: { type: "number", minimum: 0, maximum: 100 },
+    d5Business: { type: "number", minimum: 0, maximum: 100 },
     summaryZh: { type: "string" },
     translationZh: { type: "string" },
-    category: { enum: ["政策与标准", "市场与价格", "技术与产品", "项目与招投标", "公司与资本"] }
+    category: {
+      enum: [
+        "政策与标准",
+        "市场与价格",
+        "技术与产品",
+        "项目与招投标",
+        "公司与资本"
+      ]
+    }
   },
-  required: ["d1Policy", "d3Market", "d4Tech", "d5Business", "summaryZh", "translationZh", "category"],
+  required: [
+    "d1Policy",
+    "d3Market",
+    "d4Tech",
+    "d5Business",
+    "summaryZh",
+    "translationZh",
+    "category"
+  ],
   additionalProperties: false
 };
 
-export async function runScorer(text: string, deepSeek: LlmClient): Promise<ScoringResult> {
+export async function runScorer(
+  text: string,
+  deepSeek: LlmClient
+): Promise<ScoringResult> {
   try {
-    return (await deepSeek.chatJson<ScoringResult>({
-      system: SCORING_SYSTEM_PROMPT,
-      user: text,
-      schemaName: "scoring",
-      schema
-    })).value;
+    const result = (
+      await deepSeek.chatJson<ScoringResult>({
+        system: SCORING_SYSTEM_PROMPT,
+        user: text,
+        schemaName: "scoring",
+        schema
+      })
+    ).value;
+    return normalizeScoringResult(result);
   } catch (error) {
     if (error instanceof LlmError && error.code === "SCRUBBER_BLOCKED") {
       return {
@@ -40,4 +66,21 @@ export async function runScorer(text: string, deepSeek: LlmClient): Promise<Scor
     }
     throw error;
   }
+}
+
+export function normalizeScoringResult(result: ScoringResult): ScoringResult {
+  return {
+    ...result,
+    d1Policy: clampScore(result.d1Policy),
+    d3Market: clampScore(result.d3Market),
+    d4Tech: clampScore(result.d4Tech),
+    d5Business: clampScore(result.d5Business)
+  };
+}
+
+function clampScore(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.max(0, Math.min(100, Math.round(value * 100) / 100));
 }

@@ -86,6 +86,77 @@ describe("sources api schema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts SMM HQ quotes config with item selectors and aliases", () => {
+    const result = createSourceSchema.safeParse({
+      name: "SMM 碳酸锂行情",
+      url: "https://hq.smm.cn/h5/Li2CO3",
+      fetcherType: "quotes",
+      tier: "T1",
+      config: {
+        type: "quotes",
+        adapter: "smm-hq",
+        metric_keys: ["lc_main_close", "lc_spot_smm"],
+        endpoint: "https://hq.smm.cn/h5/Li2CO3",
+        retry: { max: 3, backoffMs: 2000 },
+        items: [
+          {
+            kind: "product",
+            metric_key: "lc_main_close",
+            emit_metric_keys: ["lc_spot_smm"],
+            column_no: "LCP02",
+            product_id: "201102250059",
+            product_name: "电池级碳酸锂价格"
+          }
+        ]
+      }
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.success ? result.data.config : null).toMatchObject({
+      type: "quotes",
+      adapter: "smm-hq",
+      items: [{ metric_key: "lc_main_close" }]
+    });
+  });
+
+  it("rejects SMM HQ items on non-SMM quotes adapters", () => {
+    const result = createSourceSchema.safeParse({
+      name: "bad quotes",
+      url: "http://www.shfe.com.cn/data/dailydata/kx/kx{YYYYMMDD}.dat",
+      fetcherType: "quotes",
+      tier: "T1",
+      config: {
+        type: "quotes",
+        adapter: "shfe",
+        metric_keys: ["cu_main_close"],
+        endpoint: "http://www.shfe.com.cn/data/dailydata/kx/kx{YYYYMMDD}.dat",
+        retry: { max: 3, backoffMs: 2000 },
+        items: [{ metric_key: "cu_main_close", column_no: "CUP01" }]
+      }
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects under-specified SMM HQ items", () => {
+    const result = createSourceSchema.safeParse({
+      name: "bad SMM",
+      url: "https://hq.smm.cn/h5/cu",
+      fetcherType: "quotes",
+      tier: "T1",
+      config: {
+        type: "quotes",
+        adapter: "smm-hq",
+        metric_keys: ["cu_main_close"],
+        endpoint: "https://hq.smm.cn/h5/cu",
+        retry: { max: 3, backoffMs: 2000 },
+        items: [{ metric_key: "cu_main_close" }]
+      }
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("accepts crawl config for firecrawl risk search", () => {
     expect(createSourceSchema.safeParse({
       name: "Firecrawl-C1风险检索",

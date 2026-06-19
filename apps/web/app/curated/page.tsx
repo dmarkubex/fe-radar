@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { CuratedCategoryNav } from "@/components/curated/category-nav";
 import { CuratedContent } from "@/components/curated/curated-content";
 import { CuratedContentSkeleton } from "@/components/curated/curated-content-skeleton";
+import { CURATED_CATEGORY_TABS } from "@/components/timeline/meta";
 import { fetchTimeline } from "@/lib/api/timeline-query";
 
 export const dynamic = "force-dynamic";
@@ -14,27 +15,34 @@ function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-const CATEGORIES = [
-  { value: "policy", label: "政策与标准", icon: "§" },
-  { value: "market", label: "市场与价格", icon: "$" },
-  { value: "tech", label: "技术与产品", icon: "⚙" },
-  { value: "project", label: "项目与招投标", icon: "⚑" },
-  { value: "company", label: "公司与资本", icon: "▶" },
-] as const;
+const CATEGORIES = CURATED_CATEGORY_TABS;
 
 async function fetchCategoryStats() {
   return Promise.all(
     CATEGORIES.map(async (cat) => {
-      const data = await fetchTimeline({ filters: { curated: true, category: cat.value }, limit: 200 });
-      return { ...cat, count: data.items.length, topScore: data.items[0]?.qualityScore ?? null };
+      const data = await fetchTimeline({
+        filters: { curated: true, category: cat.value },
+        limit: 200
+      });
+      return {
+        ...cat,
+        count: data.items.length,
+        topScore: data.items[0]?.qualityScore ?? null
+      };
     })
   );
 }
 
-export default async function CuratedPage({ searchParams }: { searchParams: PageSearchParams }): Promise<React.JSX.Element> {
+export default async function CuratedPage({
+  searchParams
+}: {
+  searchParams: PageSearchParams;
+}): Promise<React.JSX.Element> {
   const params = await searchParams;
   const category = first(params.category) ?? CATEGORIES[0].value;
-  const activeCategory = CATEGORIES.find((c) => c.value === category) ?? CATEGORIES[0];
+  const activeCategory =
+    CATEGORIES.find((c) => c.value === category) ?? CATEGORIES[0];
+  const activeCategorySlug = activeCategory.value;
   const allCategoryData = await fetchCategoryStats();
 
   return (
@@ -53,16 +61,19 @@ export default async function CuratedPage({ searchParams }: { searchParams: Page
           {["D1 政策", "D2 链条", "D3 市场", "D4 技术", "D5 商业"].map((d) => (
             <div key={d} className="text-center">
               <p className="font-mono text-[12px] text-fg-soft">{d}</p>
-              <p className="text-sm font-semibold text-fg">≥ 5.0</p>
+              <p className="text-sm font-semibold text-fg">≥ 50</p>
             </div>
           ))}
         </div>
       </details>
 
-      <CuratedCategoryNav categories={allCategoryData} activeCategory={category} />
+      <CuratedCategoryNav
+        categories={allCategoryData}
+        activeCategory={activeCategorySlug}
+      />
 
-      <Suspense key={category} fallback={<CuratedContentSkeleton />}>
-        <CuratedContent category={category} />
+      <Suspense key={activeCategorySlug} fallback={<CuratedContentSkeleton />}>
+        <CuratedContent category={activeCategorySlug} />
       </Suspense>
     </PageFrame>
   );

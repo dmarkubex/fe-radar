@@ -1,4 +1,17 @@
-import { and, desc, eq, ilike, inArray, isNotNull, isNull, lt, ne, not, or, sql } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  ne,
+  not,
+  or,
+  sql
+} from "drizzle-orm";
 import {
   clusterItems,
   clusters,
@@ -12,8 +25,15 @@ import {
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
 
 import type { DbClient } from "@fe-radar/db";
-import type { TimelineFilters } from "@/lib/api/timeline-schema";
-import { BLOCKED_QUOTA_STATES, MANUAL_SCRUB_SUMMARY } from "@/lib/api/item-visibility";
+import {
+  normalizeTimelineFilters,
+  resolveAcquisitionLabel,
+  type TimelineFilters
+} from "@/lib/api/timeline-schema";
+import {
+  BLOCKED_QUOTA_STATES,
+  MANUAL_SCRUB_SUMMARY
+} from "@/lib/api/item-visibility";
 import { decodeCursor, encodeCursor } from "@/lib/api/cursor";
 import { isMockMode } from "@/lib/mock-mode";
 import { mockFetchItemDetail, mockFetchTimeline } from "@/lib/mock-data";
@@ -31,9 +51,12 @@ export interface TimelineItemDto {
   id: number;
   title: string;
   url: string;
+  displayUrl?: string | null;
   sourceName: string;
   sourceTier: string;
   sourceCategory: string | null;
+  sourceFetcherType?: string | null;
+  acquisitionLabel?: string | null;
   publishedAt: string;
   scoredAt: string | null;
   summaryZh: string | null;
@@ -79,32 +102,78 @@ export interface ItemDetailDto extends TimelineItemDto {
     id: number;
     title: string;
     url: string;
+    displayUrl?: string | null;
     sourceName: string;
+    sourceFetcherType?: string | null;
+    acquisitionLabel?: string | null;
     publishedAt: string;
     similarity: number | null;
   }>;
 }
 
-export function resolveTimelinePaginationPlan(filters: Pick<TimelineFilters, "curated"> = {}): TimelinePaginationPlan {
-  return filters.curated ? { orderBy: "qualityScore", keysetAxis: "scoredAt" } : { orderBy: "publishedAt", keysetAxis: "publishedAt" };
+export function resolveTimelinePaginationPlan(
+  filters: Pick<TimelineFilters, "curated"> = {}
+): TimelinePaginationPlan {
+  return filters.curated
+    ? { orderBy: "qualityScore", keysetAxis: "scoredAt" }
+    : { orderBy: "publishedAt", keysetAxis: "publishedAt" };
 }
 
-export function encodeTimelineCursor(row: TimelineCursorRow, axis: TimelineKeysetAxis): string | null {
+export function encodeTimelineCursor(
+  row: TimelineCursorRow,
+  axis: TimelineKeysetAxis
+): string | null {
   const at = axis === "publishedAt" ? row.publishedAt : row.scoredAt;
   return at ? encodeCursor({ at: at.toISOString(), id: row.id }) : null;
 }
 
-function visibleItemConditions(filters: TimelineFilters, includeBlocked: boolean, cursor?: string, search?: string, useFts = true) {
+export function buildTimelineSourceDisplay(row: {
+  id: number;
+  url: string;
+  sourceFetcherType: string | null;
+  sourceCategory: string | null;
+}): {
+  url: string;
+  displayUrl: string | null;
+  acquisitionLabel: string | null;
+} {
+  const acquisitionLabel = resolveAcquisitionLabel(
+    row.sourceFetcherType,
+    row.sourceCategory
+  );
+  return {
+    url: acquisitionLabel ? `/items/${row.id}` : row.url,
+    displayUrl: acquisitionLabel ? null : row.url,
+    acquisitionLabel
+  };
+}
+
+function visibleItemConditions(
+  filters: TimelineFilters,
+  includeBlocked: boolean,
+  cursor?: string,
+  search?: string,
+  useFts = true
+) {
   const conditions = [
     isNotNull(itemAnalysis.scoredAt),
-    includeBlocked ? undefined : not(inArray(itemAnalysis.quotaState, [...BLOCKED_QUOTA_STATES])),
-    includeBlocked ? undefined : or(isNull(itemAnalysis.summaryZh), ne(itemAnalysis.summaryZh, MANUAL_SCRUB_SUMMARY)),
+    includeBlocked
+      ? undefined
+      : not(inArray(itemAnalysis.quotaState, [...BLOCKED_QUOTA_STATES])),
+    includeBlocked
+      ? undefined
+      : or(
+          isNull(itemAnalysis.summaryZh),
+          ne(itemAnalysis.summaryZh, MANUAL_SCRUB_SUMMARY)
+        ),
     or(isNull(clusters.id), eq(clusters.leadItemId, items.id)),
     filters.category ? eq(itemAnalysis.category, filters.category) : undefined,
     filters.circle ? eq(itemAnalysis.topCircle, filters.circle) : undefined,
     filters.tier ? eq(sources.tier, filters.tier) : undefined,
     filters.eventType ? eq(clusters.eventType, filters.eventType) : undefined,
-    filters.alertType ? eq(itemAnalysis.alertType, filters.alertType) : undefined,
+    filters.alertType
+      ? eq(itemAnalysis.alertType, filters.alertType)
+      : undefined,
     filters.curated ? eq(itemAnalysis.isCurated, true) : undefined
   ].filter(Boolean);
 
@@ -114,34 +183,52 @@ function visibleItemConditions(filters: TimelineFilters, includeBlocked: boolean
     const at = dayjs(parsedCursor.at).tz(APP_TIMEZONE).toDate();
     conditions.push(
       plan.keysetAxis === "publishedAt"
-        ? or(lt(items.publishedAt, at), and(eq(items.publishedAt, at), lt(items.id, parsedCursor.id)))
-        : or(lt(itemAnalysis.scoredAt, at), and(eq(itemAnalysis.scoredAt, at), lt(items.id, parsedCursor.id)))
+        ? or(
+            lt(items.publishedAt, at),
+            and(eq(items.publishedAt, at), lt(items.id, parsedCursor.id))
+          )
+        : or(
+            lt(itemAnalysis.scoredAt, at),
+            and(eq(itemAnalysis.scoredAt, at), lt(items.id, parsedCursor.id))
+          )
     );
   }
 
   if (search) {
     const keyword = `%${search}%`;
     conditions.push(
-      useFts ? or(
-        ilike(items.title, keyword),
-        ilike(items.content, keyword),
-        ilike(itemAnalysis.summaryZh, keyword),
-        sql<boolean>`to_tsvector('zhparser', coalesce(${items.title}, '') || ' ' || coalesce(${items.content}, '') || ' ' || coalesce(${itemAnalysis.summaryZh}, '')) @@ plainto_tsquery('zhparser', ${search})`
-      ) : or(ilike(items.title, keyword), ilike(items.content, keyword), ilike(itemAnalysis.summaryZh, keyword))
+      useFts
+        ? or(
+            ilike(items.title, keyword),
+            ilike(items.content, keyword),
+            ilike(itemAnalysis.summaryZh, keyword),
+            sql<boolean>`to_tsvector('zhparser', coalesce(${items.title}, '') || ' ' || coalesce(${items.content}, '') || ' ' || coalesce(${itemAnalysis.summaryZh}, '')) @@ plainto_tsquery('zhparser', ${search})`
+          )
+        : or(
+            ilike(items.title, keyword),
+            ilike(items.content, keyword),
+            ilike(itemAnalysis.summaryZh, keyword)
+          )
     );
   }
 
   return and(...conditions);
 }
 
-function toTimelineItem(row: Awaited<ReturnType<typeof fetchRows>>[number]): TimelineItemDto {
+function toTimelineItem(
+  row: Awaited<ReturnType<typeof fetchRows>>[number]
+): TimelineItemDto {
+  const display = buildTimelineSourceDisplay(row);
   return {
     id: row.id,
     title: row.title,
-    url: row.url,
+    url: display.url,
+    displayUrl: display.displayUrl,
     sourceName: row.sourceName,
     sourceTier: row.sourceTier,
     sourceCategory: row.sourceCategory,
+    sourceFetcherType: row.sourceFetcherType,
+    acquisitionLabel: display.acquisitionLabel,
     publishedAt: row.publishedAt.toISOString(),
     scoredAt: row.scoredAt?.toISOString() ?? null,
     summaryZh: row.summaryZh,
@@ -178,6 +265,7 @@ async function fetchRows(
       sourceName: sources.name,
       sourceTier: sources.tier,
       sourceCategory: sources.category,
+      sourceFetcherType: sources.fetcherType,
       publishedAt: items.publishedAt,
       scoredAt: itemAnalysis.scoredAt,
       summaryZh: itemAnalysis.summaryZh,
@@ -195,8 +283,21 @@ async function fetchRows(
     .innerJoin(itemAnalysis, eq(itemAnalysis.itemId, items.id))
     .leftJoin(clusterItems, eq(clusterItems.itemId, items.id))
     .leftJoin(clusters, eq(clusters.id, clusterItems.clusterId))
-    .where(visibleItemConditions(options.filters, options.includeBlocked, options.cursor, options.search, options.useFts))
-    .orderBy(plan.orderBy === "qualityScore" ? desc(itemAnalysis.qualityScore) : desc(items.publishedAt), desc(items.id))
+    .where(
+      visibleItemConditions(
+        options.filters,
+        options.includeBlocked,
+        options.cursor,
+        options.search,
+        options.useFts
+      )
+    )
+    .orderBy(
+      plan.orderBy === "qualityScore"
+        ? desc(itemAnalysis.qualityScore)
+        : desc(items.publishedAt),
+      desc(items.id)
+    )
     .limit(limit + 1);
 }
 
@@ -212,7 +313,7 @@ export async function fetchTimeline(options: {
     return mockFetchTimeline(options);
   }
   const db = options.db ?? getDb();
-  const filters = options.filters ?? {};
+  const filters = normalizeTimelineFilters(options.filters ?? {});
   const limit = options.limit ?? DEFAULT_LIMIT;
   let rows: Awaited<ReturnType<typeof fetchRows>>;
   try {
@@ -274,6 +375,7 @@ export async function fetchItemDetail(
       sourceName: sources.name,
       sourceTier: sources.tier,
       sourceCategory: sources.category,
+      sourceFetcherType: sources.fetcherType,
       publishedAt: items.publishedAt,
       scoredAt: itemAnalysis.scoredAt,
       summaryZh: itemAnalysis.summaryZh,
@@ -298,7 +400,12 @@ export async function fetchItemDetail(
     .innerJoin(itemAnalysis, eq(itemAnalysis.itemId, items.id))
     .leftJoin(clusterItems, eq(clusterItems.itemId, items.id))
     .leftJoin(clusters, eq(clusters.id, clusterItems.clusterId))
-    .where(and(eq(items.id, id), visibleItemConditions({}, options.includeBlocked ?? false)))
+    .where(
+      and(
+        eq(items.id, id),
+        visibleItemConditions({}, options.includeBlocked ?? false)
+      )
+    )
     .limit(1);
 
   const row = rows[0];
@@ -325,6 +432,8 @@ export async function fetchItemDetail(
             title: items.title,
             url: items.url,
             sourceName: sources.name,
+            sourceCategory: sources.category,
+            sourceFetcherType: sources.fetcherType,
             publishedAt: items.publishedAt,
             similarity: clusterItems.similarity
           })
@@ -347,9 +456,19 @@ export async function fetchItemDetail(
       d5Business: row.d5Business
     },
     entities: entityRows,
-    clusterItems: clusterRows.map((item) => ({
-      ...item,
-      publishedAt: item.publishedAt.toISOString()
-    }))
+    clusterItems: clusterRows.map((item) => {
+      const display = buildTimelineSourceDisplay(item);
+      return {
+        id: item.id,
+        title: item.title,
+        url: display.url,
+        displayUrl: display.displayUrl,
+        sourceName: item.sourceName,
+        sourceFetcherType: item.sourceFetcherType,
+        acquisitionLabel: display.acquisitionLabel,
+        publishedAt: item.publishedAt.toISOString(),
+        similarity: item.similarity
+      };
+    })
   };
 }

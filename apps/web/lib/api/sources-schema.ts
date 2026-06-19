@@ -9,7 +9,8 @@ const quotesAdapterSchema = z.enum([
   "lme",
   "pboc",
   "chinabond",
-  "rsshub-extract"
+  "rsshub-extract",
+  "smm-hq"
 ]);
 
 const quotesRetrySchema = z.object({
@@ -24,6 +25,37 @@ const quotesRegexRuleSchema = z.object({
   group: z.number().int().min(1).optional()
 });
 
+const quotesSmmHqItemSchema = z.object({
+  metric_key: z.string().min(1),
+  emit_metric_keys: z.array(z.string().min(1)).optional(),
+  kind: z.enum(["product", "instrument"]).optional(),
+  column_no: z.string().min(1).optional(),
+  product_id: z.string().min(1).optional(),
+  product_name: z.string().min(1).optional(),
+  product_names: z.array(z.string().min(1)).optional(),
+  instrument_id: z.string().min(1).optional(),
+  typename: z.string().min(1).optional(),
+  value_field: z.string().min(1).optional()
+}).refine(
+  (value) => Boolean(value.column_no),
+  {
+    message: "smm-hq item requires column_no",
+    path: ["column_no"]
+  }
+).refine(
+  (value) => value.kind !== "instrument" || Boolean(value.instrument_id || value.typename),
+  {
+    message: "smm-hq instrument item requires instrument_id or typename",
+    path: ["instrument_id"]
+  }
+).refine(
+  (value) => value.kind === "instrument" || Boolean(value.product_id || value.product_name || value.product_names?.length),
+  {
+    message: "smm-hq product item requires product_id, product_name, or product_names",
+    path: ["product_id"]
+  }
+);
+
 const endpointSchema = z.string().min(1).refine(
   (value) => {
     if (value.startsWith("/")) return true;
@@ -35,6 +67,28 @@ const endpointSchema = z.string().min(1).refine(
     }
   },
   { message: "endpoint must be an absolute URL or a relative path beginning with /" }
+);
+
+const quotesConfigSchema = z.object({
+  type: z.literal("quotes"),
+  adapter: quotesAdapterSchema,
+  metric_keys: z.array(z.string().min(1)).min(1),
+  endpoint: endpointSchema,
+  retry: quotesRetrySchema,
+  regex_rules: z.array(quotesRegexRuleSchema).optional(),
+  items: z.array(quotesSmmHqItemSchema).optional()
+}).refine(
+  (value) => value.adapter === "smm-hq" || value.items === undefined,
+  {
+    message: "quotes items are only valid for smm-hq adapter",
+    path: ["items"]
+  }
+).refine(
+  (value) => value.adapter !== "smm-hq" || Boolean(value.items?.length),
+  {
+    message: "smm-hq adapter requires items",
+    path: ["items"]
+  }
 );
 
 export const sourceConfigSchema = z.discriminatedUnion("type", [
@@ -62,14 +116,7 @@ export const sourceConfigSchema = z.discriminatedUnion("type", [
     extractor: z.string().startsWith("() =>"),
     useRealUa: z.boolean().optional()
   }),
-  z.object({
-    type: z.literal("quotes"),
-    adapter: quotesAdapterSchema,
-    metric_keys: z.array(z.string().min(1)).min(1),
-    endpoint: endpointSchema,
-    retry: quotesRetrySchema,
-    regex_rules: z.array(quotesRegexRuleSchema).optional()
-  }),
+  quotesConfigSchema,
   z.object({
     type: z.literal("announcement"),
     adapter: z.enum(["cninfo", "szse", "sse"]),

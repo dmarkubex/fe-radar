@@ -40,10 +40,26 @@ export const DEFAULT_SOURCE_CONFIGS: Record<FetcherType, unknown> = {
   },
   quotes: {
     type: "quotes",
-    adapter: "shfe",
-    metric_keys: ["cu_main_close"],
-    endpoint: "http://www.shfe.com.cn/data/dailydata/kx/kx{YYYYMMDD}.dat",
-    retry: { max: 3, backoffMs: 2000 }
+    adapter: "smm-hq",
+    metric_keys: ["cu_main_close", "cu_spot_smm"],
+    endpoint: "https://hq.smm.cn/h5/cu",
+    retry: { max: 3, backoffMs: 2000 },
+    items: [
+      {
+        kind: "instrument",
+        metric_key: "cu_main_close",
+        column_no: "CUP01",
+        instrument_id: "cu0000",
+        value_field: "LastPrice"
+      },
+      {
+        kind: "product",
+        metric_key: "cu_spot_smm",
+        column_no: "CUP02",
+        product_id: "201102250376",
+        product_name: "上海今日铜价"
+      }
+    ]
   },
   crawl: {
     type: "crawl",

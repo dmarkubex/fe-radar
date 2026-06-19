@@ -6,7 +6,13 @@ import type { TimelineItemDto } from "@/lib/api/timeline-query";
 
 /** Decorative mini-bar heights (list view has no per-dimension scores). */
 function scoreBarHeights(qualityScore: number): number[] {
-  return [0.35, 0.55, 0.75, 0.5, Math.max(0.45, Math.min(qualityScore / 10, 0.95))];
+  return [
+    0.35,
+    0.55,
+    0.75,
+    0.5,
+    Math.max(0.45, Math.min(qualityScore / 100, 0.95))
+  ];
 }
 
 /** Single accent ramp — opacity steps only, no secondary blue tokens. */
@@ -20,7 +26,7 @@ export function TimelineCard({
   onOpen?: (id: number) => void;
 }): React.JSX.Element {
   const score = item.qualityScore ?? 0;
-  const isHigh = score >= 8 || item.alertLevel === "L1";
+  const isHigh = score >= 70 || item.alertLevel === "L1";
   const barHeights = scoreBarHeights(score);
 
   return (
@@ -42,7 +48,9 @@ export function TimelineCard({
           <span className="h-[3px] w-[3px] rounded-full bg-fg-soft" />
           <span>{item.sourceTier}</span>
           {item.topCircle ? (
-            <span className="border border-hairline bg-bg-deep px-2 py-0.5 text-fg-muted">{item.topCircle}</span>
+            <span className="border border-hairline bg-bg-deep px-2 py-0.5 text-fg-muted">
+              {item.topCircle}
+            </span>
           ) : null}
           {item.alertType ? (
             <span className="border border-accent/30 bg-accent/8 px-2 py-0.5 text-accent">
@@ -52,23 +60,49 @@ export function TimelineCard({
           <span>{formatAppTime(item.publishedAt)}</span>
         </div>
 
-        <a
-          className="group mb-2 inline-flex items-start gap-2 text-[17px] leading-[1.4] tracking-[-0.1px] text-fg hover:text-accent"
-          href={item.url}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <span>{item.title}</span>
-          <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-fg-soft group-hover:text-accent" aria-hidden="true" />
-        </a>
+        {item.displayUrl ? (
+          <a
+            className="group mb-2 inline-flex items-start gap-2 text-[17px] leading-[1.4] tracking-[-0.1px] text-fg hover:text-accent"
+            href={item.displayUrl}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <span>{item.title}</span>
+            <ExternalLink
+              className="mt-0.5 h-4 w-4 shrink-0 text-fg-soft group-hover:text-accent"
+              aria-hidden="true"
+            />
+          </a>
+        ) : (
+          <div className="mb-2 flex flex-wrap items-start gap-2 text-[17px] leading-[1.4] tracking-[-0.1px] text-fg">
+            <span>{item.title}</span>
+            <span className="mt-0.5 border border-accent/30 bg-accent/8 px-2 py-0.5 font-mono text-[10px] leading-4 tracking-[0.8px] text-accent">
+              {item.acquisitionLabel ?? "AI获取"}
+            </span>
+          </div>
+        )}
 
-        {item.summaryZh ? <p className="line-clamp-3 text-[13px] leading-[1.6] text-fg-muted">{item.summaryZh}</p> : null}
+        {item.summaryZh ? (
+          <p className="line-clamp-3 text-[13px] leading-[1.6] text-fg-muted">
+            {item.summaryZh}
+          </p>
+        ) : null}
 
         <div className="mt-2 flex flex-wrap gap-1.5 font-mono text-[11px] text-fg-muted">
-          {item.category ? <span className="border border-hairline bg-bg-deep px-[7px] py-0.5">{item.category}</span> : null}
-          {item.eventType ? <span className="border border-hairline bg-bg-deep px-[7px] py-0.5">{item.eventType}</span> : null}
+          {item.category ? (
+            <span className="border border-hairline bg-bg-deep px-[7px] py-0.5">
+              {item.category}
+            </span>
+          ) : null}
+          {item.eventType ? (
+            <span className="border border-hairline bg-bg-deep px-[7px] py-0.5">
+              {item.eventType}
+            </span>
+          ) : null}
           {item.relatedCount > 0 ? (
-            <span className="border border-hairline bg-bg-deep px-[7px] py-0.5">关联 {item.relatedCount}</span>
+            <span className="border border-hairline bg-bg-deep px-[7px] py-0.5">
+              关联 {item.relatedCount}
+            </span>
           ) : null}
         </div>
       </div>
@@ -80,15 +114,20 @@ export function TimelineCard({
         >
           {scoreLabel(item.qualityScore)}
         </div>
-        <div className="font-mono text-[13px] uppercase tracking-[1.2px] text-fg-soft">综合评分</div>
-        <div className="grid h-[18px] grid-cols-5 items-end gap-[3px]" aria-hidden="true">
+        <div className="font-mono text-[13px] uppercase tracking-[1.2px] text-fg-soft">
+          综合评分
+        </div>
+        <div
+          className="grid h-[18px] grid-cols-5 items-end gap-[3px]"
+          aria-hidden="true"
+        >
           {barHeights.map((height, index) => (
             <i
               key={index}
               className="block w-4 bg-accent"
               style={{
                 height: `${Math.round(height * 18)}px`,
-                opacity: SCORE_BAR_OPACITY[index],
+                opacity: SCORE_BAR_OPACITY[index]
               }}
             />
           ))}
