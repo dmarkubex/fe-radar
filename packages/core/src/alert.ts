@@ -31,6 +31,10 @@ export function computeAlert(input: AlertInput): AlertResult {
     };
   }
 
+  if (input.sourceCategory === "企业风险" && hasCompetitorCircle(input.entities)) {
+    return { alertType: "risk", alertLevel: "L2" };
+  }
+
   if (input.category === "政策与标准" || input.scores.d1Policy >= 80) {
     return { alertType: "policy", alertLevel: input.source.tier === "T1" ? "L1" : "L2" };
   }

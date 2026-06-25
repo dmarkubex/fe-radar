@@ -59,3 +59,20 @@ export function drainBacklog(items: BacklogCandidate[], now = new Date(), maxAge
 
   return { expiredIds, retainedIds };
 }
+
+// v1.2 — websearch 月度限额（豆包搜索 500 次/月）
+export const WEBSEARCH_MONTHLY_BUDGET = 500;
+export const WEBSEARCH_TTL_SECONDS = 32 * 24 * 60 * 60; // 32 天，覆盖最长月
+
+export function websearchQuotaKey(yearMonth: string): string {
+  return `websearch:counter:${yearMonth}`;
+}
+
+export async function admitWebSearch(yearMonth: string, redis: RedisEvalLike): Promise<QuotaDecision> {
+  const counterKey = websearchQuotaKey(yearMonth);
+  const admitted = await redis.eval(ADMIT_LUA, 1, counterKey, WEBSEARCH_MONTHLY_BUDGET, WEBSEARCH_TTL_SECONDS);
+
+  return admitted > 0
+    ? { state: "admitted", counterKey }
+    : { state: "pending_over_quota", counterKey };
+}

@@ -7,6 +7,37 @@ export interface EntityHit {
   circle?: Circle | null;
 }
 
+export interface EntityFinancialSnapshot {
+  metric: string;
+  value: number;
+  period: string;
+}
+
+// P0-1: 财务指标标准键名（英文，落库 metric 列统一用这些值）
+export const FINANCIAL_METRICS = {
+  ROE: "roe",
+  NET_PROFIT: "net_profit",
+  REVENUE: "revenue",
+  REVENUE_GROWTH: "revenue_growth",
+  NET_PROFIT_GROWTH: "net_profit_growth",
+} as const;
+
+/** dataPro 返回的中文字段名 → 标准英文 metric 键（防写入/读取漂移） */
+export const DATAPRO_METRIC_KEY_MAP: Record<string, string> = {
+  ROE: FINANCIAL_METRICS.ROE,
+  "净利润": FINANCIAL_METRICS.NET_PROFIT,
+  "营收": FINANCIAL_METRICS.REVENUE,
+  "营收增速": FINANCIAL_METRICS.REVENUE_GROWTH,
+  "净利润增速": FINANCIAL_METRICS.NET_PROFIT_GROWTH,
+};
+
+/** computeD3Market 所需的 metric 键列表（scorer 查询用） */
+export const D3_METRIC_KEYS = [
+  FINANCIAL_METRICS.ROE,
+  FINANCIAL_METRICS.REVENUE_GROWTH,
+  FINANCIAL_METRICS.NET_PROFIT_GROWTH,
+];
+
 export interface SourceSignal {
   tier: SourceTier;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { admitToScoring, computePriorityBacklogMetrics, drainBacklog, quotaKey, type RedisEvalLike } from "../index";
+import { admitToScoring, admitWebSearch, computePriorityBacklogMetrics, drainBacklog, quotaKey, websearchQuotaKey, type RedisEvalLike } from "../index";
 
 class FakeRedis implements RedisEvalLike {
   private readonly counts = new Map<string, number>();
@@ -47,5 +47,31 @@ describe("quota", () => {
       state = (await admitToScoring({ itemId, isPriority: true, businessDate: "2026-05-11" }, redis)).state;
     }
     expect(state).toBe("pending_over_quota");
+  });
+});
+
+describe("websearch quota", () => {
+  it("admits within monthly budget", async () => {
+    const redis = new FakeRedis();
+    const decision = await admitWebSearch("2026-06", redis);
+    expect(decision).toEqual({ state: "admitted", counterKey: websearchQuotaKey("2026-06") });
+  });
+
+  it("rejects the 501st websearch in a month", async () => {
+    const redis = new FakeRedis();
+    let state = "admitted";
+    for (let i = 1; i <= 501; i += 1) {
+      state = (await admitWebSearch("2026-06", redis)).state;
+    }
+    expect(state).toBe("pending_over_quota");
+  });
+
+  it("resets counter on month change", async () => {
+    const redis = new FakeRedis();
+    for (let i = 1; i <= 500; i += 1) {
+      await admitWebSearch("2026-06", redis);
+    }
+    const julyDecision = await admitWebSearch("2026-07", redis);
+    expect(julyDecision.state).toBe("admitted");
   });
 });

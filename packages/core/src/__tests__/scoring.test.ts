@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { computeAlert, computeD2Chain, computeQualityScore, curateItem, isPriorityItem } from "../index";
+import type { EntityFinancialSnapshot } from "../types";
+import { computeAlert, computeD2Chain, computeD3Market, computeQualityScore, curateItem, isPriorityItem } from "../index";
 
 const config = {
   weights: { w1: 0.2, w2: 0.25, w3: 0.2, w4: 0.15, w5: 0.2 },
@@ -55,5 +56,68 @@ describe("scoring and curator", () => {
       entities: [{ id: index, type: "company", canonicalName: `C1-${index}`, circle: "C1" }]
     }));
     expect(ownAlerts.every((alert) => alert.alertType === "own")).toBe(true);
+  });
+});
+
+describe("computeD3Market", () => {
+  it("clamps to 100 when all metrics are strong", () => {
+    const financials: EntityFinancialSnapshot[] = [
+      { metric: "roe", value: 18, period: "2024-Q4" },
+      { metric: "revenue_growth", value: 25, period: "2024-Q4" },
+      { metric: "net_profit_growth", value: 22, period: "2024-Q4" }
+    ];
+    expect(computeD3Market(financials)).toBe(100);
+  });
+
+  it("scores 76 for mid-range metrics", () => {
+    const financials: EntityFinancialSnapshot[] = [
+      { metric: "roe", value: 12, period: "2024-Q4" },
+      { metric: "revenue_growth", value: 15, period: "2024-Q4" },
+      { metric: "net_profit_growth", value: 12, period: "2024-Q4" }
+    ];
+    expect(computeD3Market(financials)).toBe(76);
+  });
+
+  it("clamps to 0 when all metrics are negative", () => {
+    const financials: EntityFinancialSnapshot[] = [
+      { metric: "roe", value: -5, period: "2024-Q4" },
+      { metric: "revenue_growth", value: -10, period: "2024-Q4" },
+      { metric: "net_profit_growth", value: -8, period: "2024-Q4" }
+    ];
+    expect(computeD3Market(financials)).toBe(0);
+  });
+
+  it("returns null for empty financials", () => {
+    expect(computeD3Market([])).toBeNull();
+  });
+
+  it("returns null when financials lack all three target metrics", () => {
+    const financials: EntityFinancialSnapshot[] = [
+      { metric: "debt_ratio", value: 40, period: "2024-Q4" },
+      { metric: "gross_margin", value: 30, period: "2024-Q4" }
+    ];
+    expect(computeD3Market(financials)).toBeNull();
+  });
+
+  it("scores base plus ROE adjustment when only ROE is present", () => {
+    const financials: EntityFinancialSnapshot[] = [
+      { metric: "roe", value: 18, period: "2024-Q4" }
+    ];
+    expect(computeD3Market(financials)).toBe(70);
+  });
+
+  it("picks the latest period when multiple snapshots exist for the same metric", () => {
+    const financials: EntityFinancialSnapshot[] = [
+      { metric: "roe", value: 12, period: "2024-Q2" },
+      { metric: "roe", value: 18, period: "2024-Q4" }
+    ];
+    expect(computeD3Market(financials)).toBe(70);
+  });
+
+  it("matches metric names case-insensitively", () => {
+    const financials: EntityFinancialSnapshot[] = [
+      { metric: "ROE", value: 18, period: "2024-Q4" }
+    ];
+    expect(computeD3Market(financials)).toBe(70);
   });
 });
