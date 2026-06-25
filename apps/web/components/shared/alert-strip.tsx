@@ -11,6 +11,9 @@ export function alertStripClass(alertType: string | null, circle: string | null)
   if (alertType === "legal") {
     return "bg-fg";
   }
+  if (alertType === "risk") {
+    return "bg-orange-500";
+  }
   return circle === "C1" ? "bg-accent-flame" : circle === "C2" ? "bg-sunshine-700" : "bg-gold";
 }
 
@@ -19,6 +22,7 @@ export function alertTypeLabel(alertType: string | null): string {
   if (alertType === "legal") return "竞品涉诉";
   if (alertType === "safety") return "安全事故";
   if (alertType === "policy") return "政策突发";
+  if (alertType === "risk") return "竞品风险";
   return "情报告警";
 }
 

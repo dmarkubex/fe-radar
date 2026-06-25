@@ -42,6 +42,7 @@ export interface DashboardData {
     safety: number;
     policy: number;
     legal: number;
+    risk: number;
   };
   mergeConflictsPending: number;
   scrubberPending: number;
@@ -49,8 +50,8 @@ export interface DashboardData {
 }
 
 export function countAlertsByType(rows: Array<{ alertType: string | null }>): DashboardData["alertsToday"] {
-  const alertsToday: DashboardData["alertsToday"] = { own: 0, safety: 0, policy: 0, legal: 0 };
-  const knownTypes = new Set<DashboardAlertType>(["own", "safety", "policy", "legal"]);
+  const alertsToday: DashboardData["alertsToday"] = { own: 0, safety: 0, policy: 0, legal: 0, risk: 0 };
+  const knownTypes = new Set<DashboardAlertType>(["own", "safety", "policy", "legal", "risk"]);
 
   for (const row of rows) {
     if (row.alertType && knownTypes.has(row.alertType as DashboardAlertType)) {

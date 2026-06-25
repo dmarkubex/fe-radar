@@ -15,7 +15,8 @@ describe("dashboard query helpers", () => {
       own: 1,
       safety: 0,
       policy: 1,
-      legal: 2
+      legal: 2,
+      risk: 0
     });
   });
 });

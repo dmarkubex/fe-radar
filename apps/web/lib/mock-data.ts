@@ -535,6 +535,7 @@ export function mockFetchAlertCount(): {
   safety: number;
   policy: number;
   legal: number;
+  risk: number;
 } {
   return mockTimelineItems.reduce(
     (acc, item) => {
@@ -542,13 +543,14 @@ export function mockFetchAlertCount(): {
         item.alertType === "own" ||
         item.alertType === "safety" ||
         item.alertType === "policy" ||
-        item.alertType === "legal"
+        item.alertType === "legal" ||
+        item.alertType === "risk"
       ) {
         acc[item.alertType] += 1;
       }
       return acc;
     },
-    { own: 0, safety: 0, policy: 0, legal: 0 }
+    { own: 0, safety: 0, policy: 0, legal: 0, risk: 0 }
   );
 }
 

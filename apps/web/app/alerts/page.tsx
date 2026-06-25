@@ -47,6 +47,7 @@ export default async function AlertsPage({
     | "safety"
     | "policy"
     | "legal"
+    | "risk"
     | undefined;
   const filterLevel = first(params.level) as "L1" | "L2" | "L3" | undefined;
 
@@ -55,7 +56,7 @@ export default async function AlertsPage({
     fetchAlertCount()
   ]);
 
-  const total = counts.own + counts.safety + counts.policy + counts.legal;
+  const total = counts.own + counts.safety + counts.policy + counts.legal + counts.risk;
   const p1Count = items.filter((i) => i.alertLevel === "L1").length;
   const grouped = groupByLevel(items);
 
@@ -69,18 +70,19 @@ export default async function AlertsPage({
           {total} 条告警 · {p1Count} 条 P1 需立即关注
         </h1>
         <p className="m-0 text-xs leading-6 text-fg-muted">
-          四类告警共用通道：<b className="font-normal text-fg">自家公司</b>（C1
+          五类告警共用通道：<b className="font-normal text-fg">自家公司</b>（C1
           命中即告警，保证零漏报）·{" "}
           <b className="font-normal text-fg">竞品涉诉</b>（C2 +
           交易所涉诉公告）· <b className="font-normal text-fg">安全事故</b>
           （NER=事故 + D5 高风险）·{" "}
           <b className="font-normal text-fg">政策突发</b>（T1 政府 + D1
-          高影响）。质量分仅表示条目可信度与信息价值，不作为 C1 告警门槛。
+          高影响）· <b className="font-normal text-fg">竞品风险</b>（C2 +
+          企业风险信源）。质量分仅表示条目可信度与信息价值，不作为 C1 告警门槛。
         </p>
       </header>
 
       <div className="pad-fluid-x py-5">
-        <div className="mb-4 grid grid-cols-2 gap-px border border-border bg-border max-[720px]:grid-cols-1 sm:grid-cols-4">
+        <div className="mb-4 grid grid-cols-2 gap-px border border-border bg-border max-[720px]:grid-cols-1 sm:grid-cols-5">
           <SummaryCell
             active={filterType === "own"}
             href="/alerts?type=own"
@@ -96,6 +98,14 @@ export default async function AlertsPage({
             label="竞品涉诉 · C2"
             delta="交易所法定披露"
             pip="bg-fg"
+          />
+          <SummaryCell
+            active={filterType === "risk"}
+            href="/alerts?type=risk"
+            count={counts.risk}
+            label="竞品风险 · C2"
+            delta="dataPro 风险库"
+            pip="bg-orange-500"
           />
           <SummaryCell
             active={filterType === "safety"}
@@ -346,6 +356,7 @@ function alertLabel(type: string): string {
   if (type === "legal") return "竞品涉诉";
   if (type === "safety") return "事故";
   if (type === "policy") return "政策突发";
+  if (type === "risk") return "竞品风险";
   return type;
 }
 
@@ -354,6 +365,7 @@ function channelText(type: string | null): string {
   if (type === "legal") return "法务合规群（2 / 6 已读）";
   if (type === "safety") return "安环群（6 / 8 已读）";
   if (type === "policy") return "技术中心群（5 / 12 已读）";
+  if (type === "risk") return "竞品监测群（3 / 5 已读）";
   return "情报订阅群";
 }
 
@@ -363,5 +375,6 @@ function alertReason(item: TimelineItemDto): string {
   if (item.alertType === "legal") return "竞品或关键链条企业出现涉诉披露。";
   if (item.alertType === "safety") return "事故实体或安全风险维度触发。";
   if (item.alertType === "policy") return "T1 政策源或政策影响维度触发。";
+  if (item.alertType === "risk") return "dataPro 检测到竞品风险事件。";
   return item.eventType ? `事件类型：${item.eventType}` : "规则命中";
 }
