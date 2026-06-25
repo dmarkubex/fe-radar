@@ -14,3 +14,7 @@ export type {
   FirecrawlSearchRequest,
 } from "./crawl/types";
 export { fetchCrawl, registerCrawlAdapter } from "./crawl/index";
+export type { DataproAdapter, DataproSourceConfig, DataproEntity } from "./datapro/types";
+export { dataproAdapter } from "./datapro/adapter";
+export type { WebsearchAdapter, WebsearchSourceConfig, WebsearchResult } from "./websearch/types";
+export { websearchAdapter } from "./websearch/adapter";

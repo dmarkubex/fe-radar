@@ -10,7 +10,7 @@ export const DISABLE_AFTER_FAIL_DAYS = 7;
 
 export async function enqueueEnabledSources(db: DbClient, queue: Queue<FetchSourceJob>): Promise<number> {
   const enabledSources = await listSources(db, { enabled: true });
-  const newsSources = enabledSources.filter((source) => source.fetcherType !== "quotes");
+  const newsSources = enabledSources.filter((source) => source.fetcherType !== "quotes" && source.fetcherType !== "websearch");
   const batchId = randomUUID();
   await Promise.all(
     newsSources.map((source) =>

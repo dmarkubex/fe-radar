@@ -4,8 +4,8 @@ import { QUEUES, QUEUE_CLEANUP } from "@fe-radar/shared";
 import { getDb } from "@fe-radar/db";
 import { createQwenClient, createDeepSeekClient, createKimiClient } from "@fe-radar/llm";
 
-import type { BriefingGenJob, BriefingPushJob, FetchSourceJob, PipelineJob, QuotesFetchJob } from "./queues";
-import { createRedisConnection, FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, DAILY_REPORT_SCHEDULE_CRON, DAILY_REPORT_SCHEDULE_TZ, DEFAULT_JOB_OPTIONS, QUEUE_QUOTES_FETCH, QUEUE_BRIEFING_GEN, BRIEFING_GEN_SCHEDULE_CRON, BRIEFING_GEN_SCHEDULE_TZ, QUEUE_BRIEFING_PUSH } from "./queues";
+import type { BriefingGenJob, BriefingPushJob, FetchSourceJob, PipelineJob, QuotesFetchJob, WebsearchJob } from "./queues";
+import { createRedisConnection, createWebsearchQueue, FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, DAILY_REPORT_SCHEDULE_CRON, DAILY_REPORT_SCHEDULE_TZ, DEFAULT_JOB_OPTIONS, QUEUE_QUOTES_FETCH, QUEUE_BRIEFING_GEN, BRIEFING_GEN_SCHEDULE_CRON, BRIEFING_GEN_SCHEDULE_TZ, QUEUE_BRIEFING_PUSH } from "./queues";
 import { enqueueEnabledQuotesSources, scheduleQuotesFetchCron, scheduleBriefingPushCron, FETCH_CONCURRENCY } from "./scheduler";
 import { runCleanup, CLEANUP_SCHEDULE_CRON, CLEANUP_SCHEDULE_TZ } from "./jobs/cleanup";
 import { runQuotesFetch } from "./jobs/quotes-fetch";
@@ -21,6 +21,7 @@ import { handleEmbedderJob } from "./handlers/embedder";
 import { handleClusterJob } from "./handlers/cluster";
 import { handleCuratorJob } from "./handlers/curator";
 import { handleDailyJob } from "./handlers/daily";
+import { handleWebsearchJob } from "./jobs/websearch";
 import { startHeartbeat } from "./heartbeat";
 
 export interface WorkerRuntime {
@@ -259,6 +260,20 @@ export async function startWorker(): Promise<WorkerRuntime> {
     { connection, concurrency: 1 },
   );
   allWorkers.push(briefingPushWorker);
+
+  // v1.2 — websearch (NER 事件驱动，非定时，无 cron schedule)
+  const websearchQueue = createWebsearchQueue(connection);
+  allQueues.push(websearchQueue);
+
+  const websearchWorker = new Worker<WebsearchJob>(
+    QUEUES.websearch,
+    async (job) => {
+      logger.info({ jobId: job.id, entityId: job.data.entityId, entityName: job.data.entityName }, "processing websearch job");
+      await handleWebsearchJob(job);
+    },
+    { connection, concurrency: 2 },
+  );
+  allWorkers.push(websearchWorker);
 
   logger.info("all workers and schedulers started");
 

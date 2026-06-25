@@ -44,7 +44,11 @@ export interface AnnouncementSourceConfig {
 }
 
 import type { CrawlSourceConfig } from "./crawl/types";
+import type { DataproSourceConfig } from "./datapro/types";
+import type { WebsearchSourceConfig } from "./websearch/types";
 
 export type { CrawlSourceConfig };
+export type { DataproSourceConfig };
+export type { WebsearchSourceConfig };
 
-export type SourceConfig = RssSourceConfig | HtmlSourceConfig | PlaywrightSourceConfig | AnnouncementSourceConfig | CrawlSourceConfig;
+export type SourceConfig = RssSourceConfig | HtmlSourceConfig | PlaywrightSourceConfig | AnnouncementSourceConfig | CrawlSourceConfig | DataproSourceConfig | WebsearchSourceConfig;

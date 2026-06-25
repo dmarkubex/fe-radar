@@ -132,3 +132,20 @@ export function createBriefingPushQueue(connection = createRedisConnection()): Q
     defaultJobOptions: DEFAULT_JOB_OPTIONS
   });
 }
+
+// v1.2 — websearch (NER 事件驱动，非定时)
+export const QUEUE_WEBSEARCH = QUEUES.websearch;
+
+export interface WebsearchJob {
+  entityId: number;
+  entityName: string;
+  itemId: number;
+  correlationId?: string;
+}
+
+export function createWebsearchQueue(connection = createRedisConnection()): Queue<WebsearchJob> {
+  return new Queue<WebsearchJob>(QUEUE_WEBSEARCH, {
+    connection,
+    defaultJobOptions: DEFAULT_JOB_OPTIONS
+  });
+}
