@@ -9,6 +9,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   primaryKey,
   real,
@@ -38,7 +39,7 @@ export const sources = pgTable("sources", {
   lastErrorAt: timestamp("last_error_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 }, (table) => ({
-  fetcherTypeCheck: check("sources_fetcher_type_check", sql`${table.fetcherType} IN ('rss', 'html', 'playwright', 'quotes', 'announcement', 'crawl')`),
+  fetcherTypeCheck: check("sources_fetcher_type_check", sql`${table.fetcherType} IN ('rss', 'html', 'playwright', 'quotes', 'announcement', 'crawl', 'datapro', 'websearch')`),
   tierCheck: check("sources_tier_check", sql`${table.tier} IN ('T1', 'T2', 'T3')`),
   enabledTierIdx: index("sources_enabled_tier_idx").on(table.enabled, table.tier),
   categoryIdx: index("sources_category_idx").on(table.category),
@@ -58,6 +59,19 @@ export const entities = pgTable("entities", {
   typeCanonicalUnique: unique("entities_type_canonical_name_key").on(table.type, table.canonicalName),
   circleCheck: check("entities_circle_check", sql`${table.circle} IS NULL OR ${table.circle} IN ('C1', 'C2', 'C3')`),
   aliasesGin: index("entities_aliases_gin").using("gin", table.aliases)
+}));
+
+export const entityFinancials = pgTable("entity_financials", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  entityId: bigint("entity_id", { mode: "number" }).notNull().references(() => entities.id, { onDelete: "cascade" }),
+  metric: text("metric").notNull(),
+  value: numeric("value", { precision: 20, scale: 4 }),
+  period: text("period").notNull(),
+  observedAt: timestamp("observed_at", { withTimezone: true }),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => ({
+  entityMetricPeriodUnique: unique("entity_financials_entity_metric_period_key").on(table.entityId, table.metric, table.period),
+  entityObservedIdx: index("entity_financials_entity_observed_idx").on(table.entityId, table.observedAt.desc())
 }));
 
 export const items = pgTable("items", {
@@ -208,4 +222,8 @@ export const itemRelations = relations(items, ({ one, many }) => ({
 export const userRelations = relations(users, ({ many }) => ({
   feedbacks: many(feedbacks),
   resolvedMergeConflicts: many(mergeConflicts)
+}));
+
+export const entityFinancialsRelations = relations(entityFinancials, ({ one }) => ({
+  entity: one(entities, { fields: [entityFinancials.entityId], references: [entities.id] })
 }));
