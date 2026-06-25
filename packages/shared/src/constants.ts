@@ -12,7 +12,8 @@ export const QUEUES = {
   embedder: "fe-embedder",
   cluster: "fe-cluster",
   curator: "fe-curator",
-  daily: "fe-daily"
+  daily: "fe-daily",
+  websearch: "fe-websearch"
 } as const;
 
 // Non-pipeline BullMQ queue names. Single source of truth shared by worker
