@@ -55,6 +55,12 @@ services:
       KIMI_API_KEY_FILE: /run/secrets/kimi_api_key
       # Firecrawl C1 风险检索：先创建 secret → docker secret create firecrawl_api_key <(printf 'fc-xxx')
       FIRECRAWL_API_KEY_FILE: /run/secrets/firecrawl_api_key
+      # v1.2 火山方舟 Agent Plan Harness — dataPro 专业数据集
+      DATAPRO_BASE_URL: https://datapro.hqd.cn-beijing.volces.com/mcp
+      DATAPRO_AGENT_PLAN_KEY_FILE: /run/secrets/datapro_agent_plan_key
+      # v1.2 火山方舟 Agent Plan Harness — 豆包搜索
+      WEBSEARCH_API_URL: https://open.feedcoopapi.com/search_api/web_search
+      WEBSEARCH_API_KEY_FILE: /run/secrets/websearch_api_key
       RSSHUB_BASE_URL: http://rsshub:1200
       BRIEFING_TEMPLATE_PATH: /app/design/templates/briefing.docx
       BRIEFING_MINIO_BUCKET: fe-radar-briefings
