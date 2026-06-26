@@ -10,11 +10,21 @@ export async function GET(request: NextRequest): Promise<Response> {
     level: searchParams.get("level") ?? undefined,
     source: searchParams.get("source") ?? undefined,
     cursor: searchParams.get("cursor") ?? undefined,
-    limit: searchParams.get("limit") ?? undefined
+    limit: searchParams.get("limit") ?? undefined,
+    range: searchParams.get("range") ?? undefined
   });
 
   if (!parsed.success) {
-    return Response.json({ error: { code: "VALIDATION", message: "参数校验失败", details: parsed.error.flatten() } }, { status: 400 });
+    return Response.json(
+      {
+        error: {
+          code: "VALIDATION",
+          message: "参数校验失败",
+          details: parsed.error.flatten()
+        }
+      },
+      { status: 400 }
+    );
   }
 
   return Response.json(await fetchAlerts(parsed.data));

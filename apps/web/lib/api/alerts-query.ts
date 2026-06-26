@@ -50,10 +50,16 @@ export function encodeAlertCursor(row: AlertCursorRow): string | null {
 
 function baseAlertConditions(
   query: Pick<AlertQuery, "type" | "level" | "source" | "cursor">,
-  fromStartOfDay = false
+  range: "24h" | "7d" | "all" = "24h"
 ) {
   const cursor = decodeCursor(query.cursor);
   const cursorAt = cursor ? dayjs(cursor.at).tz(APP_TIMEZONE).toDate() : null;
+  const rangeStart =
+    range === "24h"
+      ? dayjs().tz(APP_TIMEZONE).subtract(24, "hour").toDate()
+      : range === "7d"
+        ? dayjs().tz(APP_TIMEZONE).subtract(7, "day").toDate()
+        : null;
   return and(
     isNotNull(itemAnalysis.alertType),
     isNotNull(itemAnalysis.scoredAt),
@@ -66,12 +72,7 @@ function baseAlertConditions(
     query.type ? eq(itemAnalysis.alertType, query.type) : undefined,
     query.level ? eq(itemAnalysis.alertLevel, query.level) : undefined,
     query.source ? eq(sources.id, query.source) : undefined,
-    fromStartOfDay
-      ? gte(
-          itemAnalysis.scoredAt,
-          dayjs().tz(APP_TIMEZONE).startOf("day").toDate()
-        )
-      : undefined,
+    rangeStart ? gte(itemAnalysis.scoredAt, rangeStart) : undefined,
     cursor && cursorAt
       ? or(
           lt(itemAnalysis.scoredAt, cursorAt),
@@ -115,7 +116,7 @@ export async function fetchAlerts(
     .innerJoin(itemAnalysis, eq(itemAnalysis.itemId, items.id))
     .leftJoin(clusterItems, eq(clusterItems.itemId, items.id))
     .leftJoin(clusters, eq(clusters.id, clusterItems.clusterId))
-    .where(baseAlertConditions(query))
+    .where(baseAlertConditions(query, query.range))
     .orderBy(desc(itemAnalysis.scoredAt), desc(items.id))
     .limit(query.limit + 1);
 
@@ -153,8 +154,15 @@ export async function fetchAlerts(
 }
 
 export async function fetchAlertCount(
+  range: "24h" | "7d" | "all" = "24h",
   db?: DbClient
-): Promise<{ own: number; safety: number; policy: number; legal: number; risk: number }> {
+): Promise<{
+  own: number;
+  safety: number;
+  policy: number;
+  legal: number;
+  risk: number;
+}> {
   if (isMockMode()) {
     return mockFetchAlertCount();
   }
@@ -166,7 +174,7 @@ export async function fetchAlertCount(
     .innerJoin(itemAnalysis, eq(itemAnalysis.itemId, items.id))
     .leftJoin(clusterItems, eq(clusterItems.itemId, items.id))
     .leftJoin(clusters, eq(clusters.id, clusterItems.clusterId))
-    .where(baseAlertConditions({}, true));
+    .where(baseAlertConditions({}, range));
 
   const count = { own: 0, safety: 0, policy: 0, legal: 0, risk: 0 };
   for (const row of rows) {

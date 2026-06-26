@@ -5,7 +5,8 @@ export const alertQuerySchema = z.object({
   level: z.enum(["L1", "L2", "L3"]).optional(),
   source: z.coerce.number().int().positive().optional(),
   cursor: z.string().min(1).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50)
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  range: z.enum(["24h", "7d", "all"]).default("24h")
 });
 
 export type AlertQuery = z.infer<typeof alertQuerySchema>;

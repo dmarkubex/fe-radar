@@ -38,11 +38,15 @@ function scoreColor(value: number | null): string {
 }
 
 export default async function ItemDetailPage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<React.JSX.Element> {
   const { id } = await params;
+  const query = await searchParams;
+  const from = Array.isArray(query.from) ? query.from[0] : query.from;
   const itemId = Number(id);
   if (!Number.isInteger(itemId) || itemId <= 0) {
     notFound();
@@ -58,9 +62,15 @@ export default async function ItemDetailPage({
       <div className="mx-auto w-full max-w-[1400px] px-[clamp(1rem,4cqi,2.5rem)] py-[clamp(1.5rem,2.5cqi,2rem)]">
         {/* ── Breadcrumb ── */}
         <nav className="flex items-center gap-2 text-[11px] font-mono text-fg-soft mb-6">
-          <a href="/" className="hover:text-accent transition-colors">
-            时间线
-          </a>
+          {from === "alerts" ? (
+            <a href="/alerts" className="hover:text-accent transition-colors">
+              ← 返回告警
+            </a>
+          ) : (
+            <a href="/" className="hover:text-accent transition-colors">
+              时间线
+            </a>
+          )}
           <ChevronRight className="h-3 w-3" />
           {item.category && (
             <>
