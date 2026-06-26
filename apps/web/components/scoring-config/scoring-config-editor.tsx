@@ -3,12 +3,32 @@
 import { useCallback, useState } from "react";
 import type { ScoringConfigBody } from "@/lib/api/scoring-config-schema";
 
-const DIM_LABELS: { key: keyof ScoringConfigBody["weights"]; label: string }[] = [
-  { key: "w1", label: "D1 · 重要性" },
-  { key: "w2", label: "D2 · 关联度" },
-  { key: "w3", label: "D3 · 时效性" },
-  { key: "w4", label: "D4 · 权威性" },
-  { key: "w5", label: "D5 · 独特性" },
+const DIM_LABELS: { key: keyof ScoringConfigBody["weights"]; label: string; tooltip: string }[] = [
+  {
+    key: "w1",
+    label: "D1 · 政策法规",
+    tooltip: "D1 政策法规权重：涉及国标、政策、补贴、许可证、规划的程度（0-100）。由 DeepSeek 对文本打分。"
+  },
+  {
+    key: "w2",
+    label: "D2 · 产业链关联",
+    tooltip: "D2 产业链关联度：NER 命中 C1/C2/C3 关注圈实体后由代码计算，非 LLM 打分。命中圈层越深、实体数越多得分越高，确保自家公司零漏报。"
+  },
+  {
+    key: "w3",
+    label: "D3 · 市场价格",
+    tooltip: "D3 市场/价格信号：含价格行情、招投标金额、产能数据的程度（0-100）。由 DeepSeek 对文本打分。"
+  },
+  {
+    key: "w4",
+    label: "D4 · 技术标准",
+    tooltip: "D4 技术/标准突破：涉及新材料、新工艺、新国标、新认证的程度（0-100）。由 DeepSeek 对文本打分。"
+  },
+  {
+    key: "w5",
+    label: "D5 · 商业机会",
+    tooltip: "D5 商业机会/风险：大订单、并购、财报、安全事故、关税、人事变动等信号（0-100）。由 DeepSeek 对文本打分。"
+  },
 ];
 
 // Keys MUST match the item `category` strings used by the scoring pipeline
@@ -128,8 +148,14 @@ export function ScoringConfigEditor({ initialValue }: EditorProps): React.JSX.El
               return (
                 <div key={dim.key} className="space-y-1.5">
                   <div className="flex items-baseline justify-between">
-                    <span className="font-mono text-xs text-fg-muted">
+                    <span className="flex items-center gap-1 font-mono text-xs text-fg-muted">
                       {dim.label}
+                      <span
+                        title={dim.tooltip}
+                        className="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-fg-soft/40 font-mono text-[9px] text-fg-soft hover:border-accent hover:text-accent"
+                      >
+                        ?
+                      </span>
                     </span>
                     <span className="font-mono text-xs tabular-nums text-fg">
                       {val.toFixed(2)}

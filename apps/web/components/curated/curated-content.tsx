@@ -1,5 +1,5 @@
 import { fetchTimeline } from "@/lib/api/timeline-query";
-import { formatAppTime, scoreLabel } from "@/components/timeline/meta";
+import { formatAppTime, scoreLabel, SOURCE_TIER_LABELS } from "@/components/timeline/meta";
 
 export async function CuratedContent({
   category
@@ -19,7 +19,10 @@ export async function CuratedContent({
         <section className="hero-pick grid gap-0 sm:grid-cols-[1fr_280px]">
           <div className="border border-hairline bg-surface p-6">
             <div className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
-              <span className="rounded-none bg-gold px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[1px] text-accent">
+              <span
+                className="rounded-none bg-gold px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[1px] text-accent"
+                title={SOURCE_TIER_LABELS[heroItem.sourceTier as keyof typeof SOURCE_TIER_LABELS] ?? heroItem.sourceTier}
+              >
                 {heroItem.sourceTier}
               </span>
               {heroItem.topCircle ? (
@@ -66,7 +69,7 @@ export async function CuratedContent({
             </div>
           </div>
 
-          <div className="signal-panel border border-l-0 border-hairline bg-bg-deep p-5">
+          <div className="signal-panel border border-hairline bg-bg-deep p-5 sm:border-l-0">
             <p className="font-mono text-[13px] font-medium uppercase tracking-[1.4px] text-fg-soft">
               综合评分
             </p>
@@ -117,7 +120,10 @@ export async function CuratedContent({
               className="group flex flex-col gap-3 border border-hairline bg-surface p-5 transition-colors hover:border-border-strong"
             >
               <div className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
-                <span className="rounded-none bg-gold px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[1px] text-accent">
+                <span
+                  className="rounded-none bg-gold px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[1px] text-accent"
+                  title={SOURCE_TIER_LABELS[item.sourceTier as keyof typeof SOURCE_TIER_LABELS] ?? item.sourceTier}
+                >
                   {item.sourceTier}
                 </span>
                 {item.topCircle ? (
@@ -142,7 +148,7 @@ export async function CuratedContent({
                   {item.summaryZh}
                 </p>
               ) : null}
-              <div className="mt-auto flex items-center justify-between border-t border-hairline pt-3">
+              <div className="mt-auto flex items-center justify-between gap-3 border-t border-hairline pt-3">
                 <div className="flex flex-wrap gap-1">
                   {item.category ? (
                     <span className="rounded-none border border-hairline px-1.5 py-0.5 font-mono text-[10px] text-fg-soft">
@@ -178,14 +184,17 @@ export async function CuratedContent({
                 {tableItems.map((item) => (
                   <tr key={item.id}>
                     <td className="whitespace-nowrap">
-                      <span className="rounded-none bg-gold px-1.5 py-0.5 font-mono text-[10px] text-accent">
+                      <span
+                        className="rounded-none bg-gold px-1.5 py-0.5 font-mono text-[10px] text-accent"
+                        title={SOURCE_TIER_LABELS[item.sourceTier as keyof typeof SOURCE_TIER_LABELS] ?? item.sourceTier}
+                      >
                         {item.sourceTier}
                       </span>
                       <span className="ml-2 text-xs text-fg-muted">
                         {item.sourceName}
                       </span>
                     </td>
-                    <td className="max-w-[400px]">
+                    <td className="max-w-[400px] break-words">
                       {item.displayUrl ? (
                         <a
                           href={item.displayUrl}

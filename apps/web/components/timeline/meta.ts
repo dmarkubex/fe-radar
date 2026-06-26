@@ -1,4 +1,4 @@
-import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
+import { APP_TIMEZONE, dayjs, type SourceTier } from "@fe-radar/shared";
 import { CURATED_CATEGORY_DB_CATEGORY } from "@/lib/api/timeline-schema";
 
 export const CURATED_CATEGORY_TABS = [
@@ -93,3 +93,9 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
 export function entityTypeLabel(type: string): string {
   return ENTITY_TYPE_LABELS[type] ?? type;
 }
+
+export const SOURCE_TIER_LABELS: Record<SourceTier, string> = {
+  T1: "T1 权威一手（政府、协会、上市公司公告、国标）",
+  T2: "T2 头部行业媒体（专业媒体/官号）",
+  T3: "T3 普通信源（综合财经/自媒体/社交）"
+};

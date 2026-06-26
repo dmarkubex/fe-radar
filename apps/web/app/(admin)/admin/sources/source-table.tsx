@@ -104,13 +104,20 @@ export function SourceTable(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthPayload | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
+  const [search, setSearch] = useState<string>("");
 
   const filteredRows = useMemo(() => {
-    if (filter === "ALL") return rows;
-    if (filter === "FAILED") return rows.filter((r) => r.failCount >= 3);
-    if (filter === "DISABLED") return rows.filter((r) => !r.enabled);
-    return rows.filter((r) => r.tier === filter);
-  }, [rows, filter]);
+    let result = rows;
+    if (filter === "FAILED") result = result.filter((r) => r.failCount >= 3);
+    else if (filter === "DISABLED") result = result.filter((r) => !r.enabled);
+    else if (filter !== "ALL") result = result.filter((r) => r.tier === filter);
+
+    if (search.trim()) {
+      const kw = search.trim().toLowerCase();
+      result = result.filter((r) => r.name.toLowerCase().includes(kw));
+    }
+    return result;
+  }, [rows, filter, search]);
 
   const totalCount = rows.length;
   const failedCount = rows.filter((r) => r.failCount >= 3).length;
@@ -246,6 +253,26 @@ export function SourceTable(): React.JSX.Element {
           </button>
         ))}
       </section>
+
+      {/* ---- name search ---- */}
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          placeholder="搜索信源名称…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-64 border border-border bg-bg px-3 py-1.5 font-mono text-xs text-fg placeholder:text-fg-soft focus:border-accent focus:outline-none"
+        />
+        {search ? (
+          <button
+            type="button"
+            onClick={() => setSearch("")}
+            className="font-mono text-xs text-fg-muted hover:text-fg"
+          >
+            清除
+          </button>
+        ) : null}
+      </div>
 
       {/* ---- 2-column: table + form ---- */}
       <section className="grid gap-6 lg:grid-cols-[1fr_380px]">

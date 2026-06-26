@@ -1,6 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import { AlertStrip, alertTypeLabel } from "@/components/shared/alert-strip";
-import { formatAppTime, scoreLabel } from "@/components/timeline/meta";
+import { formatAppTime, scoreLabel, SOURCE_TIER_LABELS } from "@/components/timeline/meta";
 
 import type { TimelineItemDto } from "@/lib/api/timeline-query";
 
@@ -31,7 +31,7 @@ export function TimelineCard({
 
   return (
     <article
-      className={`relative grid grid-cols-[minmax(0,1fr)_auto] items-start gap-6 border bg-surface px-5 py-[18px] ${
+      className={`relative grid grid-cols-1 items-start gap-4 border bg-surface px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-6 sm:px-5 sm:py-[18px] ${
         item.alertType ? "border-accent/50" : "border-hairline"
       }`}
     >
@@ -46,7 +46,9 @@ export function TimelineCard({
         <div className="mb-2 flex flex-wrap items-center gap-2 font-mono text-[11px] tracking-[0.6px] text-fg-soft">
           <span className="text-fg">{item.sourceName}</span>
           <span className="h-[3px] w-[3px] rounded-full bg-fg-soft" />
-          <span>{item.sourceTier}</span>
+          <span title={SOURCE_TIER_LABELS[item.sourceTier as keyof typeof SOURCE_TIER_LABELS] ?? item.sourceTier}>
+            {item.sourceTier}
+          </span>
           {item.topCircle ? (
             <span className="border border-hairline bg-bg-deep px-2 py-0.5 text-fg-muted">
               {item.topCircle}
@@ -62,7 +64,7 @@ export function TimelineCard({
 
         {item.displayUrl ? (
           <a
-            className="group mb-2 inline-flex items-start gap-2 text-[17px] leading-[1.4] tracking-[-0.1px] text-fg hover:text-accent"
+            className="group mb-2 inline-flex items-start gap-2 text-[17px] leading-[1.4] tracking-normal text-fg hover:text-accent"
             href={item.displayUrl}
             rel="noopener noreferrer"
             target="_blank"
@@ -74,7 +76,7 @@ export function TimelineCard({
             />
           </a>
         ) : (
-          <div className="mb-2 flex flex-wrap items-start gap-2 text-[17px] leading-[1.4] tracking-[-0.1px] text-fg">
+          <div className="mb-2 flex flex-wrap items-start gap-2 text-[17px] leading-[1.4] tracking-normal text-fg">
             <span>{item.title}</span>
             <span className="mt-0.5 border border-accent/30 bg-accent/8 px-2 py-0.5 font-mono text-[10px] leading-4 tracking-[0.8px] text-accent">
               {item.acquisitionLabel ?? "AI获取"}
@@ -106,35 +108,38 @@ export function TimelineCard({
           ) : null}
         </div>
       </div>
-      <div className="flex min-w-[140px] flex-col items-end gap-1.5">
-        <div
-          className={`font-mono text-3xl leading-none tracking-[-0.5px] tabular-nums ${
-            isHigh ? "text-accent" : "text-fg"
-          }`}
-        >
-          {scoreLabel(item.qualityScore)}
-        </div>
-        <div className="font-mono text-[13px] uppercase tracking-[1.2px] text-fg-soft">
-          综合评分
-        </div>
-        <div
-          className="grid h-[18px] grid-cols-5 items-end gap-[3px]"
-          aria-hidden="true"
-        >
-          {barHeights.map((height, index) => (
-            <i
-              key={index}
-              className="block w-4 bg-accent"
-              style={{
-                height: `${Math.round(height * 18)}px`,
-                opacity: SCORE_BAR_OPACITY[index]
-              }}
-            />
-          ))}
+      <div className="flex min-w-0 items-center justify-between gap-3 border-t border-hairline pt-3 sm:min-w-[140px] sm:flex-col sm:items-end sm:justify-start sm:border-t-0 sm:pt-0">
+        <div className="flex flex-col items-start gap-1.5 sm:items-end">
+          <div
+            className={`font-mono text-3xl leading-none tracking-normal tabular-nums ${
+              isHigh ? "text-accent" : "text-fg"
+            }`}
+          >
+            {scoreLabel(item.qualityScore)}
+          </div>
+          <div className="font-mono text-[13px] uppercase tracking-[1.2px] text-fg-soft">
+            综合评分
+          </div>
+          <div
+            className="grid h-[18px] grid-cols-5 items-end gap-[3px]"
+            aria-hidden="true"
+          >
+            {barHeights.map((height, index) => (
+              <i
+                key={index}
+                className="block w-4 bg-accent"
+                style={{
+                  height: `${Math.round(height * 18)}px`,
+                  opacity: SCORE_BAR_OPACITY[index]
+                }}
+              />
+            ))}
+          </div>
         </div>
         <button
-          className="mt-2 border border-border-strong px-3 py-1.5 font-mono text-[11px] tracking-[0.8px] text-fg-muted hover:border-accent/40 hover:bg-accent/5 hover:text-accent"
+          className="border border-border-strong px-3 py-1.5 font-mono text-[11px] tracking-[0.8px] text-fg-muted hover:border-accent/40 hover:bg-accent/5 hover:text-accent sm:mt-2"
           type="button"
+          aria-label={`展开详情：${item.title}`}
           onClick={() => onOpen?.(item.id)}
         >
           展开详情

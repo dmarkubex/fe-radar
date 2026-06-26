@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { fetchDashboardData, type DashboardMetric } from "@/lib/api/dashboard-query";
 import { listDisabledProxies } from "@/lib/api/proxy-admin";
 import { ProxyPoolPanel } from "@/components/dashboard/proxy-pool-panel";
@@ -104,24 +105,43 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
 
         {/* ---- KPI grid ---- */}
         <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {kpiCards.map((card) => (
-            <div
-              key={card.label}
-              className={`rounded-none border p-3 shadow-card ${kpiTone(card.tone)}`}
-            >
-              <p className="font-mono text-[13px] uppercase tracking-widest text-fg-soft">
-                {card.label}
-              </p>
-              <p className="mt-1 font-display text-3xl tabular-nums tracking-tight text-fg">
-                {card.value}
-              </p>
-              <p className={`mt-0.5 font-mono text-[12px] ${kpiDelta(card.tone)}`}>
-                {card.tone === "critical" && "需关注"}
-                {card.tone === "warning" && "偏高"}
-                {card.tone === "default" && "正常"}
-              </p>
-            </div>
-          ))}
+          {kpiCards.map((card) => {
+            const href =
+              card.label === "精选条目"
+                ? "/curated"
+                : card.label === "信源健康度"
+                  ? "/admin/sources"
+                  : null;
+            const cardBody = (
+              <div
+                key={card.label}
+                className={`rounded-none border p-3 shadow-card ${kpiTone(card.tone)}`}
+              >
+                <p className="font-mono text-[13px] uppercase tracking-widest text-fg-soft">
+                  {card.label}
+                </p>
+                <p className="mt-1 font-display text-3xl tabular-nums tracking-tight text-fg">
+                  {card.value}
+                </p>
+                <p className={`mt-0.5 font-mono text-[12px] ${kpiDelta(card.tone)}`}>
+                  {card.tone === "critical" && "需关注"}
+                  {card.tone === "warning" && "偏高"}
+                  {card.tone === "default" && "正常"}
+                </p>
+              </div>
+            );
+            return href ? (
+              <Link
+                key={card.label}
+                href={href}
+                className="block transition-opacity hover:opacity-80"
+              >
+                {cardBody}
+              </Link>
+            ) : (
+              cardBody
+            );
+          })}
         </section>
 
         {/* ---- trend + alerts row ---- */}
@@ -245,11 +265,16 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
 
           {/* right: source ranking */}
           <div className="border border-border bg-surface p-6 shadow-card">
-            <div className="flex items-baseline justify-between border-b border-hairline pb-3">
+            <div className="flex items-baseline justify-between gap-3 border-b border-hairline pb-3">
               <h3 className="font-display text-base font-semibold text-fg">信源健康排名</h3>
-              <span className="font-mono text-[11px] text-fg-soft">
-                共 {data.sources.total} 源
-              </span>
+              <div className="flex items-baseline gap-3">
+                <span className="font-mono text-[11px] text-fg-soft">
+                  共 {data.sources.total} 源
+                </span>
+                <Link href="/admin/sources" className="font-mono text-[11px] text-accent hover:underline">
+                  查看详情 →
+                </Link>
+              </div>
             </div>
             <div className="mt-4 space-y-4">
               {sourceHealth.map((src) => {
