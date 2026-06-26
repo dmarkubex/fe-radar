@@ -148,12 +148,13 @@ export function buildTimelineSourceDisplay(row: {
   };
 }
 
-function visibleItemConditions(
+export function visibleItemConditions(
   filters: TimelineFilters,
   includeBlocked: boolean,
   cursor?: string,
   search?: string,
-  useFts = true
+  useFts = true,
+  includeNonIndustry = false
 ) {
   const conditions = [
     isNotNull(itemAnalysis.scoredAt),
@@ -174,7 +175,10 @@ function visibleItemConditions(
     filters.alertType
       ? eq(itemAnalysis.alertType, filters.alertType)
       : undefined,
-    filters.curated ? eq(itemAnalysis.isCurated, true) : undefined
+    filters.curated ? eq(itemAnalysis.isCurated, true) : undefined,
+    includeNonIndustry
+      ? undefined
+      : sql`(${itemAnalysis.isIndustryRelated} IS NOT FALSE OR ${itemAnalysis.topCircle} IN ('C1','C2') OR ${itemAnalysis.alertType} IS NOT NULL)`
   ].filter(Boolean);
 
   const parsedCursor = decodeCursor(cursor);
@@ -253,6 +257,7 @@ async function fetchRows(
     search?: string;
     curatedOrder?: boolean;
     useFts?: boolean;
+    includeNonIndustry?: boolean;
   }
 ) {
   const limit = options.limit ?? DEFAULT_LIMIT;
@@ -289,7 +294,8 @@ async function fetchRows(
         options.includeBlocked,
         options.cursor,
         options.search,
-        options.useFts
+        options.useFts,
+        options.includeNonIndustry ?? false
       )
     )
     .orderBy(
@@ -308,6 +314,7 @@ export async function fetchTimeline(options: {
   limit?: number;
   search?: string;
   db?: DbClient;
+  includeNonIndustry?: boolean;
 }): Promise<TimelineResult> {
   if (isMockMode()) {
     return mockFetchTimeline(options);
@@ -324,7 +331,8 @@ export async function fetchTimeline(options: {
       limit,
       search: options.search,
       curatedOrder: filters.curated,
-      useFts: true
+      useFts: true,
+      includeNonIndustry: options.includeNonIndustry ?? false
     });
   } catch (error) {
     if (!options.search) {
@@ -337,7 +345,8 @@ export async function fetchTimeline(options: {
       limit,
       search: options.search,
       curatedOrder: filters.curated,
-      useFts: false
+      useFts: false,
+      includeNonIndustry: options.includeNonIndustry ?? false
     });
   }
 
@@ -403,7 +412,14 @@ export async function fetchItemDetail(
     .where(
       and(
         eq(items.id, id),
-        visibleItemConditions({}, options.includeBlocked ?? false)
+        visibleItemConditions(
+          {},
+          options.includeBlocked ?? false,
+          undefined,
+          undefined,
+          true,
+          true
+        )
       )
     )
     .limit(1);

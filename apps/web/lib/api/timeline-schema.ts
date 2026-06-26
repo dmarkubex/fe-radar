@@ -34,7 +34,8 @@ export const timelineFilterSchema = z.object({
 export const timelineQuerySchema = timelineFilterSchema.extend({
   cursor: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
-  includeBlocked: queryBoolean.default(false)
+  includeBlocked: queryBoolean.default(false),
+  includeNonIndustry: queryBoolean.default(false)
 });
 
 export const searchQuerySchema = timelineQuerySchema.extend({

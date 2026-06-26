@@ -1,0 +1,233 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@fe-radar/shared", () => ({
+  APP_TIMEZONE: "Asia/Shanghai",
+  dayjs: () => ({ tz: () => ({ toDate: () => new Date() }) })
+}));
+
+vi.mock("@/lib/mock-mode", () => ({ isMockMode: () => false }));
+vi.mock("@/lib/api/cursor", () => ({
+  decodeCursor: () => null,
+  encodeCursor: (value: unknown) => JSON.stringify(value)
+}));
+vi.mock("@/lib/api/item-visibility", () => ({
+  BLOCKED_QUOTA_STATES: ["blocked"],
+  MANUAL_SCRUB_SUMMARY: "__scrubbed__"
+}));
+vi.mock("@/lib/mock-data", () => ({
+  mockFetchItemDetail: vi.fn(),
+  mockFetchTimeline: vi.fn()
+}));
+
+vi.mock("drizzle-orm", () => ({
+  and: (...args: unknown[]) => ({ $and: args.filter(Boolean) }),
+  or: (...args: unknown[]) => ({ $or: args.filter(Boolean) }),
+  eq: (a: unknown, b: unknown) => ({ $eq: [a, b] }),
+  ne: (a: unknown, b: unknown) => ({ $ne: [a, b] }),
+  lt: (a: unknown, b: unknown) => ({ $lt: [a, b] }),
+  desc: (a: unknown) => ({ $desc: a }),
+  ilike: (a: unknown, b: unknown) => ({ $ilike: [a, b] }),
+  inArray: (a: unknown, b: unknown) => ({ $inArray: [a, b] }),
+  isNull: (a: unknown) => ({ $isNull: a }),
+  isNotNull: (a: unknown) => ({ $isNotNull: a }),
+  not: (a: unknown) => ({ $not: a }),
+  sql: Object.assign(
+    (strings: TemplateStringsArray, ...values: unknown[]) => ({
+      $sql: String.raw(strings, ...values.map(() => "?"))
+    }),
+    { raw: (value: string) => ({ $sqlRaw: value }) }
+  )
+}));
+
+const {
+  mockGetDb,
+  mockItemAnalysis,
+  mockItems,
+  mockSources,
+  mockClusters,
+  mockClusterItems,
+  mockEntities,
+  mockItemEntities
+} = vi.hoisted(() => ({
+  mockGetDb: vi.fn(),
+  mockItemAnalysis: {
+    scoredAt: "ia.scored_at",
+    quotaState: "ia.quota_state",
+    summaryZh: "ia.summary_zh",
+    isCurated: "ia.is_curated",
+    category: "ia.category",
+    topCircle: "ia.top_circle",
+    alertType: "ia.alert_type",
+    alertLevel: "ia.alert_level",
+    qualityScore: "ia.quality_score",
+    translationZh: "ia.translation_zh",
+    d1Policy: "ia.d1",
+    d2Chain: "ia.d2",
+    d3Market: "ia.d3",
+    d4Tech: "ia.d4",
+    d5Business: "ia.d5",
+    isIndustryRelated: "ia.is_industry_related",
+    itemId: "ia.item_id"
+  },
+  mockItems: {
+    id: "items.id",
+    title: "items.title",
+    url: "items.url",
+    publishedAt: "items.published_at",
+    content: "items.content",
+    sourceId: "items.source_id"
+  },
+  mockSources: {
+    id: "sources.id",
+    name: "sources.name",
+    tier: "sources.tier",
+    category: "sources.category",
+    fetcherType: "sources.fetcher_type"
+  },
+  mockClusters: {
+    id: "clusters.id",
+    leadItemId: "clusters.lead_item_id",
+    eventType: "clusters.event_type"
+  },
+  mockClusterItems: {
+    id: "ci.id",
+    itemId: "ci.item_id",
+    clusterId: "ci.cluster_id",
+    similarity: "ci.similarity"
+  },
+  mockEntities: {
+    id: "e.id",
+    type: "e.type",
+    canonicalName: "e.name",
+    circle: "e.circle"
+  },
+  mockItemEntities: {
+    itemId: "ie.item_id",
+    entityId: "ie.entity_id",
+    span: "ie.span"
+  }
+}));
+
+vi.mock("@fe-radar/db", () => ({
+  getDb: mockGetDb,
+  items: mockItems,
+  itemAnalysis: mockItemAnalysis,
+  sources: mockSources,
+  clusters: mockClusters,
+  clusterItems: mockClusterItems,
+  entities: mockEntities,
+  itemEntities: mockItemEntities
+}));
+
+import { fetchItemDetail, fetchTimeline } from "../timeline-query";
+
+function makeQueryBuilder(rows: unknown[]) {
+  const whereFn = vi.fn().mockReturnValue({
+    orderBy: vi.fn().mockReturnValue({
+      limit: vi.fn().mockResolvedValue(rows)
+    })
+  });
+  const chain = {
+    innerJoin: vi.fn().mockReturnThis(),
+    leftJoin: vi.fn().mockReturnThis(),
+    where: whereFn
+  };
+  const db = {
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue(chain)
+    }),
+    _where: whereFn
+  };
+  mockGetDb.mockReturnValue(db);
+  return db;
+}
+
+describe("行业闸门 visibleItemConditions（通过 fetchTimeline 注入 db）", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function getWhereArg(db: ReturnType<typeof makeQueryBuilder>) {
+    return db._where.mock.calls[0]?.[0];
+  }
+
+  function hasIndustrySqlCondition(whereArg: unknown): boolean {
+    return JSON.stringify(whereArg).includes("IS NOT FALSE");
+  }
+
+  it("① isIndustryRelated=false 的条目会被行业闸门（IS NOT FALSE）排除", async () => {
+    const db = makeQueryBuilder([]);
+    await fetchTimeline({ db, filters: {} });
+    const whereArg = getWhereArg(db);
+    expect(hasIndustrySqlCondition(whereArg)).toBe(true);
+  });
+
+  it("② includeNonIndustry=false（默认）时，WHERE 包含行业闸门 SQL 条件", async () => {
+    const db = makeQueryBuilder([]);
+    await fetchTimeline({ db, filters: {}, includeNonIndustry: false });
+    const whereArg = getWhereArg(db);
+    expect(hasIndustrySqlCondition(whereArg)).toBe(true);
+  });
+
+  it("③ includeNonIndustry=true 时，WHERE 不包含行业闸门 SQL 条件（全展示）", async () => {
+    const db = makeQueryBuilder([]);
+    await fetchTimeline({ db, filters: {}, includeNonIndustry: true });
+    const whereArg = getWhereArg(db);
+    expect(hasIndustrySqlCondition(whereArg)).toBe(false);
+  });
+
+  it("④ 行业闸门 SQL 包含 topCircle IN (C1,C2) 豁免", async () => {
+    const db = makeQueryBuilder([]);
+    await fetchTimeline({ db, filters: {} });
+    const s = JSON.stringify(getWhereArg(db));
+    expect(s).toContain("C1");
+    expect(s).toContain("C2");
+  });
+
+  it("⑤ 行业闸门 SQL 包含 alertType IS NOT NULL 豁免", async () => {
+    const db = makeQueryBuilder([]);
+    await fetchTimeline({ db, filters: {} });
+    const s = JSON.stringify(getWhereArg(db));
+    expect(s).toContain("IS NOT NULL");
+  });
+
+  it("⑥ fetchItemDetail 不受行业闸门限制（IS NOT FALSE 不在 where 中）", async () => {
+    const db = makeQueryBuilder([]);
+    const limitFn = vi.fn().mockResolvedValue([]);
+    const whereDetailFn = vi.fn().mockReturnValue({ limit: limitFn });
+    const chain = {
+      innerJoin: vi.fn().mockReturnThis(),
+      leftJoin: vi.fn().mockReturnThis(),
+      where: whereDetailFn
+    };
+    db.select.mockReturnValueOnce({
+      from: vi.fn().mockReturnValue(chain)
+    });
+    mockGetDb.mockReturnValue(db);
+
+    await fetchItemDetail(99, { db });
+
+    const whereArg = whereDetailFn.mock.calls[0]?.[0];
+    expect(hasIndustrySqlCondition(whereArg)).toBe(false);
+  });
+
+  it("⑦ fetchItemDetail 返回 null 而非抛错（不 404）当条目被列表闸门隐藏", async () => {
+    const limitFn = vi.fn().mockResolvedValue([]);
+    const whereFn = vi.fn().mockReturnValue({ limit: limitFn });
+    const chain = {
+      innerJoin: vi.fn().mockReturnThis(),
+      leftJoin: vi.fn().mockReturnThis(),
+      where: whereFn
+    };
+    const db = {
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue(chain)
+      })
+    };
+    mockGetDb.mockReturnValue(db);
+
+    const result = await fetchItemDetail(404, { db });
+
+    expect(result).toBeNull();
+  });
+});

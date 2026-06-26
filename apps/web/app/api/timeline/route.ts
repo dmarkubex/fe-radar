@@ -16,7 +16,8 @@ export async function GET(request: NextRequest): Promise<Response> {
     eventType: searchParams.get("event_type") ?? searchParams.get("eventType") ?? undefined,
     alertType: searchParams.get("alert_type") ?? searchParams.get("alertType") ?? undefined,
     curated: searchParams.get("curated") ?? undefined,
-    includeBlocked: searchParams.get("includeBlocked") ?? undefined
+    includeBlocked: searchParams.get("includeBlocked") ?? undefined,
+    includeNonIndustry: searchParams.get("includeNonIndustry") ?? undefined
   });
 
   if (!parsed.success) {
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   const data = await fetchTimeline({
     filters: parsed.data,
     includeBlocked: canIncludeBlocked(user.role, parsed.data.includeBlocked),
+    includeNonIndustry: canIncludeBlocked(user.role, parsed.data.includeNonIndustry),
     cursor: parsed.data.cursor,
     limit: parsed.data.limit
   });
