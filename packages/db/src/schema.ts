@@ -106,7 +106,8 @@ export const itemAnalysis = pgTable("item_analysis", {
   alertType: text("alert_type"),
   quotaState: text("quota_state").default("admitted"),
   embedding: vector("embedding", 1024),
-  scoredAt: timestamp("scored_at", { withTimezone: true })
+  scoredAt: timestamp("scored_at", { withTimezone: true }),
+  alertDismissedAt: timestamp("alert_dismissed_at", { withTimezone: true })
 }, (table) => ({
   quotaStateCheck: check("item_analysis_quota_state_check", sql`${table.quotaState} IN ('admitted', 'pending_over_quota', 'dropped_quota_expired', 'dropped_filter')`),
   qualityIdx: index("analysis_quality_idx").on(table.qualityScore).where(sql`${table.isCurated}`),

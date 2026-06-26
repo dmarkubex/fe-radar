@@ -10,3 +10,9 @@ export const alertQuerySchema = z.object({
 });
 
 export type AlertQuery = z.infer<typeof alertQuerySchema>;
+
+export const dismissSchema = z.object({
+  itemIds: z.array(z.coerce.number().int().positive()).min(1).max(200)
+});
+
+export type DismissBody = z.infer<typeof dismissSchema>;

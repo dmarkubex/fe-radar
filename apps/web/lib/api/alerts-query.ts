@@ -62,6 +62,7 @@ function baseAlertConditions(
         : null;
   return and(
     isNotNull(itemAnalysis.alertType),
+    isNull(itemAnalysis.alertDismissedAt),
     isNotNull(itemAnalysis.scoredAt),
     not(inArray(itemAnalysis.quotaState, [...BLOCKED_QUOTA_STATES])),
     or(
