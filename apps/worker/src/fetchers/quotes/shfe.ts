@@ -12,7 +12,7 @@ import type { QuotesAdapter, QuoteSample } from "./types";
  *   cu_main_close   — 主力合约收盘价（元/吨）
  *   cu_warrants     — 铜仓单数量（手）
  *
- * NFR-102: 禁止 LLM 抽取数值；解析失败 value=null 保留 rawText。
+ * NFR-102: 禁止 LLM 抽取数值；无有效行情日期时返回空数组。
  */
 
 const SHFE_ENDPOINT_TEMPLATE =
@@ -71,75 +71,80 @@ async function fetchShfe(
   now: Date = new Date(),
   fetchImpl?: typeof fetch
 ): Promise<QuoteSample[]> {
-  const dateStr = formatShanghai(now);
-  const url = SHFE_ENDPOINT_TEMPLATE.replace("{YYYYMMDD}", dateStr);
-  const observedAt = now;
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-  let rawBody: string;
-  try {
-    rawBody = await fetchTextWithPolicy(url, {
-      timeoutMs: 8000,
-      useRealUa: ctx.useRealUa ?? true,
-      fetchImpl,
+  for (let daysBack = 0; daysBack < 5; daysBack += 1) {
+    const candidateDate = new Date(now.getTime() - daysBack * MS_PER_DAY);
+    const dateStr = formatShanghai(candidateDate);
+    const url = SHFE_ENDPOINT_TEMPLATE.replace("{YYYYMMDD}", dateStr);
+
+    let rawBody: string;
+    try {
+      rawBody = await fetchTextWithPolicy(url, {
+        timeoutMs: 8000,
+        useRealUa: ctx.useRealUa ?? true,
+        fetchImpl,
+      });
+    } catch {
+      continue;
+    }
+
+    let parsed: ShfeDat;
+    try {
+      parsed = JSON.parse(rawBody) as ShfeDat;
+    } catch {
+      continue;
+    }
+
+    if (!parsed.o_curinstrument || parsed.o_curinstrument.length === 0) {
+      continue;
+    }
+
+    const observedAt = candidateDate;
+    const rawText = toRawText(rawBody);
+    const samples: QuoteSample[] = [];
+
+    // cu_main_close
+    const instruments = parsed.o_curinstrument;
+    const mainContract = pickMainContract(instruments);
+    let closeValue: number | null = null;
+    if (mainContract) {
+      const raw = mainContract.CLOSEPRICE ?? mainContract.SETTLEMENTPRICE ?? "";
+      const parsed_num = parseFloat(raw.replace(/,/g, ""));
+      closeValue = isFinite(parsed_num) && parsed_num > 0 ? parsed_num : null;
+    }
+    samples.push({
+      metricKey: "cu_main_close",
+      value: closeValue,
+      observedAt,
+      rawText,
+      sourceMetadata: mainContract
+        ? { instrumentId: mainContract.INSTRUMENTID.trim(), exchange: "SHFE" }
+        : { exchange: "SHFE" },
     });
-  } catch {
-    // Network failure → return empty (adapter contract: never throw)
-    return [];
+
+    // cu_warrants
+    const warrants = parsed.o_curwarrant ?? [];
+    const cuWarrant = warrants.find(
+      (w) => w.PRODUCTID.trim().toLowerCase() === "cu"
+    );
+    let warrantValue: number | null = null;
+    if (cuWarrant?.WRHOUSEQUANTITY !== undefined) {
+      const parsed_num = parseFloat(cuWarrant.WRHOUSEQUANTITY.replace(/,/g, ""));
+      warrantValue = isFinite(parsed_num) && parsed_num >= 0 ? parsed_num : null;
+    }
+    samples.push({
+      metricKey: "cu_warrants",
+      value: warrantValue,
+      observedAt,
+      rawText,
+      sourceMetadata: { exchange: "SHFE" },
+    });
+
+    return samples;
   }
 
-  const rawText = toRawText(rawBody);
-
-  let parsed: ShfeDat;
-  try {
-    parsed = JSON.parse(rawBody) as ShfeDat;
-  } catch {
-    // JSON parse failure → both metrics null, rawText preserved
-    return [
-      { metricKey: "cu_main_close", value: null, observedAt, rawText },
-      { metricKey: "cu_warrants", value: null, observedAt, rawText },
-    ];
-  }
-
-  const samples: QuoteSample[] = [];
-
-  // cu_main_close
-  const instruments = parsed.o_curinstrument ?? [];
-  const mainContract = pickMainContract(instruments);
-  let closeValue: number | null = null;
-  if (mainContract) {
-    const raw = mainContract.CLOSEPRICE ?? mainContract.SETTLEMENTPRICE ?? "";
-    const parsed_num = parseFloat(raw.replace(/,/g, ""));
-    closeValue = isFinite(parsed_num) && parsed_num > 0 ? parsed_num : null;
-  }
-  samples.push({
-    metricKey: "cu_main_close",
-    value: closeValue,
-    observedAt,
-    rawText,
-    sourceMetadata: mainContract
-      ? { instrumentId: mainContract.INSTRUMENTID.trim(), exchange: "SHFE" }
-      : { exchange: "SHFE" },
-  });
-
-  // cu_warrants
-  const warrants = parsed.o_curwarrant ?? [];
-  const cuWarrant = warrants.find(
-    (w) => w.PRODUCTID.trim().toLowerCase() === "cu"
-  );
-  let warrantValue: number | null = null;
-  if (cuWarrant?.WRHOUSEQUANTITY !== undefined) {
-    const parsed_num = parseFloat(cuWarrant.WRHOUSEQUANTITY.replace(/,/g, ""));
-    warrantValue = isFinite(parsed_num) && parsed_num >= 0 ? parsed_num : null;
-  }
-  samples.push({
-    metricKey: "cu_warrants",
-    value: warrantValue,
-    observedAt,
-    rawText,
-    sourceMetadata: { exchange: "SHFE" },
-  });
-
-  return samples;
+  return [];
 }
 
 export const shfeAdapter: QuotesAdapter = {

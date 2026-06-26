@@ -49,7 +49,7 @@ describe("shfeAdapter", () => {
   });
 
   describe("解析失败 (NFR-102)", () => {
-    it("JSON 格式损坏时 value=null 且 rawText 保留", async () => {
+    it("JSON 格式损坏时返回空数组", async () => {
       const badBody = "NOT_VALID_JSON { broken";
       const fetchImpl = async (url: string) => {
         if (String(url).endsWith("/robots.txt")) return new Response("") as Response;
@@ -57,23 +57,18 @@ describe("shfeAdapter", () => {
       };
       const samples = await fetchShfe(CTX, OBSERVED_AT, fetchImpl as typeof fetch);
 
-      expect(samples).toHaveLength(2);
-      for (const s of samples) {
-        expect(s.value).toBeNull();
-        expect(s.rawText).toBe(badBody.trim());
-      }
+      expect(samples).toEqual([]);
     });
 
-    it("instruments 数组为空时 cu_main_close value=null", async () => {
+    it("o_curinstrument 空数组时返回空数组", async () => {
       const body = JSON.stringify({ o_curinstrument: [], o_curwarrant: [] });
       const fetchImpl = async (url: string) => {
         if (String(url).endsWith("/robots.txt")) return new Response("") as Response;
         return new Response(body, { status: 200 }) as Response;
       };
       const samples = await fetchShfe(CTX, OBSERVED_AT, fetchImpl as typeof fetch);
-      const close = samples.find((s) => s.metricKey === "cu_main_close");
-      expect(close?.value).toBeNull();
-      expect(close?.rawText).toBeTruthy();
+
+      expect(samples).toEqual([]);
     });
   });
 
@@ -84,6 +79,50 @@ describe("shfeAdapter", () => {
         throw new Error("network error");
       };
       const samples = await fetchShfe(CTX, OBSERVED_AT, fetchImpl as typeof fetch);
+      expect(samples).toEqual([]);
+    });
+  });
+
+  describe("日期回退", () => {
+    it("今天 404 自动回退前一天并命中", async () => {
+      const fixtureBody = readFileSync(
+        join(FIXTURES_DIR, "shfe-20260519.dat"),
+        "utf8"
+      );
+      const today = new Date("2026-05-20T07:30:00.000Z");
+      const fetchImpl = async (url: string): Promise<Response> => {
+        if (String(url).endsWith("/robots.txt")) return new Response("") as Response;
+        if (url.includes("20260520")) {
+          return new Response("Not Found", { status: 404 }) as Response;
+        }
+        if (url.includes("20260519")) {
+          return new Response(fixtureBody, { status: 200 }) as Response;
+        }
+        return new Response("Not Found", { status: 404 }) as Response;
+      };
+
+      const samples = await fetchShfe(CTX, today, fetchImpl as typeof fetch);
+
+      expect(samples).toHaveLength(2);
+      const close = samples.find((s) => s.metricKey === "cu_main_close");
+      expect(close?.value).toBe(78620);
+      expect(close?.observedAt).toEqual(new Date("2026-05-19T07:30:00.000Z"));
+      const warrants = samples.find((s) => s.metricKey === "cu_warrants");
+      expect(warrants?.value).toBe(32450);
+    });
+
+    it("5 天全 404 返回空数组", async () => {
+      const fetchImpl = async (url: string): Promise<Response> => {
+        if (String(url).endsWith("/robots.txt")) return new Response("") as Response;
+        return new Response("Not Found", { status: 404 }) as Response;
+      };
+
+      const samples = await fetchShfe(
+        CTX,
+        new Date("2026-05-20T07:30:00.000Z"),
+        fetchImpl as typeof fetch
+      );
+
       expect(samples).toEqual([]);
     });
   });

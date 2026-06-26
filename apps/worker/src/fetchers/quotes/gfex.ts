@@ -73,6 +73,7 @@ async function fetchGfex(
     rawBody = await fetchTextWithPolicy(GFEX_ENDPOINT, {
       timeoutMs: 8000,
       useRealUa: ctx.useRealUa ?? true,
+      insecureTLS: true,
       fetchImpl,
     });
   } catch {

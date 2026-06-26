@@ -88,4 +88,26 @@ describe("gfexAdapter", () => {
       expect(samples).toEqual([]);
     });
   });
+
+  describe("TLS 设置", () => {
+    it("发起请求时 dispatcher 非空（insecureTLS:true 已生效）", async () => {
+      let capturedDispatcher: unknown = "NOT_SET";
+      const fetchImpl = async (
+        url: string,
+        init: Record<string, unknown>
+      ): Promise<Response> => {
+        if (String(url).endsWith("/robots.txt")) return new Response("") as Response;
+        capturedDispatcher = init["dispatcher"];
+        return new Response(
+          JSON.stringify({ code: 0, data: { products: [] } }),
+          { status: 200 }
+        ) as Response;
+      };
+
+      await fetchGfex(CTX, OBSERVED_AT, fetchImpl as typeof fetch);
+
+      expect(capturedDispatcher).not.toBeUndefined();
+      expect(capturedDispatcher).not.toBeNull();
+    });
+  });
 });
