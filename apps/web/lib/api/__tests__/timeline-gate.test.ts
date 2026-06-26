@@ -157,28 +157,28 @@ describe("行业闸门 visibleItemConditions（通过 fetchTimeline 注入 db）
 
   it("① isIndustryRelated=false 的条目会被行业闸门（IS NOT FALSE）排除", async () => {
     const db = makeQueryBuilder([]);
-    await fetchTimeline({ db, filters: {} });
+    await fetchTimeline({ db: db as never, filters: {} });
     const whereArg = getWhereArg(db);
     expect(hasIndustrySqlCondition(whereArg)).toBe(true);
   });
 
   it("② includeNonIndustry=false（默认）时，WHERE 包含行业闸门 SQL 条件", async () => {
     const db = makeQueryBuilder([]);
-    await fetchTimeline({ db, filters: {}, includeNonIndustry: false });
+    await fetchTimeline({ db: db as never, filters: {}, includeNonIndustry: false });
     const whereArg = getWhereArg(db);
     expect(hasIndustrySqlCondition(whereArg)).toBe(true);
   });
 
   it("③ includeNonIndustry=true 时，WHERE 不包含行业闸门 SQL 条件（全展示）", async () => {
     const db = makeQueryBuilder([]);
-    await fetchTimeline({ db, filters: {}, includeNonIndustry: true });
+    await fetchTimeline({ db: db as never, filters: {}, includeNonIndustry: true });
     const whereArg = getWhereArg(db);
     expect(hasIndustrySqlCondition(whereArg)).toBe(false);
   });
 
   it("④ 行业闸门 SQL 包含 topCircle IN (C1,C2) 豁免", async () => {
     const db = makeQueryBuilder([]);
-    await fetchTimeline({ db, filters: {} });
+    await fetchTimeline({ db: db as never, filters: {} });
     const s = JSON.stringify(getWhereArg(db));
     expect(s).toContain("C1");
     expect(s).toContain("C2");
@@ -186,7 +186,7 @@ describe("行业闸门 visibleItemConditions（通过 fetchTimeline 注入 db）
 
   it("⑤ 行业闸门 SQL 包含 alertType IS NOT NULL 豁免", async () => {
     const db = makeQueryBuilder([]);
-    await fetchTimeline({ db, filters: {} });
+    await fetchTimeline({ db: db as never, filters: {} });
     const s = JSON.stringify(getWhereArg(db));
     expect(s).toContain("IS NOT NULL");
   });
@@ -205,7 +205,7 @@ describe("行业闸门 visibleItemConditions（通过 fetchTimeline 注入 db）
     });
     mockGetDb.mockReturnValue(db);
 
-    await fetchItemDetail(99, { db });
+    await fetchItemDetail(99, { db: db as never });
 
     const whereArg = whereDetailFn.mock.calls[0]?.[0];
     expect(hasIndustrySqlCondition(whereArg)).toBe(false);
@@ -226,7 +226,7 @@ describe("行业闸门 visibleItemConditions（通过 fetchTimeline 注入 db）
     };
     mockGetDb.mockReturnValue(db);
 
-    const result = await fetchItemDetail(404, { db });
+    const result = await fetchItemDetail(404, { db: db as never });
 
     expect(result).toBeNull();
   });

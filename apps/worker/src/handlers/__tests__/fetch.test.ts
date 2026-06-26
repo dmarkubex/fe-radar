@@ -166,7 +166,7 @@ describe("handleFetchJob keyword filter (Fix-3)", () => {
       title: string;
     }>;
     expect(candidatesArg).toHaveLength(1);
-    expect(candidatesArg[0].title).toBe("电缆行业新动态");
+    expect(candidatesArg[0]?.title).toBe("电缆行业新动态");
   });
 
   it("keywordFilter 为空数组时不过滤（全保留）", async () => {
