@@ -8,6 +8,8 @@ export function createKimiClient(): OpenAiCompatibleClient {
     apiKey: requireEnv("KIMI_API_KEY"),
     baseURL: process.env.KIMI_BASE_URL ?? "https://api.moonshot.cn/v1",
     model: process.env.KIMI_MODEL ?? "kimi-k2.6",
+    // kimi-k2.6 网关仅接受 temperature=1，发其它值会 400 invalid_request_error
+    defaultTemperature: 1,
     inputTokenCostCny: 0.000004,
     outputTokenCostCny: 0.000012
   });

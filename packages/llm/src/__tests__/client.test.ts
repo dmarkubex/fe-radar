@@ -23,6 +23,39 @@ const request = {
   user: "Return ok true.",
 };
 
+describe("OpenAiCompatibleClient temperature", () => {
+  function mk(defaultTemperature?: number) {
+    const create = vi.fn().mockResolvedValue({
+      choices: [{ message: { content: '{"ok":true}' } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    });
+    const client = new OpenAiCompatibleClient({
+      provider: "test",
+      apiKey: "k",
+      baseURL: "https://example.com/v1",
+      model: "m",
+      jsonResponseFormat: "json_object",
+      defaultTemperature,
+    });
+    (client as unknown as { client: { chat: { completions: { create: typeof create } } } }).client = {
+      chat: { completions: { create } },
+    };
+    return { client, create };
+  }
+
+  it("defaults temperature to 0.2 when no override", async () => {
+    const { client, create } = mk();
+    await client.chatJson<{ ok: boolean }>(request);
+    expect(create.mock.calls[0]?.[0].temperature).toBe(0.2);
+  });
+
+  it("uses per-client defaultTemperature when set (kimi-k2.6 requires 1)", async () => {
+    const { client, create } = mk(1);
+    await client.chatJson<{ ok: boolean }>(request);
+    expect(create.mock.calls[0]?.[0].temperature).toBe(1);
+  });
+});
+
 describe("stripMarkdownJsonFence", () => {
   it("strips closed json fences", () => {
     expect(stripMarkdownJsonFence('```json\n{"ok":true}\n```')).toBe('{"ok":true}');

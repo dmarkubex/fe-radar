@@ -39,6 +39,11 @@ export interface OpenAiCompatibleOptions {
    * - json_schema：仅尝试 json_schema，不降级
    */
   jsonResponseFormat?: "auto" | "json_schema" | "json_object";
+  /**
+   * 每客户端默认采样温度（request.temperature 未指定时生效）。
+   * 缺省回退 0.2；kimi-k2.6 仅接受 temperature=1，需在 createKimiClient 设为 1。
+   */
+  defaultTemperature?: number;
 }
 
 export class OpenAiCompatibleClient implements LlmClient {
@@ -127,7 +132,7 @@ export class OpenAiCompatibleClient implements LlmClient {
 
     return {
       model: this.options.model,
-      temperature: request.temperature ?? 0.2,
+      temperature: request.temperature ?? this.options.defaultTemperature ?? 0.2,
       messages: [
         { role: "system", content: system },
         { role: "user", content: request.user }
