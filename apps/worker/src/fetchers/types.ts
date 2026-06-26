@@ -15,6 +15,7 @@ export interface FetchContext {
 export interface RssSourceConfig {
   type: "rss";
   url: string;
+  keywordFilter?: string[];
 }
 
 export interface HtmlSourceConfig {

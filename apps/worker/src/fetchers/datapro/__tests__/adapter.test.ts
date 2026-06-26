@@ -139,13 +139,10 @@ describe("datapro adapter", () => {
     expect(roe!.period).toBe("2026Q1");
   });
 
-  it("throws FETCH_ALL_QUERIES_FAILED when all batches return empty results", async () => {
+  it("returns [] when all risk batches succeed with empty results", async () => {
     mockDataproSearch.mockResolvedValue([]);
 
-    await expect(dataproAdapter.fetch(riskConfig, ctx)).rejects.toMatchObject({
-      code: "FETCH_ALL_QUERIES_FAILED",
-      message: "dataPro 查询返回空结果",
-    });
+    await expect(dataproAdapter.fetch(riskConfig, ctx)).resolves.toEqual([]);
   });
 
   it("throws FETCH_ALL_QUERIES_FAILED when all batches fail", async () => {

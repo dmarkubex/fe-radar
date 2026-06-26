@@ -78,6 +78,20 @@ export async function handleFetchJob(job: { data: FetchSourceJob }): Promise<voi
 
   logger.info({ sourceId, sourceName: source.name, count: rawItems.length }, "fetch succeeded");
 
+  // Fix-3: 信源关键词白名单过滤（pre-dedup，减少 LLM 调用）
+  if (config.type === "rss" && config.keywordFilter && config.keywordFilter.length > 0) {
+    const kf = config.keywordFilter;
+    const before = rawItems.length;
+    rawItems = rawItems.filter((item) => {
+      const text = `${item.title} ${item.content ?? ""}`.toLowerCase();
+      return kf.some((kw) => text.includes(kw.toLowerCase()));
+    });
+    const filtered = before - rawItems.length;
+    if (filtered > 0) {
+      logger.warn({ sourceId, sourceName: source.name, filtered, kept: rawItems.length }, "keyword filter dropped items");
+    }
+  }
+
   const candidates: DedupCandidate[] = rawItems.map((item) => ({
     ...item,
     sourceId: source.id,

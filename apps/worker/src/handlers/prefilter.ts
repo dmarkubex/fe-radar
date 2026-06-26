@@ -29,6 +29,10 @@ export async function handlePrefilterJob(job: { data: PipelineJob }): Promise<vo
   );
 
   await db.update(itemAnalysis).set({
-    isIndustryRelated: result.isIndustryRelated === true,
+    isIndustryRelated: result.isIndustryRelated === true
+      ? true
+      : result.isIndustryRelated === false
+        ? false
+        : null,
   }).where(eq(itemAnalysis.itemId, itemId));
 }

@@ -75,18 +75,27 @@ describe("handlePrefilterJob", () => {
     expect(db._updateWhere).toHaveBeenCalledTimes(1);
   });
 
-  it("boundary: non-true result (\"unknown\") is coerced to isIndustryRelated=false", async () => {
+  it("boundary: 'unknown' result → isIndustryRelated=null (fail-open)", async () => {
     const db = makeDb([{ title: "无关新闻", content: null }]);
     mockRunPrefilter.mockResolvedValue({ isIndustryRelated: "unknown", reason: "x" });
 
     await handlePrefilterJob({ data: { itemId: 7 } as never });
 
-    // content null → falls back to title; result not strictly true → false
+    // content null → falls back to title; unknown stays pending.
     expect(mockRunPrefilter).toHaveBeenCalledWith(
       { title: "无关新闻", content: "无关新闻" },
       expect.anything(),
       expect.anything(),
     );
+    expect(db._updateSet).toHaveBeenCalledWith({ isIndustryRelated: null });
+  });
+
+  it("explicit false result → isIndustryRelated=false", async () => {
+    const db = makeDb([{ title: "美股大盘", content: "无关内容" }]);
+    mockRunPrefilter.mockResolvedValue({ isIndustryRelated: false, reason: "not industry" });
+
+    await handlePrefilterJob({ data: { itemId: 5 } as never });
+
     expect(db._updateSet).toHaveBeenCalledWith({ isIndustryRelated: false });
   });
 

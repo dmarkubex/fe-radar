@@ -4,7 +4,7 @@
  * 通过 dataPro MCP 搜索接口按批次查询企业风险或财务数据。
  *
  * 约束：
- * - 失败 throw（不返回 []）— dataPro 走通用 fetch handler，空结果会被 markSourceSuccess
+ * - 全批次异常 throw；请求成功但业务空结果返回 []，由 fetch handler 标记本轮成功
  * - query 发送前必经 scrubText 检查；若 level='block' 则跳过该批次（PII 阈值）
  * - 禁止 LLM 抽取数值（直接取 table 键值）
  * - 禁止调 LLM
