@@ -84,6 +84,7 @@ function mockInsertChain(returnRows: unknown[] = [{ id: 42 }]) {
   const chain: Record<string, ReturnType<typeof vi.fn>> = {};
   chain.values = vi.fn().mockReturnValue(chain);
   chain.onConflictDoNothing = vi.fn().mockReturnValue(chain);
+  chain.onConflictDoUpdate = vi.fn().mockReturnValue(chain);
   chain.returning = vi.fn().mockResolvedValue(returnRows);
   return chain;
 }
@@ -384,5 +385,74 @@ describe("briefing-gen", () => {
 
     // docx render should NOT have been called
     expect(renderBriefingFn).not.toHaveBeenCalled();
+  });
+
+  // ── Case 8: force=true → LLM called + onConflictDoUpdate used ──────────
+  it("force=true proceeds to LLM generation and uses onConflictDoUpdate for upsert", async () => {
+    const insertChain: Record<string, ReturnType<typeof vi.fn>> = {};
+    insertChain.values = vi.fn().mockReturnValue(insertChain);
+    insertChain.onConflictDoNothing = vi.fn().mockReturnValue(insertChain);
+    insertChain.onConflictDoUpdate = vi.fn().mockReturnValue(insertChain);
+    insertChain.returning = vi.fn().mockResolvedValue([{ id: 101 }]);
+
+    const db = { ...buildDb(), insert: vi.fn().mockReturnValue(insertChain) };
+    const mockQueue = {
+      getJobCounts: vi.fn().mockResolvedValue({ waiting: 0, active: 0, delayed: 0 }),
+    };
+
+    const result = await runBriefingGen({
+      db: db as never,
+      now: new Date("2026-05-20T08:00:00Z"),
+      quotesFetchQueueOverride: mockQueue,
+      retryDelayMs: 0,
+      force: true,
+    });
+
+    expect(["succeeded", "degraded"]).toContain(result.status);
+    expect(result.briefingId).toBe(101);
+    // LLM must be called (not short-circuited by duplicate check)
+    expect(llmRunBriefingGenFn).toHaveBeenCalledOnce();
+    // Must use upsert path, not idempotent-doNothing path
+    expect(insertChain.onConflictDoUpdate).toHaveBeenCalledOnce();
+    expect(insertChain.onConflictDoNothing).not.toHaveBeenCalled();
+  });
+
+  // ── Case 9: force omitted + existing briefing → short-circuit (preserves original behavior) ──
+  it("force omitted: short-circuits on existing briefing, skips LLM and insert", async () => {
+    const existingRow = [{ id: 999, docxPath: "briefings/2026/05/existing.docx" }];
+    let selectCallCount = 0;
+    const selectFn = vi.fn().mockImplementation(() => {
+      selectCallCount++;
+      // call 1: loadHolidaySet → [] (no holidays → business day check passes)
+      // call 2: duplicate-check → returns existing row → triggers early return
+      const rows: unknown[] = selectCallCount >= 2 ? existingRow : [];
+      const chain: Record<string, unknown> = {};
+      chain.from = vi.fn().mockReturnValue(chain);
+      chain.where = vi.fn().mockReturnValue(chain);
+      chain.innerJoin = vi.fn().mockReturnValue(chain);
+      chain.orderBy = vi.fn().mockReturnValue(chain);
+      chain.limit = vi.fn().mockResolvedValue(rows);
+      chain.then = (resolve: (v: unknown) => void) => resolve(rows);
+      return chain;
+    });
+    const insertFn = vi.fn();
+    const db = { select: selectFn, insert: insertFn };
+
+    // Note: no quotesFetchQueueOverride needed — the function returns at the
+    // duplicate-check step, before step 0 (queue precheck) is reached.
+    const result = await runBriefingGen({
+      db: db as never,
+      now: new Date("2026-05-20T08:00:00Z"),
+      retryDelayMs: 0,
+      // force not passed → undefined (falsy) → duplicate-check runs
+    });
+
+    expect(result.status).toBe("succeeded");
+    expect(result.briefingId).toBe(999);
+    expect(result.docxPath).toBe("briefings/2026/05/existing.docx");
+    // LLM must NOT be called (short-circuited at duplicate-check)
+    expect(llmRunBriefingGenFn).not.toHaveBeenCalled();
+    // No insert should have been attempted
+    expect(insertFn).not.toHaveBeenCalled();
   });
 });

@@ -106,6 +106,7 @@ export const BRIEFING_GEN_SCHEDULE_TZ = "Asia/Shanghai";
 
 export interface BriefingGenJob {
   briefingDate?: string; // YYYY-MM-DD; omit to use today
+  force?: boolean; // skip duplicate-check; upsert on persist
 }
 
 export function createBriefingGenQueue(connection = createRedisConnection()): Queue<BriefingGenJob> {

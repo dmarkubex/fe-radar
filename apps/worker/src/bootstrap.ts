@@ -228,7 +228,7 @@ export async function startWorker(): Promise<WorkerRuntime> {
     QUEUE_BRIEFING_GEN,
     async (job) => {
       logger.info({ jobId: job.id }, "processing briefing-gen job");
-      const result = await runBriefingGenJob({ now: job.data.briefingDate ? new Date(job.data.briefingDate) : undefined });
+      const result = await runBriefingGenJob({ now: job.data.briefingDate ? new Date(job.data.briefingDate) : undefined, force: job.data.force });
       logger.info(result, "briefing-gen completed");
     },
     { connection, concurrency: 1 },

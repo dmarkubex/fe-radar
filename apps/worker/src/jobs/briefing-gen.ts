@@ -226,6 +226,8 @@ export interface BriefingGenOptions {
   };
   /** Override sleep delay for testing (set to 0) */
   retryDelayMs?: number;
+  /** If true: skip duplicate-check and upsert (overwrite) existing row on persist */
+  force?: boolean;
 }
 
 export async function runBriefingGen(
@@ -245,20 +247,22 @@ export async function runBriefingGen(
     return { status: "skipped" };
   }
 
-  // ── Duplicate check ────────────────────────────────────────
-  const [existing] = await db
-    .select({ id: commodityBriefings.id, docxPath: commodityBriefings.docxPath })
-    .from(commodityBriefings)
-    .where(eq(commodityBriefings.briefingDate, briefingDateKey))
-    .limit(1);
+  // ── Duplicate check (skipped when force=true) ──────────────
+  if (!options.force) {
+    const [existing] = await db
+      .select({ id: commodityBriefings.id, docxPath: commodityBriefings.docxPath })
+      .from(commodityBriefings)
+      .where(eq(commodityBriefings.briefingDate, briefingDateKey))
+      .limit(1);
 
-  if (existing) {
-    logger.info({ briefingDate: todayStr, briefingId: existing.id }, "briefing-gen skipped: already generated for today");
-    return {
-      status: "succeeded",
-      briefingId: existing.id,
-      docxPath: existing.docxPath ?? undefined,
-    };
+    if (existing) {
+      logger.info({ briefingDate: todayStr, briefingId: existing.id }, "briefing-gen skipped: already generated for today");
+      return {
+        status: "succeeded",
+        briefingId: existing.id,
+        docxPath: existing.docxPath ?? undefined,
+      };
+    }
   }
 
   // ── Step 0: quotes-fetch queue precheck (v0.4 fix E1) ─────
@@ -283,7 +287,7 @@ export async function runBriefingGen(
           { counts, retries: queueRetries },
           "briefing-gen aborted: quotes-fetch queue still non-empty after max retries"
         );
-        await persistBriefing(db, todayStr, {}, null, "failed", "quotes-fetch queue non-empty after max retries");
+        await persistBriefing(db, todayStr, {}, null, "failed", "quotes-fetch queue non-empty after max retries", options.force);
         return {
           status: "failed",
           genError: "quotes-fetch queue non-empty after max retries",
@@ -354,7 +358,7 @@ export async function runBriefingGen(
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
     logger.error({ error, briefingDate: todayStr }, "briefing-gen: LLM generation failed");
-    await persistBriefing(db, todayStr, {}, null, "failed", errMsg);
+    await persistBriefing(db, todayStr, {}, null, "failed", errMsg, options.force);
     return { status: "failed", genError: errMsg };
   }
 
@@ -411,7 +415,7 @@ export async function runBriefingGen(
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
     logger.error({ error, briefingDate: todayStr }, "briefing-gen: docx render failed");
-    await persistBriefing(db, todayStr, payloadJson, null, "failed", errMsg);
+    await persistBriefing(db, todayStr, payloadJson, null, "failed", errMsg, options.force);
     return { status: "failed", genError: errMsg };
   }
 
@@ -423,7 +427,8 @@ export async function runBriefingGen(
     payloadJson,
     docxPath,
     finalStatus,
-    null
+    null,
+    options.force
   );
 
   // ── Enqueue briefing-push on success ──────────────────────
@@ -468,23 +473,47 @@ async function persistBriefing(
   payloadJson: object,
   docxPath: string | null,
   genStatus: "succeeded" | "degraded" | "failed",
-  genError: string | null
+  genError: string | null,
+  force?: boolean
 ): Promise<number> {
+  const values = {
+    briefingDate,
+    templateVersion: 1,
+    payloadJson,
+    docxPath,
+    genStatus,
+    genError,
+    generatedAt: new Date(),
+  };
+
+  if (force) {
+    // Force-regenerate: upsert to overwrite any existing row for this date.
+    const [row] = await db
+      .insert(commodityBriefings)
+      .values(values)
+      .onConflictDoUpdate({
+        target: commodityBriefings.briefingDate,
+        set: {
+          payloadJson,
+          docxPath,
+          genStatus,
+          genError,
+          generatedAt: new Date(),
+        },
+      })
+      .returning({ id: commodityBriefings.id });
+    return row?.id ?? 0;
+  }
+
+  // Normal path: idempotent insert (do nothing on conflict).
   const [row] = await db
     .insert(commodityBriefings)
-    .values({
-      briefingDate,
-      templateVersion: 1,
-      payloadJson,
-      docxPath,
-      genStatus,
-      genError,
-      generatedAt: new Date(),
-    })
+    .values(values)
     .onConflictDoNothing()
     .returning({ id: commodityBriefings.id });
 
-  // If onConflictDoNothing fired (already exists), fetch existing id
+  // If onConflictDoNothing fired (race condition: another worker already inserted),
+  // fetch the existing row's id.
   if (!row) {
     const [existing] = await db
       .select({ id: commodityBriefings.id })
