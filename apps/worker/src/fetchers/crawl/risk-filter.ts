@@ -1,8 +1,70 @@
-import { isRelevantRiskResult } from "@fe-radar/core";
+import { isRelevantRiskResult, matchesAnyKeyword } from "@fe-radar/core";
 import { SourceFetchError } from "@fe-radar/shared";
 import type { StandardItem } from "../types";
 import { dedupeStandardItems } from "../announcements/litigation-filter";
 import type { CrawlSourceConfig, FirecrawlSearchResult } from "./types";
+
+// Built-in URL patterns that identify noise pages
+const BUILTIN_NOISE_URL_SUBSTRINGS = ["/realstock/", "/company/", "quote.", "guba."] as const;
+
+// Site suffix patterns stripped from titles (order matters: longer first)
+const TITLE_SITE_SUFFIXES = ["_新浪财经", "_东方财富网", "_东方财富", "_新浪"] as const;
+
+// Regex: title contains a 6-digit stock code AND at least one noise keyword → noise page
+const STOCK_CODE_RE = /\d{6}/;
+const BUILTIN_NOISE_TITLE_KEYWORDS = ["行情", "新股发行", "股吧", "_新浪财经", "_东方财富"] as const;
+
+function matchesPattern(text: string, pattern: string): boolean {
+  try {
+    return new RegExp(pattern, "i").test(text);
+  } catch {
+    return text.toLowerCase().includes(pattern.toLowerCase());
+  }
+}
+
+export function isNoisePage(url: string, title: string, config: CrawlSourceConfig): boolean {
+  const lowerUrl = url.toLowerCase();
+
+  for (const pattern of BUILTIN_NOISE_URL_SUBSTRINGS) {
+    if (lowerUrl.includes(pattern)) {
+      return true;
+    }
+  }
+
+  if (STOCK_CODE_RE.test(title)) {
+    const hasNoiseKeyword = BUILTIN_NOISE_TITLE_KEYWORDS.some((kw) => title.includes(kw));
+    if (hasNoiseKeyword) {
+      return true;
+    }
+  }
+
+  if (Array.isArray(config.excludeUrlPatterns)) {
+    for (const pattern of config.excludeUrlPatterns) {
+      if (typeof pattern === "string" && pattern.trim() && matchesPattern(url, pattern)) {
+        return true;
+      }
+    }
+  }
+
+  if (Array.isArray(config.excludeTitlePatterns)) {
+    for (const pattern of config.excludeTitlePatterns) {
+      if (typeof pattern === "string" && pattern.trim() && matchesPattern(title, pattern)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function stripTitleSiteSuffix(title: string): string {
+  for (const suffix of TITLE_SITE_SUFFIXES) {
+    if (title.endsWith(suffix)) {
+      return title.slice(0, -suffix.length).trimEnd();
+    }
+  }
+  return title;
+}
 
 export function resolveCrawlQueries(config: CrawlSourceConfig): string[] {
   if (!Array.isArray(config.queries)) {
@@ -59,10 +121,12 @@ export function mapFirecrawlResultToStandardItem(
   maxContentLength: number
 ): StandardItem | null {
   const url = result.url?.trim() || result.metadata?.sourceURL?.trim();
-  const title = result.title?.trim() || result.metadata?.title?.trim();
-  if (!url || !title) {
+  const rawTitle = result.title?.trim() || result.metadata?.title?.trim();
+  if (!url || !rawTitle) {
     return null;
   }
+
+  const title = stripTitleSiteSuffix(rawTitle);
 
   return {
     url,
@@ -91,14 +155,17 @@ export function filterRiskResults(
     throw new SourceFetchError("FETCH_CONFIG", "crawl riskFilter requires entityKeywords and riskKeywords");
   }
 
-  return items.filter((item) =>
-    isRelevantRiskResult(
-      item.title,
-      item.content,
-      entityKeywords,
-      riskKeywords
-    )
-  );
+  return items
+    .filter((item) => !isNoisePage(item.url, item.title, config))
+    .filter((item) => {
+      if (config.requireRiskKeywordInTitle === true) {
+        return (
+          matchesAnyKeyword(item.title, riskKeywords) &&
+          matchesAnyKeyword(`${item.title}\n${item.content}`, entityKeywords)
+        );
+      }
+      return isRelevantRiskResult(item.title, item.content, entityKeywords, riskKeywords);
+    });
 }
 
 export function mergeFirecrawlResults(items: StandardItem[]): StandardItem[] {

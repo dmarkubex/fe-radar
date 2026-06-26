@@ -182,16 +182,19 @@ export function resolveCninfoItemContent(record: CninfoAnnouncementRecord): stri
 }
 
 export function mapCninfoRecordToStandardItem(record: CninfoAnnouncementRecord): StandardItem | null {
-  const title = record.announcementTitle?.trim();
+  const announcementTitle = record.announcementTitle?.trim();
   const url = buildCninfoDetailUrl(
     typeof record.announcementId === "string" ? record.announcementId : undefined,
     record.adjunctUrl
   );
   const publishedAt = parseCninfoTimestamp(record.announcementTime);
 
-  if (!title || !url || !publishedAt) {
+  if (!announcementTitle || !url || !publishedAt) {
     return null;
   }
+
+  const secName = record.secName?.trim();
+  const title = secName ? `${secName} ${announcementTitle}` : announcementTitle;
 
   return {
     title,

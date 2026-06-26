@@ -126,16 +126,41 @@ describe("cninfo adapter helpers", () => {
       secCode: "600869",
       secName: "远东股份",
       announcementId: "abc",
-      announcementTitle: "远东股份：关于项目中标的公告",
+      announcementTitle: "关于项目中标的公告",
       adjunctUrl: "/test.pdf",
       announcementTime: 1748304000000,
     });
 
     expect(item).toMatchObject({
-      title: "远东股份：关于项目中标的公告",
-      content: "远东股份：关于项目中标的公告",
+      title: "远东股份 关于项目中标的公告",
+      content: "关于项目中标的公告",
     });
     expect(item?.publishedAt).toBeInstanceOf(Date);
+  });
+
+  it("uses announcementTitle alone when secName is absent", () => {
+    const item = cninfo.mapCninfoRecordToStandardItem({
+      announcementId: "xyz",
+      announcementTitle: "2025/26中期报告",
+      adjunctUrl: "/test.pdf",
+      announcementTime: 1748304000000,
+    });
+
+    expect(item?.title).toBe("2025/26中期报告");
+  });
+
+  it("prepends secName to announcementTitle when secName is present", () => {
+    const item = cninfo.mapCninfoRecordToStandardItem({
+      secCode: "600973",
+      secName: "宝胜股份",
+      announcementId: "def",
+      announcementTitle: "2025/26中期报告",
+      adjunctUrl: "/report.pdf",
+      announcementTime: 1748304000000,
+    });
+
+    expect(item?.title).toBe("宝胜股份 2025/26中期报告");
+    expect(item?.content).toBe("2025/26中期报告");
   });
 
   it("drops records with missing required fields", () => {
@@ -232,8 +257,8 @@ describe("cninfoAdapter.fetch", () => {
     const items = await cninfo.cninfoAdapter.fetch({ sourceName: "巨潮资讯" });
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
-      title: "远东股份：关于项目中标的公告",
-      content: "远东股份：关于项目中标的公告",
+      title: "远东股份 关于项目中标的公告",
+      content: "关于项目中标的公告",
     });
     expect(items[0]?.url).toContain("static.cninfo.com.cn");
   });

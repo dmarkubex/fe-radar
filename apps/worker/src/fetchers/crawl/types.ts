@@ -20,6 +20,12 @@ export interface CrawlSourceConfig {
   riskFilter?: boolean;
   entityKeywords?: string[];
   riskKeywords?: string[];
+  /** URL substring or regex patterns to exclude as noise (case-insensitive) */
+  excludeUrlPatterns?: string[];
+  /** Title substring or regex patterns to exclude as noise (case-insensitive) */
+  excludeTitlePatterns?: string[];
+  /** When true, riskFilter requires a risk keyword to appear in the title (not just content) */
+  requireRiskKeywordInTitle?: boolean;
   /** 摘要最大字符数（不存 HTML） */
   maxContentLength?: number;
   [key: string]: unknown;
