@@ -3,7 +3,9 @@ import { PageHeader } from "@/components/layout/page-header";
 import { SearchBox } from "@/components/search/search-box";
 import { FilterBar } from "@/components/timeline/filter-bar";
 import { TimelineList } from "@/components/timeline/timeline-list";
+import { auth } from "@/auth";
 import { fetchTimeline } from "@/lib/api/timeline-query";
+import { hasRole } from "@/lib/auth/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +42,8 @@ export default async function ItemsPage({ searchParams }: { searchParams: PageSe
   };
   const initialData = await fetchTimeline({ search: q || undefined, filters, limit: 50 });
   const endpoint = endpointFromParams(params);
+  const session = await auth();
+  const canCreatePrediction = hasRole(session?.user?.role, "editor");
 
   return (
     <PageFrame size="wide">
@@ -58,7 +62,11 @@ export default async function ItemsPage({ searchParams }: { searchParams: PageSe
         <span>{q ? `QUERY · ${q}` : "LATEST"}</span>
       </div>
 
-      <TimelineList endpoint={endpoint} initialData={initialData} />
+      <TimelineList
+        canCreatePrediction={canCreatePrediction}
+        endpoint={endpoint}
+        initialData={initialData}
+      />
     </PageFrame>
   );
 }

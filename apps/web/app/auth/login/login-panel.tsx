@@ -25,7 +25,7 @@ export function LoginPanel({ dingtalkEnabled, localLoginAllowed }: LoginPanelPro
         <div className="text-fg-muted text-sm mb-6">使用本地账号登录</div>
         <LocalLoginForm />
         <small className="mt-6 block text-fg-soft text-xs">
-          本地账号模式 · 需 admin 预置（admin / admin123）
+          本地账号模式；需 admin 预置（admin / admin123）
         </small>
       </>
     );
@@ -39,7 +39,7 @@ export function LoginPanel({ dingtalkEnabled, localLoginAllowed }: LoginPanelPro
           钉钉扫码登录
         </h2>
         <div className="text-fg-muted text-sm mb-6">
-          使用集团钉钉账号扫码进入 · 首次登录默认 viewer 权限
+          使用集团钉钉账号扫码进入，首次登录默认 viewer 权限
         </div>
 
         {/* DingTalk QR */}
@@ -51,7 +51,7 @@ export function LoginPanel({ dingtalkEnabled, localLoginAllowed }: LoginPanelPro
           </div>
           <div className="font-mono text-[10px] tracking-[1px] text-fg-soft flex items-center gap-2">
             <span className="inline-block w-1.5 h-1.5 bg-ok rounded-full" />
-            等待扫码 · 二维码 90 秒后自动刷新
+            等待扫码，二维码 90 秒后自动刷新
           </div>
           <div className="text-[12px] text-fg-muted text-center">
             打开钉钉 APP → 右上角 + → 扫一扫

@@ -1,0 +1,247 @@
+{
+  "root": "/Volumes/SD/AI-Timeline-web/output/product-launch-assets-2026-06-28",
+  "items": [
+    {
+      "path": "README.md",
+      "bytes": 1458,
+      "sha256_12": "f62489acbb11"
+    },
+    {
+      "path": "asset-manifest.json",
+      "bytes": 5779,
+      "sha256_12": "f30e26852e31"
+    },
+    {
+      "path": "brand/brand-guidelines.md",
+      "bytes": 3161,
+      "sha256_12": "88e5ba40e7f5"
+    },
+    {
+      "path": "brand/brand-palette.png",
+      "bytes": 28838,
+      "sha256_12": "33e34cc9d6ac",
+      "width": 1280,
+      "height": 420,
+      "mode": "RGB",
+      "has_alpha": false
+    },
+    {
+      "path": "brand/fareast-logo-transparent.png",
+      "bytes": 367029,
+      "sha256_12": "4a1851ef7302",
+      "width": 3150,
+      "height": 551,
+      "mode": "RGBA",
+      "has_alpha": true
+    },
+    {
+      "path": "brand/fareast-logo-white.png",
+      "bytes": 47006,
+      "sha256_12": "0350e75a7e17",
+      "width": 3150,
+      "height": 551,
+      "mode": "RGBA",
+      "has_alpha": true
+    },
+    {
+      "path": "brand/fareast-symbol-transparent.png",
+      "bytes": 288723,
+      "sha256_12": "cbf553c8c7b8",
+      "width": 780,
+      "height": 549,
+      "mode": "RGBA",
+      "has_alpha": true
+    },
+    {
+      "path": "existing/high-res-originals.md",
+      "bytes": 2293,
+      "sha256_12": "03d6f447742c"
+    },
+    {
+      "path": "existing/logos/fareast-logo-design-original.png",
+      "bytes": 359823,
+      "sha256_12": "391b72555574",
+      "width": 3232,
+      "height": 645,
+      "mode": "RGBA",
+      "has_alpha": true
+    },
+    {
+      "path": "existing/logos/fareast-logo-original.png",
+      "bytes": 359823,
+      "sha256_12": "391b72555574",
+      "width": 3232,
+      "height": 645,
+      "mode": "RGBA",
+      "has_alpha": true
+    },
+    {
+      "path": "existing/showcase/style-side-by-side-old.jpg",
+      "bytes": 259854,
+      "sha256_12": "1c8fdd508115",
+      "width": 1700,
+      "height": 1920,
+      "mode": "RGB",
+      "has_alpha": false
+    },
+    {
+      "path": "existing/ui/01-dashboard.png",
+      "bytes": 234066,
+      "sha256_12": "7b18a00bb15e",
+      "width": 1696,
+      "height": 1276,
+      "mode": "RGBA",
+      "has_alpha": true
+    },
+    {
+      "path": "existing/ui/02-dashboard-alt.png",
+      "bytes": 234066,
+      "sha256_12": "7b18a00bb15e",
+      "width": 1696,
+      "height": 1276,
+      "mode": "RGBA",
+      "has_alpha": true
+    },
+    {
+      "path": "existing/ui/03-detail.png",
+      "bytes": 157278,
+      "sha256_12": "8af42179c0be",
+      "width": 1140,
+      "height": 693,
+      "mode": "RGBA",
+      "has_alpha": true
+    },
+    {
+      "path": "existing/ui/04-digest.png",
+      "bytes": 119444,
+      "sha256_12": "e931151c2234",
+      "width": 1115,
+      "height": 605,
+      "mode": "RGBA",
+      "has_alpha": true
+    },
+    {
+      "path": "existing/ui/05-timeline.png",
+      "bytes": 46798,
+      "sha256_12": "211c80fb951d",
+      "width": 1339,
+      "height": 366,
+      "mode": "RGBA",
+      "has_alpha": true
+    },
+    {
+      "path": "existing/ui/06-source-admin.png",
+      "bytes": 54058,
+      "sha256_12": "bb9c196c53e8",
+      "width": 1292,
+      "height": 386,
+      "mode": "RGBA",
+      "has_alpha": true
+    },
+    {
+      "path": "existing/ui/07-curated.png",
+      "bytes": 97723,
+      "sha256_12": "c85ee718d561",
+      "width": 990,
+      "height": 519,
+      "mode": "RGBA",
+      "has_alpha": true
+    },
+    {
+      "path": "existing/video-frames/ai-agent-launch-frame0.png",
+      "bytes": 178135,
+      "sha256_12": "370d847a7b5c",
+      "width": 480,
+      "height": 270,
+      "mode": "RGB",
+      "has_alpha": false
+    },
+    {
+      "path": "existing/video-frames/fe-radar-contact-sheet.jpg",
+      "bytes": 32348,
+      "sha256_12": "5d5794abd7e6",
+      "width": 1920,
+      "height": 432,
+      "mode": "RGB",
+      "has_alpha": false
+    },
+    {
+      "path": "existing/video-frames/fe-radar-frame0.png",
+      "bytes": 42752,
+      "sha256_12": "b3ef7e2e4451",
+      "width": 480,
+      "height": 270,
+      "mode": "RGB",
+      "has_alpha": false
+    },
+    {
+      "path": "existing/video-frames/fe-radar-studio-manual-1920x1080.png",
+      "bytes": 246968,
+      "sha256_12": "82a3f67856a5",
+      "width": 1920,
+      "height": 1080,
+      "mode": "RGB",
+      "has_alpha": false
+    },
+    {
+      "path": "generated/01-industrial-command-center.png",
+      "bytes": 2033360,
+      "sha256_12": "8020332cfda1",
+      "width": 1920,
+      "height": 1080,
+      "mode": "RGB",
+      "has_alpha": false
+    },
+    {
+      "path": "generated/02-source-risk-radar.png",
+      "bytes": 1413148,
+      "sha256_12": "d157638f5990",
+      "width": 1920,
+      "height": 1080,
+      "mode": "RGB",
+      "has_alpha": false
+    },
+    {
+      "path": "generated/03-commodity-briefing-desk.png",
+      "bytes": 1938805,
+      "sha256_12": "583364196e72",
+      "width": 1920,
+      "height": 1080,
+      "mode": "RGB",
+      "has_alpha": false
+    },
+    {
+      "path": "prompts/business-context-image-prompts.md",
+      "bytes": 2878,
+      "sha256_12": "412ae51ef0e9"
+    },
+    {
+      "path": "qc/existing-assets-contact-sheet.jpg",
+      "bytes": 199987,
+      "sha256_12": "998197534482",
+      "width": 1300,
+      "height": 1240,
+      "mode": "RGB",
+      "has_alpha": false
+    },
+    {
+      "path": "qc/generated-assets-contact-sheet.jpg",
+      "bytes": 105833,
+      "sha256_12": "29685afd7999",
+      "width": 1920,
+      "height": 412,
+      "mode": "RGB",
+      "has_alpha": false
+    },
+    {
+      "path": "qc/verification.md",
+      "bytes": 1907,
+      "sha256_12": "5b94a2942d02"
+    },
+    {
+      "path": "script/product-launch-video-script.md",
+      "bytes": 5251,
+      "sha256_12": "84bef73503ca"
+    }
+  ]
+}

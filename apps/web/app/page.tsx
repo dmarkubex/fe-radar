@@ -2,7 +2,9 @@ import { PageFrame } from "@/components/layout/page-frame";
 import { PageHeader } from "@/components/layout/page-header";
 import { FilterBar } from "@/components/timeline/filter-bar";
 import { TimelineList } from "@/components/timeline/timeline-list";
+import { auth } from "@/auth";
 import { fetchTimeline } from "@/lib/api/timeline-query";
+import { hasRole } from "@/lib/auth/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +36,8 @@ export default async function HomePage({ searchParams }: { searchParams: PageSea
     eventType: first(params.eventType)
   };
   const initialData = await fetchTimeline({ filters });
+  const session = await auth();
+  const canCreatePrediction = hasRole(session?.user?.role, "editor");
 
   const totalCount = initialData.items.length;
   const alertCount = initialData.items.filter((i) => i.alertType === "own").length;
@@ -44,7 +48,7 @@ export default async function HomePage({ searchParams }: { searchParams: PageSea
       <PageHeader
         eyebrow="时间线 · TIMELINE"
         title="全量信息流"
-        description="时间倒序排列，每条经 8 阶段 pipeline 处理：去重 · NER · 5 维评分 · 聚簇 · 告警判定。左侧色条 = 关注圈 / 告警类型，右侧评分面板可展开详情。"
+        description="时间倒序排列，每条经 8 阶段 pipeline 处理：去重、NER、5 维评分、聚簇、告警判定。左侧色条 = 关注圈 / 告警类型，右侧评分面板可展开详情。"
       />
 
       <div className="stats-bar grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -56,7 +60,12 @@ export default async function HomePage({ searchParams }: { searchParams: PageSea
 
       <FilterBar />
 
-      <TimelineList endpoint={endpointFromParams(params)} initialData={initialData} variant="timeline" />
+      <TimelineList
+        canCreatePrediction={canCreatePrediction}
+        endpoint={endpointFromParams(params)}
+        initialData={initialData}
+        variant="timeline"
+      />
     </PageFrame>
   );
 }

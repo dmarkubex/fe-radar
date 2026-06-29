@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FeedbackButtons } from "@/components/timeline/feedback-buttons";
+import { MirofishPredictionButton } from "@/components/timeline/mirofish-prediction-button";
 import {
   entityTypeLabel,
   formatAppTime,
@@ -13,7 +14,15 @@ import {
 
 import type { ItemDetailDto } from "@/lib/api/timeline-query";
 
-export function ItemDetailDialog({ itemId, onClose }: { itemId: number | null; onClose: () => void }): React.JSX.Element | null {
+export function ItemDetailDialog({
+  canCreatePrediction,
+  itemId,
+  onClose
+}: {
+  canCreatePrediction: boolean;
+  itemId: number | null;
+  onClose: () => void;
+}): React.JSX.Element | null {
   const [item, setItem] = useState<ItemDetailDto | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -147,6 +156,7 @@ export function ItemDetailDialog({ itemId, onClose }: { itemId: number | null; o
             </section>
 
             <FeedbackButtons itemId={item.id} />
+            {canCreatePrediction ? <MirofishPredictionButton itemId={item.id} /> : null}
           </div>
         ) : (
           <div className="p-5 text-sm text-zinc-600">{loading ? "加载中" : "该条目不存在或当前账号不可访问。"}</div>

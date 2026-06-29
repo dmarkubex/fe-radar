@@ -1,7 +1,9 @@
 import { SearchBox } from "@/components/search/search-box";
 import { FilterBar } from "@/components/timeline/filter-bar";
 import { TimelineList } from "@/components/timeline/timeline-list";
+import { auth } from "@/auth";
 import { fetchTimeline } from "@/lib/api/timeline-query";
+import { hasRole } from "@/lib/auth/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,8 @@ export default async function SearchPage({ searchParams }: { searchParams: PageS
     eventType: first(params.eventType)
   };
   const initialData = q ? await fetchTimeline({ search: q, filters }) : { items: [], nextCursor: null };
+  const session = await auth();
+  const canCreatePrediction = hasRole(session?.user?.role, "editor");
   const query = new URLSearchParams();
   query.set("q", q);
   for (const key of ["category", "circle", "tier", "alertType", "eventType"] as const) {
@@ -40,7 +44,15 @@ export default async function SearchPage({ searchParams }: { searchParams: PageS
       </header>
       <SearchBox initialQuery={q} />
       <FilterBar />
-      {q ? <TimelineList endpoint={endpoint} initialData={initialData} /> : <div className="rounded-lg border border-zinc-200 bg-white p-8 text-sm text-zinc-500">输入关键词后开始检索</div>}
+      {q ? (
+        <TimelineList
+          canCreatePrediction={canCreatePrediction}
+          endpoint={endpoint}
+          initialData={initialData}
+        />
+      ) : (
+        <div className="rounded-lg border border-zinc-200 bg-white p-8 text-sm text-zinc-500">输入关键词后开始检索</div>
+      )}
     </main>
   );
 }

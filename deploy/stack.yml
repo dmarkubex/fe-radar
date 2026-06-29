@@ -10,6 +10,9 @@ services:
       REDIS_URL: redis://redis:6379
       NEXTAUTH_URL: http://fe-radar.internal
       NEXTAUTH_SECRET_FILE: /run/secrets/nextauth_secret
+      MIROFISH_API_BASE_URL: ${MIROFISH_API_BASE_URL:-http://mirofish:5001}
+      MIROFISH_WEB_BASE_URL: ${MIROFISH_WEB_BASE_URL:?set MIROFISH_WEB_BASE_URL in Portainer stack environment}
+      MIROFISH_REQUEST_TIMEOUT_MS: ${MIROFISH_REQUEST_TIMEOUT_MS:-300000}
       REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users,public.commodity_briefings,public.commodity_quotes,public.briefing_targets,public.briefing_template_fields
       DB_WAIT_TIMEOUT_SECONDS: "180"
       BRIEFING_MINIO_BUCKET: fe-radar-briefings
@@ -34,6 +37,48 @@ services:
         mode: ingress
     deploy:
       replicas: 2
+      restart_policy:
+        condition: on-failure
+
+  mirofish:
+    image: harborssl.fegroup.cn/custom-project/mirofish:latest
+    command:
+      - /bin/sh
+      - -lc
+      - |
+        export LLM_API_KEY="$$(cat /run/secrets/mirofish_llm_api_key)"
+        export ZEP_API_KEY="$$(cat /run/secrets/mirofish_zep_api_key)"
+        export SECRET_KEY="$$(cat /run/secrets/mirofish_secret_key)"
+        exec npm run dev
+    environment:
+      TZ: Asia/Shanghai
+      NODE_ENV: production
+      FLASK_DEBUG: "false"
+      FLASK_HOST: 0.0.0.0
+      FLASK_PORT: "5001"
+      LLM_BASE_URL: ${MIROFISH_LLM_BASE_URL:?set MIROFISH_LLM_BASE_URL in Portainer stack environment}
+      LLM_MODEL_NAME: ${MIROFISH_LLM_MODEL_NAME:-qwen-plus}
+      VITE_API_BASE_URL: ${MIROFISH_PUBLIC_API_BASE_URL:?set MIROFISH_PUBLIC_API_BASE_URL in Portainer stack environment}
+    secrets:
+      - mirofish_llm_api_key
+      - mirofish_zep_api_key
+      - mirofish_secret_key
+    volumes:
+      - mirofish_uploads:/app/backend/uploads
+    networks:
+      - internal
+      - edge
+    ports:
+      - target: 3000
+        published: ${MIROFISH_WEB_PORT:-3001}
+        protocol: tcp
+        mode: ingress
+      - target: 5001
+        published: ${MIROFISH_API_PORT:-5001}
+        protocol: tcp
+        mode: ingress
+    deploy:
+      replicas: 1
       restart_policy:
         condition: on-failure
 
@@ -249,6 +294,7 @@ volumes:
   redis_data:
   minio_data:
   grafana_data:
+  mirofish_uploads:
 
 secrets:
   db_password:
@@ -274,6 +320,12 @@ secrets:
   datapro_agent_plan_key:
     external: true
   websearch_api_key:
+    external: true
+  mirofish_llm_api_key:
+    external: true
+  mirofish_zep_api_key:
+    external: true
+  mirofish_secret_key:
     external: true
 
 configs:

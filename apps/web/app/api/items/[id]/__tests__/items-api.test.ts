@@ -37,6 +37,13 @@ const dbState = vi.hoisted(() => ({
 
 const getDbMock = vi.hoisted(() => vi.fn());
 const fetchItemDetailMock = vi.hoisted(() => vi.fn());
+const mirofishMock = vi.hoisted(() => {
+  class ConfigError extends Error {}
+  return {
+    ConfigError,
+    createProject: vi.fn()
+  };
+});
 
 vi.mock("drizzle-orm", () => ({
   and: vi.fn((...conditions: Array<QueryPredicate | undefined>) => ({
@@ -77,6 +84,15 @@ vi.mock("@/lib/api/authz", () => ({
 
 vi.mock("@/lib/api/timeline-query", () => ({
   fetchItemDetail: fetchItemDetailMock
+}));
+
+vi.mock("@/lib/api/mirofish", () => ({
+  MirofishConfigError: mirofishMock.ConfigError,
+  createMirofishProjectFromItem: mirofishMock.createProject
+}));
+
+vi.mock("@/lib/logger", () => ({
+  webLogger: { warn: vi.fn() }
 }));
 
 vi.mock("@/lib/api/cursor", () => ({
@@ -392,6 +408,7 @@ describe("/api/items/[id]", () => {
     dbState.nextFeedbackId = 1;
     getDbMock.mockReturnValue(createFakeDb());
     fetchItemDetailMock.mockReset();
+    mirofishMock.createProject.mockReset();
   });
 
   describe("GET detail", () => {
@@ -491,6 +508,64 @@ describe("/api/items/[id]", () => {
       expect(fetchItemDetailMock).toHaveBeenCalledWith(42, {
         includeBlocked: false
       });
+    });
+  });
+
+  describe("POST mirofish", () => {
+    it("requires editor role or above", async () => {
+      const { POST } = await import("../mirofish/route");
+      users.current = { id: 7, role: "viewer" };
+
+      const response = await POST(
+        makeNextRequest("https://radar.test/api/items/42/mirofish"),
+        params("42")
+      );
+
+      expect(response.status).toBe(403);
+      expect(fetchItemDetailMock).not.toHaveBeenCalled();
+      expect(mirofishMock.createProject).not.toHaveBeenCalled();
+    });
+
+    it("creates a MiroFish project from item detail", async () => {
+      const { POST } = await import("../mirofish/route");
+      users.current = { id: 7, role: "editor" };
+      const item = { id: 42, title: "detail" };
+      fetchItemDetailMock.mockResolvedValue(item);
+      mirofishMock.createProject.mockResolvedValue({
+        projectId: "proj_123",
+        projectUrl: "http://mirofish.local/process/proj_123"
+      });
+
+      const response = await POST(
+        makeNextRequest("https://radar.test/api/items/42/mirofish"),
+        params("42")
+      );
+      const payload = await response.json();
+
+      expect(response.status).toBe(201);
+      expect(fetchItemDetailMock).toHaveBeenCalledWith(42, { includeBlocked: false });
+      expect(mirofishMock.createProject).toHaveBeenCalledWith(item);
+      expect(payload).toEqual({
+        itemId: 42,
+        projectId: "proj_123",
+        projectUrl: "http://mirofish.local/process/proj_123"
+      });
+    });
+
+    it("reports missing MiroFish config as 503", async () => {
+      const { POST } = await import("../mirofish/route");
+      users.current = { id: 7, role: "editor" };
+      fetchItemDetailMock.mockResolvedValue({ id: 42, title: "detail" });
+      mirofishMock.createProject.mockRejectedValue(new mirofishMock.ConfigError("missing config"));
+
+      const response = await POST(
+        makeNextRequest("https://radar.test/api/items/42/mirofish"),
+        params("42")
+      );
+      const payload = await response.json();
+
+      expect(response.status).toBe(503);
+      expect(payload.error.code).toBe("MIROFISH_NOT_CONFIGURED");
     });
   });
 

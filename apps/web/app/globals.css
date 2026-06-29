@@ -32,7 +32,7 @@
   --color-surface-deep: #005b86;
   --color-fg: #143141;
   --color-fg-muted: #4d6674;
-  --color-fg-soft: #7690a0;
+  --color-fg-soft: #5a707d;
   --color-fg-on-dark: #ffffff;
   --color-accent: var(--fe-accent);
   --color-accent-flame: var(--fe-accent-hover);
@@ -141,7 +141,7 @@ table.fr thead th {
   font-size: 10px;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: #7690a0;
+  color: var(--color-fg-soft);
   padding: 10px 12px;
   border-bottom: 1px solid #a9c9d8;
 }

@@ -4,20 +4,6 @@ import { formatAppTime, scoreLabel, SOURCE_TIER_LABELS } from "@/components/time
 
 import type { TimelineItemDto } from "@/lib/api/timeline-query";
 
-/** Decorative mini-bar heights (list view has no per-dimension scores). */
-function scoreBarHeights(qualityScore: number): number[] {
-  return [
-    0.35,
-    0.55,
-    0.75,
-    0.5,
-    Math.max(0.45, Math.min(qualityScore / 100, 0.95))
-  ];
-}
-
-/** Single accent ramp — opacity steps only, no secondary blue tokens. */
-const SCORE_BAR_OPACITY = [0.22, 0.38, 0.54, 0.7, 0.86] as const;
-
 export function TimelineCard({
   item,
   onOpen
@@ -27,7 +13,6 @@ export function TimelineCard({
 }): React.JSX.Element {
   const score = item.qualityScore ?? 0;
   const isHigh = score >= 70 || item.alertLevel === "L1";
-  const barHeights = scoreBarHeights(score);
 
   return (
     <article
@@ -119,21 +104,6 @@ export function TimelineCard({
           </div>
           <div className="font-mono text-[13px] uppercase tracking-[1.2px] text-fg-soft">
             综合评分
-          </div>
-          <div
-            className="grid h-[18px] grid-cols-5 items-end gap-[3px]"
-            aria-hidden="true"
-          >
-            {barHeights.map((height, index) => (
-              <i
-                key={index}
-                className="block w-4 bg-accent"
-                style={{
-                  height: `${Math.round(height * 18)}px`,
-                  opacity: SCORE_BAR_OPACITY[index]
-                }}
-              />
-            ))}
           </div>
         </div>
         <button

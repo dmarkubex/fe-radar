@@ -54,7 +54,7 @@ export default async function DailyPage({ searchParams }: { searchParams: PageSe
             <img src="/fareast-logo.png" alt="远东控股集团" className="h-auto w-[142px] border border-border bg-white px-2 py-1" />
             <div className="font-display text-[28px] font-normal tracking-[-0.6px] text-fg">
               产业日报
-              <small className="block font-mono text-[10px] uppercase tracking-[1.6px] text-fg-soft">FE-Radar · Daily Intelligence Brief</small>
+              <small className="block font-mono text-[10px] uppercase tracking-[1.6px] text-fg-soft">FE-Radar / Daily Intelligence Brief</small>
             </div>
           </div>
           <div className="text-right font-mono text-[11px] uppercase tracking-[1.4px] text-fg-soft">
@@ -89,9 +89,9 @@ export default async function DailyPage({ searchParams }: { searchParams: PageSe
             </blockquote>
 
             <footer className="mt-6 flex flex-wrap justify-between gap-8 border-t-4 border-double border-fg py-12">
-              <Col title="分发" body="钉钉群推送 · 邮件订阅 · 内部门户。每日 08:00 自动生成。" />
-              <Col title="反馈" body="条目反馈按钮 · 日报评分。管理员调整信源与评分权重。" />
-              <Col title="导出" body="PDF 日报 · Excel 数据表。数据保留 90 天。" />
+              <Col title="分发" body="钉钉群推送、邮件订阅、内部门户。每日 08:00 自动生成。" />
+              <Col title="反馈" body="条目反馈按钮、日报评分。管理员调整信源与评分权重。" />
+              <Col title="导出" body="PDF 日报、Excel 数据表。数据保留 90 天。" />
             </footer>
           </>
         ) : (
