@@ -42,27 +42,18 @@ services:
 
   mirofish:
     image: harborssl.fegroup.cn/custom-project/mirofish:latest
-    command:
-      - /bin/sh
-      - -lc
-      - |
-        export LLM_API_KEY="$$(cat /run/secrets/mirofish_llm_api_key)"
-        export ZEP_API_KEY="$$(cat /run/secrets/mirofish_zep_api_key)"
-        export SECRET_KEY="$$(cat /run/secrets/mirofish_secret_key)"
-        exec npm run dev
     environment:
       TZ: Asia/Shanghai
       NODE_ENV: production
       FLASK_DEBUG: "false"
       FLASK_HOST: 0.0.0.0
       FLASK_PORT: "5001"
+      LLM_API_KEY: ${MIROFISH_LLM_API_KEY:?set MIROFISH_LLM_API_KEY in Portainer stack environment}
       LLM_BASE_URL: ${MIROFISH_LLM_BASE_URL:?set MIROFISH_LLM_BASE_URL in Portainer stack environment}
       LLM_MODEL_NAME: ${MIROFISH_LLM_MODEL_NAME:-qwen-plus}
+      ZEP_API_KEY: ${MIROFISH_ZEP_API_KEY:?set MIROFISH_ZEP_API_KEY in Portainer stack environment}
+      SECRET_KEY: ${MIROFISH_SECRET_KEY:?set MIROFISH_SECRET_KEY in Portainer stack environment}
       VITE_API_BASE_URL: ${MIROFISH_PUBLIC_API_BASE_URL:?set MIROFISH_PUBLIC_API_BASE_URL in Portainer stack environment}
-    secrets:
-      - mirofish_llm_api_key
-      - mirofish_zep_api_key
-      - mirofish_secret_key
     volumes:
       - mirofish_uploads:/app/backend/uploads
     networks:
@@ -320,12 +311,6 @@ secrets:
   datapro_agent_plan_key:
     external: true
   websearch_api_key:
-    external: true
-  mirofish_llm_api_key:
-    external: true
-  mirofish_zep_api_key:
-    external: true
-  mirofish_secret_key:
     external: true
 
 configs:
