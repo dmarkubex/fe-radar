@@ -49,7 +49,8 @@ function itemFixture(): ItemDetailDto {
         sourceFetcherType: "rss",
         acquisitionLabel: null,
         publishedAt: "2026-06-29T02:00:00.000Z",
-        similarity: 0.8
+        similarity: 0.8,
+        summaryZh: "关联条目摘要：下游需求回暖。"
       }
     ]
   };
@@ -99,6 +100,7 @@ describe("buildMirofishSeedMarkdown", () => {
 
     expect(markdown).toContain("# FE-Radar 情报预测种子");
     expect(markdown).toContain("关联条目");
+    expect(markdown).toContain("摘要：关联条目摘要：下游需求回暖。");
     expect(markdown).toContain("不要给出具体未来价格数值");
     expect(markdown).toContain("D3 市场价格");
   });

@@ -495,7 +495,8 @@ export function mockFetchItemDetail(id: number): ItemDetailDto | null {
         sourceFetcherType: entry.sourceFetcherType,
         acquisitionLabel: entry.acquisitionLabel,
         publishedAt: entry.publishedAt,
-        similarity: 0.86
+        similarity: 0.86,
+        summaryZh: entry.summaryZh
       }))
   };
 }

@@ -108,7 +108,14 @@ export function buildMirofishSeedMarkdown(item: ItemDetailDto, userRequirement?:
         .slice(0, 12)
         .map((relatedItem) => {
           const url = relatedItem.displayUrl ?? relatedItem.url;
-          return `- ${relatedItem.title}（${relatedItem.sourceName}，${relatedItem.publishedAt}）${url ? `\n  ${url}` : ""}`;
+          const summary = clip(relatedItem.summaryZh, 800);
+          return [
+            `- ${relatedItem.title}（${relatedItem.sourceName}，${relatedItem.publishedAt}）`,
+            url ? `  ${url}` : "",
+            summary ? `  摘要：${summary.replace(/\n+/g, " ")}` : ""
+          ]
+            .filter(Boolean)
+            .join("\n");
         })
         .join("\n")
     : "- 暂无关联条目";

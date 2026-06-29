@@ -108,6 +108,7 @@ export interface ItemDetailDto extends TimelineItemDto {
     acquisitionLabel?: string | null;
     publishedAt: string;
     similarity: number | null;
+    summaryZh: string | null;
   }>;
 }
 
@@ -451,11 +452,13 @@ export async function fetchItemDetail(
             sourceCategory: sources.category,
             sourceFetcherType: sources.fetcherType,
             publishedAt: items.publishedAt,
-            similarity: clusterItems.similarity
+            similarity: clusterItems.similarity,
+            summaryZh: itemAnalysis.summaryZh
           })
           .from(clusterItems)
           .innerJoin(items, eq(items.id, clusterItems.itemId))
           .innerJoin(sources, eq(sources.id, items.sourceId))
+          .leftJoin(itemAnalysis, eq(itemAnalysis.itemId, items.id))
           .where(eq(clusterItems.clusterId, row.clusterId))
       : Promise.resolve([])
   ]);
@@ -483,7 +486,8 @@ export async function fetchItemDetail(
         sourceFetcherType: item.sourceFetcherType,
         acquisitionLabel: display.acquisitionLabel,
         publishedAt: item.publishedAt.toISOString(),
-        similarity: item.similarity
+        similarity: item.similarity,
+        summaryZh: item.summaryZh
       };
     })
   };
