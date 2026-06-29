@@ -29,8 +29,11 @@ export async function POST(
     return notFound();
   }
 
+  const body = (await request.json().catch(() => null)) as { requirement?: unknown } | null;
+  const requirement = typeof body?.requirement === "string" ? body.requirement.slice(0, 2000) : null;
+
   try {
-    const project = await createMirofishProjectFromItem(item);
+    const project = await createMirofishProjectFromItem(item, requirement);
     return Response.json({ itemId, ...project }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "MiroFish 创建项目失败";

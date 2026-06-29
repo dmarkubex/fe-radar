@@ -78,7 +78,15 @@ function line(label: string, value: string | number | null | undefined): string 
   return value === null || value === undefined || value === "" ? "" : `- ${label}: ${value}`;
 }
 
-export function buildMirofishSimulationRequirement(item: ItemDetailDto): string {
+export function buildMirofishSimulationRequirement(
+  item: ItemDetailDto,
+  userRequirement?: string | null
+): string {
+  const trimmed = userRequirement?.trim();
+  if (trimmed) {
+    // 用户给定的推演方向/观点优先，仅追加价格合规约束。
+    return [trimmed, "不要给出具体未来价格数值、交易建议或投资意见。"].join("\n");
+  }
   return [
     `基于 FE-Radar 情报条目「${item.title}」及其关联事件，推演未来 72 小时内相关主体、产业链、市场舆论与业务风险的可能演化。`,
     "重点输出影响路径、关键触发因素、风险信号、利益相关方反应和后续观察点。",
@@ -86,7 +94,7 @@ export function buildMirofishSimulationRequirement(item: ItemDetailDto): string 
   ].join("\n");
 }
 
-export function buildMirofishSeedMarkdown(item: ItemDetailDto): string {
+export function buildMirofishSeedMarkdown(item: ItemDetailDto, userRequirement?: string | null): string {
   const scores = item.scores;
   const entities = item.entities.length
     ? item.entities
@@ -109,7 +117,7 @@ export function buildMirofishSeedMarkdown(item: ItemDetailDto): string {
     "# FE-Radar 情报预测种子",
     "",
     "## 模拟需求",
-    buildMirofishSimulationRequirement(item),
+    buildMirofishSimulationRequirement(item, userRequirement),
     "",
     "## 主条目",
     line("FE-Radar item_id", item.id),
@@ -152,16 +160,19 @@ export function buildMirofishSeedMarkdown(item: ItemDetailDto): string {
     .join("\n");
 }
 
-export function buildMirofishSeedPayload(item: ItemDetailDto): MirofishSeedPayload {
+export function buildMirofishSeedPayload(
+  item: ItemDetailDto,
+  userRequirement?: string | null
+): MirofishSeedPayload {
   const sourceUrl = item.displayUrl ?? item.url ?? null;
   return {
     project_name: `FE-Radar #${item.id} ${item.title}`.slice(0, 120),
-    simulation_requirement: buildMirofishSimulationRequirement(item),
+    simulation_requirement: buildMirofishSimulationRequirement(item, userRequirement),
     additional_context: "来源：FE-Radar 产业情报雷达。该种子材料由单条情报及其聚簇关联条目自动生成。",
     documents: [
       {
         filename: `fe-radar-item-${item.id}.md`,
-        content: buildMirofishSeedMarkdown(item),
+        content: buildMirofishSeedMarkdown(item, userRequirement),
         mime_type: "text/markdown",
         source_url: sourceUrl
       }
@@ -197,12 +208,15 @@ function entityType(type: string): string {
   return labels[type] ?? type;
 }
 
-export async function createMirofishProjectFromItem(item: ItemDetailDto): Promise<{
+export async function createMirofishProjectFromItem(
+  item: ItemDetailDto,
+  userRequirement?: string | null
+): Promise<{
   projectId: string;
   projectUrl: string;
 }> {
   const config = getMirofishConfig();
-  const payload = buildMirofishSeedPayload(item);
+  const payload = buildMirofishSeedPayload(item, userRequirement);
 
   const response = await fetch(`${config.apiBaseUrl}/api/external/seed`, {
     method: "POST",

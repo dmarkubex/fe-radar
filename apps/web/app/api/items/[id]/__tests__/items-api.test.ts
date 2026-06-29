@@ -544,7 +544,7 @@ describe("/api/items/[id]", () => {
 
       expect(response.status).toBe(201);
       expect(fetchItemDetailMock).toHaveBeenCalledWith(42, { includeBlocked: false });
-      expect(mirofishMock.createProject).toHaveBeenCalledWith(item);
+      expect(mirofishMock.createProject).toHaveBeenCalledWith(item, null);
       expect(payload).toEqual({
         itemId: 42,
         projectId: "proj_123",
