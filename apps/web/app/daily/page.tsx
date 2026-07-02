@@ -49,15 +49,15 @@ export default async function DailyPage({ searchParams }: { searchParams: PageSe
       </div>
 
       <div className="mx-auto max-w-[1120px] pad-fluid-x">
-        <header className="flex items-end justify-between gap-8 border-b-4 border-double border-fg py-5">
+        <header className="flex flex-col items-start gap-3 border-b-4 border-double border-fg py-5 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
           <div className="flex items-center gap-4">
-            <img src="/fareast-logo.png" alt="远东控股集团" className="h-auto w-[142px] border border-border bg-white px-2 py-1" />
-            <div className="font-display text-[28px] font-normal tracking-[-0.6px] text-fg">
+            <img src="/fareast-logo.png" alt="远东控股集团" className="h-auto w-[110px] border border-border bg-white px-2 py-1 sm:w-[142px]" />
+            <div className="font-display text-[22px] font-normal tracking-[-0.6px] text-fg sm:text-[28px]">
               产业日报
               <small className="block font-mono text-[10px] uppercase tracking-[1.6px] text-fg-soft">FE-Radar / Daily Intelligence Brief</small>
             </div>
           </div>
-          <div className="text-right font-mono text-[11px] uppercase tracking-[1.4px] text-fg-soft">
+          <div className="text-left font-mono text-[11px] uppercase tracking-[1.4px] text-fg-soft sm:text-right">
             <b className="mb-1 block text-sm font-normal tracking-[0.6px] text-fg">No. {issueNo}</b>
             {dateDisplay}
           </div>

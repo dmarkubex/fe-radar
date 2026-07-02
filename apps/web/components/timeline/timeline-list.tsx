@@ -1,7 +1,7 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ItemDetailDialog } from "@/components/timeline/item-detail-dialog";
 import { TimelineCard } from "@/components/timeline/timeline-card";
@@ -51,11 +51,28 @@ function TimelineListInner({
   const items = timeline.data?.pages.flatMap((page) => page.items) ?? [];
   const dayGroups = groupTimeline(items);
 
+  // 触底自动加载（移动端阅读流）；保留"加载更多"按钮作兜底
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && timeline.hasNextPage && !timeline.isFetchingNextPage) {
+          void timeline.fetchNextPage();
+        }
+      },
+      { rootMargin: "400px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [timeline.hasNextPage, timeline.isFetchingNextPage, timeline.fetchNextPage]);
+
   return (
     <div
       className={
         variant === "timeline"
-          ? "relative pl-8 before:absolute before:bottom-0 before:left-2 before:top-2 before:w-px before:bg-border-strong"
+          ? "relative pl-8 before:absolute before:bottom-0 before:left-2 before:top-2 before:w-px before:bg-border-strong max-[760px]:pl-0 max-[760px]:before:hidden"
           : "flex flex-col gap-3"
       }
     >
@@ -65,12 +82,12 @@ function TimelineListInner({
             <section className="relative" key={dayGroup.dayKey}>
               {/* 粗节点：日期，sticky 吸顶，z-[5] 低于 app-shell header (z-10/z-30) */}
               <div
-                className="sticky top-10 z-[5] -ml-8 mb-2 flex items-center gap-3 bg-bg py-1 pr-2"
+                className="sticky top-10 z-[5] -ml-8 mb-2 flex items-center gap-3 bg-bg py-1 pr-2 max-[760px]:ml-0"
                 role="heading"
                 aria-level={2}
               >
                 <span
-                  className="ml-2 h-4 w-4 shrink-0 border-[3px] border-bg bg-accent"
+                  className="ml-2 h-4 w-4 shrink-0 border-[3px] border-bg bg-accent max-[760px]:hidden"
                   aria-hidden="true"
                 />
                 <h2 className="font-display text-[22px] leading-none tracking-[-0.6px] text-fg">
@@ -85,7 +102,7 @@ function TimelineListInner({
                     {/* 细节点圆点 */}
                     <div className="relative mb-2 flex items-center gap-3">
                       <span
-                        className="absolute -left-[1.625rem] h-2 w-2 border-2 border-bg bg-fg-soft"
+                        className="absolute -left-[1.625rem] h-2 w-2 border-2 border-bg bg-fg-soft max-[760px]:hidden"
                         aria-hidden="true"
                       />
                       <p className="font-mono text-[11px] tracking-[0.6px] text-fg-soft">
@@ -111,15 +128,18 @@ function TimelineListInner({
       )}
 
       {timeline.hasNextPage ? (
-        <Button
-          className="self-center"
-          type="button"
-          variant="outline"
-          disabled={timeline.isFetchingNextPage}
-          onClick={() => void timeline.fetchNextPage()}
-        >
-          {timeline.isFetchingNextPage ? "加载中" : "加载更多"}
-        </Button>
+        <>
+          <div ref={sentinelRef} aria-hidden="true" className="h-1 w-full" />
+          <Button
+            className="self-center"
+            type="button"
+            variant="outline"
+            disabled={timeline.isFetchingNextPage}
+            onClick={() => void timeline.fetchNextPage()}
+          >
+            {timeline.isFetchingNextPage ? "加载中" : "加载更多"}
+          </Button>
+        </>
       ) : null}
 
       <ItemDetailDialog

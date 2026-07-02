@@ -60,7 +60,7 @@ export default async function AlertsPage({
           {total} 条告警 · {p1Count} 条 P1 需立即关注
         </h1>
         <div className="min-w-0">
-          <p className="m-0 text-xs leading-6 text-fg-muted">
+          <p className="m-0 text-xs leading-6 text-fg-muted max-[760px]:hidden">
             五类告警共用通道：<b className="font-normal text-fg">自家公司</b>
             （C1 命中即告警，保证零漏报）·{" "}
             <b className="font-normal text-fg">竞品涉诉</b>（C2 +
@@ -71,6 +71,19 @@ export default async function AlertsPage({
             企业风险信源）。质量分仅表示条目可信度与信息价值，不作为 C1
             告警门槛。
           </p>
+          <details className="hidden max-[760px]:block">
+            <summary className="cursor-pointer text-xs font-medium text-fg">五类告警规则说明 ▸</summary>
+            <p className="m-0 mt-2 text-xs leading-6 text-fg-muted">
+              <b className="font-normal text-fg">自家公司</b>
+              （C1 命中即告警）·{" "}
+              <b className="font-normal text-fg">竞品涉诉</b>（C2 +
+              交易所涉诉公告）· <b className="font-normal text-fg">安全事故</b>
+              （NER=事故 + D5 高风险）·{" "}
+              <b className="font-normal text-fg">政策突发</b>（T1 政府 + D1
+              高影响）· <b className="font-normal text-fg">竞品风险</b>（C2 +
+              企业风险信源）。质量分不作为 C1 告警门槛。
+            </p>
+          </details>
           <nav className="flex items-center gap-2 font-mono text-[11px] text-fg-soft mt-2 max-[1100px]:mt-0">
             {(["24h", "7d", "all"] as const).map((r) => (
               <a

@@ -21,14 +21,14 @@ export function TimelineCard({
       }`}
     >
       <span
-        className={`absolute -left-7 top-6 h-2 w-2 border-2 border-bg ${
+        className={`absolute -left-7 top-6 h-2 w-2 border-2 border-bg max-[760px]:hidden ${
           item.alertType || isHigh ? "bg-accent" : "bg-fg-soft"
         }`}
         aria-hidden="true"
       />
       <AlertStrip alertType={item.alertType} circle={item.topCircle} />
       <div className="min-w-0 pl-1">
-        <div className="mb-2 flex flex-wrap items-center gap-2 font-mono text-[11px] tracking-[0.6px] text-fg-soft">
+        <div className="mb-2 flex flex-wrap items-center gap-2 font-mono text-[11px] tracking-[0.6px] text-fg-soft max-[760px]:text-xs">
           <span className="text-fg">{item.sourceName}</span>
           <span className="h-[3px] w-[3px] rounded-full bg-fg-soft" />
           <span title={SOURCE_TIER_LABELS[item.sourceTier as keyof typeof SOURCE_TIER_LABELS] ?? item.sourceTier}>
