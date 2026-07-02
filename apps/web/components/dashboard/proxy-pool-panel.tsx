@@ -38,7 +38,7 @@ export function ProxyPoolPanel({ initialItems }: ProxyPoolPanelProps): React.JSX
   }
 
   return (
-    <div className="mt-4 overflow-hidden rounded-md border border-zinc-200">
+    <div className="mt-4 overflow-x-auto rounded-md border border-zinc-200">
       <table className="w-full text-left text-sm">
         <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
           <tr>

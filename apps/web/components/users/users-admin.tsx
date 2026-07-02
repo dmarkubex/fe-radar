@@ -110,7 +110,7 @@ export function UsersAdmin({ users, mergeConflicts }: { users: UserRow[]; mergeC
         </form>
       </section>
 
-      <section className="overflow-hidden rounded-none border border-border bg-surface">
+      <section className="overflow-x-auto rounded-none border border-border bg-surface">
         <table className="w-full text-sm">
           <thead className="bg-bg text-left text-fg-soft">
             <tr>

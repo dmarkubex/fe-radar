@@ -71,7 +71,7 @@ export function EntityTable(): React.JSX.Element {
         </div>
         {error ? <p className="text-sm text-danger md:col-span-5">{error}</p> : null}
       </form>
-      <div className="overflow-hidden rounded-none border border-border bg-surface">
+      <div className="overflow-x-auto rounded-none border border-border bg-surface">
         <table className="w-full text-sm">
           <thead className="bg-bg text-left text-[11px] font-mono uppercase text-fg-soft">
             <tr>

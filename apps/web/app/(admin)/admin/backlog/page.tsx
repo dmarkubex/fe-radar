@@ -40,7 +40,7 @@ export default async function AdminBacklogPage({ searchParams }: { searchParams:
         <a className={`rounded-md px-3 py-1.5 text-sm ${state === "pending_over_quota" ? "bg-zinc-950 text-white" : "bg-zinc-100"}`} href="/admin/backlog?state=pending_over_quota">Pending</a>
         <a className={`rounded-md px-3 py-1.5 text-sm ${state === "dropped_quota_expired" ? "bg-zinc-950 text-white" : "bg-zinc-100"}`} href="/admin/backlog?state=dropped_quota_expired">Dropped</a>
       </div>
-      <section className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+      <section className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-zinc-50 text-left text-zinc-500">
             <tr>

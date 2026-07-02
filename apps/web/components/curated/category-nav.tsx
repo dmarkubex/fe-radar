@@ -40,7 +40,7 @@ export function CuratedCategoryNav({
   return (
     <>
       <div
-        className={`category-strip grid grid-cols-5 gap-0 border border-border-strong transition-opacity ${
+        className={`category-strip grid grid-cols-2 gap-0 border border-border-strong transition-opacity sm:grid-cols-3 md:grid-cols-5 ${
           isPending ? "opacity-90" : ""
         }`}
         aria-busy={isPending}
@@ -58,13 +58,13 @@ export function CuratedCategoryNav({
             >
               <span className={`font-mono text-sm ${isActive ? "text-fg-on-dark" : "text-accent"}`}>{cat.icon}</span>
               <span
-                className={`text-center text-[13px] font-medium uppercase tracking-[1px] ${
+                className={`text-center text-[11px] font-medium uppercase tracking-[1px] sm:text-[13px] ${
                   isActive ? "text-fg-on-dark" : "text-fg-soft"
                 }`}
               >
                 {cat.label}
               </span>
-              <span className={`font-mono text-3xl font-semibold tabular-nums ${isActive ? "text-fg-on-dark" : "text-fg"}`}>
+              <span className={`font-mono text-xl font-semibold tabular-nums sm:text-2xl md:text-3xl ${isActive ? "text-fg-on-dark" : "text-fg"}`}>
                 {cat.count}
               </span>
               {cat.topScore !== null ? (
@@ -77,7 +77,7 @@ export function CuratedCategoryNav({
         })}
       </div>
 
-      <div className="tab-strip flex gap-0 border-b border-border-strong">
+      <div className="tab-strip flex gap-0 overflow-x-auto border-b border-border-strong [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {CATEGORY_TABS.map((tab) => {
           const isActive = displayedCategory === tab.value;
           return (
@@ -85,7 +85,7 @@ export function CuratedCategoryNav({
               key={tab.value}
               type="button"
               onClick={() => navigate(tab.value)}
-              className={`border-b-2 px-5 py-2.5 text-sm font-medium transition-colors ${
+              className={`shrink-0 border-b-2 px-5 py-2.5 text-sm font-medium transition-colors ${
                 isActive ? "border-accent text-accent" : "border-transparent text-fg-muted hover:text-fg"
               }`}
             >

@@ -86,7 +86,7 @@ export default async function AlertsPage({
       </header>
 
       <div className="pad-fluid-x py-5">
-        <div className="mb-4 grid grid-cols-2 gap-px border border-border bg-border max-[720px]:grid-cols-1 sm:grid-cols-5">
+        <div className="mb-4 grid grid-cols-1 gap-px border border-border bg-border sm:grid-cols-2 lg:grid-cols-5">
           <SummaryCell
             active={filterType === "own"}
             href={alertHref("own")}
