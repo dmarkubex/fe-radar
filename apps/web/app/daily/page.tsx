@@ -41,7 +41,7 @@ export default async function DailyPage({ searchParams }: { searchParams: PageSe
         <div className="font-mono text-[11px] uppercase tracking-[1px] text-fg-muted">监测 / 日报</div>
         <div className="flex flex-wrap gap-1.5">
           {dates.map((date) => (
-            <a key={date} href={`/daily?date=${date}`} className={`border px-3 py-1.5 font-mono text-[11px] ${date === selectedDate ? "border-fg bg-fg text-white" : "border-border bg-surface text-fg-muted hover:bg-bg-deep"}`}>
+            <a key={date} href={`/daily?date=${date}`} className={`inline-flex min-h-10 items-center border px-3 py-1.5 font-mono text-[11px] sm:min-h-8 ${date === selectedDate ? "border-fg bg-fg text-white" : "border-border bg-surface text-fg-muted hover:bg-bg-deep"}`}>
               {dayjs(date).tz(APP_TIMEZONE).format("M/D")}
             </a>
           ))}

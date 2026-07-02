@@ -6,7 +6,7 @@ export default function LoginPage(): React.JSX.Element {
   const localLoginAllowed = isLocalLoginAllowed();
 
   return (
-    <div className="h-screen grid grid-cols-[1.1fr_1fr] max-[900px]:grid-cols-1 overflow-hidden">
+    <div className="grid min-h-[100dvh] grid-cols-[1.1fr_1fr] max-[900px]:grid-cols-1">
       {/* Left hero panel - more compact for 14" screens */}
       <aside className="bg-surface-deep text-white p-6 lg:p-8 xl:p-10 flex flex-col justify-between relative overflow-hidden max-[900px]:min-h-[320px] max-[900px]:p-6">
         <div className="z-[2] flex items-center gap-3">
@@ -17,14 +17,14 @@ export default function LoginPage(): React.JSX.Element {
           />
         </div>
 
-        <div className="z-[2] grid grid-cols-[minmax(0,1.1fr)_minmax(200px,0.7fr)] gap-x-8 items-end max-[900px]:grid-cols-1">
+        <div className="z-[2] grid grid-cols-[minmax(0,1.1fr)_minmax(200px,0.7fr)] gap-x-8 items-end max-[1180px]:grid-cols-1">
           <div>
             <div className="font-mono text-[10px] tracking-[1.5px] uppercase text-sunshine-500 mb-4 lg:mb-5">
               / 行业情报雷达 V1
             </div>
-            <h1 className="font-display text-[clamp(36px,4.8vw,60px)] leading-[0.92] tracking-[-1.4px] font-normal max-w-[10ch]">
-              <span className="block">让行业信号先一步</span>
-              <span className="block">进入决策视野。</span>
+            <h1 className="font-display text-[36px] leading-[1.02] tracking-normal font-normal sm:text-[44px] lg:text-[52px] xl:text-[56px]">
+              <span className="block whitespace-nowrap">行业信号先行</span>
+              <span className="block whitespace-nowrap">进入决策视野</span>
             </h1>
             <p className="text-white/70 text-sm lg:text-base leading-[1.55] mt-4 max-w-[42ch]">
               每 6 小时抓取集团关注的行业信源，经 5 维评分和关注圈分类后，沉淀为时间线、精选、日报与告警。

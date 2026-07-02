@@ -205,7 +205,7 @@ function NavSection({
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center justify-between px-3 py-1.5 text-[13px] font-medium leading-5 border-l-2 transition-colors
+              className={`flex min-h-10 items-center justify-between border-l-2 px-3 py-2 text-[13px] font-medium leading-5 transition-colors lg:min-h-9 lg:py-1.5
                 ${isActive
                   ? "bg-white/15 text-white border-l-sunshine-500"
                   : "text-white/86 border-l-transparent hover:bg-white/10 hover:text-white hover:border-l-sunshine-500/80"

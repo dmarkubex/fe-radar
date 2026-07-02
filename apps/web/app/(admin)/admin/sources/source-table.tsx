@@ -243,7 +243,7 @@ export function SourceTable(): React.JSX.Element {
             key={chip.key}
             type="button"
             onClick={() => setFilter(chip.key)}
-            className={`rounded-none px-3 py-1.5 font-mono text-xs tracking-wide transition-colors ${
+            className={`min-h-10 rounded-none px-3 py-1.5 font-mono text-xs tracking-wide transition-colors ${
               filter === chip.key
                 ? "bg-accent text-bg"
                 : "border border-border bg-surface text-fg-muted hover:bg-bg-deep"
@@ -255,19 +255,19 @@ export function SourceTable(): React.JSX.Element {
       </section>
 
       {/* ---- name search ---- */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <input
           type="text"
           placeholder="搜索信源名称…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-64 border border-border bg-bg px-3 py-1.5 font-mono text-xs text-fg placeholder:text-fg-soft focus:border-accent focus:outline-none"
+          className="min-h-10 w-full border border-border bg-bg px-3 py-1.5 font-mono text-xs text-fg placeholder:text-fg-soft focus:border-accent focus:outline-none sm:w-64"
         />
         {search ? (
           <button
             type="button"
             onClick={() => setSearch("")}
-            className="font-mono text-xs text-fg-muted hover:text-fg"
+            className="min-h-10 px-2 font-mono text-xs text-fg-muted hover:text-fg"
           >
             清除
           </button>
@@ -275,10 +275,10 @@ export function SourceTable(): React.JSX.Element {
       </div>
 
       {/* ---- 2-column: table + form ---- */}
-      <section className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <section className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         {/* left: source table */}
-        <div className="border border-border bg-surface shadow-card">
-          <div className="flex items-baseline justify-between border-b border-hairline px-6 py-4">
+        <div className="min-w-0 border border-border bg-surface shadow-card">
+          <div className="flex items-baseline justify-between border-b border-hairline px-4 py-4 sm:px-6">
             <h3 className="font-display text-base font-semibold text-fg">
               信源列表
             </h3>
@@ -292,11 +292,137 @@ export function SourceTable(): React.JSX.Element {
               健康数据暂不可用: {healthError}
             </p>
           ) : null}
-          <div className="overflow-x-auto">
-            {error ? (
-              <p className="px-6 py-4 font-mono text-sm text-danger">{error}</p>
-            ) : null}
-            <table className="w-full border-collapse text-left text-sm">
+          {error ? (
+            <p className="px-4 py-4 font-mono text-sm text-danger sm:px-6">{error}</p>
+          ) : null}
+          <div className="divide-y divide-hairline md:hidden">
+            {filteredRows.length === 0 ? (
+              <div className="px-4 py-8 text-sm text-fg-muted">
+                暂无匹配信源。
+              </div>
+            ) : (
+              filteredRows.map((row) => {
+                const healthRow = healthMap.get(row.id);
+                return (
+                  <article
+                    key={row.id}
+                    data-testid={`source-card-${row.id}`}
+                    className={`px-4 py-4 ${
+                      editingSource?.id === row.id
+                        ? "bg-accent/5 ring-1 ring-inset ring-accent"
+                        : row.failCount >= 7
+                          ? "bg-danger/5"
+                          : row.failCount >= 3
+                            ? "bg-warn/5"
+                            : "bg-surface"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-fg">
+                          {row.name}
+                        </div>
+                        <div className="mt-1 break-all font-mono text-[11px] leading-5 text-fg-muted">
+                          {row.url}
+                        </div>
+                      </div>
+                      <span
+                        className={`shrink-0 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${tierColor(row.tier)}`}
+                      >
+                        {row.tier}
+                      </span>
+                    </div>
+                    <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <dt className="font-mono text-[10px] uppercase tracking-widest text-fg-soft">
+                          状态
+                        </dt>
+                        <dd className={row.enabled ? "text-ok" : "text-fg-soft"}>
+                          {row.enabled ? "启用" : "停用"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="font-mono text-[10px] uppercase tracking-widest text-fg-soft">
+                          健康
+                        </dt>
+                        <dd className={healthRow ? HEALTH_BADGE[healthRow.health] : "text-fg-soft"}>
+                          {healthRow ? HEALTH_LABEL[healthRow.health] : "—"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="font-mono text-[10px] uppercase tracking-widest text-fg-soft">
+                          最近成功
+                        </dt>
+                        <dd className="font-mono text-fg-muted">
+                          {row.lastOkAt ?? "—"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="font-mono text-[10px] uppercase tracking-widest text-fg-soft">
+                          失败
+                        </dt>
+                        <dd
+                          className={
+                            row.failCount >= 7
+                              ? "text-danger"
+                              : row.failCount >= 3
+                                ? "text-warn"
+                                : "text-fg-muted"
+                          }
+                        >
+                          {row.failCount}
+                        </dd>
+                      </div>
+                    </dl>
+                    {healthRow?.lastError ? (
+                      <div className="mt-3 border-l-2 border-danger/40 bg-danger/5 px-3 py-2">
+                        <div className="font-mono text-[10px] uppercase tracking-widest text-danger">
+                          最近错误
+                        </div>
+                        <div className="mt-1 break-all font-mono text-[11px] leading-relaxed text-fg-muted">
+                          {healthRow.lastError}
+                          {healthRow.lastErrorAtIso ? (
+                            <span className="ml-2 text-fg-soft">
+                              · {relativeFromNow(healthRow.lastErrorAtIso)}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        className={`min-h-10 border border-border px-2 font-mono text-[11px] ${
+                          editingSource?.id === row.id ? "bg-accent/10 text-accent" : "text-accent"
+                        }`}
+                        onClick={() => beginEdit(row)}
+                      >
+                        编辑
+                      </button>
+                      <button
+                        type="button"
+                        className={`min-h-10 border border-border px-2 font-mono text-[11px] ${
+                          row.enabled ? "text-warn" : "text-ok"
+                        }`}
+                        onClick={() => void toggleEnabled(row)}
+                      >
+                        {row.enabled ? "停用" : "启用"}
+                      </button>
+                      <button
+                        type="button"
+                        className="min-h-10 border border-danger/25 px-2 font-mono text-[11px] text-danger"
+                        onClick={() => void deleteSource(row)}
+                      >
+                        删除
+                      </button>
+                    </div>
+                  </article>
+                );
+              })
+            )}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[900px] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-hairline">
                   <th className="px-6 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">ID</th>
@@ -388,7 +514,7 @@ export function SourceTable(): React.JSX.Element {
                             <div className="flex gap-1">
                               <button
                                 type="button"
-                                className={`rounded-none px-2 py-1 font-mono text-[11px] hover:bg-accent/10 ${
+                                className={`min-h-8 rounded-none px-2 py-1 font-mono text-[11px] hover:bg-accent/10 ${
                                   editingSource?.id === row.id ? "bg-accent/10 text-accent" : "text-accent"
                                 }`}
                                 onClick={() => beginEdit(row)}
@@ -397,7 +523,7 @@ export function SourceTable(): React.JSX.Element {
                               </button>
                               <button
                                 type="button"
-                                className={`rounded-none px-2 py-1 font-mono text-[11px] hover:bg-bg-deep ${
+                                className={`min-h-8 rounded-none px-2 py-1 font-mono text-[11px] hover:bg-bg-deep ${
                                   row.enabled ? "text-warn" : "text-ok"
                                 }`}
                                 onClick={() => void toggleEnabled(row)}
@@ -406,7 +532,7 @@ export function SourceTable(): React.JSX.Element {
                               </button>
                               <button
                                 type="button"
-                                className="rounded-none px-2 py-1 font-mono text-[11px] text-danger hover:bg-danger/10"
+                                className="min-h-8 rounded-none px-2 py-1 font-mono text-[11px] text-danger hover:bg-danger/10"
                                 onClick={() => void deleteSource(row)}
                               >
                                 删除

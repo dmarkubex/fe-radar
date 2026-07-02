@@ -63,7 +63,7 @@ export function LoginPanel({ dingtalkEnabled, localLoginAllowed }: LoginPanelPro
           <div className="pt-6 text-center border-t border-border">
             <button
               onClick={() => setMode("local")}
-              className="text-accent tracking-[0.4px] uppercase text-xs bg-transparent border-0 hover:underline"
+              className="min-h-10 bg-transparent px-2 text-xs uppercase tracking-[0.4px] text-accent hover:underline"
             >
               使用本地账号登录 →
             </button>
@@ -90,7 +90,7 @@ export function LoginPanel({ dingtalkEnabled, localLoginAllowed }: LoginPanelPro
       <div className="pt-6 text-center border-t border-border">
         <button
           onClick={() => setMode("dingtalk")}
-          className="text-fg-muted hover:text-accent text-xs tracking-[0.4px] underline-offset-2 hover:underline"
+          className="min-h-10 px-2 text-xs tracking-[0.4px] text-fg-muted underline-offset-2 hover:text-accent hover:underline"
         >
           ← 返回钉钉扫码登录
         </button>

@@ -62,7 +62,7 @@ function FilterGroup({
         {values.map((item) => (
           <button
             aria-pressed={active === item.value}
-            className={`min-h-8 whitespace-nowrap border px-2.5 py-1 font-mono text-[11px] tracking-[0.4px] ${active === item.value ? "border-fg bg-fg text-white" : "border-border bg-bg text-fg-muted hover:bg-bg-deep"}`}
+            className={`min-h-10 whitespace-nowrap border px-3 py-1 font-mono text-[11px] tracking-[0.4px] sm:min-h-8 sm:px-2.5 ${active === item.value ? "border-fg bg-fg text-white" : "border-border bg-bg text-fg-muted hover:bg-bg-deep"}`}
             key={item.value}
             title={item.title}
             type="button"

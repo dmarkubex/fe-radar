@@ -40,7 +40,7 @@ export function CuratedCategoryNav({
   return (
     <>
       <div
-        className={`category-strip grid grid-cols-2 gap-0 border border-border-strong transition-opacity sm:grid-cols-3 md:grid-cols-5 ${
+        className={`category-strip flex overflow-x-auto border border-border-strong transition-opacity [-ms-overflow-style:none] [scrollbar-width:none] md:grid md:grid-cols-5 md:overflow-visible [&::-webkit-scrollbar]:hidden ${
           isPending ? "opacity-90" : ""
         }`}
         aria-busy={isPending}
@@ -52,7 +52,7 @@ export function CuratedCategoryNav({
               key={cat.value}
               type="button"
               onClick={() => navigate(cat.value)}
-              className={`group flex w-full flex-col items-center gap-0.5 border-r border-hairline px-3 py-2.5 text-left last:border-r-0 transition-colors ${
+              className={`group flex min-w-[112px] flex-col items-center gap-0.5 border-r border-hairline px-3 py-2.5 text-left last:border-r-0 transition-colors md:min-w-0 ${
                 isActive ? "bg-surface-deep text-fg-on-dark" : "bg-surface text-fg hover:bg-surface-warm"
               }`}
             >

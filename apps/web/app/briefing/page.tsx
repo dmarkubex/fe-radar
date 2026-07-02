@@ -11,6 +11,7 @@ import { ChevronRight, FileText, Clock } from "lucide-react";
 import Link from "next/link";
 import { PageFrame } from "@/components/layout/page-frame";
 import { PageHeader } from "@/components/layout/page-header";
+import { isMockMode } from "@/lib/mock-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -150,21 +151,54 @@ async function buildPageDiagnostic(
   return null;
 }
 
+async function loadBriefingPageData(): Promise<{
+  rows: BriefingListRow[];
+  diagnostic: PageDiagnostic | null;
+}> {
+  if (isMockMode()) {
+    return {
+      rows: [],
+      diagnostic: {
+        tone: "muted",
+        title: "演示模式暂无简报",
+        detail:
+          "当前运行在 mock 数据模式，铜锂行情简报需要连接业务数据库后展示。"
+      }
+    };
+  }
+
+  try {
+    const db = getDb();
+    const rows = (await db
+      .select({
+        id: commodityBriefings.id,
+        briefingDate: commodityBriefings.briefingDate,
+        genStatus: commodityBriefings.genStatus,
+        genError: commodityBriefings.genError,
+        generatedAt: commodityBriefings.generatedAt,
+        docxPath: commodityBriefings.docxPath
+      })
+      .from(commodityBriefings)
+      .orderBy(desc(commodityBriefings.briefingDate))
+      .limit(60)) as BriefingListRow[];
+
+    return { rows, diagnostic: await buildPageDiagnostic(db, rows) };
+  } catch (error) {
+    console.error("[briefing] list page query failed", error);
+    return {
+      rows: [],
+      diagnostic: {
+        tone: "warn",
+        title: "简报数据暂不可用",
+        detail:
+          "数据库连接或简报表结构暂不可用；页面已保留入口，恢复后会自动显示最近 60 期简报。"
+      }
+    };
+  }
+}
+
 export default async function BriefingListPage(): Promise<React.JSX.Element> {
-  const db = getDb();
-  const rows = (await db
-    .select({
-      id: commodityBriefings.id,
-      briefingDate: commodityBriefings.briefingDate,
-      genStatus: commodityBriefings.genStatus,
-      genError: commodityBriefings.genError,
-      generatedAt: commodityBriefings.generatedAt,
-      docxPath: commodityBriefings.docxPath
-    })
-    .from(commodityBriefings)
-    .orderBy(desc(commodityBriefings.briefingDate))
-    .limit(60)) as BriefingListRow[];
-  const diagnostic = await buildPageDiagnostic(db, rows);
+  const { rows, diagnostic } = await loadBriefingPageData();
 
   const RETENTION_DAYS = 90;
   function isExpired(dateStr: string): boolean {
