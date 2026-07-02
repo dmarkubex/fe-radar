@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { Menu, X } from "lucide-react";
 import { AlertBadge } from "@/components/layout/alert-badge";
+import { useModalBehavior } from "@/hooks/use-modal-behavior";
 
 import type { UserRole } from "@fe-radar/shared";
 
@@ -50,6 +51,12 @@ export function AppShell({
   const isLoggedIn = Boolean(user?.name);
   const initial = user?.name ? user.name.slice(0, 2).toUpperCase() : "?";
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  useModalBehavior({
+    onClose: () => setDrawerOpen(false),
+    open: drawerOpen,
+    panelRef: drawerRef
+  });
 
   return (
     <div className="grid grid-cols-[188px_1fr] min-h-screen max-[760px]:block">
@@ -60,7 +67,7 @@ export function AppShell({
             alt="远东控股集团"
             className="block h-auto w-[128px] border border-white/[0.18] bg-white px-1 py-0.5"
           />
-          <small className="mt-1 block text-[8px] text-white/55 tracking-[1.2px] uppercase">FE-Radar</small>
+          <small className="mt-1 block text-[10px] text-white/55 tracking-[1.2px] uppercase">FE-Radar</small>
         </div>
 
         {isLoggedIn ? (
@@ -94,7 +101,7 @@ export function AppShell({
             </div>
             <button
               onClick={() => signOut({ callbackUrl: "/auth/login" })}
-              className="text-[9px] tracking-[0.5px] uppercase text-white/50 hover:text-white/90 transition-colors px-1.5 py-0.5 border border-white/20 hover:border-white/40 rounded-[1px]"
+              className="text-[11px] tracking-[0.5px] uppercase text-white/50 hover:text-white/90 transition-colors px-2 py-1.5 min-h-[36px] border border-white/20 hover:border-white/40 rounded-[1px]"
             >
               登出
             </button>
@@ -114,7 +121,7 @@ export function AppShell({
               type="button"
               aria-label="打开菜单"
               onClick={() => setDrawerOpen(true)}
-              className="grid place-items-center w-8 h-8 border border-white/20 text-white/80 hover:text-white hover:border-white/40 rounded-[1px] transition-colors"
+              className="grid place-items-center w-10 h-10 border border-white/20 text-white/80 hover:text-white hover:border-white/40 rounded-[1px] transition-colors"
             >
               <Menu className="w-4 h-4" />
             </button>
@@ -127,7 +134,7 @@ export function AppShell({
               className="absolute inset-0 bg-black/60"
               onClick={() => setDrawerOpen(false)}
             />
-            <div className="absolute inset-y-0 left-0 w-[240px] bg-surface-deep text-fg-on-dark flex flex-col overflow-y-auto border-r border-white/[0.08]">
+            <div ref={drawerRef} className="absolute inset-y-0 left-0 w-[240px] bg-surface-deep text-fg-on-dark flex flex-col overflow-y-auto border-r border-white/[0.08]">
               <div className="px-3 py-3 border-b border-white/[0.08] flex items-center justify-between">
                 <img
                   src="/fareast-logo.png"
@@ -138,7 +145,7 @@ export function AppShell({
                   type="button"
                   aria-label="关闭菜单"
                   onClick={() => setDrawerOpen(false)}
-                  className="grid place-items-center w-7 h-7 border border-white/20 text-white/80 hover:text-white hover:border-white/40 rounded-[1px] transition-colors shrink-0"
+                  className="grid place-items-center w-10 h-10 border border-white/20 text-white/80 hover:text-white hover:border-white/40 rounded-[1px] transition-colors shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </button>

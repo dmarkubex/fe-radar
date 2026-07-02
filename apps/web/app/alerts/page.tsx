@@ -76,7 +76,7 @@ export default async function AlertsPage({
               <a
                 key={r}
                 href={`/alerts?range=${r}${filterType ? `&type=${filterType}` : ""}${filterLevel ? `&level=${filterLevel}` : ""}`}
-                className={`px-2 py-0.5 uppercase tracking-[1px] ${filterRange === r ? "bg-surface-deep text-white" : "hover:text-fg"}`}
+                className={`px-3 py-2 min-h-[36px] uppercase tracking-[1px] ${filterRange === r ? "bg-surface-deep text-white" : "hover:text-fg"}`}
               >
                 {r === "24h" ? "24H" : r === "7d" ? "7D" : "ALL"}
               </a>
