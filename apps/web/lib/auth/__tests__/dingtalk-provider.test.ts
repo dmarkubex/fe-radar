@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { normalizeDingtalkCallbackUrl } from "../dingtalk-callback";
+import { getDingtalkFrameLoginParams } from "../dingtalk-frame";
 import { DingtalkProvider, isDingtalkEnabled, isLocalLoginAllowed } from "../dingtalk-provider";
 
 vi.mock("next-auth", () => ({ customFetch: Symbol.for("next-auth.customFetch") }));
@@ -50,6 +51,43 @@ describe("normalizeDingtalkCallbackUrl", () => {
     const url = normalizeDingtalkCallbackUrl("https://fe.example/api/auth/callback/dingtalk?authCode=abc&code=keep&state=s1");
 
     expect(url).toBe("https://fe.example/api/auth/callback/dingtalk?authCode=abc&code=keep&state=s1");
+  });
+});
+
+describe("getDingtalkFrameLoginParams", () => {
+  it("keeps corpId when corpid scope requires it", () => {
+    const params = getDingtalkFrameLoginParams(
+      "https://login.dingtalk.com/oauth2/auth?redirect_uri=https%3A%2F%2Ffe.example%2Fapi%2Fauth%2Fcallback%2Fdingtalk&client_id=ding-app&scope=openid%20corpid&response_type=code&corpId=ding-corp"
+    );
+
+    expect(params.corpId).toBe("ding-corp");
+  });
+
+  it("rejects corpid scope without corpId before calling DingTalk", () => {
+    expect(() =>
+      getDingtalkFrameLoginParams(
+        "https://login.dingtalk.com/oauth2/auth?redirect_uri=https%3A%2F%2Ffe.example%2Fapi%2Fauth%2Fcallback%2Fdingtalk&client_id=ding-app&scope=openid%20corpid&response_type=code"
+      )
+    ).toThrow("DingTalk auth URL missing corpId for corpid scope");
+  });
+});
+
+describe("DingtalkProvider authorization", () => {
+  const orig = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...orig };
+  });
+
+  it("passes corpId with openid corpid scope when configured", () => {
+    process.env.DINGTALK_CORP_ID = "ding-corp";
+
+    const provider = DingtalkProvider();
+
+    expect(provider.authorization?.params).toMatchObject({
+      scope: "openid corpid",
+      corpId: "ding-corp"
+    });
   });
 });
 

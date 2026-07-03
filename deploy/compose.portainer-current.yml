@@ -154,6 +154,7 @@ services:
       DINGTALK_ENABLED: "true"
       DINGTALK_APP_KEY: ${DINGTALK_APP_KEY:?在 Portainer stack 环境变量填钉钉 AppKey}
       DINGTALK_APP_SECRET: ${DINGTALK_APP_SECRET:?在 Portainer stack 环境变量填钉钉 AppSecret}
+      DINGTALK_CORP_ID: ${DINGTALK_CORP_ID:?在 Portainer stack 环境变量填钉钉 CorpId}
       # 应急兜底：SSO 故障时仍允许 admin 用本地账号密码登录（dingtalk-provider.ts:isLocalLoginAllowed）
       EMERGENCY_LOCAL_LOGIN: "true"
       REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users

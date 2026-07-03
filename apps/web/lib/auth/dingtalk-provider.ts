@@ -8,6 +8,7 @@ export interface DingtalkProfile {
 }
 
 const TOKEN_ENDPOINT = "https://api.dingtalk.com/v1.0/oauth2/userAccessToken";
+const AUTH_SCOPE = "openid corpid";
 
 export function isDingtalkEnabled(): boolean {
   return process.env.DINGTALK_ENABLED === "true";
@@ -44,7 +45,8 @@ export function DingtalkProvider(): OAuthConfig<DingtalkProfile> {
       url: "https://login.dingtalk.com/oauth2/auth",
       params: {
         response_type: "code",
-        scope: "openid corpid"
+        scope: AUTH_SCOPE,
+        ...(process.env.DINGTALK_CORP_ID ? { corpId: process.env.DINGTALK_CORP_ID } : {})
       }
     },
     token: {
