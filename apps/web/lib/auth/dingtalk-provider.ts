@@ -131,7 +131,10 @@ export function DingtalkProvider(): OAuthConfig<DingtalkProfile> {
           let detail = "";
           try {
             const errBody = (await response.clone().json()) as Record<string, unknown>;
-            detail = ` ${String(errBody.code ?? "")} ${String(errBody.message ?? "")}`.trim();
+            // accessDeniedDetail 里含缺失的 requiredScopes 与 token 所属 appId，
+            // 是定位 AccessTokenPermissionDenied "到底哪个权限/哪个应用" 的唯一权威来源。
+            const denied = errBody.accessDeniedDetail ? ` ${JSON.stringify(errBody.accessDeniedDetail)}` : "";
+            detail = `${String(errBody.code ?? "")} ${String(errBody.message ?? "")}${denied}`.trim();
           } catch {
             detail = await response.clone().text().catch(() => "");
           }
