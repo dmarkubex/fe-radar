@@ -89,6 +89,7 @@ export const config = {
     "/api/search/:path*",
     "/api/items/:path*",
     "/api/alerts/:path*",
+    "/api/daily",
     "/api/daily/:path*",
     "/api/alerts/count",
     "/api/briefing/targets",

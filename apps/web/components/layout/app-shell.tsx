@@ -17,7 +17,7 @@ function canSee(role: UserRole | undefined, minRole: UserRole): boolean {
 }
 
 const MONITOR_NAV = [
-  { href: "/admin/dashboard", label: "概览 Dashboard", minRole: "viewer" as UserRole },
+  { href: "/admin/dashboard", label: "概览 Dashboard", minRole: "admin" as UserRole },
   { href: "/", label: "时间线 Timeline", minRole: "viewer" as UserRole },
   { href: "/curated", label: "精选 Curated", minRole: "viewer" as UserRole, badge: "count" },
   { href: "/alerts", label: "告警 Alerts", minRole: "viewer" as UserRole, badge: "alert" },

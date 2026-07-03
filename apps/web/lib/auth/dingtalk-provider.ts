@@ -39,7 +39,46 @@ export function DingtalkProvider(): OAuthConfig<DingtalkProfile> {
         scope: "openid"
       }
     },
-    token: "https://api.dingtalk.com/v1.0/oauth2/userAccessToken",
+    token: {
+      // 钉钉 userAccessToken 端点不符合 OAuth2 规范：要求 JSON body + camelCase 字段
+      // （clientId/clientSecret/grantType/code），而非标准 form-encoded 的 client_id/client_secret。
+      // 若用字符串 token: "..." 让 Auth.js 走 oauth4webapi 标准流程，钉钉会返回 400
+      // "unexpected HTTP status code"。必须用 request 函数完全接管请求与响应映射。
+      url: "https://api.dingtalk.com/v1.0/oauth2/userAccessToken",
+      async request({
+        params,
+        provider
+      }: {
+        params: Record<string, unknown> | undefined;
+        provider: { clientId?: string; clientSecret?: string };
+      }) {
+        const code = params?.code;
+        if (typeof code !== "string" || !code) {
+          throw new Error("DingTalk token exchange: missing authorization code");
+        }
+        const response = await fetch("https://api.dingtalk.com/v1.0/oauth2/userAccessToken", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientId: provider.clientId,
+            clientSecret: provider.clientSecret,
+            grantType: "authorization_code",
+            code
+          })
+        });
+        if (!response.ok) {
+          throw new Error(`DingTalk token exchange failed: ${response.status} ${response.statusText}`);
+        }
+        const raw = (await response.json()) as Record<string, unknown>;
+        // 钉钉返回 camelCase（accessToken/expireIn）→ 映射为 Auth.js 期望的 snake_case
+        return {
+          access_token: typeof raw.accessToken === "string" ? raw.accessToken : undefined,
+          refresh_token: typeof raw.refreshToken === "string" ? raw.refreshToken : undefined,
+          expires_in: typeof raw.expireIn === "number" ? raw.expireIn : undefined,
+          token_type: "Bearer"
+        };
+      }
+    },
     userinfo: {
       url: "https://api.dingtalk.com/v1.0/contact/users/me",
       async request({ tokens }: { tokens: { access_token?: unknown } }) {

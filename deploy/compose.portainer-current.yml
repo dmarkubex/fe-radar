@@ -147,8 +147,15 @@ services:
       DATABASE_URL: postgres://fe_radar:${DB_PASSWORD:?在 Portainer stack 环境变量填 DB_PASSWORD}@postgres:5432/fe_radar
       REDIS_URL: redis://redis:6379
       # 从局域网/其他机器访问时必须设成实际访问地址，否则登录回调失败：
-      NEXTAUTH_URL: ${NEXTAUTH_URL:?在 Portainer stack 环境变量填实际访问地址，如 http://10.x.x.x:3013}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:?在 Portainer stack 环境变量填实际访问地址，如 http://10.1.20.156:3013}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?在 Portainer stack 环境变量填 NEXTAUTH_SECRET}
+      # ── 钉钉扫码登录（普通员工用；不开则登录页只有 admin 本地账号）──
+      # 钉钉应用后台必须把回调地址设成 http://10.1.20.156:3013/api/auth/callback/dingtalk
+      DINGTALK_ENABLED: "true"
+      DINGTALK_APP_KEY: ${DINGTALK_APP_KEY:?在 Portainer stack 环境变量填钉钉 AppKey}
+      DINGTALK_APP_SECRET: ${DINGTALK_APP_SECRET:?在 Portainer stack 环境变量填钉钉 AppSecret}
+      # 应急兜底：SSO 故障时仍允许 admin 用本地账号密码登录（dingtalk-provider.ts:isLocalLoginAllowed）
+      EMERGENCY_LOCAL_LOGIN: "true"
       REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users
       DB_WAIT_TIMEOUT_SECONDS: "180"
     ports:
