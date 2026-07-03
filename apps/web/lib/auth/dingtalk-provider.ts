@@ -37,15 +37,18 @@ export function DingtalkProvider(): OAuthConfig<DingtalkProfile> {
     clientId: process.env.DINGTALK_APP_KEY,
     clientSecret: process.env.DINGTALK_APP_SECRET,
     authorization: {
-      // 钉钉登录授权页。scope 必须传 "openid corpid"（空格分隔）：
-      // 仅 "openid" 时拿到的 userAccessToken 调用 contact/users/me 会返回
-      // 403 AccessTokenPermissionDenied（"没有调用该接口的权限"）。
-      // 见 https://open.dingtalk.com/document/isvapp/common-errors
-      // 与 https://open.dingtalk.com/document/app/obtain-identity-credentials
+      // 钉钉登录授权页。两个关键参数缺一不可：
+      //   - scope="openid corpid"：提供 corpId 时 scope 必须含 corpid（否则报
+      //     "scope not contains corpid"）。
+      //   - prompt="consent"：Contact.User.Read 是「个人授权(delegated)」权限，
+      //     由用户在登录时同意授予，不是后台开通即生效。缺此参数时钉钉跳过同意页、
+      //     发的 code 换出的 userAccessToken 不带个人通讯录 scope → 调
+      //     contact/users/me 返回 403 AccessTokenPermissionDenied。
       url: "https://login.dingtalk.com/oauth2/auth",
       params: {
         response_type: "code",
         scope: AUTH_SCOPE,
+        prompt: "consent",
         ...(process.env.DINGTALK_CORP_ID ? { corpId: process.env.DINGTALK_CORP_ID } : {})
       }
     },

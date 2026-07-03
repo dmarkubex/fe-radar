@@ -86,7 +86,10 @@ describe("DingtalkProvider authorization", () => {
 
     expect(provider.authorization?.params).toMatchObject({
       scope: "openid corpid",
-      corpId: "ding-corp"
+      corpId: "ding-corp",
+      // 缺 prompt=consent → 用户不弹同意页 → token 不带个人通讯录 scope →
+      // contact/users/me 报 403 AccessTokenPermissionDenied（曾长期弄不通的根因）。
+      prompt: "consent"
     });
   });
 });
