@@ -117,7 +117,20 @@ export function DingtalkProvider(): OAuthConfig<DingtalkProfile> {
           headers: { "x-acs-dingtalk-access-token": String(tokens.access_token ?? "") }
         });
         if (!response.ok) {
-          throw new Error("DingTalk userinfo failed");
+          // 把钉钉返回的 code/message 和 HTTP 状态码带进异常，便于定位：
+          //   - ForbiddenAccess.NotInContactScope → 该用户不在应用通讯录可见范围
+          //   - InvalidAuthentication             → access_token 失效/已过期
+          //   - 403/权限不足                       → 后台未申请「通讯录个人信息读权限」
+          let detail = "";
+          try {
+            const errBody = (await response.clone().json()) as Record<string, unknown>;
+            detail = ` ${String(errBody.code ?? "")} ${String(errBody.message ?? "")}`.trim();
+          } catch {
+            detail = await response.clone().text().catch(() => "");
+          }
+          throw new Error(
+            `DingTalk userinfo failed: HTTP ${response.status}${detail ? ` (${detail})` : ""}`
+          );
         }
         const raw = await response.json() as Record<string, unknown>;
         return {
