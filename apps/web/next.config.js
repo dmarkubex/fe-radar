@@ -8,11 +8,12 @@ const isProd = process.env.NODE_ENV === "production";
 // websockets / react-refresh eval keep working and e2e (dev server) isn't broken.
 const PROD_CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://g.alicdn.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "connect-src 'self'",
+  "frame-src 'self' https://login.dingtalk.com https://pre-login.dingtalk.com",
   "frame-ancestors 'self'",
   "base-uri 'self'",
   "form-action 'self'",
