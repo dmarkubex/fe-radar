@@ -36,10 +36,15 @@ export function DingtalkProvider(): OAuthConfig<DingtalkProfile> {
     clientId: process.env.DINGTALK_APP_KEY,
     clientSecret: process.env.DINGTALK_APP_SECRET,
     authorization: {
+      // 钉钉登录授权页。scope 必须传 "openid corpid"（空格分隔）：
+      // 仅 "openid" 时拿到的 userAccessToken 调用 contact/users/me 会返回
+      // 403 AccessTokenPermissionDenied（"没有调用该接口的权限"）。
+      // 见 https://open.dingtalk.com/document/isvapp/common-errors
+      // 与 https://open.dingtalk.com/document/app/obtain-identity-credentials
       url: "https://login.dingtalk.com/oauth2/auth",
       params: {
         response_type: "code",
-        scope: "openid"
+        scope: "openid corpid"
       }
     },
     token: {
