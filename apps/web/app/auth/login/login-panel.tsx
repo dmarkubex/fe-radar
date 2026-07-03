@@ -42,16 +42,13 @@ export function LoginPanel({ dingtalkEnabled, localLoginAllowed }: LoginPanelPro
           使用集团钉钉账号扫码进入，首次登录默认 viewer 权限
         </div>
 
-        {/* DingTalk QR */}
         <div className="bg-bg-deep p-5 flex flex-col items-center gap-3">
-          <div className="w-[168px] h-[168px] bg-white p-2.5 flex items-center justify-center">
-            <div className="text-center text-fg-soft text-sm">
-              <DingtalkButton />
-            </div>
+          <div className="min-h-[320px] w-full bg-white p-3 flex items-center justify-center text-center">
+            <DingtalkButton />
           </div>
           <div className="font-mono text-[10px] tracking-[1px] text-fg-soft flex items-center gap-2">
             <span className="inline-block w-1.5 h-1.5 bg-ok rounded-full" />
-            等待扫码，二维码 90 秒后自动刷新
+            二维码由钉钉官方授权组件生成
           </div>
           <div className="text-[12px] text-fg-muted text-center">
             打开钉钉 APP → 右上角 + → 扫一扫

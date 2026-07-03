@@ -1,6 +1,9 @@
 import { isDingtalkEnabled, isLocalLoginAllowed } from "@/lib/auth/dingtalk-provider";
 import { LoginPanel } from "./login-panel";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default function LoginPage(): React.JSX.Element {
   const dingtalkEnabled = isDingtalkEnabled();
   const localLoginAllowed = isLocalLoginAllowed();
