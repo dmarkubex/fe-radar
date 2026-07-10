@@ -42,6 +42,58 @@ export function computePctChange(prev: number, curr: number): number {
   return (curr - prev) / prev;
 }
 
+/**
+ * Derived change_pct metric_key rows (written by quotes-fetch) → parent close metric.
+ * Used to fold independent rows back onto close quotes for LLM prompt assembly.
+ */
+export const DERIVED_CHANGE_PCT_TO_CLOSE: Readonly<Record<string, string>> = {
+  cu_change_pct: "cu_main_close",
+  lc_change_pct: "lc_main_close",
+};
+
+export function isChangePctMetric(metricKey: string): boolean {
+  return metricKey.endsWith("_change_pct");
+}
+
+/** Format a quote value for docx / template display. change_pct stays decimal in DB; render as "0.67%". */
+export function formatMetricDisplay(metricKey: string, value: number | null | undefined): string | null {
+  if (value === null || value === undefined || !Number.isFinite(value)) return null;
+  if (isChangePctMetric(metricKey)) {
+    return `${(value * 100).toFixed(2)}%`;
+  }
+  return String(value);
+}
+
+/**
+ * Merge derived cu_change_pct / lc_change_pct rows into the matching close quote's
+ * changePct, then drop the derived rows so they are not listed as standalone metrics.
+ */
+// ponytail: Map keyed only by metricKey — same-day multi-snapshot last-write-wins; pair by observedAt if force-rerun ever yields multiple observed_at on one calendar day (normal path: single 15:30 cron + deterministic adapter observedAt → ON CONFLICT upsert, no multi-row)
+export function mergeDerivedChangePctQuotes(quotes: Quote[]): Quote[] {
+  const derivedValues = new Map<string, number | null>();
+  for (const q of quotes) {
+    const closeKey = DERIVED_CHANGE_PCT_TO_CLOSE[q.metricKey];
+    if (closeKey !== undefined) {
+      derivedValues.set(closeKey, q.value);
+    }
+  }
+
+  const merged: Quote[] = [];
+  for (const q of quotes) {
+    if (DERIVED_CHANGE_PCT_TO_CLOSE[q.metricKey] !== undefined) continue;
+    const derived = derivedValues.get(q.metricKey);
+    if (derived !== undefined) {
+      merged.push({
+        ...q,
+        changePct: derived,
+      });
+    } else {
+      merged.push(q);
+    }
+  }
+  return merged;
+}
+
 export function mapTemplateFields(
   quotes: Quote[],
   templateFields: TemplateField[]
@@ -55,7 +107,8 @@ export function mapTemplateFields(
   for (const field of templateFields) {
     if (field.sourceMetric !== null) {
       const quote = quoteByMetric.get(field.sourceMetric);
-      result[field.placeholderKey] = quote?.value ?? null;
+      const raw = quote?.value ?? null;
+      result[field.placeholderKey] = formatMetricDisplay(field.sourceMetric, raw);
     } else {
       result[field.placeholderKey] = null;
     }

@@ -1,4 +1,4 @@
-import type { Quote } from "@fe-radar/core";
+import { mergeDerivedChangePctQuotes, type Quote } from "@fe-radar/core";
 import { withScrubber } from "./middleware/scrubber";
 import { createDeepSeekClient } from "./clients/deepseek";
 import type { LlmResult } from "./types";
@@ -144,7 +144,10 @@ export function buildBriefingInput(
   if (quotes.length === 0) {
     sections.push("_当日数值缺失，请基于近期序列谨慎分析。_");
   } else {
-    const quoteLines = quotes.map((q) => {
+    // T-REV-02 fix: fold cu_change_pct / lc_change_pct rows into close.changePct;
+    // do not list derived rows as standalone "行情项".
+    const displayQuotes = mergeDerivedChangePctQuotes(quotes);
+    const quoteLines = displayQuotes.map((q) => {
       const val = q.value !== null ? String(q.value) : "—";
       const chg = q.changePct !== null ? `${(q.changePct * 100).toFixed(2)}%` : "—";
       return `- **${q.metricKey}**: ${val}（涨跌幅 ${chg}）`;

@@ -24,14 +24,18 @@ import {
   sources,
 } from "@fe-radar/db";
 import type { DbClient } from "@fe-radar/db";
-import { buildBriefingInput, runBriefingGen as llmRunBriefingGen } from "@fe-radar/llm";
-import type { BriefingOutput, NewsItem } from "@fe-radar/llm";
 import {
   computeSupportResistance,
   degradeFields,
+  formatMetricDisplay,
   isBusinessDay,
 } from "@fe-radar/core";
 import type { Quote, SupportResistanceSample } from "@fe-radar/core";
+import {
+  buildBriefingInput,
+  runBriefingGen as llmRunBriefingGen,
+} from "@fe-radar/llm";
+import type { BriefingOutput, NewsItem } from "@fe-radar/llm";
 import { APP_TIMEZONE, createLogger, dayjs } from "@fe-radar/shared";
 
 import { renderBriefing } from "../lib/briefing-render";
@@ -591,6 +595,11 @@ function buildTemplateFields(
     return String(v);
   }
 
+  /** Metric display: *_change_pct → "0.67%"; other numerics as plain string. */
+  function fmtMetric(metricKey: string, v: number | null | undefined): string {
+    return formatMetricDisplay(metricKey, v) ?? fallback;
+  }
+
   const fields: Record<string, string> = {
     // Static / meta
     briefing_date: briefingDate,
@@ -618,7 +627,7 @@ function buildTemplateFields(
 
   // Numeric metric placeholders (NFR-102: values come only from quotes, never LLM)
   for (const [placeholder, metricKey] of Object.entries(PLACEHOLDER_METRIC_MAP)) {
-    fields[placeholder] = fmt(quotesByKey[metricKey]);
+    fields[placeholder] = fmtMetric(metricKey, quotesByKey[metricKey]);
   }
 
   return fields;

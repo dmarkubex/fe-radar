@@ -320,6 +320,59 @@ WHERE s.name = 'Firecrawl-C1风险检索' GROUP BY s.id, s.name, s.fail_count, s
 
 > **注意**：未配 key 时该源抓取必然失败（`SourceFetchError FETCH_CONFIG`），`fail_count` 递增属预期；配好 key 后恢复正常。该源不影响其它源抓取。
 
+### 7.3 重新激活已被系统自动禁用的源（通电后必做）
+
+> **禁用机制（按失败次数，不是天数）**：`apps/worker/src/scheduler.ts` 的 `shouldDisableSource` / `recordSourceFailure` 与 `quotes-fetch.ts` 均在 **`fail_count >= 7`** 时把源 `enabled=false`。常量名虽含 `DAYS`，实际计数的是**连续失败次数**。`scheduler` / `handlers/fetch` 只调度 `enabled=true` 的源，**禁用后不会自动恢复**——即使代理池 / Firecrawl 已通电，漏掉本步则源仍拿不到数据。
+
+**前置确认（通电已生效）**：
+
+```bash
+# 1) 代理池：stack env 已开，secret 已挂载
+#    PROXY_POOL_ENABLED=true
+#    PROXY_LIST_FILE=/run/secrets/proxy_list
+docker secret inspect proxy_list
+
+# 2) Firecrawl（若启用了 crawl 源）
+docker secret inspect firecrawl_api_key
+```
+
+**重新激活（Admin 后台或 SQL，二选一）**：
+
+```sql
+-- 查出已被自动禁用、且非合规禁源的候选
+SELECT id, name, fetcher_type, fail_count, last_error, last_ok_at
+FROM sources
+WHERE enabled = false
+  AND fail_count >= 7
+  AND name NOT IN ('雪球', '搜狗微信', '索比光伏', '电缆头条', '储能头条')
+ORDER BY fail_count DESC, name;
+
+-- 按实际名单重开（示例：政府站 + 能源报；把 id 换成上一步结果）
+UPDATE sources
+SET enabled = true, fail_count = 0, last_error = NULL
+WHERE id IN (/* ... */);
+-- 或按名：
+-- WHERE name IN ('国家发改委','工信部','中电联','中国能源报');
+```
+
+**验证（等下一轮抓取 cron 后）**：
+
+```sql
+SELECT name, enabled, fail_count, last_ok_at, left(last_error, 80) AS last_error
+FROM sources
+WHERE name IN ('国家发改委','工信部','中电联','中国能源报')
+ORDER BY name;
+-- 期望：enabled=true、fail_count=0、last_ok_at 刷新到本轮
+```
+
+> **合规底线不变**：代理仅绕 IP 封禁，不绕 robots.txt；雪球 / 搜狗微信 / 索比光伏保持禁用，不得借本步骤重启。
+
+### 7.4 PBOC `fx_usdcny`（央行汇率）— 暂不启用
+
+> **核实记录（2026-07-09，T-REV-03）**：实现机对 seed URL `http://www.pbc.gov.cn/rmyh/108976/109428/index.html` 与 HTTPS 根站均不可达（Empty reply / SSL_ERROR_SYSCALL），与历史「agent 网无法访问 .gov.cn」一致。fixture 单测通过，但**线上 DOM 未验证**。按卡约束**不启用**，避免空抓推入 `fail_count>=7` 自动禁用循环。详见 `spec/review-2026-07-09-relevance-briefing-sources/pboc-verify-2026-07-09.md`。
+>
+> **部署网可达后再启用**：代理通电后对上述 URL smoke → 确认解析出非 null `fx_usdcny` → 再写新迁移 `UPDATE sources SET enabled=true, fail_count=0 WHERE name='央行汇率中间价'`（不改 0009）。
+
 ---
 
 ## 已完成 / 仍需你做

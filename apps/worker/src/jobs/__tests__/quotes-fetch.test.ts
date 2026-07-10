@@ -1,3 +1,4 @@
+import type * as FeRadarCore from "@fe-radar/core";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 // ---------------------------------------------------------------------------
@@ -28,7 +29,11 @@ vi.mock("@fe-radar/db", () => ({
   listSources: mockListSources,
   markSourceFailure: mockMarkSourceFailure,
   markSourceSuccess: mockMarkSourceSuccess,
-  commodityQuotes: {},
+  commodityQuotes: {
+    metricKey: "cq.metric_key",
+    value: "cq.value",
+    observedAt: "cq.observed_at",
+  },
   briefingHolidays: { holidayDate: "holiday_date" },
 }));
 
@@ -36,11 +41,44 @@ vi.mock("../../fetchers/quotes", () => ({
   fetchQuotes: mockFetchQuotes,
 }));
 
-vi.mock("@fe-radar/core", () => ({
-  isBusinessDay: mockIsBusinessDay,
-}));
+vi.mock("@fe-radar/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof FeRadarCore>();
+  return {
+    ...actual,
+    isBusinessDay: mockIsBusinessDay,
+  };
+});
 
 vi.mock("@fe-radar/shared", () => ({
+  APP_TIMEZONE: "Asia/Shanghai",
+  dayjs: Object.assign(
+    (input?: unknown) => {
+      const d = new Date(input as string | number | Date);
+      const y = d.getUTCFullYear();
+      const m = d.getUTCMonth();
+      const day = d.getUTCDate();
+      const dayStartMs = Date.UTC(y, m, day);
+      const api = {
+        tz: () => api,
+        startOf: (_unit: string) => ({
+          toDate: () => new Date(dayStartMs),
+          subtract: (n: number, _u: string) => ({
+            startOf: () => ({ toDate: () => new Date(dayStartMs - n * 86400000) }),
+            toDate: () => new Date(dayStartMs - n * 86400000),
+          }),
+        }),
+        subtract: (n: number, _unit: string) => ({
+          startOf: (_u: string) => ({
+            toDate: () => new Date(dayStartMs - n * 86400000),
+          }),
+          toDate: () => new Date(dayStartMs - n * 86400000),
+        }),
+        toDate: () => d,
+      };
+      return api;
+    },
+    {},
+  ),
   createLogger: () => ({
     info: vi.fn(),
     warn: vi.fn(),
@@ -72,16 +110,47 @@ vi.mock("drizzle-orm", () => ({
       },
     }
   ),
+  and: vi.fn((...args: unknown[]) => ({ and: args })),
+  eq: vi.fn((a: unknown, b: unknown) => ({ eq: [a, b] })),
+  lt: vi.fn((a: unknown, b: unknown) => ({ lt: [a, b] })),
+  gte: vi.fn((a: unknown, b: unknown) => ({ gte: [a, b] })),
+  desc: vi.fn((a: unknown) => ({ desc: a })),
 }));
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeDbWithHolidays(holidayRows: { holidayDate: string }[]) {
+/**
+ * @param holidayRows — briefing_holidays select
+ * @param prevCloseQueue — FIFO of previous-close lookup results (each is rows for .limit())
+ */
+function makeDbWithHolidays(
+  holidayRows: { holidayDate: string }[],
+  prevCloseQueue: { value: string | number | null }[][] = [],
+) {
+  let selectCall = 0;
   const db = {
-    select: vi.fn().mockReturnThis(),
-    from: vi.fn().mockResolvedValue(holidayRows),
+    select: vi.fn(() => {
+      const idx = selectCall++;
+      if (idx === 0) {
+        // holidays: select().from() → resolved array
+        return {
+          from: vi.fn().mockResolvedValue(holidayRows),
+        };
+      }
+      // previous-close: select().from().where().orderBy().limit()
+      const resolveLimit = vi.fn().mockImplementation(async () => prevCloseQueue.shift() ?? []);
+      return {
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            orderBy: vi.fn(() => ({
+              limit: resolveLimit,
+            })),
+          })),
+        })),
+      };
+    }),
     execute: mockExecute,
   };
   mockGetDb.mockReturnValue(db);
@@ -298,5 +367,77 @@ describe("runQuotesFetch", () => {
       expect.stringContaining("空值") // lastError reason (all-null samples)
     );
     expect(mockMarkSourceSuccess).not.toHaveBeenCalled();
+  });
+
+  // ── T-REV-02 — local change_pct derivation ──────────────────────────────
+
+  it("T-REV-02: cu_main_close with prior day → upserts cu_change_pct derived row", async () => {
+    makeDbWithHolidays([], [[{ value: "78000" }]]);
+    mockIsBusinessDay.mockReturnValue(true);
+    mockListSources.mockResolvedValue([makeSource({ tier: "T1" })]);
+    const observedAt = new Date("2026-05-20T07:30:00.000Z");
+    mockFetchQuotes.mockResolvedValue([
+      makeSample({ metricKey: "cu_main_close", value: 78520, observedAt }),
+    ]);
+
+    const result = await runQuotesFetch(1);
+
+    // close row + derived change_pct row
+    expect(result.upserted).toBe(2);
+    expect(mockExecute).toHaveBeenCalledTimes(2);
+    const changeSql = mockExecute.mock.calls[1]?.[0] as string;
+    expect(changeSql).toContain("cu_change_pct");
+    // computePctChange(78000, 78520) ≈ 0.006666...
+    expect(changeSql).toContain(String((78520 - 78000) / 78000));
+  });
+
+  it("T-REV-02: no prior close → does not write change_pct row", async () => {
+    makeDbWithHolidays([], [[]]); // empty prior
+    mockIsBusinessDay.mockReturnValue(true);
+    mockListSources.mockResolvedValue([makeSource()]);
+    mockFetchQuotes.mockResolvedValue([
+      makeSample({ metricKey: "cu_main_close", value: 78520 }),
+    ]);
+
+    const result = await runQuotesFetch(1);
+
+    expect(result.upserted).toBe(1);
+    expect(mockExecute).toHaveBeenCalledTimes(1);
+    const sqlArg = mockExecute.mock.calls[0]?.[0] as string;
+    expect(sqlArg).toContain("cu_main_close");
+    expect(sqlArg).not.toContain("cu_change_pct");
+  });
+
+  it("T-REV-02: prior value=0 → ZERO_BASE_FALLBACK (0) written as cu_change_pct", async () => {
+    makeDbWithHolidays([], [[{ value: "0" }]]);
+    mockIsBusinessDay.mockReturnValue(true);
+    mockListSources.mockResolvedValue([makeSource()]);
+    mockFetchQuotes.mockResolvedValue([
+      makeSample({ metricKey: "cu_main_close", value: 500 }),
+    ]);
+
+    const result = await runQuotesFetch(1);
+
+    expect(result.upserted).toBe(2);
+    const changeSql = mockExecute.mock.calls[1]?.[0] as string;
+    expect(changeSql).toContain("cu_change_pct");
+    // ZERO_BASE_FALLBACK === 0 appears as value in INSERT
+    expect(changeSql).toMatch(/cu_change_pct[\s\S]*?\n\s*0,/);
+  });
+
+  it("T-REV-02: lc_main_close with prior → writes lc_change_pct", async () => {
+    makeDbWithHolidays([], [[{ value: "100000" }]]);
+    mockIsBusinessDay.mockReturnValue(true);
+    mockListSources.mockResolvedValue([makeSource()]);
+    mockFetchQuotes.mockResolvedValue([
+      makeSample({ metricKey: "lc_main_close", value: 98000 }),
+    ]);
+
+    const result = await runQuotesFetch(1);
+
+    expect(result.upserted).toBe(2);
+    const changeSql = mockExecute.mock.calls[1]?.[0] as string;
+    expect(changeSql).toContain("lc_change_pct");
+    expect(changeSql).toContain(String((98000 - 100000) / 100000));
   });
 });

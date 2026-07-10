@@ -1,5 +1,5 @@
 import { getDb, items, itemEntities, entities } from "@fe-radar/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, arrayContains, sql, desc } from "drizzle-orm";
 import { withScrubber } from "@fe-radar/llm";
 import { admitWebSearch, type RedisEvalLike } from "@fe-radar/core";
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
@@ -9,6 +9,81 @@ import { createRedisConnection, createWebsearchQueue } from "../queues";
 import { runNer } from "../jobs/ner";
 
 import { logger, handlerContext, loadEntityDictionary } from "./context";
+
+/** C1 > C2 > C3 > null — used when alias fallback hits multiple entities. */
+const CIRCLE_RANK_SQL = sql`CASE ${entities.circle}
+  WHEN 'C1' THEN 1
+  WHEN 'C2' THEN 2
+  WHEN 'C3' THEN 3
+  ELSE 4
+END`;
+
+const CIRCLE_RANK: Record<string, number> = { C1: 1, C2: 2, C3: 3 };
+
+export interface AliasHitCandidate {
+  id: number;
+  circle: string | null;
+  weight: number;
+}
+
+/**
+ * Disambiguate multiple alias hits: circle C1>C2>C3>null, then weight DESC.
+ * Pure function so unit tests can verify the rule without relying on SQL mock ordering.
+ */
+export function pickBestAliasHit(hits: AliasHitCandidate[]): AliasHitCandidate | null {
+  if (hits.length === 0) return null;
+  return [...hits].sort((a, b) => {
+    const ra = CIRCLE_RANK[a.circle ?? ""] ?? 4;
+    const rb = CIRCLE_RANK[b.circle ?? ""] ?? 4;
+    if (ra !== rb) return ra - rb;
+    return b.weight - a.weight;
+  })[0]!;
+}
+
+/**
+ * Resolve LLM-extracted name → entities.id.
+ * 1) exact match on (type, canonicalName)
+ * 2) fallback: aliases @> ARRAY[name], disambiguate by circle then weight
+ */
+export async function resolveEntityId(
+  db: ReturnType<typeof getDb>,
+  type: string,
+  extractedName: string,
+  itemId: number,
+): Promise<number | null> {
+  const [byCanonical] = await db
+    .select({ id: entities.id })
+    .from(entities)
+    .where(and(eq(entities.type, type), eq(entities.canonicalName, extractedName)))
+    .limit(1);
+  if (byCanonical) return byCanonical.id;
+
+  // Fetch all alias matches (ORDER BY is a DB hint; authoritative pick is pickBestAliasHit).
+  const aliasHits = await db
+    .select({
+      id: entities.id,
+      circle: entities.circle,
+      weight: entities.weight,
+    })
+    .from(entities)
+    .where(and(eq(entities.type, type), arrayContains(entities.aliases, [extractedName])))
+    .orderBy(CIRCLE_RANK_SQL, desc(entities.weight));
+
+  const hit = pickBestAliasHit(aliasHits);
+  if (!hit) return null;
+
+  logger.info(
+    {
+      itemId,
+      extractedName,
+      entityId: hit.id,
+      circle: hit.circle,
+      match: "alias_fallback",
+    },
+    "NER entity resolved via alias fallback",
+  );
+  return hit.id;
+}
 
 export async function handleNerJob(job: { data: PipelineJob }): Promise<void> {
   const db = getDb();
@@ -32,13 +107,10 @@ export async function handleNerJob(job: { data: PipelineJob }): Promise<void> {
   );
 
   for (const entity of result.entities) {
-    if (entity.canonicalName) {
-      const [existing] = await db.select({ id: entities.id }).from(entities)
-        .where(and(eq(entities.type, entity.type), eq(entities.canonicalName, entity.canonicalName)))
-        .limit(1);
-      if (existing) {
-        await db.insert(itemEntities).values({ itemId, entityId: existing.id, span: entity.text }).onConflictDoNothing();
-      }
+    if (!entity.canonicalName) continue;
+    const entityId = await resolveEntityId(db, entity.type, entity.canonicalName, itemId);
+    if (entityId != null) {
+      await db.insert(itemEntities).values({ itemId, entityId, span: entity.text }).onConflictDoNothing();
     }
   }
 

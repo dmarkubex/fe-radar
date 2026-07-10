@@ -1,7 +1,7 @@
-import { sql } from "drizzle-orm";
-import { getDb, listSources, markSourceFailure, markSourceSuccess, briefingHolidays } from "@fe-radar/db";
-import { isBusinessDay } from "@fe-radar/core";
-import { createLogger } from "@fe-radar/shared";
+import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { getDb, listSources, markSourceFailure, markSourceSuccess, briefingHolidays, commodityQuotes } from "@fe-radar/db";
+import { computePctChange, isBusinessDay } from "@fe-radar/core";
+import { APP_TIMEZONE, createLogger, dayjs } from "@fe-radar/shared";
 import { fetchQuotes } from "../fetchers/quotes";
 import type { FetchContext } from "../fetchers/types";
 import type { QuoteSample } from "../fetchers/quotes/types";
@@ -14,16 +14,89 @@ const TIER_PRIORITY: Record<string, number> = { T1: 1, T2: 2, T3: 3 };
 const DISABLE_AFTER_FAIL_COUNT = 7;
 const WARN_AFTER_NULL_VALUE_DAYS = 3;
 
+/** Close metric → derived change_pct metric (written as a separate row). */
+const CLOSE_TO_CHANGE_PCT: Record<string, string> = {
+  cu_main_close: "cu_change_pct",
+  lc_main_close: "lc_change_pct",
+};
+
+/**
+ * Look back window for previous close.
+ * Must cover National Day / Spring Festival long holidays (8–9 calendar days
+ * without trades); 7 was too short (code-review MAJOR/MEDIUM round 1).
+ */
+export const PREV_CLOSE_LOOKBACK_DAYS = 15;
+
 async function loadHolidaySet(): Promise<Set<string>> {
   const db = getDb();
   const rows = await db.select({ holidayDate: briefingHolidays.holidayDate }).from(briefingHolidays);
   return new Set(rows.map((r) => r.holidayDate as string));
 }
 
-async function upsertQuoteSamples(
+/**
+ * Find the most recent prior close for the same metric_key within the lookback window.
+ * Boundary is Asia/Shanghai calendar-day start (strictly before today 00:00), not the
+ * raw observedAt timestamp — same-day re-fetches must not pick an earlier same-day row.
+ * Returns null when no prior row exists (first fetch / gap).
+ */
+export async function findPreviousCloseValue(
+  metricKey: string,
+  observedAt: Date,
+): Promise<number | null> {
+  const db = getDb();
+  const dayStart = dayjs(observedAt).tz(APP_TIMEZONE).startOf("day").toDate();
+  const windowStart = dayjs(observedAt)
+    .tz(APP_TIMEZONE)
+    .subtract(PREV_CLOSE_LOOKBACK_DAYS, "day")
+    .startOf("day")
+    .toDate();
+  const [prev] = await db
+    .select({ value: commodityQuotes.value })
+    .from(commodityQuotes)
+    .where(
+      and(
+        eq(commodityQuotes.metricKey, metricKey),
+        lt(commodityQuotes.observedAt, dayStart),
+        gte(commodityQuotes.observedAt, windowStart),
+      ),
+    )
+    .orderBy(desc(commodityQuotes.observedAt))
+    .limit(1);
+
+  if (!prev || prev.value == null) return null;
+  const n = Number(prev.value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * After upserting a close sample, derive cu_change_pct / lc_change_pct as a
+ * separate metric_key row (KEY_METRIC_FIELDS reads by metric_key, not change_pct column).
+ */
+async function maybeUpsertDerivedChangePct(
   sourceId: number,
   sourceTier: string,
-  samples: QuoteSample[]
+  sample: QuoteSample,
+): Promise<number> {
+  const changeKey = CLOSE_TO_CHANGE_PCT[sample.metricKey];
+  if (!changeKey || sample.value == null) return 0;
+
+  const prevValue = await findPreviousCloseValue(sample.metricKey, sample.observedAt);
+  if (prevValue == null) return 0;
+
+  const pct = computePctChange(prevValue, sample.value);
+  const derived: QuoteSample = {
+    metricKey: changeKey,
+    value: pct,
+    observedAt: sample.observedAt,
+    rawText: `derived from ${sample.metricKey} prev=${prevValue} curr=${sample.value}`,
+  };
+  return upsertQuoteSamplesRaw(sourceId, sourceTier, [derived]);
+}
+
+async function upsertQuoteSamplesRaw(
+  sourceId: number,
+  sourceTier: string,
+  samples: QuoteSample[],
 ): Promise<number> {
   if (samples.length === 0) return 0;
 
@@ -72,6 +145,18 @@ async function upsertQuoteSamples(
       )
     `);
     upserted++;
+  }
+  return upserted;
+}
+
+async function upsertQuoteSamples(
+  sourceId: number,
+  sourceTier: string,
+  samples: QuoteSample[]
+): Promise<number> {
+  let upserted = await upsertQuoteSamplesRaw(sourceId, sourceTier, samples);
+  for (const sample of samples) {
+    upserted += await maybeUpsertDerivedChangePct(sourceId, sourceTier, sample);
   }
   return upserted;
 }

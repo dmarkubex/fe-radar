@@ -316,6 +316,65 @@ describe("briefing-gen", () => {
     );
   });
 
+  // ── Round 2 sentinel: production wiring buildTemplateFields → fmtMetric → formatMetricDisplay
+  it("passes percent-formatted cu_change_pct to renderBriefing (production path, not mapTemplateFields)", async () => {
+    const quoteRows = [
+      { metricKey: "cu_main_close", value: "78520", changePct: null, observedAt: new Date("2026-05-20T07:30:00Z") },
+      { metricKey: "cu_change_pct", value: "0.0067", changePct: null, observedAt: new Date("2026-05-20T07:30:00Z") },
+      { metricKey: "lc_main_close", value: "98000", changePct: null, observedAt: new Date("2026-05-20T07:30:00Z") },
+      { metricKey: "lc_change_pct", value: "-0.02", changePct: null, observedAt: new Date("2026-05-20T07:30:00Z") },
+      { metricKey: "fx_usdcny", value: "7.2", changePct: null, observedAt: new Date("2026-05-20T07:30:00Z") },
+    ];
+    // Select call order in runBriefingGen (happy path, coverage ok on first try):
+    // 1 holidays, 2 duplicate check, 3 todayQuotes, 4 contextNews, 5 cu recent, 6 lc recent
+    const selectResults: unknown[][] = [
+      [], // holidays
+      [], // no existing briefing
+      quoteRows, // today quotes — drives quotesByKey → buildTemplateFields
+      [], // context news
+      [], // cu recent for s/r
+      [], // lc recent for s/r
+    ];
+    let selectCall = 0;
+    const select = vi.fn(() => {
+      const rows = selectResults[selectCall++] ?? [];
+      const chain: Record<string, unknown> = {};
+      const makeMethod = () => vi.fn().mockReturnValue(chain);
+      chain.from = makeMethod();
+      chain.where = makeMethod();
+      chain.innerJoin = makeMethod();
+      chain.orderBy = makeMethod();
+      chain.limit = vi.fn().mockResolvedValue(rows);
+      chain.then = (resolve: (v: unknown) => void) => resolve(rows);
+      return chain;
+    });
+    const insertChain = mockInsertChain([{ id: 101 }]);
+    const db = { select, insert: vi.fn().mockReturnValue(insertChain) };
+    const mockQueue = {
+      getJobCounts: vi.fn().mockResolvedValue({ waiting: 0, active: 0, delayed: 0 }),
+    };
+
+    await runBriefingGen({
+      db: db as never,
+      now: new Date("2026-05-20T08:00:00Z"),
+      quotesFetchQueueOverride: mockQueue,
+      retryDelayMs: 0,
+    });
+
+    // Nails the real render path: if someone removes fmtMetric / formatMetricDisplay
+    // from buildTemplateFields, this fails even when pure-function unit tests stay green.
+    expect(renderBriefingFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fields: expect.objectContaining({
+          cu_change_pct: "0.67%",
+          lc_change_pct: "-2.00%",
+          cu_close: "78520",
+        }),
+      }),
+      expect.anything(),
+    );
+  });
+
   // ── Case 7: enqueue briefing-push on success (T-CB-13 / FIX-2) ─────────
   it("enqueues a briefing-push job after a successful generation", async () => {
     pushQueueAdd.mockClear();

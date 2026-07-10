@@ -40,7 +40,14 @@ vi.mock("@fe-radar/db", () => ({
   getDb: mockGetDb,
   items: { id: "items.id", title: "items.title", content: "items.content" },
   itemEntities: { itemId: "ie.item_id", entityId: "ie.entity_id", span: "ie.span" },
-  entities: { id: "entities.id", type: "entities.type", canonicalName: "entities.canonical_name", circle: "entities.circle" },
+  entities: {
+    id: "entities.id",
+    type: "entities.type",
+    canonicalName: "entities.canonical_name",
+    aliases: "entities.aliases",
+    circle: "entities.circle",
+    weight: "entities.weight",
+  },
 }));
 
 vi.mock("@fe-radar/llm", () => ({ withScrubber: mockWithScrubber }));
@@ -49,6 +56,12 @@ vi.mock("drizzle-orm", () => ({
   eq: vi.fn((a: unknown, b: unknown) => ({ a, b })),
   and: vi.fn((...args: unknown[]) => ({ and: args })),
   inArray: vi.fn((a: unknown, b: unknown) => ({ a, b })),
+  arrayContains: vi.fn((a: unknown, b: unknown) => ({ arrayContains: [a, b] })),
+  desc: vi.fn((a: unknown) => ({ desc: a })),
+  sql: Object.assign(
+    (strings: TemplateStringsArray, ...values: unknown[]) => ({ sql: strings, values }),
+    { raw: (s: string) => s },
+  ),
 }));
 vi.mock("../../jobs/ner", () => ({ runNer: mockRunNer }));
 vi.mock("../context", () => ({
@@ -64,8 +77,8 @@ vi.mock("../../queues", () => ({
 /**
  * Builds a chainable DB mock.
  * - itemSelectRows: rows for the first items.title/content select.
- * - entityLookupQueue: array of result arrays returned by each subsequent
- *   entities lookup select (FIFO), letting tests control resolve/no-resolve.
+ * - entityLookupQueue: FIFO results for each entities lookup (canonical and/or alias).
+ *   Both `.limit()` and `.orderBy().limit()` pull from the same queue.
  * - c1c2Hits: rows returned by the T-ARK-17 C1/C2 websearch probe
  *   (item_entities ⨝ entities). Defaults to [] so legacy tests trigger no
  *   websearch side-effect.
@@ -76,10 +89,16 @@ function makeDb(itemSelectRows: unknown[], entityLookupQueue: unknown[][] = [], 
   const db = {
     select: vi.fn(() => {
       const idx = selectCall++;
+      const resolveRows = async () => {
+        if (idx === 0) return itemSelectRows;
+        return entityLookupQueue.shift() ?? [];
+      };
       return {
         from: vi.fn(() => ({
           where: vi.fn(() => ({
-            limit: vi.fn().mockResolvedValue(idx === 0 ? itemSelectRows : (entityLookupQueue.shift() ?? [])),
+            limit: vi.fn().mockImplementation(resolveRows),
+            // alias path: .orderBy(...) is awaited directly (no limit)
+            orderBy: vi.fn().mockImplementation(resolveRows),
           })),
           innerJoin: vi.fn(() => ({
             where: vi.fn().mockResolvedValue(c1c2Hits),
@@ -94,7 +113,38 @@ function makeDb(itemSelectRows: unknown[], entityLookupQueue: unknown[][] = [], 
   return db;
 }
 
-import { handleNerJob } from "../ner";
+import { handleNerJob, pickBestAliasHit } from "../ner";
+
+describe("pickBestAliasHit (T-REV-04 disambiguation)", () => {
+  it("prefers C1 over C2 even when C2 has higher weight", () => {
+    const best = pickBestAliasHit([
+      { id: 2, circle: "C2", weight: 9.0 },
+      { id: 1, circle: "C1", weight: 0.1 },
+    ]);
+    expect(best?.id).toBe(1);
+  });
+
+  it("within same circle prefers higher weight", () => {
+    const best = pickBestAliasHit([
+      { id: 10, circle: "C1", weight: 0.5 },
+      { id: 11, circle: "C1", weight: 1.2 },
+    ]);
+    expect(best?.id).toBe(11);
+  });
+
+  it("ranks C1 > C2 > C3 > null", () => {
+    const best = pickBestAliasHit([
+      { id: 3, circle: null, weight: 99 },
+      { id: 2, circle: "C3", weight: 5 },
+      { id: 1, circle: "C2", weight: 1 },
+    ]);
+    expect(best?.id).toBe(1);
+  });
+
+  it("returns null for empty hits", () => {
+    expect(pickBestAliasHit([])).toBeNull();
+  });
+});
 
 describe("handleNerJob", () => {
   beforeEach(() => {
@@ -121,13 +171,75 @@ describe("handleNerJob", () => {
   it("boundary: entity with canonicalName but no matching row → no insert", async () => {
     const db = makeDb(
       [{ title: "标题", content: "正文" }],
-      [[]], // entities lookup → not found
+      [[], []], // canonical miss → alias miss
     );
     mockRunNer.mockResolvedValue({
       entities: [{ type: "company", text: "未知公司", canonicalName: "未知公司" }],
     });
 
     await handleNerJob({ data: { itemId: 101 } as never });
+    expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it("alias fallback: canonical miss + alias hit → insert + info log", async () => {
+    const db = makeDb(
+      [{ title: "远东股份中标", content: "正文" }],
+      [
+        [], // canonical miss
+        [{ id: 12, circle: "C1", weight: 1.0 }], // alias hit
+      ],
+    );
+    mockRunNer.mockResolvedValue({
+      entities: [{ type: "company", text: "远东股份", canonicalName: "远东股份" }],
+    });
+
+    await handleNerJob({ data: { itemId: 200 } as never });
+
+    expect(db._insertValues).toHaveBeenCalledWith({ itemId: 200, entityId: 12, span: "远东股份" });
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        itemId: 200,
+        extractedName: "远东股份",
+        entityId: 12,
+        circle: "C1",
+        match: "alias_fallback",
+      }),
+      "NER entity resolved via alias fallback",
+    );
+  });
+
+  it("alias disambiguation: unsorted multi-hit rows → picks C1 over higher-weight C2", async () => {
+    // Mock returns unsorted multi-row set (as a raw SELECT without relying on SQL ORDER BY).
+    // pickBestAliasHit must still choose C1 (id=1) over C2 with higher weight (id=2).
+    const db = makeDb(
+      [{ title: "远东", content: "正文" }],
+      [
+        [], // canonical miss
+        [
+          { id: 2, circle: "C2", weight: 9.0 },
+          { id: 1, circle: "C1", weight: 0.1 },
+        ],
+      ],
+    );
+    mockRunNer.mockResolvedValue({
+      entities: [{ type: "company", text: "远东", canonicalName: "远东" }],
+    });
+
+    await handleNerJob({ data: { itemId: 201 } as never });
+
+    expect(db._insertValues).toHaveBeenCalledWith({ itemId: 201, entityId: 1, span: "远东" });
+  });
+
+  it("alias miss after canonical miss → no insert (same as pre-fix)", async () => {
+    const db = makeDb(
+      [{ title: "标题", content: "正文" }],
+      [[], []],
+    );
+    mockRunNer.mockResolvedValue({
+      entities: [{ type: "company", text: "完全陌生", canonicalName: "完全陌生" }],
+    });
+
+    await handleNerJob({ data: { itemId: 202 } as never });
     expect(db.insert).not.toHaveBeenCalled();
   });
 

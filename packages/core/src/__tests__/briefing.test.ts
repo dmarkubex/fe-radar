@@ -4,8 +4,10 @@ import {
   computePctChange,
   computeSupportResistance,
   degradeFields,
+  formatMetricDisplay,
   isBusinessDay,
   mapTemplateFields,
+  mergeDerivedChangePctQuotes,
 } from "../briefing";
 
 describe("computePctChange", () => {
@@ -30,21 +32,70 @@ describe("computePctChange", () => {
   });
 });
 
+describe("formatMetricDisplay", () => {
+  it("formats *_change_pct as percentage string", () => {
+    expect(formatMetricDisplay("cu_change_pct", 0.0067)).toBe("0.67%");
+    expect(formatMetricDisplay("lc_change_pct", -0.02)).toBe("-2.00%");
+  });
+
+  it("formats non-pct metrics as plain string", () => {
+    expect(formatMetricDisplay("cu_main_close", 78520)).toBe("78520");
+  });
+
+  it("returns null for missing values", () => {
+    expect(formatMetricDisplay("cu_change_pct", null)).toBeNull();
+    expect(formatMetricDisplay("cu_change_pct", undefined)).toBeNull();
+  });
+});
+
+describe("mergeDerivedChangePctQuotes", () => {
+  it("folds cu_change_pct / lc_change_pct into close.changePct and drops derived rows", () => {
+    const quotes = [
+      { metricKey: "cu_main_close", value: 78520, changePct: null, observedAt: new Date("2026-05-20") },
+      { metricKey: "cu_change_pct", value: 0.0067, changePct: null, observedAt: new Date("2026-05-20") },
+      { metricKey: "lc_main_close", value: 98000, changePct: null, observedAt: new Date("2026-05-20") },
+      { metricKey: "lc_change_pct", value: -0.02, changePct: null, observedAt: new Date("2026-05-20") },
+      { metricKey: "fx_usdcny", value: 7.2, changePct: null, observedAt: new Date("2026-05-20") },
+    ];
+    const merged = mergeDerivedChangePctQuotes(quotes);
+    expect(merged.map((q) => q.metricKey)).toEqual(["cu_main_close", "lc_main_close", "fx_usdcny"]);
+    expect(merged[0]!.changePct).toBeCloseTo(0.0067);
+    expect(merged[1]!.changePct).toBeCloseTo(-0.02);
+    expect(merged[2]!.changePct).toBeNull();
+  });
+
+  it("leaves close.changePct alone when no derived row exists", () => {
+    const quotes = [
+      { metricKey: "cu_main_close", value: 78520, changePct: 0.01, observedAt: new Date("2026-05-20") },
+    ];
+    const merged = mergeDerivedChangePctQuotes(quotes);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]!.changePct).toBe(0.01);
+  });
+});
+
 describe("mapTemplateFields", () => {
   const quotes = [
     { metricKey: "cu_main_close", value: 78520, changePct: 0.32, observedAt: new Date("2026-05-19") },
     { metricKey: "lc_main_close", value: 87400, changePct: -1.15, observedAt: new Date("2026-05-19") },
+    { metricKey: "cu_change_pct", value: 0.0067, changePct: null, observedAt: new Date("2026-05-19") },
   ];
 
   const templateFields = [
     { placeholderKey: "cu.price.shfe_main", sourceMetric: "cu_main_close", llmPath: null, fallbackText: "—" },
     { placeholderKey: "lc.price.gfex_main", sourceMetric: "lc_main_close", llmPath: null, fallbackText: "—" },
+    { placeholderKey: "cu_change_pct", sourceMetric: "cu_change_pct", llmPath: null, fallbackText: "—" },
   ];
 
   it("maps all fields when quotes are present", () => {
     const result = mapTemplateFields(quotes, templateFields);
-    expect(result["cu.price.shfe_main"]).toBe(78520);
-    expect(result["lc.price.gfex_main"]).toBe(87400);
+    expect(result["cu.price.shfe_main"]).toBe("78520");
+    expect(result["lc.price.gfex_main"]).toBe("87400");
+  });
+
+  it("formats change_pct metrics as percentage", () => {
+    const result = mapTemplateFields(quotes, templateFields);
+    expect(result["cu_change_pct"]).toBe("0.67%");
   });
 
   it("returns null for missing metric key", () => {

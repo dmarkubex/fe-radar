@@ -168,6 +168,34 @@ describe("buildBriefingInput", () => {
     const result = buildBriefingInput([], []);
     expect(result).toContain("当日数值缺失");
   });
+
+  it("merges derived cu_change_pct into close line and does not list it standalone", () => {
+    const quotes: Quote[] = [
+      {
+        metricKey: "cu_main_close",
+        value: 78520,
+        changePct: null,
+        observedAt: new Date("2026-05-20T08:00:00Z"),
+      },
+      {
+        metricKey: "cu_change_pct",
+        value: 0.006666,
+        changePct: null,
+        observedAt: new Date("2026-05-20T08:00:00Z"),
+      },
+      {
+        metricKey: "fx_usdcny",
+        value: 7.2,
+        changePct: null,
+        observedAt: new Date("2026-05-20T08:00:00Z"),
+      },
+    ];
+    const result = buildBriefingInput(quotes, []);
+    expect(result).toContain("**cu_main_close**: 78520（涨跌幅 0.67%）");
+    expect(result).not.toMatch(/^\s*- \*\*cu_change_pct\*\*/m);
+    expect(result).not.toContain("**cu_change_pct**");
+    expect(result).toContain("**fx_usdcny**: 7.2（涨跌幅 —）");
+  });
 });
 
 // ──────────────────────────────────────────────
