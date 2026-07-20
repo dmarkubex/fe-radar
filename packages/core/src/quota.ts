@@ -15,6 +15,14 @@ end
 return current
 `;
 
+export const ROLLBACK_ADMIT_LUA = `
+local current = tonumber(redis.call('GET', KEYS[1]) or '0')
+if current > 0 then
+  redis.call('DECR', KEYS[1])
+end
+return 1
+`;
+
 export interface RedisEvalLike {
   eval(script: string, numberOfKeys: number, ...args: Array<string | number>): Promise<number>;
 }
@@ -32,6 +40,10 @@ export async function admitToScoring(input: QuotaInput, redis: RedisEvalLike): P
   return admitted > 0
     ? { state: "admitted", counterKey }
     : { state: "pending_over_quota", counterKey };
+}
+
+export async function rollbackAdmit(counterKey: string, redis: RedisEvalLike): Promise<void> {
+  await redis.eval(ROLLBACK_ADMIT_LUA, 1, counterKey);
 }
 
 export interface BacklogCandidate {

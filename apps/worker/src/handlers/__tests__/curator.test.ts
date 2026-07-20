@@ -50,6 +50,9 @@ vi.mock("drizzle-orm", () => ({
 vi.mock("../context", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   loadScoringConfig: mockLoadScoringConfig,
+  loadOwnCompanyProfile: vi.fn().mockResolvedValue({
+    names: new Set(["远东控股", "远东控股集团", "远东电缆", "远东智慧能源", "远东智慧能源股份", "远东股份", "远东智慧"]),
+  }),
 }));
 
 function makeDb(selectRows: unknown[][]) {

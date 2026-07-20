@@ -272,7 +272,7 @@ RSSHub 返回的 RSS item 通常是"标题 + HTML 摘要"。`rsshub-extract.ts` 
            （SELECT * FROM item_analysis JOIN items ON ... WHERE category IN ('市场与价格','项目与招投标') ORDER BY quality_score DESC LIMIT 30）
          ↓
 [worker] step 3 (LLM 生成)：
-         → 调 Kimi K2.6 with BRIEFING_SCHEMA（structured JSON · 7 段）
+         → 调 DeepSeek with BRIEFING_SCHEMA（structured JSON · 7 段；原设计 Kimi K2.6，因网关无公网出口改用 DeepSeek）
          → withScrubber 中间件强制脱敏（v1.0 强约束）
          → 输出 7 段：cu.logic_summary / cu.outlook.trend / lc.logic_summary / lc.outlook.trend
                       / macro_summary / risk_notes[] / procurement_advice

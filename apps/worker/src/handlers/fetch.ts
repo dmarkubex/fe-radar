@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { admitToScoring, detectPriorityFromText, rollbackAdmit, type RedisEvalLike } from "@fe-radar/core";
 import { getDb, items, itemAnalysis, sources, markSourceSuccess } from "@fe-radar/db";
-import { eq, sql } from "drizzle-orm";
+import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
+import { and, eq, sql } from "drizzle-orm";
 
 import type { FetchSourceJob } from "../queues";
 import { createRedisConnection } from "../queues";
@@ -9,8 +11,13 @@ import { fetchRss, fetchHtml, fetchPlaywright, fetchAnnouncements, fetchCrawl, d
 import type { SourceConfig, StandardItem, FetchContext } from "../fetchers";
 import { dedupItems, type DedupCandidate, type ExistingItemFingerprint } from "../dedup";
 import { createPlaywrightPool } from "../fetchers/playwright";
+import { drainPendingQuotaBacklog } from "../jobs/quota-drain";
 
-import { logger, handlerContext } from "./context";
+import { logger, handlerContext, loadOwnCompanyProfile } from "./context";
+
+function scoringBusinessDate(now = new Date()): string {
+  return dayjs(now).tz(APP_TIMEZONE).format("YYYY-MM-DD");
+}
 
 export async function handleFetchJob(job: { data: FetchSourceJob }): Promise<void> {
   const db = getDb();
@@ -24,6 +31,13 @@ export async function handleFetchJob(job: { data: FetchSourceJob }): Promise<voi
     const conn = createRedisConnection();
     const queue = createFetchQueue(conn);
     try {
+      // design §5.1：每个 6h 窗口前先消化 backlog，再抓取新源
+      try {
+        const drain = await drainPendingQuotaBacklog({ db, redis: conn as unknown as RedisEvalLike });
+        logger.info(drain, "quota backlog drained");
+      } catch (drainError) {
+        logger.warn({ error: drainError }, "quota backlog drain skipped; fetch scheduling continues");
+      }
       const count = await enqueueEnabledSources(db, queue);
       logger.info({ count }, "scheduled fetch cycle");
     } finally {
@@ -112,33 +126,100 @@ export async function handleFetchJob(job: { data: FetchSourceJob }): Promise<voi
   const { FlowProducer } = await import("bullmq");
   const redis = createRedisConnection();
   const flowProducer = new FlowProducer({ connection: redis });
+  const businessDate = scoringBusinessDate();
+  // 本公司 profile（注入 detectPriorityFromText，避免「远东」2字子串误判 + 满足 DB 配置约束）
+  const ownCompanyProfile = await loadOwnCompanyProfile();
+  let admittedCount = 0;
+  let pendingCount = 0;
+  let failedCount = 0;
 
   try {
     for (const item of accepted) {
-      const [inserted] = await db.insert(items).values({
-        sourceId: source.id,
-        url: item.url,
-        title: item.title,
-        content: item.content,
-        publishedAt: item.publishedAt,
-      }).returning({ id: items.id });
+      let itemId: number | undefined;
+      let admittedCounterKey: string | undefined;
+      let admittedAnalysisWritten = false;
+      try {
+        const result = await db.transaction(async (tx) => {
+          const [inserted] = await tx.insert(items).values({
+            sourceId: source.id,
+            url: item.url,
+            title: item.title,
+            content: item.content,
+            publishedAt: item.publishedAt,
+          }).returning({ id: items.id });
 
-      if (!inserted) continue;
+          if (!inserted) return { skipped: true as const };
+          itemId = inserted.id;
 
-      await db.insert(itemAnalysis).values({
-        itemId: inserted.id,
-        isIndustryRelated: null,
-        quotaState: "admitted",
-      });
+          const isPriority = detectPriorityFromText(item.title, item.content, ownCompanyProfile);
+          const decision = await admitToScoring(
+            { itemId, isPriority, businessDate },
+            redis as unknown as RedisEvalLike
+          );
+          if (decision.state === "admitted") admittedCounterKey = decision.counterKey;
 
-      const correlationId = randomUUID();
-      const { enqueueItemPipeline } = await import("../flows");
-      await enqueueItemPipeline(flowProducer, inserted.id, correlationId);
-      logger.info({ itemId: inserted.id, correlationId, sourceId: source.id, stage: "fetch" }, "pipeline enqueued");
+          // Analysis must exist before BullMQ can expose the item to prefilter.
+          await tx.insert(itemAnalysis).values({
+            itemId,
+            isIndustryRelated: null,
+            quotaState: decision.state,
+          });
+          return { skipped: false as const, itemId, decision, isPriority };
+        });
+
+        if (result.skipped) continue;
+        if (result.decision.state !== "admitted") {
+          pendingCount += 1;
+          logger.info(
+            { itemId: result.itemId, sourceId: source.id, isPriority: result.isPriority, quotaState: result.decision.state, counterKey: result.decision.counterKey },
+            "item pending_over_quota, pipeline not enqueued"
+          );
+          continue;
+        }
+
+        admittedAnalysisWritten = true;
+        const correlationId = randomUUID();
+        const { enqueueItemPipeline } = await import("../flows");
+        await enqueueItemPipeline(flowProducer, result.itemId, correlationId);
+        admittedCount += 1;
+        logger.info({ itemId: result.itemId, correlationId, sourceId: source.id, stage: "fetch", isPriority: result.isPriority }, "pipeline enqueued");
+      } catch (error) {
+        failedCount += 1;
+        const compensationErrors: unknown[] = [];
+        if (itemId != null && admittedAnalysisWritten) {
+          try {
+            await db.update(itemAnalysis).set({ quotaState: "pending_over_quota" }).where(and(
+              eq(itemAnalysis.itemId, itemId),
+              eq(itemAnalysis.quotaState, "admitted")
+            ));
+            pendingCount += 1;
+          } catch (rollbackStateError) {
+            compensationErrors.push(rollbackStateError);
+          }
+        }
+        if (admittedCounterKey) {
+          try {
+            await rollbackAdmit(admittedCounterKey, redis as unknown as RedisEvalLike);
+          } catch (rollbackQuotaError) {
+            compensationErrors.push(rollbackQuotaError);
+          }
+        }
+        logger.error({ error, compensationErrors, itemId, sourceId: source.id }, "item persistence or pipeline enqueue failed; continuing batch");
+      }
     }
 
-    await markSourceSuccess(db, source.id);
-    logger.info({ sourceId, accepted: accepted.length, skipped: candidates.length - accepted.length }, "items inserted and pipeline enqueued");
+    if (failedCount === 0) {
+      await markSourceSuccess(db, source.id);
+    } else {
+      logger.warn(
+        { sourceId, accepted: accepted.length, admitted: admittedCount, pendingOverQuota: pendingCount, failedCount },
+        "source fetch succeeded but item persistence or enqueue failed; markSourceSuccess skipped"
+      );
+    }
+    logger.info(
+      { sourceId, accepted: accepted.length, admitted: admittedCount, pendingOverQuota: pendingCount, skipped: candidates.length - accepted.length },
+      "items inserted and pipeline enqueued"
+    );
   } finally {
     // FlowProducer was given an external connection; close both so neither leaks.
     await flowProducer.close();

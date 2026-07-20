@@ -26,4 +26,15 @@ describe("source form defaults", () => {
       config: DEFAULT_SOURCE_CONFIGS.announcement,
     }).success).toBe(true);
   });
+
+  it("creates a valid SHFE quotes config", () => {
+    expect(createSourceSchema.safeParse({
+      name: "上期所铜主力行情",
+      url: "https://www.shfe.com.cn/",
+      fetcherType: "quotes",
+      tier: "T1",
+      category: DEFAULT_SOURCE_CATEGORIES.quotes,
+      config: DEFAULT_SOURCE_CONFIGS.quotes,
+    }).success).toBe(true);
+  });
 });

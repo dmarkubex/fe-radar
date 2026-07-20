@@ -49,13 +49,35 @@ describe("scoring and curator", () => {
     expect(isPriorityItem([], { d1Policy: 90, d2Chain: 0, d3Market: 0, d4Tech: 0, d5Business: 0 })).toBe(true);
   });
 
-  it("maps every C1 sample to own alert", () => {
-    const ownAlerts = Array.from({ length: 10 }, (_, index) => computeAlert({
+  it("maps Far East samples to own alert, not arbitrary C1", () => {
+    const ownAlerts = Array.from({ length: 5 }, (_, index) => computeAlert({
       source: { tier: "T2" },
       scores: { d1Policy: index, d2Chain: 90, d3Market: 0, d4Tech: 0, d5Business: 0 },
-      entities: [{ id: index, type: "company", canonicalName: `C1-${index}`, circle: "C1" }]
+      entities: [{ id: index, type: "company", canonicalName: "远东控股", circle: "C1" }]
     }));
     expect(ownAlerts.every((alert) => alert.alertType === "own")).toBe(true);
+
+    expect(computeAlert({
+      source: { tier: "T1" },
+      scores: { d1Policy: 0, d2Chain: 95, d3Market: 0, d4Tech: 0, d5Business: 0 },
+      entities: [{ id: 99, type: "company", canonicalName: "国家电网", circle: "C1" }]
+    }).alertType).toBeUndefined();
+  });
+
+  it("emits safety only for accident event_type with d5>=70", () => {
+    expect(computeAlert({
+      source: { tier: "T2" },
+      scores: { d1Policy: 0, d2Chain: 0, d3Market: 0, d4Tech: 0, d5Business: 72 },
+      entities: [{ id: 1, type: "event_type", canonicalName: "事故" }]
+    }).alertType).toBe("safety");
+  });
+
+  it("emits policy only for policy NER entity with d1>=75", () => {
+    expect(computeAlert({
+      source: { tier: "T1" },
+      scores: { d1Policy: 80, d2Chain: 0, d3Market: 0, d4Tech: 0, d5Business: 0 },
+      entities: [{ id: 1, type: "policy", canonicalName: "GB/T 12706" }]
+    }).alertType).toBe("policy");
   });
 });
 

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { DEFAULT_SOURCE_CATEGORIES, DEFAULT_SOURCE_CONFIGS } from "./source-default-configs";
+import { DEFAULT_SOURCE_CATEGORIES, DEFAULT_SOURCE_CONFIGS, SMM_HQ_QUOTES_TEMPLATE } from "./source-default-configs";
 import type { FetcherType } from "./source-default-configs";
 
 export interface EditingSource {
   id: number;
   name: string;
   url: string;
+  urlLocked: boolean;
   tier: "T1" | "T2" | "T3";
   category: string | null;
   fetcherType: FetcherType;
@@ -25,6 +26,7 @@ const FIELD =
 
 export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps): React.JSX.Element {
   const isEdit = Boolean(editing);
+  const isProtectedSeedUrl = isEdit && Boolean(editing?.urlLocked);
   const initialFetcherType = editing?.fetcherType ?? "rss";
   const [fetcherType, setFetcherType] = useState<FetcherType>(initialFetcherType);
   const [category, setCategory] = useState(editing?.category ?? DEFAULT_SOURCE_CATEGORIES[initialFetcherType] ?? "");
@@ -43,7 +45,7 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
 
   function currentQuotesAdapter(): string {
     const parsed = parseConfigRecord();
-    return typeof parsed?.["adapter"] === "string" ? parsed["adapter"] : "smm-hq";
+    return typeof parsed?.["adapter"] === "string" ? parsed["adapter"] : "shfe";
   }
 
   function currentMetricKeys(): string {
@@ -91,7 +93,16 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
           body: JSON.stringify(body),
         },
       );
-      if (!response.ok) throw new Error("保存失败，请检查字段和 config JSON。");
+      if (!response.ok) {
+        let detail = "保存失败，请检查字段和 config JSON。";
+        try {
+          const payload = (await response.json()) as { error?: { message?: string } };
+          if (payload.error?.message) detail = payload.error.message;
+        } catch {
+          // keep generic fallback when body is not JSON
+        }
+        throw new Error(detail);
+      }
       onSaved();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "保存失败");
@@ -131,7 +142,21 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
           <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
             URL
           </label>
-          <input className={FIELD} name="url" placeholder="https://" defaultValue={editing?.url ?? ""} />
+          <input
+            className={FIELD}
+            name="url"
+            placeholder="https://"
+            defaultValue={editing?.url ?? ""}
+            readOnly={isProtectedSeedUrl}
+          />
+          {isProtectedSeedUrl ? (
+            <p className="mt-1 font-mono text-[11px] text-fg-soft">
+              <span className="mr-1 inline-block border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-fg-muted">
+                URL锁定
+              </span>
+              该信源 URL 由部署 seed migration 管理，不可在此修改。
+            </p>
+          ) : null}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -198,7 +223,7 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
                       const nextAdapter = e.target.value;
                       parsed["adapter"] = nextAdapter;
                       if (nextAdapter === "smm-hq") {
-                        Object.assign(parsed, DEFAULT_SOURCE_CONFIGS.quotes);
+                        Object.assign(parsed, SMM_HQ_QUOTES_TEMPLATE);
                         return;
                       }
                       if (nextAdapter !== "smm-hq") {

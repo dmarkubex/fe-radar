@@ -18,6 +18,9 @@ function makeSource(overrides: Partial<SourceRecord> & { name: string; url: stri
     failCount: 0,
     lastError: null,
     lastErrorAt: null,
+    adminTouchedAt: null,
+    adminSnapshot: null,
+    urlLocked: false,
     createdAt: new Date(),
     config: {},
     ...overrides

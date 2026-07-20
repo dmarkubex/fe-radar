@@ -86,6 +86,8 @@ vi.mock("../../queues", () => ({
 function makeDb(itemSelectRows: unknown[], entityLookupQueue: unknown[][] = [], c1c2Hits: unknown[] = []) {
   let selectCall = 0;
   const insertValues = vi.fn(() => ({ onConflictDoNothing: vi.fn().mockResolvedValue(undefined) }));
+  const updateEntityValues = vi.fn(() => ({ returning: vi.fn().mockResolvedValue([{ id: 77 }]) }));
+  const insertEntityValues = vi.fn(() => ({ onConflictDoUpdate: updateEntityValues }));
   const db = {
     select: vi.fn(() => {
       const idx = selectCall++;
@@ -106,14 +108,18 @@ function makeDb(itemSelectRows: unknown[], entityLookupQueue: unknown[][] = [], 
         })),
       };
     }),
-    insert: vi.fn(() => ({ values: insertValues })),
+    insert: vi.fn((table: Record<string, unknown>) => ({
+      values: table.canonicalName ? insertEntityValues : insertValues,
+    })),
     _insertValues: insertValues,
+    _insertEntityValues: insertEntityValues,
+    _updateEntityValues: updateEntityValues,
   };
   mockGetDb.mockReturnValue(db);
   return db;
 }
 
-import { handleNerJob, pickBestAliasHit } from "../ner";
+import { handleNerJob, pickBestAliasHit, resolveEntityId } from "../ner";
 
 describe("pickBestAliasHit (T-REV-04 disambiguation)", () => {
   it("prefers C1 over C2 even when C2 has higher weight", () => {
@@ -143,6 +149,32 @@ describe("pickBestAliasHit (T-REV-04 disambiguation)", () => {
 
   it("returns null for empty hits", () => {
     expect(pickBestAliasHit([])).toBeNull();
+  });
+});
+
+describe("resolveEntityId dynamic entities", () => {
+  it("rejects an event_type outside the normalized accident whitelist", async () => {
+    const db = makeDb([], [[]]);
+
+    await expect(resolveEntityId(db as never, "event_type", "设备异常", 301)).resolves.toBeNull();
+
+    expect(db._insertEntityValues).not.toHaveBeenCalled();
+  });
+
+  it("upserts the normalized accident event_type", async () => {
+    const db = makeDb([], [[]]);
+
+    await expect(resolveEntityId(db as never, "event_type", "事故", 302)).resolves.toBe(77);
+
+    expect(db._insertEntityValues).toHaveBeenCalledWith({ type: "event_type", canonicalName: "事故" });
+  });
+
+  it("rejects an overlong dynamic policy name", async () => {
+    const db = makeDb([], [[]]);
+
+    await expect(resolveEntityId(db as never, "policy", "政".repeat(101), 303)).resolves.toBeNull();
+
+    expect(db._insertEntityValues).not.toHaveBeenCalled();
   });
 });
 
@@ -179,6 +211,28 @@ describe("handleNerJob", () => {
 
     await handleNerJob({ data: { itemId: 101 } as never });
     expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it("links a dynamic policy entity so curator can load it from item_entities", async () => {
+    const db = makeDb(
+      [{ title: "标准更新", content: "执行 GB/T 12706-2020" }],
+      [[], []],
+    );
+    mockRunNer.mockResolvedValue({
+      entities: [{ type: "policy", text: "GB/T 12706-2020", canonicalName: "GB/T12706-2020" }],
+    });
+
+    await handleNerJob({ data: { itemId: 103 } as never });
+
+    expect(db._insertEntityValues).toHaveBeenCalledWith({
+      type: "policy",
+      canonicalName: "GB/T12706-2020",
+      meta: { source: "dynamic" },
+    });
+    expect(db._updateEntityValues).toHaveBeenCalledWith(expect.objectContaining({
+      set: { canonicalName: "GB/T12706-2020", meta: { source: "dynamic" } },
+    }));
+    expect(db._insertValues).toHaveBeenCalledWith({ itemId: 103, entityId: 77, span: "GB/T 12706-2020" });
   });
 
   it("alias fallback: canonical miss + alias hit → insert + info log", async () => {

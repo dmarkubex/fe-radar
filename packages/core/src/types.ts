@@ -7,6 +7,15 @@ export interface EntityHit {
   circle?: Circle | null;
 }
 
+/**
+ * 本公司判定集合（注入式）：由 worker 侧从 DB entities 构造后注入，core 仅做精确等值。
+ * 定义在 types.ts（而非 priority.ts）以避免 priority↔types 循环 import。
+ */
+export interface OwnCompanyProfile {
+  /** 精确等值集合（canonicalName + aliases），不含子串兜底 */
+  readonly names: ReadonlySet<string>;
+}
+
 export interface EntityFinancialSnapshot {
   metric: string;
   value: number;
@@ -80,7 +89,7 @@ export interface QuotaInput {
 
 export interface QuotaDecision {
   state: QuotaState;
-  counterKey?: string;
+  counterKey: string;
 }
 
 export interface AlertInput {
@@ -94,6 +103,11 @@ export interface AlertInput {
   /** 风险检索关键词（来自 source config）；缺省不触发风险检索告警 */
   riskEntityKeywords?: string[];
   riskKeywords?: string[];
+  /**
+   * 本公司判定集合（注入式，design §11.1）。由 worker 从 DB entities 构造后注入，
+   * core 保持纯函数不依赖 db。缺省时 alert.ts 回退到 DEFAULT_OWN_COMPANY_PROFILE。
+   */
+  ownCompanyProfile?: OwnCompanyProfile;
 }
 
 export interface AlertResult {
@@ -130,6 +144,8 @@ export interface CuratorInput {
   /** 风险检索关键词（来自 source config）；缺省不触发风险检索告警 */
   riskEntityKeywords?: string[];
   riskKeywords?: string[];
+  /** 本公司判定集合（注入式，透传给 computeAlert；缺省回退 DEFAULT profile） */
+  ownCompanyProfile?: OwnCompanyProfile;
 }
 
 export interface CuratorResult extends QualityScoreResult {

@@ -3,21 +3,18 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
 import { SourceForm } from "./source-form";
+import {
+  lockedBadgeLabel,
+  lockedEnableError,
+  type SourceRow,
+} from "./source-table-locked-meta";
 
-type FetcherType = "rss" | "html" | "playwright" | "quotes" | "announcement" | "crawl";
-
-interface SourceRow {
-  id: number;
-  name: string;
-  url: string;
-  fetcherType: FetcherType;
-  config: unknown;
-  tier: "T1" | "T2" | "T3";
-  category: string | null;
-  enabled: boolean;
-  lastOkAt: string | null;
-  failCount: number;
-}
+export {
+  lockedBadgeLabel,
+  lockedSiblingMeta,
+  smmLogicalKey,
+} from "./source-table-locked-meta";
+export type { SourceRow } from "./source-table-locked-meta";
 
 type TierFilter = "ALL" | "T1" | "T2" | "T3" | "FAILED" | "DISABLED";
 
@@ -192,10 +189,19 @@ export function SourceTable(): React.JSX.Element {
   }, [loadRows]);
 
   async function toggleEnabled(row: SourceRow): Promise<void> {
+    const enabling = !row.enabled;
+    if (enabling) {
+      const lockError = lockedEnableError(row, rows);
+      if (lockError) {
+        setError(lockError);
+        return;
+      }
+    }
+    setError(null);
     await fetch(`/api/sources/${row.id}`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ enabled: !row.enabled })
+      body: JSON.stringify({ enabled: enabling })
     });
     await loadRows();
   }
@@ -303,6 +309,7 @@ export function SourceTable(): React.JSX.Element {
             ) : (
               filteredRows.map((row) => {
                 const healthRow = healthMap.get(row.id);
+                const lockLabel = lockedBadgeLabel(row, rows);
                 return (
                   <article
                     key={row.id}
@@ -321,6 +328,11 @@ export function SourceTable(): React.JSX.Element {
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-fg">
                           {row.name}
+                          {lockLabel ? (
+                            <span className="ml-2 inline-block border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
+                              {lockLabel}
+                            </span>
+                          ) : null}
                         </div>
                         <div className="mt-1 break-all font-mono text-[11px] leading-5 text-fg-muted">
                           {row.url}
@@ -446,6 +458,7 @@ export function SourceTable(): React.JSX.Element {
                 ) : (
                   filteredRows.map((row) => {
                     const healthRow = healthMap.get(row.id);
+                    const lockLabel = lockedBadgeLabel(row, rows);
                     return (
                       <Fragment key={row.id}>
                         <tr
@@ -465,6 +478,11 @@ export function SourceTable(): React.JSX.Element {
                           </td>
                           <td className="px-3 py-3 font-medium text-fg">
                             {row.name}
+                            {lockLabel ? (
+                              <span className="ml-2 inline-block border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
+                                {lockLabel}
+                              </span>
+                            ) : null}
                           </td>
                           <td className="px-3 py-3">
                             <span

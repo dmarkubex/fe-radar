@@ -27,7 +27,11 @@ export class EntityDictionary {
   }
 }
 
-export function detectPolicyEntities(text: string): Array<{ type: "policy"; span: string }> {
+export function detectPolicyEntities(text: string): Array<{ type: "policy"; span: string; canonicalName: string }> {
   const matches = text.match(/(?:GB|DL|NB|T)\/?T?\s?\d{3,6}(?:-\d{4})?/gi) ?? [];
-  return matches.map((span) => ({ type: "policy", span }));
+  return matches.map((span) => ({
+    type: "policy",
+    span,
+    canonicalName: span.replace(/\s+/g, "").toUpperCase(),
+  }));
 }

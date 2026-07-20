@@ -3,6 +3,7 @@ import { LlmError } from "@fe-radar/shared";
 import {
   BRIEFING_SCHEMA,
   KIMI_BRIEFING_SYSTEM_PROMPT,
+  BRIEFING_SYSTEM_PROMPT,
   buildBriefingInput,
   type BriefingOutput,
   type NewsItem
@@ -101,28 +102,32 @@ describe("BRIEFING_SCHEMA validation", () => {
 // ──────────────────────────────────────────────
 // 3. system prompt 包含 5 条关键约束
 // ──────────────────────────────────────────────
-describe("KIMI_BRIEFING_SYSTEM_PROMPT", () => {
+describe("BRIEFING_SYSTEM_PROMPT", () => {
   it("contains constraint 1: prohibits fabricating numbers", () => {
-    expect(KIMI_BRIEFING_SYSTEM_PROMPT).toContain("禁止虚构");
+    expect(BRIEFING_SYSTEM_PROMPT).toContain("禁止虚构");
   });
 
   it("contains constraint 2: prohibits investment advice wording", () => {
-    expect(KIMI_BRIEFING_SYSTEM_PROMPT).toContain("建议交易");
-    expect(KIMI_BRIEFING_SYSTEM_PROMPT).toContain("投资意见");
+    expect(BRIEFING_SYSTEM_PROMPT).toContain("建议交易");
+    expect(BRIEFING_SYSTEM_PROMPT).toContain("投资意见");
   });
 
   it("contains constraint 3: prohibits outputting support/resistance numeric fields", () => {
-    expect(KIMI_BRIEFING_SYSTEM_PROMPT).toContain("支撑位/压力位由后端代码计算");
-    expect(KIMI_BRIEFING_SYSTEM_PROMPT).toContain("禁止编造具体数字");
+    expect(BRIEFING_SYSTEM_PROMPT).toContain("支撑位/压力位由后端代码计算");
+    expect(BRIEFING_SYSTEM_PROMPT).toContain("禁止编造具体数字");
   });
 
   it("contains constraint 4: prohibits future price prediction", () => {
-    expect(KIMI_BRIEFING_SYSTEM_PROMPT).toContain("不得给出未来价位预测");
+    expect(BRIEFING_SYSTEM_PROMPT).toContain("不得给出未来价位预测");
   });
 
   it("contains constraint 5: strict schema conformance requirement", () => {
-    expect(KIMI_BRIEFING_SYSTEM_PROMPT).toContain("schemaName='briefing'");
-    expect(KIMI_BRIEFING_SYSTEM_PROMPT).toContain("risk_notes 必须列具体宏观/商品因子");
+    expect(BRIEFING_SYSTEM_PROMPT).toContain("schemaName='briefing'");
+    expect(BRIEFING_SYSTEM_PROMPT).toContain("risk_notes 必须列具体宏观/商品因子");
+  });
+
+  it("keeps KIMI_BRIEFING_SYSTEM_PROMPT as deprecated alias", () => {
+    expect(KIMI_BRIEFING_SYSTEM_PROMPT).toBe(BRIEFING_SYSTEM_PROMPT);
   });
 });
 
@@ -221,7 +226,7 @@ describe("runBriefingGen scrubber integration", () => {
     const scrubbed = withScrubber(mockKimiClient);
     const input = buildBriefingInput(makeQuotes(4), makeNews(2));
     const result = await scrubbed.chatJson<BriefingOutput>({
-      system: KIMI_BRIEFING_SYSTEM_PROMPT,
+      system: BRIEFING_SYSTEM_PROMPT,
       schemaName: "briefing",
       schema: BRIEFING_SCHEMA as unknown as Record<string, unknown>,
       user: input
@@ -241,7 +246,7 @@ describe("runBriefingGen scrubber integration", () => {
 
     await expect(
       scrubbed.chatJson({
-        system: KIMI_BRIEFING_SYSTEM_PROMPT,
+        system: BRIEFING_SYSTEM_PROMPT,
         schemaName: "briefing",
         schema: BRIEFING_SCHEMA as unknown as Record<string, unknown>,
         user: "内网 192.168.1.1 上的服务器数据"
@@ -267,7 +272,7 @@ describe("runBriefingGen scrubber integration", () => {
     const scrubbed = withScrubber(mockKimiClient);
 
     await scrubbed.chatJson({
-      system: KIMI_BRIEFING_SYSTEM_PROMPT,
+      system: BRIEFING_SYSTEM_PROMPT,
       schemaName: "briefing",
       schema: BRIEFING_SCHEMA as unknown as Record<string, unknown>,
       user: "联系方式 13812345678 相关简报"

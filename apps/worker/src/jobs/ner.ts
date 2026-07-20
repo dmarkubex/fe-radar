@@ -3,6 +3,7 @@ import { createLogger } from "@fe-radar/shared";
 import { detectPolicyEntities, type EntityDictionary } from "../lib/entities-dict";
 
 const logger = createLogger({ service: "ner" });
+const ACCIDENT_EVENT_PATTERN = /事故|火灾|爆炸|停电|触电|死亡|坍塌|伤亡/;
 
 const schema = {
   type: "object",
@@ -57,7 +58,16 @@ export async function runNer(
     text: hit.span,
     canonicalName: hit.canonicalName
   }));
-  const policyHits = detectPolicyEntities(text).map((hit) => ({ type: hit.type, text: hit.span }));
-  const llmHits = await callNerLlm(text, qwen, fallback);
+  const policyHits = detectPolicyEntities(text).map((hit) => ({
+    type: hit.type,
+    text: hit.span,
+    canonicalName: hit.canonicalName,
+  }));
+  const llmHits = (await callNerLlm(text, qwen, fallback)).map((hit) => {
+    if (hit.type === "event_type" && ACCIDENT_EVENT_PATTERN.test(`${hit.canonicalName ?? ""}${hit.text}`)) {
+      return { ...hit, canonicalName: "事故" };
+    }
+    return hit;
+  });
   return { entities: [...dictHits, ...policyHits, ...llmHits] };
 }

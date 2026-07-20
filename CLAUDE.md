@@ -69,7 +69,7 @@ Default to Lite. Escalate based on risk and scope.
 - **前端 / API**：Next.js 15 App Router + React 19 + TypeScript + Tailwind + shadcn/ui + TanStack Query
 - **DB**：Postgres 16 + pgvector + zhparser（自定义 Dockerfile）+ Drizzle ORM
 - **队列**：BullMQ + Redis 7
-- **LLM**：本地 Qwen3.6 27B（预筛 / NER / embedding）+ DeepSeek V4 Pro（5 维评分 / 摘要 / 翻译）+ Kimi K2.6（每日日报 200K ctx）
+- **LLM**：本地 Qwen3.6 27B（预筛 / NER / embedding）+ DeepSeek V4 Pro（5 维评分 / 摘要 / 翻译 / **v1.1 商品简报**）+ Kimi K2.6（每日日报 200K ctx）
 - **认证**：Auth.js · M0–M3 本地账号（bcrypt 12）/ M4+ 钉钉 SSO 并存（`mergeOrCreateUser` 合并）
 - **部署**：Docker Swarm via Portainer · 内网 only · `TZ=Asia/Shanghai` · MinIO 备份
 
@@ -179,7 +179,7 @@ FE-Radar v1.1 在 v1.0 产业情报雷达基础上新增**原料价格视角**�
 ### v1.1 硬约束
 
 - **NFR-102 数值精度**：价格数值**禁止 LLM 抽取**；只允许交易所接口 + 正则（`rsshub-extract.ts` regex_rules 数组，admin 可后台维护）；LLM 只生成"行情逻辑总结""走势预判"等语言段落（7 段 BRIEFING_SCHEMA，不含任何数值字段）
-- **withScrubber 强制**：briefing-gen job 调 Kimi K2.6 前必经 `packages/core/scrubber.ts`（同 v1.0 日报约束，无例外）
+- **withScrubber 强制**：briefing-gen job 调 DeepSeek 前必经 `packages/core/scrubber.ts`（同 v1.0 日报约束，无例外；原设计 Kimi K2.6，因网关无公网出口改用 DeepSeek）
 - **template_version 必填**：`commodity_briefings.template_version INT NOT NULL`，模板改版必须 bump，便于历史回看时正确关联渲染版本
 - **disabled_at 软删**：`briefing_targets` 删除走 `UPDATE disabled_at=now() + enabled=false`，保留 `briefing_pushes` 审计链（不物理删除）
 - **节假日跳过**：`briefing_holidays` 表 admin 一年一次手工维护；三个 BullMQ job（quotes-fetch / briefing-gen / briefing-push）入口统一调 `packages/core isBusinessDay()` 判断，命中节假日直接 return（结构化日志，零 DB 写入）

@@ -5,7 +5,7 @@ import type { EntityHit } from "@fe-radar/core";
 
 import type { PipelineJob } from "../queues";
 
-import { logger, loadScoringConfig } from "./context";
+import { logger, loadScoringConfig, loadOwnCompanyProfile } from "./context";
 
 export async function handleCuratorJob(job: { data: PipelineJob }): Promise<void> {
   const db = getDb();
@@ -52,6 +52,7 @@ export async function handleCuratorJob(job: { data: PipelineJob }): Promise<void
   }));
 
   const config = await loadScoringConfig();
+  const ownCompanyProfile = await loadOwnCompanyProfile();
   const result = curateItem({
     atoms: {
       d1Policy: analysis.d1Policy ?? 0,
@@ -68,6 +69,7 @@ export async function handleCuratorJob(job: { data: PipelineJob }): Promise<void
     sourceCategory: sourceRow.category,
     riskEntityKeywords,
     riskKeywords,
+    ownCompanyProfile,
   });
 
   await db.update(itemAnalysis).set({

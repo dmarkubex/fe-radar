@@ -1,14 +1,17 @@
 import { FlowProducer, type Job } from "bullmq";
 import { randomUUID } from "node:crypto";
 
+import { admitToScoring, detectPriorityFromText, rollbackAdmit, type RedisEvalLike } from "@fe-radar/core";
 import { getDb, items, itemAnalysis, listSources } from "@fe-radar/db";
-import { createLogger } from "@fe-radar/shared";
+import { APP_TIMEZONE, createLogger, dayjs } from "@fe-radar/shared";
+import { and, eq } from "drizzle-orm";
 
 import type { WebsearchJob } from "../queues";
 import { createRedisConnection } from "../queues";
 import { enqueueItemPipeline } from "../flows";
 import type { FetchContext } from "../fetchers/types";
 import { websearchAdapter } from "../fetchers/websearch/adapter";
+import { loadOwnCompanyProfile } from "../handlers/context";
 
 const logger = createLogger({ service: "websearch" });
 
@@ -54,34 +57,86 @@ export async function handleWebsearchJob(job: Job<WebsearchJob>): Promise<void> 
 
   const redis = createRedisConnection();
   const flowProducer = new FlowProducer({ connection: redis });
+  // T1（Finding #1）：websearch 结果入 pipeline 前必须经 admitToScoring（每日 LLM 评分配额）。
+  // 此前硬编码 quotaState:"admitted" 绕过配额，NER 驱动的 websearch 可无限消耗 NFR-01 1500 条上限。
+  // 与 fetch.ts 完全对称；NER 驱动的 admitWebSearch（月度 API 配额）是另一层独立限速，互不冲突。
+  const businessDate = dayjs().tz(APP_TIMEZONE).format("YYYY-MM-DD");
+  const ownCompanyProfile = await loadOwnCompanyProfile();
 
   try {
     for (const item of results) {
-      const [inserted] = await db
-        .insert(items)
-        .values({
-          sourceId: source.id,
-          url: item.url,
-          title: item.title,
-          content: item.content,
-          publishedAt: item.publishedAt,
-        })
-        .onConflictDoNothing()
-        .returning({ id: items.id });
+      let insertedItemId: number | undefined;
+      let admittedCounterKey: string | undefined;
+      let admittedAnalysisWritten = false;
+      try {
+        const result = await db.transaction(async (tx) => {
+          const [inserted] = await tx
+            .insert(items)
+            .values({
+              sourceId: source.id,
+              url: item.url,
+              title: item.title,
+              content: item.content,
+              publishedAt: item.publishedAt,
+            })
+            .onConflictDoNothing()
+            .returning({ id: items.id });
 
-      if (!inserted) continue;
+          if (!inserted) return { skipped: true as const };
+          insertedItemId = inserted.id;
 
-      await db.insert(itemAnalysis).values({
-        itemId: inserted.id,
-        isIndustryRelated: null,
-        quotaState: "admitted",
-      });
+          const isPriority = detectPriorityFromText(item.title, item.content, ownCompanyProfile);
+          const decision = await admitToScoring(
+            { itemId: insertedItemId, isPriority, businessDate },
+            redis as unknown as RedisEvalLike
+          );
+          if (decision.state === "admitted") admittedCounterKey = decision.counterKey;
 
-      await enqueueItemPipeline(flowProducer, inserted.id, correlationId);
-      logger.info(
-        { itemId: inserted.id, correlationId, sourceId: source.id, entityId, triggerItemId: itemId, stage: "websearch" },
-        "pipeline enqueued",
-      );
+          // Analysis must exist before BullMQ can expose the item to prefilter.
+          await tx.insert(itemAnalysis).values({
+            itemId: insertedItemId,
+            isIndustryRelated: null,
+            quotaState: decision.state,
+          });
+          return { skipped: false as const, itemId: insertedItemId, decision, isPriority };
+        });
+
+        if (result.skipped) continue;
+        if (result.decision.state !== "admitted") {
+          logger.info(
+            { itemId: result.itemId, correlationId, sourceId: source.id, isPriority: result.isPriority, quotaState: result.decision.state, counterKey: result.decision.counterKey },
+            "websearch item pending_over_quota, pipeline not enqueued",
+          );
+          continue;
+        }
+
+        admittedAnalysisWritten = true;
+        await enqueueItemPipeline(flowProducer, result.itemId, correlationId);
+        logger.info(
+          { itemId: result.itemId, correlationId, sourceId: source.id, entityId, triggerItemId: itemId, stage: "websearch" },
+          "pipeline enqueued",
+        );
+      } catch (error) {
+        const compensationErrors: unknown[] = [];
+        if (insertedItemId != null && admittedAnalysisWritten) {
+          try {
+            await db.update(itemAnalysis).set({ quotaState: "pending_over_quota" }).where(and(
+              eq(itemAnalysis.itemId, insertedItemId),
+              eq(itemAnalysis.quotaState, "admitted")
+            ));
+          } catch (rollbackStateError) {
+            compensationErrors.push(rollbackStateError);
+          }
+        }
+        if (admittedCounterKey) {
+          try {
+            await rollbackAdmit(admittedCounterKey, redis as unknown as RedisEvalLike);
+          } catch (rollbackQuotaError) {
+            compensationErrors.push(rollbackQuotaError);
+          }
+        }
+        logger.error({ error, compensationErrors, itemId: insertedItemId, sourceId: source.id }, "websearch item failed; continuing batch");
+      }
     }
 
     logger.info({ entityId, entityName, correlationId, count: results.length }, "websearch job completed");

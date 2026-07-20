@@ -19,6 +19,7 @@ const CIRCLE_RANK_SQL = sql`CASE ${entities.circle}
 END`;
 
 const CIRCLE_RANK: Record<string, number> = { C1: 1, C2: 2, C3: 3 };
+const MAX_DYNAMIC_POLICY_NAME_LENGTH = 100;
 
 export interface AliasHitCandidate {
   id: number;
@@ -44,6 +45,7 @@ export function pickBestAliasHit(hits: AliasHitCandidate[]): AliasHitCandidate |
  * Resolve LLM-extracted name → entities.id.
  * 1) exact match on (type, canonicalName)
  * 2) fallback: aliases @> ARRAY[name], disambiguate by circle then weight
+ * 3) policy and normalized accident event_type only: persist a dynamic entity so curator can JOIN it
  */
 export async function resolveEntityId(
   db: ReturnType<typeof getDb>,
@@ -70,7 +72,34 @@ export async function resolveEntityId(
     .orderBy(CIRCLE_RANK_SQL, desc(entities.weight));
 
   const hit = pickBestAliasHit(aliasHits);
-  if (!hit) return null;
+  if (!hit) {
+    if (type !== "policy" && type !== "event_type") return null;
+    if (type === "event_type" && extractedName !== "事故") return null;
+    if (type === "policy" && extractedName.length > MAX_DYNAMIC_POLICY_NAME_LENGTH) {
+      logger.warn(
+        {
+          itemId,
+          extractedName: extractedName.slice(0, MAX_DYNAMIC_POLICY_NAME_LENGTH),
+          extractedNameLength: extractedName.length,
+          maxLength: MAX_DYNAMIC_POLICY_NAME_LENGTH,
+        },
+        "dynamic policy entity rejected: name too long",
+      );
+      return null;
+    }
+
+    const meta = type === "policy" ? { source: "dynamic" } : undefined;
+
+    const [dynamicEntity] = await db
+      .insert(entities)
+      .values({ type, canonicalName: extractedName, ...(meta ? { meta } : {}) })
+      .onConflictDoUpdate({
+        target: [entities.type, entities.canonicalName],
+        set: { canonicalName: extractedName, ...(meta ? { meta } : {}) },
+      })
+      .returning({ id: entities.id });
+    return dynamicEntity?.id ?? null;
+  }
 
   logger.info(
     {

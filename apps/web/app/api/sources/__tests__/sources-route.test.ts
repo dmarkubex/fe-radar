@@ -14,7 +14,7 @@ vi.mock("@fe-radar/db", () => ({
   createSource: vi.fn(),
 }));
 vi.mock("@/lib/mock-mode", () => ({ isMockMode: mockIsMockMode }));
-vi.mock("@/lib/mock-data", () => ({ mockSources: [{ id: 99, name: "MOCK" }] }));
+vi.mock("@/lib/mock-data", () => ({ mockSources: [{ id: 99, name: "MOCK", urlLocked: false }] }));
 vi.mock("@/lib/api/authz", () => ({ requireRequestRole: mockRequireRequestRole }));
 
 import { GET } from "../route";
@@ -28,14 +28,17 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockIsMockMode.mockReturnValue(false);
   mockRequireRequestRole.mockResolvedValue(null);
-  mockListSources.mockResolvedValue([{ id: 1, name: "S1", tier: "T1" }]);
+  mockListSources.mockResolvedValue([{ id: 1, name: "S1", tier: "T1", urlLocked: true }]);
 });
 
 describe("GET /api/sources", () => {
   it("returns the live list and forwards a valid tier filter", async () => {
     const res = await GET(req(`${BASE}?tier=T1`));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ items: [{ id: 1, name: "S1", tier: "T1" }], nextCursor: null });
+    expect(await res.json()).toEqual({
+      items: [{ id: 1, name: "S1", tier: "T1", urlLocked: true }],
+      nextCursor: null,
+    });
     expect(mockListSources).toHaveBeenCalledOnce();
     const filters = mockListSources.mock.calls[0]![1] as { tier?: string };
     expect(filters.tier).toBe("T1");
@@ -62,7 +65,10 @@ describe("GET /api/sources", () => {
     mockIsMockMode.mockReturnValue(true);
     const res = await GET(req(`${BASE}`));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ items: [{ id: 99, name: "MOCK" }], nextCursor: null });
+    expect(await res.json()).toEqual({
+      items: [{ id: 99, name: "MOCK", urlLocked: false }],
+      nextCursor: null,
+    });
     expect(mockListSources).not.toHaveBeenCalled();
   });
 });

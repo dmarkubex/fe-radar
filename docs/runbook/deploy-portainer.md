@@ -127,6 +127,9 @@ docker run --rm --network fe-radar_internal \
 
 > overlay 网络名通常是 `<stack名>_<网络名>`，即 `fe-radar_internal`；`docker network ls` 确认。
 > `migrate` 同时建表 + seed 信源（~75 enabled）；`seed:admin` 建登录账号。
+> SMM 两条行情 seed 源（铜 / 碳酸锂）的 `name` / `tier` / `category` / `fetcher_type` 会在每次部署重跑 migration 时被 `0027` 还原；`url` 受 `url_locked` 保护。`0036` 会给同指纹（`smm-hq` + `cu_main_close`/`lc_main_close`）的重复行打锁，并在 `admin_snapshot` **不含 `enabled` key** 时禁用非主行；若 admin 已通过后台启用某行（写入 `admin_snapshot.enabled`），`0036` **不会**再静默关掉。
+>
+> **恢复程序（两行全禁用时）**：在信源后台找带「URL锁定」标记的同行组，优先启用 **id 较小**的那一行（部署前的历史真身）。不要只凭 seed URL 外观选较大 id 的「重复副本」——那是 `0027` 因 URL 被改过而重插的行。若较小 id 行的 URL 已被改坏不可用，可启用另一行；`0036` 会把当前已启用行提升为主行并保留 admin 意图。切勿同时启用两行（会双重抓取）。若改过 `tier`（影响 `alertLevelFromTier`），每次部署后仍须人工复核。
 >
 > **兜底（无 migrate 镜像时）**：migrations 是纯 `.sql`，按编号顺序灌：
 >

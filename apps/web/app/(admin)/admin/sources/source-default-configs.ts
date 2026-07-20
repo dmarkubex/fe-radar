@@ -38,28 +38,15 @@ export const DEFAULT_SOURCE_CONFIGS: Record<FetcherType, unknown> = {
     extractor: "() => []",
     useRealUa: true
   },
+  // Default must NOT use smm-hq + cu_main_close/lc_main_close — that fingerprint is how
+  // migration 0036 identifies the two deployment-managed SMM seed rows. A new admin quotes
+  // source that reused the seed fingerprint would be scooped into url_locked reconciliation.
   quotes: {
     type: "quotes",
-    adapter: "smm-hq",
-    metric_keys: ["cu_main_close", "cu_spot_smm"],
-    endpoint: "https://hq.smm.cn/h5/cu",
-    retry: { max: 3, backoffMs: 2000 },
-    items: [
-      {
-        kind: "instrument",
-        metric_key: "cu_main_close",
-        column_no: "CUP01",
-        instrument_id: "cu0000",
-        value_field: "LastPrice"
-      },
-      {
-        kind: "product",
-        metric_key: "cu_spot_smm",
-        column_no: "CUP02",
-        product_id: "201102250376",
-        product_name: "上海今日铜价"
-      }
-    ]
+    adapter: "shfe",
+    metric_keys: ["cu_shfe_main"],
+    endpoint: "http://www.shfe.com.cn/data/dailydata/kx/kx{YYYYMMDD}.dat",
+    retry: { max: 3, backoffMs: 2000 }
   },
   crawl: {
     type: "crawl",
@@ -98,3 +85,28 @@ export const DEFAULT_SOURCE_CONFIGS: Record<FetcherType, unknown> = {
     ]
   }
 };
+
+/** Explicit smm-hq template for the adapter dropdown — not the new-source default. */
+export const SMM_HQ_QUOTES_TEMPLATE = {
+  type: "quotes",
+  adapter: "smm-hq",
+  metric_keys: ["cu_main_close", "cu_spot_smm"],
+  endpoint: "https://hq.smm.cn/h5/cu",
+  retry: { max: 3, backoffMs: 2000 },
+  items: [
+    {
+      kind: "instrument",
+      metric_key: "cu_main_close",
+      column_no: "CUP01",
+      instrument_id: "cu0000",
+      value_field: "LastPrice"
+    },
+    {
+      kind: "product",
+      metric_key: "cu_spot_smm",
+      column_no: "CUP02",
+      product_id: "201102250376",
+      product_name: "上海今日铜价"
+    }
+  ]
+} as const;

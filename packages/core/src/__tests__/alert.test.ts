@@ -1,19 +1,104 @@
 import { describe, expect, it } from "vitest";
-import { computeAlert } from "../alert";
+import { computeAlert, alertLevelFromTier } from "../alert";
 import { LITIGATION_SOURCE_CATEGORY } from "../litigation";
 
+const zeroScores = { d1Policy: 0, d2Chain: 0, d3Market: 0, d4Tech: 0, d5Business: 0 };
+
+describe("computeAlert own (Far East only)", () => {
+  it("emits own for Far East synonym entities with tier-based level", () => {
+    expect(computeAlert({
+      source: { tier: "T1" },
+      scores: { ...zeroScores, d2Chain: 95 },
+      entities: [{ id: 1, type: "company", canonicalName: "远东控股", circle: "C1" }],
+    })).toEqual({ alertType: "own", alertLevel: "L1" });
+
+    expect(computeAlert({
+      source: { tier: "T3" },
+      scores: { ...zeroScores, d2Chain: 90 },
+      entities: [{ id: 1, type: "company", canonicalName: "远东电缆", circle: "C1" }],
+    })).toEqual({ alertType: "own", alertLevel: "L3" });
+  });
+
+  it("does not emit own for other C1 entities (core customers / regulators)", () => {
+    expect(computeAlert({
+      source: { tier: "T1" },
+      scores: { ...zeroScores, d2Chain: 95 },
+      entities: [{ id: 2, type: "company", canonicalName: "国家电网", circle: "C1" }],
+    })).toEqual({});
+
+    expect(computeAlert({
+      source: { tier: "T1" },
+      scores: { ...zeroScores, d2Chain: 95 },
+      entities: [{ id: 3, type: "company", canonicalName: "国家发改委", circle: "C1" }],
+    })).toEqual({});
+  });
+});
+
+describe("computeAlert safety", () => {
+  it("requires event_type=事故 and d5Business >= 70", () => {
+    expect(computeAlert({
+      source: { tier: "T2" },
+      scores: { ...zeroScores, d5Business: 75 },
+      entities: [{ id: 1, type: "event_type", canonicalName: "事故" }],
+    })).toEqual({ alertType: "safety", alertLevel: "L2" });
+  });
+
+  it("does not fire on high d4/d5 alone", () => {
+    expect(computeAlert({
+      source: { tier: "T1" },
+      scores: { ...zeroScores, d4Tech: 90, d5Business: 90 },
+      entities: [],
+    })).toEqual({});
+  });
+
+  it("does not fire when accident event has d5 < 70", () => {
+    expect(computeAlert({
+      source: { tier: "T1" },
+      scores: { ...zeroScores, d5Business: 65 },
+      entities: [{ id: 1, type: "event_type", canonicalName: "事故" }],
+    })).toEqual({});
+  });
+});
+
+describe("computeAlert policy", () => {
+  it("requires NER policy entity and d1Policy >= 75", () => {
+    expect(computeAlert({
+      source: { tier: "T1" },
+      scores: { ...zeroScores, d1Policy: 80 },
+      entities: [{ id: 1, type: "policy", canonicalName: "GB/T 12706" }],
+    })).toEqual({ alertType: "policy", alertLevel: "L1" });
+  });
+
+  it("does not fire on category or d1 alone", () => {
+    expect(computeAlert({
+      source: { tier: "T1" },
+      scores: { ...zeroScores, d1Policy: 90 },
+      entities: [],
+      category: "政策与标准",
+    })).toEqual({});
+  });
+
+  it("does not fire when policy entity has d1 < 75", () => {
+    expect(computeAlert({
+      source: { tier: "T1" },
+      scores: { ...zeroScores, d1Policy: 70 },
+      entities: [{ id: 1, type: "policy", canonicalName: "发改能源〔2024〕12号" }],
+    })).toEqual({});
+  });
+});
+
 describe("computeAlert risk type (企业风险 sourceCategory)", () => {
-  it("emits own alert for C1 entity under 企业风险 (first branch takes priority)", () => {
+  it("emits own alert for Far East entity under 企业风险 (first branch takes priority)", () => {
     expect(computeAlert({
       source: { tier: "T1" },
       scores: { d1Policy: 0, d2Chain: 70, d3Market: 0, d4Tech: 0, d5Business: 0 },
       entities: [{ id: 1, type: "company", canonicalName: "远东控股", circle: "C1" }],
       title: "某企业风险动态",
       sourceCategory: "企业风险",
-    })).toEqual({ alertType: "own", alertLevel: "L2" });
+    })).toEqual({ alertType: "own", alertLevel: "L1" });
   });
 
-  it("emits risk alert for C2 entity under 企业风险 without C1", () => {
+  it("emits risk alert for C2 entity under 企业风险 without own company", () => {
     expect(computeAlert({
       source: { tier: "T2" },
       scores: { d1Policy: 0, d2Chain: 60, d3Market: 0, d4Tech: 0, d5Business: 0 },
@@ -41,5 +126,36 @@ describe("computeAlert risk type (企业风险 sourceCategory)", () => {
       title: "关于收到民事判决书的公告",
       sourceCategory: LITIGATION_SOURCE_CATEGORY,
     })).toEqual({ alertType: "legal", alertLevel: "L2" });
+  });
+});
+
+describe("computeAlert safety vs policy precedence (T5, Finding #5)", () => {
+  // design §11.1 / requirements §9.1 规定 own → safety → policy。
+  // 此前 policy 分支物理先于 safety 求值，同时命中两者的条目被误判为 policy。已修复顺序。
+  it("emits safety when both accident and policy conditions hit (safety before policy)", () => {
+    expect(computeAlert({
+      source: { tier: "T1" },
+      scores: { d1Policy: 80, d2Chain: 0, d3Market: 0, d4Tech: 0, d5Business: 75 },
+      entities: [
+        { id: 1, type: "event_type", canonicalName: "事故" },
+        { id: 2, type: "policy", canonicalName: "GB/T 12706" },
+      ],
+    })).toEqual({ alertType: "safety", alertLevel: "L1" });
+  });
+
+  it("still emits policy when only policy conditions hit (no accident entity)", () => {
+    expect(computeAlert({
+      source: { tier: "T1" },
+      scores: { d1Policy: 80, d2Chain: 0, d3Market: 0, d4Tech: 0, d5Business: 75 },
+      entities: [{ id: 2, type: "policy", canonicalName: "GB/T 12706" }],
+    })).toEqual({ alertType: "policy", alertLevel: "L1" });
+  });
+});
+
+describe("alertLevelFromTier", () => {
+  it("maps T1/T2/T3 to L1/L2/L3", () => {
+    expect(alertLevelFromTier("T1")).toBe("L1");
+    expect(alertLevelFromTier("T2")).toBe("L2");
+    expect(alertLevelFromTier("T3")).toBe("L3");
   });
 });

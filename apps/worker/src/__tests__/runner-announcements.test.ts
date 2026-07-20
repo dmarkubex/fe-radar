@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type * as FeRadarShared from "@fe-radar/shared";
 
 const {
   mockGetDb,
@@ -123,24 +124,48 @@ vi.mock("../jobs/cleanup", () => ({
 vi.mock("../jobs/quotes-fetch", () => ({ runQuotesFetch: vi.fn() }));
 vi.mock("../jobs/briefing-gen", () => ({ runBriefingGen: vi.fn() }));
 vi.mock("../jobs/briefing-push", () => ({ runBriefingPush: vi.fn(), scheduleLatestBriefingPush: vi.fn() }));
+vi.mock("../jobs/quota-drain", () => ({
+  drainPendingQuotaBacklog: vi.fn().mockResolvedValue({ expired: 0, readmitted: 0, stillPending: 0 }),
+}));
 vi.mock("../lib/entities-dict", () => ({ EntityDictionary: vi.fn() }));
+vi.mock("../handlers/context", () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  handlerContext: { qwen: {}, deepSeek: {}, kimi: {}, playwrightPool: null },
+  loadScoringConfig: vi.fn().mockResolvedValue({
+    weights: { w1: 0.2, w2: 0.25, w3: 0.2, w4: 0.15, w5: 0.2 },
+    tCoef: { T1: 1, T2: 0.85, T3: 0.7 },
+    cCoef: { C1: 1.2, C2: 1, C3: 0.85 },
+    thresholds: {},
+  }),
+  loadOwnCompanyProfile: vi.fn().mockResolvedValue({
+    names: new Set(["远东控股", "远东电缆", "远东智慧能源"]),
+  }),
+}));
 vi.mock("@fe-radar/llm", () => ({
   createQwenClient: vi.fn(),
   createDeepSeekClient: vi.fn(),
   createKimiClient: vi.fn(),
   withScrubber: vi.fn((client) => client),
 }));
-vi.mock("@fe-radar/core", () => ({ curateItem: vi.fn() }));
-vi.mock("@fe-radar/shared", () => ({
-  QUEUES: { fetch: "fetch", prefilter: "prefilter", ner: "ner", scorer: "scorer", embedder: "embedder", cluster: "cluster", curator: "curator", daily: "daily" },
-  createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }),
+vi.mock("@fe-radar/core", () => ({
+  curateItem: vi.fn(),
+  admitToScoring: vi.fn().mockResolvedValue({ state: "admitted", counterKey: "k" }),
+  detectPriorityFromText: vi.fn().mockReturnValue(false),
 }));
+vi.mock("@fe-radar/shared", async (importOriginal) => {
+  const actual = await importOriginal<typeof FeRadarShared>();
+  return {
+    ...actual,
+    QUEUES: { fetch: "fetch", prefilter: "prefilter", ner: "ner", scorer: "scorer", embedder: "embedder", cluster: "cluster", curator: "curator", daily: "daily" },
+    createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }),
+  };
+});
 
 import { __testables } from "../runner";
 
 function makeDb() {
   let selectCall = 0;
-  const db = {
+  const dbBase = {
     select: vi.fn(() => {
       selectCall += 1;
       if (selectCall === 1) {
@@ -174,6 +199,9 @@ function makeDb() {
       throw new Error("unexpected insert table");
     }),
   };
+  const db = Object.assign(dbBase, {
+    transaction: vi.fn(async (cb: (tx: typeof dbBase) => unknown) => cb(dbBase)),
+  });
   mockGetDb.mockReturnValue(db);
   return db;
 }

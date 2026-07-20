@@ -89,9 +89,10 @@ export interface BriefingOutput {
 }
 
 // ──────────────────────────────────────────────
-// KIMI_BRIEFING_SYSTEM_PROMPT — 5 条硬约束 (design §6.2)
+// BRIEFING_SYSTEM_PROMPT — 5 条硬约束 (design §6.2)
+// 生产调用 DeepSeek（Kimi 网关无公网出口）；常量名历史曾为 KIMI_*。
 // ──────────────────────────────────────────────
-export const KIMI_BRIEFING_SYSTEM_PROMPT = [
+export const BRIEFING_SYSTEM_PROMPT = [
   "你是远东控股的大宗商品分析师。基于以下数值与新闻摘要，输出 JSON。",
   "严格遵守：",
   "1. 任何数字必须来源于「当日数值」或「近 5 日序列」输入，禁止虚构",
@@ -100,6 +101,9 @@ export const KIMI_BRIEFING_SYSTEM_PROMPT = [
   "4. logic_summary 中可引用输入的具体数值，但不得给出未来价位预测",
   "5. 输出严格符合 schema（schemaName='briefing'）；JSON 解析失败将被丢弃；risk_notes 必须列具体宏观/商品因子，不许空话"
 ].join("\n");
+
+/** @deprecated 使用 BRIEFING_SYSTEM_PROMPT；保留别名避免外部引用断裂 */
+export const KIMI_BRIEFING_SYSTEM_PROMPT = BRIEFING_SYSTEM_PROMPT;
 
 // ──────────────────────────────────────────────
 // NewsItem — 行业新闻摘要（briefing-gen step 2 上下文）
@@ -181,7 +185,8 @@ export function buildBriefingInput(
 // ──────────────────────────────────────────────
 
 /**
- * 调用 Kimi K2.6 生成简报 7 段结构化输出。
+ * 调用 DeepSeek 生成简报 7 段结构化输出。
+ * （原设计为 Kimi K2.6；因 Kimi 网关无公网出口，生产改用同网关可达的 DeepSeek。）
  * 内部通过 withScrubber 中间件保证：
  *   - 公网 LLM 调用前脱敏（PII 命中 block → 抛 LlmError）
  *   - audit log 写入（scrubber 内部处理）
@@ -191,7 +196,7 @@ export async function runBriefingGen(input: string): Promise<LlmResult<BriefingO
   const client = createDeepSeekClient();
   const scrubbed = withScrubber(client);
   return scrubbed.chatJson<BriefingOutput>({
-    system: KIMI_BRIEFING_SYSTEM_PROMPT,
+    system: BRIEFING_SYSTEM_PROMPT,
     schemaName: "briefing",
     schema: BRIEFING_SCHEMA as unknown as Record<string, unknown>,
     user: input

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { computeAlert } from "@fe-radar/core";
 import { LlmError } from "@fe-radar/shared";
 import { runEmbedder } from "../embedder";
 import { runNer } from "../ner";
@@ -28,6 +29,38 @@ describe("pipeline jobs", () => {
     const deepseek = { chatJson: vi.fn(async () => ({ value: { entities: [{ type: "region", text: "江苏" }] }, usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 }, provider: "deepseek" })) } as unknown as LlmClient;
     const result = await runNer("远东电缆 GB/T 12706 江苏", new EntityDictionary([]), qwen, deepseek);
     expect(result.entities).toEqual(expect.arrayContaining([{ type: "region", text: "江苏" }]));
+  });
+
+  it("normalizes a real accident NER variant before safety alert evaluation", async () => {
+    const qwen = { chatJson: vi.fn(async () => ({
+      value: { entities: [{ type: "event_type", text: "发生安全事故", canonicalName: "安全事故" }] },
+      usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+      provider: "qwen"
+    })) } as unknown as LlmClient;
+    const result = await runNer("某厂发生安全事故", new EntityDictionary([]), qwen, { chatJson: vi.fn() } as unknown as LlmClient);
+
+    expect(result.entities).toContainEqual({ type: "event_type", text: "发生安全事故", canonicalName: "事故" });
+    expect(computeAlert({
+      source: { tier: "T1" },
+      scores: { d1Policy: 0, d2Chain: 0, d3Market: 0, d4Tech: 0, d5Business: 70 },
+      entities: result.entities.map((entity, id) => ({ id, type: entity.type, canonicalName: entity.canonicalName ?? "" }))
+    })).toEqual({ alertType: "safety", alertLevel: "L1" });
+  });
+
+  it("normalizes an electrocution death before safety alert evaluation", async () => {
+    const qwen = { chatJson: vi.fn(async () => ({
+      value: { entities: [{ type: "event_type", text: "工人触电死亡", canonicalName: "触电" }] },
+      usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+      provider: "qwen"
+    })) } as unknown as LlmClient;
+    const result = await runNer("某厂发生工人触电死亡事故", new EntityDictionary([]), qwen, { chatJson: vi.fn() } as unknown as LlmClient);
+
+    expect(result.entities).toContainEqual({ type: "event_type", text: "工人触电死亡", canonicalName: "事故" });
+    expect(computeAlert({
+      source: { tier: "T1" },
+      scores: { d1Policy: 0, d2Chain: 0, d3Market: 0, d4Tech: 0, d5Business: 70 },
+      entities: result.entities.map((entity, id) => ({ id, type: entity.type, canonicalName: entity.canonicalName ?? "" }))
+    })).toEqual({ alertType: "safety", alertLevel: "L1" });
   });
 
   it("NER continues with dictionary/policy hits when both LLMs fail", async () => {

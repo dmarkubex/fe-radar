@@ -1,8 +1,10 @@
 import pino from "pino";
 
 import { getDb, entities, scoringConfig } from "@fe-radar/db";
+import { and, eq } from "drizzle-orm";
 import type { LlmClient } from "@fe-radar/llm";
-import type { ScoringConfig as CoreScoringConfig } from "@fe-radar/core";
+import type { ScoringConfig as CoreScoringConfig, OwnCompanyProfile } from "@fe-radar/core";
+import { ownCompanyProfileFromNames, DEFAULT_OWN_COMPANY_PROFILE } from "@fe-radar/core";
 
 import { EntityDictionary } from "../lib/entities-dict";
 import type { BrowserContextPool } from "../fetchers/playwright";
@@ -100,4 +102,62 @@ export async function loadEntityDictionary(): Promise<EntityDictionary> {
     aliases: r.aliases ?? [],
     circle: r.circle as "C1" | "C2" | "C3" | null,
   })));
+}
+
+/**
+ * 本公司 OwnCompanyProfile（注入 core 单一入口，design §11.1）：
+ *
+ * - 查 DB `entities` 中 `circle='C1' AND type='company'` 的实体；
+ * - 用 DEFAULT_OWN_COMPANY_PROFILE.names（远东同义词种子）定位「远东系」实体——canonicalName
+ *   或 aliases 任一命中种子即视为远东系；
+ * - 收集所有命中实体的 `canonicalName + aliases` 全集，过 ownCompanyProfileFromNames（trim + 过滤 <3 字）。
+ *
+ * 这样 admin 在后台给远东系实体新增别名（如"远东通讯"）会自动进入 profile，无需改代码，
+ * 满足"配置必须存数据库"硬约束。core 侧仍保持纯函数、不依赖 db（AGENTS.md 模块边界）。
+ *
+ * 5min 内存缓存（design §11.1 原意）：避免每条 item 都查 DB；entities 表低频变更。
+ */
+const OWN_COMPANY_PROFILE_TTL_MS = 5 * 60 * 1000;
+let ownCompanyProfileCache: { profile: OwnCompanyProfile; expiresAt: number } | null = null;
+
+export async function loadOwnCompanyProfile(): Promise<OwnCompanyProfile> {
+  const now = Date.now();
+  if (ownCompanyProfileCache && ownCompanyProfileCache.expiresAt > now) {
+    return ownCompanyProfileCache.profile;
+  }
+
+  const db = getDb();
+  const rows = await db.select({
+    canonicalName: entities.canonicalName,
+    aliases: entities.aliases,
+  })
+    .from(entities)
+    .where(and(eq(entities.circle, "C1"), eq(entities.type, "company")));
+
+  const seeds = DEFAULT_OWN_COMPANY_PROFILE.names;
+  const collected = new Set<string>();
+  let matchedAny = false;
+  for (const row of rows) {
+    const names = [row.canonicalName, ...(row.aliases ?? [])];
+    const hit = names.some((n) => seeds.has(n.trim()));
+    if (!hit) continue;
+    matchedAny = true;
+    for (const n of names) {
+      const trimmed = n.trim();
+      if (trimmed.length >= 3) collected.add(trimmed);
+    }
+  }
+
+  // DB 无远东系实体时（如本地 mock / 未 seed），回退默认 profile，避免 own 通道失效。
+  const profile = matchedAny
+    ? ownCompanyProfileFromNames([...collected])
+    : DEFAULT_OWN_COMPANY_PROFILE;
+
+  ownCompanyProfileCache = { profile, expiresAt: now + OWN_COMPANY_PROFILE_TTL_MS };
+  return profile;
+}
+
+/** 仅供测试清缓存使用（生产路径无需调用）。 */
+export function __clearOwnCompanyProfileCacheForTests(): void {
+  ownCompanyProfileCache = null;
 }

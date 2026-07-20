@@ -1,4 +1,10 @@
-import { getDb, softDeleteSource, updateSource } from "@fe-radar/db";
+import {
+  DuplicateEnabledSourceError,
+  getDb,
+  ProtectedSourceUrlError,
+  softDeleteSource,
+  updateSource
+} from "@fe-radar/db";
 import { requireRequestRole } from "@/lib/api/authz";
 import { updateSourceSchema, validationError } from "@/lib/api/sources-schema";
 import { isMockMode } from "@/lib/mock-mode";
@@ -24,7 +30,15 @@ export async function PUT(request: NextRequest, context: RouteContext): Promise<
     return mockReadonlyResponse();
   }
 
-  const source = await updateSource(getDb(), Number(id), parsed.data);
+  let source;
+  try {
+    source = await updateSource(getDb(), Number(id), parsed.data);
+  } catch (error) {
+    if (error instanceof ProtectedSourceUrlError || error instanceof DuplicateEnabledSourceError) {
+      return Response.json({ error: { code: error.code, message: error.message } }, { status: 400 });
+    }
+    throw error;
+  }
   if (!source) {
     return Response.json({ error: { code: "NOT_FOUND", message: "信源不存在" } }, { status: 404 });
   }

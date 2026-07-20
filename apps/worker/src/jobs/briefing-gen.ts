@@ -39,6 +39,7 @@ import type { BriefingOutput, NewsItem } from "@fe-radar/llm";
 import { APP_TIMEZONE, createLogger, dayjs } from "@fe-radar/shared";
 
 import { renderBriefing } from "../lib/briefing-render";
+import { BRIEFING_TEMPLATE_VERSION } from "../lib/briefing-constants";
 import { createBriefingPushQueue, createRedisConnection, QUEUE_QUOTES_FETCH } from "../queues";
 
 const logger = createLogger({ service: "briefing-gen" });
@@ -482,7 +483,7 @@ async function persistBriefing(
 ): Promise<number> {
   const values = {
     briefingDate,
-    templateVersion: 1,
+    templateVersion: BRIEFING_TEMPLATE_VERSION,
     payloadJson,
     docxPath,
     genStatus,
@@ -498,6 +499,7 @@ async function persistBriefing(
       .onConflictDoUpdate({
         target: commodityBriefings.briefingDate,
         set: {
+          templateVersion: BRIEFING_TEMPLATE_VERSION,
           payloadJson,
           docxPath,
           genStatus,
@@ -603,7 +605,7 @@ function buildTemplateFields(
   const fields: Record<string, string> = {
     // Static / meta
     briefing_date: briefingDate,
-    template_version: "1",
+    template_version: String(BRIEFING_TEMPLATE_VERSION),
     generated_at: dayjs(now).tz(APP_TIMEZONE).format("YYYY-MM-DD HH:mm"),
     report_disclaimer: "本简报仅供远东控股内部参考，不构成投资建议。",
     footer_date: briefingDate,

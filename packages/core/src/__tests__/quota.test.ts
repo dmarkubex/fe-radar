@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { admitToScoring, admitWebSearch, computePriorityBacklogMetrics, drainBacklog, quotaKey, websearchQuotaKey, type RedisEvalLike } from "../index";
+import { ADMIT_LUA, ROLLBACK_ADMIT_LUA, admitToScoring, admitWebSearch, computePriorityBacklogMetrics, drainBacklog, quotaKey, rollbackAdmit, websearchQuotaKey, type RedisEvalLike } from "../index";
 
 class FakeRedis implements RedisEvalLike {
   private readonly counts = new Map<string, number>();
 
-  public async eval(_: string, __: number, key: string | number, limit: string | number): Promise<number> {
+  public async eval(script: string, _: number, key: string | number, limit?: string | number): Promise<number> {
     const redisKey = String(key);
+    if (script === ROLLBACK_ADMIT_LUA) {
+      this.counts.set(redisKey, Math.max(0, (this.counts.get(redisKey) ?? 0) - 1));
+      return 1;
+    }
+    expect(script).toBe(ADMIT_LUA);
     const next = (this.counts.get(redisKey) ?? 0) + 1;
     if (next > Number(limit)) {
       return 0;
@@ -47,6 +52,19 @@ describe("quota", () => {
       state = (await admitToScoring({ itemId, isPriority: true, businessDate: "2026-05-11" }, redis)).state;
     }
     expect(state).toBe("pending_over_quota");
+  });
+
+  it("restores an admitted slot when enqueue compensation rolls the counter back", async () => {
+    const redis = new FakeRedis();
+    let lastDecision = await admitToScoring({ itemId: 1, isPriority: true, businessDate: "2026-05-11" }, redis);
+    for (let itemId = 2; itemId <= 200; itemId += 1) {
+      lastDecision = await admitToScoring({ itemId, isPriority: true, businessDate: "2026-05-11" }, redis);
+    }
+
+    await rollbackAdmit(lastDecision.counterKey, redis);
+
+    await expect(admitToScoring({ itemId: 201, isPriority: true, businessDate: "2026-05-11" }, redis))
+      .resolves.toMatchObject({ state: "admitted" });
   });
 });
 

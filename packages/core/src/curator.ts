@@ -18,6 +18,7 @@ export function curateItem(input: CuratorInput): CuratorResult {
     sourceCategory: input.sourceCategory,
     riskEntityKeywords: input.riskEntityKeywords,
     riskKeywords: input.riskKeywords,
+    ownCompanyProfile: input.ownCompanyProfile,
   });
   const threshold = input.config.thresholds?.[input.category]?.[score.topCircle] ?? 70;
 

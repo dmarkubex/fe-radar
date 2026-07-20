@@ -8,7 +8,7 @@ import {
   briefingHolidays,
 } from "@fe-radar/db";
 import { isBusinessDay } from "@fe-radar/core";
-import { createLogger } from "@fe-radar/shared";
+import { createLogger, nowInAppTimezone } from "@fe-radar/shared";
 import { sendActionCard } from "../lib/dingtalk-bot";
 
 const logger = createLogger({ service: "briefing-push" });
@@ -262,7 +262,7 @@ export async function scheduleLatestBriefingPush(): Promise<number | null> {
   const db = getDb();
 
   // Use today's date in Asia/Shanghai
-  const todayStr = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Shanghai" });
+  const todayStr = nowInAppTimezone().format("YYYY-MM-DD");
 
   const [latest] = await db
     .select({ id: commodityBriefings.id, genStatus: commodityBriefings.genStatus })
