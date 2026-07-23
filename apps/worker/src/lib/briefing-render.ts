@@ -178,6 +178,9 @@ export async function renderBriefing(
   // Upload to MinIO
   const minio = minioClientOverride ?? createMinioClient();
   try {
+    if (!(await minio.bucketExists(bucket))) {
+      await minio.makeBucket(bucket);
+    }
     await minio.putObject(
       bucket,
       minioKey,

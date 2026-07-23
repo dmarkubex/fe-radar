@@ -45,8 +45,10 @@ function buildMockDb(activeKeys: string[]) {
 }
 
 /** Build a mock MinIO client that succeeds */
-function buildMockMinio(opts: { fail?: boolean } = {}) {
+function buildMockMinio(opts: { fail?: boolean; bucketExists?: boolean } = {}) {
   return {
+    bucketExists: vi.fn().mockResolvedValue(opts.bucketExists ?? true),
+    makeBucket: vi.fn().mockResolvedValue(undefined),
     putObject: opts.fail
       ? vi.fn().mockRejectedValue(new Error("connection refused"))
       : vi.fn().mockResolvedValue(undefined),
@@ -100,6 +102,22 @@ describe("renderBriefing", () => {
     expect(result.docxPath).toBe(
       "fe-radar-briefings/briefings/2026/05/briefing-20260520.docx"
     );
+    expect(minio.putObject).toHaveBeenCalledOnce();
+  });
+
+  it("creates the briefing bucket before the first upload", async () => {
+    process.env["BRIEFING_TEMPLATE_PATH"] = "/templates/briefing.docx";
+    process.env["BRIEFING_MINIO_BUCKET"] = "fe-radar-briefings";
+    mockReadFile.mockResolvedValue(buildDocxBuffer(["cu_price"]));
+
+    const minio = buildMockMinio({ bucketExists: false });
+    await renderBriefing(
+      BASE_PAYLOAD,
+      buildMockDb(["cu_price"]) as never,
+      minio as never
+    );
+
+    expect(minio.makeBucket).toHaveBeenCalledWith("fe-radar-briefings");
     expect(minio.putObject).toHaveBeenCalledOnce();
   });
 
