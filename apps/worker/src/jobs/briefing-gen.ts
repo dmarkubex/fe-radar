@@ -228,6 +228,7 @@ export interface BriefingGenOptions {
   /** Inject a mock Queue for testing step 0 (quotes-fetch queue check) */
   quotesFetchQueueOverride?: {
     getJobCounts(...states: string[]): Promise<Record<string, number>>;
+    getJobs?(states: ["delayed"]): Promise<Array<{ name: string; data?: { sourceId?: number } }>>;
   };
   /** Override sleep delay for testing (set to 0) */
   retryDelayMs?: number;
@@ -282,7 +283,18 @@ export async function runBriefingGen(
     let queueRetries = 0;
     while (true) {
       const counts = await queueHandle.getJobCounts("waiting", "active", "delayed");
-      const pending = (counts["waiting"] ?? 0) + (counts["active"] ?? 0) + (counts["delayed"] ?? 0);
+      const delayedJobs = options.quotesFetchQueueOverride
+        ? options.quotesFetchQueueOverride.getJobs
+          ? await options.quotesFetchQueueOverride.getJobs(["delayed"])
+          : []
+        : await ownPrecheckQueue!.getJobs(["delayed"]);
+      const scheduledRuns = delayedJobs.filter(
+        (job) => job.name === "schedule-quotes-fetch" && job.data?.sourceId === 0
+      ).length;
+      const pending =
+        (counts["waiting"] ?? 0) +
+        (counts["active"] ?? 0) +
+        Math.max(0, (counts["delayed"] ?? 0) - scheduledRuns);
 
       if (pending === 0) break; // quotes-fetch queue is clear
 

@@ -201,6 +201,27 @@ describe("briefing-gen", () => {
     expect(["succeeded", "degraded"]).toContain(result.status);
   });
 
+  it("ignores the delayed repeat scheduler when no source fetch is pending", async () => {
+    const db = buildDb();
+    const mockQueue = {
+      getJobCounts: vi.fn().mockResolvedValue({ waiting: 0, active: 0, delayed: 1 }),
+      getJobs: vi.fn().mockResolvedValue([
+        { name: "schedule-quotes-fetch", data: { sourceId: 0 } },
+      ]),
+    };
+
+    const result = await runBriefingGen({
+      db: db as never,
+      now: new Date("2026-05-20T08:00:00Z"),
+      quotesFetchQueueOverride: mockQueue,
+      retryDelayMs: 0,
+    });
+
+    expect(mockQueue.getJobCounts).toHaveBeenCalledOnce();
+    expect(llmRunBriefingGenFn).toHaveBeenCalledOnce();
+    expect(["succeeded", "degraded"]).toContain(result.status);
+  });
+
   // ── Case 3: field coverage insufficient → degraded ─────────────────────
   it("returns gen_status=degraded when fewer than 5 key fields are present after retries", async () => {
     // Patch degradeFields to return missing fields
