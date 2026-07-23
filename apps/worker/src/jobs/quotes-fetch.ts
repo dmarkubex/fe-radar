@@ -123,7 +123,7 @@ async function upsertQuoteSamplesRaw(
         ${null},
         ${sourceId},
         ${sample.rawText},
-        ${sample.observedAt},
+        ${sample.observedAt.toISOString()},
         now()
       )
       ON CONFLICT (metric_key, observed_at) DO UPDATE

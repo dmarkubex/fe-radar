@@ -277,6 +277,8 @@ describe("runQuotesFetch", () => {
     expect(sqlArg).toContain("ON CONFLICT");
     expect(sqlArg).toContain("DO UPDATE");
     expect(sqlArg).toContain("WHERE");
+    expect(sqlArg).toContain("2026-05-19T07:30:00.000Z");
+    expect(sqlArg).not.toContain("GMT");
   });
 
   // ── T-CB-09 v0.4 fix M3 — tier-priority upsert (cases a / b / c) ───────
