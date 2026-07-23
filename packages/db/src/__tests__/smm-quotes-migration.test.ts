@@ -3,6 +3,10 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const migrationPath = resolve(__dirname, "../../migrations/0027_smm_quotes_sources.sql");
+const recoveryMigrationPath = resolve(
+  __dirname,
+  "../../migrations/0037_ensure_smm_quotes_sources.sql"
+);
 
 describe("0027 SMM quotes sources migration", () => {
   it("uses a new migration instead of editing the 0009 commodity seed", () => {
@@ -45,5 +49,14 @@ describe("0027 SMM quotes sources migration", () => {
 
     expect(sql).toContain("fail_count = 0");
     expect(sql).toContain("last_error = NULL");
+  });
+
+  it("backfills missing SMM sources without overwriting admin state", () => {
+    const sql = readFileSync(recoveryMigrationPath, "utf8");
+
+    expect(sql.match(/"adapter": "smm-hq"/g)).toHaveLength(2);
+    expect(sql).toContain("false,\n    true");
+    expect(sql).toContain("ON CONFLICT (url) DO NOTHING");
+    expect(sql).not.toContain("DO UPDATE");
   });
 });

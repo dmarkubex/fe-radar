@@ -1,9 +1,10 @@
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import postgres from "postgres";
 
 /** Split a multi-statement SQL string on top-level `;`, respecting quotes, comments, and dollar-quoting. */
-function splitStatements(sql: string): string[] {
+export function splitStatements(sql: string): string[] {
   const stmts: string[] = [];
   let cur = "";
   let inStr = false;
@@ -75,7 +76,7 @@ function splitStatements(sql: string): string[] {
   return stmts;
 }
 
-function toRunnableSql(sql: string): string {
+export function toRunnableSql(sql: string): string {
   if (process.env.MIGRATION_PROFILE !== "e2e") {
     return sql;
   }
@@ -87,6 +88,176 @@ function toRunnableSql(sql: string): string {
     .replace(/centroid\s+vector\(1024\)/g, "centroid real[]")
     .replace(/CREATE INDEX items_fts_idx[\s\S]*?\);\n/g, "")
     .replace(/CREATE INDEX analysis_emb_idx[\s\S]*?\);\n/g, "");
+}
+
+/**
+ * Migration files wrap their body in a top-level `BEGIN;`/`COMMIT;` pair so they can
+ * still be run standalone via psql. The ledger now owns transaction control (one
+ * transaction per file, ending with the ledger insert), so these two statements must
+ * be filtered out before execution — sending a raw COMMIT inside `sql.begin()` would
+ * end the transaction early and break the library's own closing COMMIT.
+ * Leading/trailing `--` comment lines are stripped first because splitStatements()
+ * folds any comment text preceding a statement into the same chunk.
+ */
+export function isBeginOrCommit(stmt: string): boolean {
+  const withoutLineComments = stmt
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("--"))
+    .join("\n")
+    .trim();
+  return /^(BEGIN|COMMIT)$/i.test(withoutLineComments);
+}
+
+export function checksum(content: string): string {
+  return createHash("sha256").update(content).digest("hex");
+}
+
+/**
+ * Minimal port the migration runner needs from a database connection. Real
+ * implementation talks to Postgres; tests use an in-memory fake so the ledger
+ * control flow (skip / apply / checksum-mismatch / baseline) is verified without
+ * a live database — this repo has no real-Postgres test harness (see lessons.md).
+ */
+export interface LedgerPort {
+  lock(): Promise<void>;
+  unlock(): Promise<void>;
+  ensureTable(): Promise<void>;
+  tableExists(name: string): Promise<boolean>;
+  getApplied(): Promise<Map<string, string>>;
+  insertBaselineRow(file: string, checksum: string): Promise<void>;
+  applyMigration(file: string, statements: string[], checksum: string): Promise<void>;
+}
+
+export function createPostgresLedger(sql: postgres.Sql): LedgerPort {
+  return {
+    async lock() {
+      await sql`SELECT pg_advisory_lock(hashtext('fe_radar_schema_migrations'))`;
+    },
+    async unlock() {
+      await sql`SELECT pg_advisory_unlock(hashtext('fe_radar_schema_migrations'))`;
+    },
+    async ensureTable() {
+      await sql`
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+          filename   text PRIMARY KEY,
+          checksum   text NOT NULL,
+          applied_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+    },
+    async tableExists(name) {
+      const rows = await sql<{ exists: boolean }[]>`
+        SELECT EXISTS (
+          SELECT 1 FROM information_schema.tables WHERE table_name = ${name}
+        ) AS exists
+      `;
+      return rows[0]?.exists ?? false;
+    },
+    async getApplied() {
+      const rows = await sql<{ filename: string; checksum: string }[]>`
+        SELECT filename, checksum FROM schema_migrations
+      `;
+      return new Map(rows.map((row) => [row.filename, row.checksum]));
+    },
+    async insertBaselineRow(file, fileChecksum) {
+      await sql`
+        INSERT INTO schema_migrations (filename, checksum)
+        VALUES (${file}, ${fileChecksum})
+      `;
+    },
+    async applyMigration(file, statements, fileChecksum) {
+      await sql.begin(async (tx) => {
+        for (const stmt of statements) {
+          await tx.unsafe(stmt);
+        }
+        await tx`
+          INSERT INTO schema_migrations (filename, checksum)
+          VALUES (${file}, ${fileChecksum})
+        `;
+      });
+    }
+  };
+}
+
+export interface RunMigrationsOptions {
+  files: string[];
+  readFile: (file: string) => string;
+  ledger: LedgerPort;
+  baseline?: string;
+  log?: (line: string) => void;
+}
+
+/**
+ * Baseline handles the one-time cutover for databases that already reflect some
+ * migrations' effects but predate this ledger (e.g. hand-provisioned environments).
+ * It records history without re-executing SQL; once the ledger has any row, baseline
+ * is refused so it can't be used to silently skip a migration on a normal deploy.
+ */
+export async function runMigrations(options: RunMigrationsOptions): Promise<string[]> {
+  const { files, readFile, ledger, baseline, log = console.log } = options;
+  const output: string[] = [];
+  const emit = (line: string) => {
+    output.push(line);
+    log(line);
+  };
+
+  await ledger.ensureTable();
+  const applied = await ledger.getApplied();
+  const baselinedThisRun = new Set<string>();
+
+  if (applied.size === 0) {
+    const isExistingDatabase = await ledger.tableExists("sources");
+    if (isExistingDatabase) {
+      if (!baseline) {
+        throw new Error(
+          "existing database detected (sources table already present) with an empty schema_migrations ledger; " +
+            "set MIGRATION_BASELINE=<last-applied-migration-filename> once to record history without re-running it"
+        );
+      }
+      const baselineIndex = files.indexOf(baseline);
+      if (baselineIndex === -1) {
+        throw new Error(`MIGRATION_BASELINE=${baseline} does not match any migration file`);
+      }
+      for (const file of files.slice(0, baselineIndex + 1)) {
+        const content = readFile(file);
+        const fileChecksum = checksum(content);
+        await ledger.insertBaselineRow(file, fileChecksum);
+        applied.set(file, fileChecksum);
+        baselinedThisRun.add(file);
+        emit(`baselined ${file}`);
+      }
+    }
+  } else if (baseline) {
+    throw new Error("MIGRATION_BASELINE is only allowed when schema_migrations is empty; ledger already has entries");
+  }
+
+  for (const file of files) {
+    if (baselinedThisRun.has(file)) {
+      continue;
+    }
+
+    const content = readFile(file);
+    const fileChecksum = checksum(content);
+    const previousChecksum = applied.get(file);
+
+    if (previousChecksum !== undefined) {
+      if (previousChecksum !== fileChecksum) {
+        throw new Error(
+          `checksum mismatch for already-applied migration ${file}: published migrations must not change ` +
+            `(ledger has ${previousChecksum}, file now hashes to ${fileChecksum})`
+        );
+      }
+      emit(`skipped ${file}`);
+      continue;
+    }
+
+    const statements = splitStatements(toRunnableSql(content)).filter((stmt) => !isBeginOrCommit(stmt));
+    await ledger.applyMigration(file, statements, fileChecksum);
+    applied.set(file, fileChecksum);
+    emit(`applied ${file}`);
+  }
+
+  return output;
 }
 
 async function main(): Promise<void> {
@@ -104,23 +275,29 @@ async function main(): Promise<void> {
     .filter((file) => file.endsWith(".sql") && !file.endsWith(".down.sql"))
     .sort();
 
+  const ledger = createPostgresLedger(sql);
+
   try {
-    for (const file of files) {
-      const migration = toRunnableSql(readFileSync(join(migrationsDir, file), "utf8"));
-      // Split multi-statement SQL — postgres extended protocol only supports one
-      // statement per query; simple:true is unreliable across library versions.
-      const statements = splitStatements(migration);
-      for (const stmt of statements) {
-        await sql.unsafe(stmt);
-      }
-      console.log(`applied ${file}`);
+    await ledger.lock();
+    try {
+      await runMigrations({
+        files,
+        readFile: (file) => readFileSync(join(migrationsDir, file), "utf8"),
+        ledger,
+        baseline: process.env.MIGRATION_BASELINE
+      });
+    } finally {
+      await ledger.unlock();
     }
   } finally {
     await sql.end();
   }
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
-});
+const isDirectRun = process.argv[1] !== undefined && import.meta.url === `file://${process.argv[1]}`;
+if (isDirectRun) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  });
+}
