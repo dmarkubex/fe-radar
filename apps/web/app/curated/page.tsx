@@ -5,7 +5,7 @@ import { CuratedCategoryNav } from "@/components/curated/category-nav";
 import { CuratedContent } from "@/components/curated/curated-content";
 import { CuratedContentSkeleton } from "@/components/curated/curated-content-skeleton";
 import { CURATED_CATEGORY_TABS } from "@/components/timeline/meta";
-import { fetchTimeline } from "@/lib/api/timeline-query";
+import { fetchCuratedCategoryStats } from "@/lib/api/timeline-query";
 
 export const dynamic = "force-dynamic";
 
@@ -17,22 +17,6 @@ function first(value: string | string[] | undefined): string | undefined {
 
 const CATEGORIES = CURATED_CATEGORY_TABS;
 
-async function fetchCategoryStats() {
-  return Promise.all(
-    CATEGORIES.map(async (cat) => {
-      const data = await fetchTimeline({
-        filters: { curated: true, category: cat.value },
-        limit: 200
-      });
-      return {
-        ...cat,
-        count: data.items.length,
-        topScore: data.items[0]?.qualityScore ?? null
-      };
-    })
-  );
-}
-
 export default async function CuratedPage({
   searchParams
 }: {
@@ -43,21 +27,29 @@ export default async function CuratedPage({
   const activeCategory =
     CATEGORIES.find((c) => c.value === category) ?? CATEGORIES[0];
   const activeCategorySlug = activeCategory.value;
-  const allCategoryData = await fetchCategoryStats();
+  const stats = await fetchCuratedCategoryStats(
+    CATEGORIES.map(({ value }) => value)
+  );
+  const statsByCategory = new Map(stats.map((stat) => [stat.category, stat]));
+  const allCategoryData = CATEGORIES.map((category) => ({
+    ...category,
+    count: statsByCategory.get(category.value)?.count ?? 0,
+    topScore: statsByCategory.get(category.value)?.topScore ?? null
+  }));
 
   return (
     <PageFrame size="wide">
       <PageHeader
         eyebrow="精选 · CURATED"
         title={activeCategory.label}
-        description="每条目经 5 维评分后按质量排序；低于阈值条目自动滤除。点击卡片查看完整分析与实体。"
+        description="每条目经 5 维评分后按质量排序；低于阈值条目自动滤除。分类数字为符合条件的全部条目数。"
       />
 
       <details className="mt-2">
         <summary className="cursor-pointer font-mono text-[10px] font-medium uppercase tracking-[1.2px] text-accent hover:text-accent-flame">
           评分阈值详情
         </summary>
-        <div className="mt-2 grid grid-cols-5 gap-2 rounded-none border border-hairline bg-surface p-3">
+        <div className="mt-2 grid grid-cols-2 gap-2 rounded-none border border-hairline bg-surface p-3 shell:grid-cols-5">
           {["D1 政策", "D2 链条", "D3 市场", "D4 技术", "D5 商业"].map((d) => (
             <div key={d} className="text-center">
               <p className="font-mono text-[12px] text-fg-soft">{d}</p>

@@ -1,7 +1,7 @@
 export function CuratedContentSkeleton(): React.JSX.Element {
   return (
     <div className="space-y-6" aria-hidden="true">
-      <section className="grid gap-0 sm:grid-cols-[1fr_280px]">
+      <section className="grid gap-0 shell:grid-cols-[1fr_280px]">
         <div className="border border-hairline bg-surface p-6">
           <div className="flex flex-wrap gap-2">
             <div className="h-4 w-12 animate-pulse rounded-none bg-bg-deep" />
@@ -17,7 +17,7 @@ export function CuratedContentSkeleton(): React.JSX.Element {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 shell:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="flex flex-col gap-3 border border-hairline bg-surface p-5">
             <div className="h-4 w-full animate-pulse rounded-none bg-bg-deep" />

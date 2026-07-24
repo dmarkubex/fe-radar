@@ -8,6 +8,11 @@ import {
   lockedEnableError,
   type SourceRow,
 } from "./source-table-locked-meta";
+import {
+  SOURCE_HEALTH_META,
+  type SourceHealth,
+} from "@/components/shared/source-health-meta";
+import { Dialog } from "@/components/ui/dialog";
 
 export {
   lockedBadgeLabel,
@@ -28,8 +33,6 @@ const TIER_CHIPS: { key: TierFilter; label: string }[] = [
 ];
 
 // ---- health wire types (mirror /api/admin/source-health response) ----
-
-type SourceHealth = "healthy" | "stale" | "failing" | "disabled";
 
 interface HealthRow {
   id: number;
@@ -52,20 +55,6 @@ interface HealthPayload {
   summary: HealthSummary;
   sources: HealthRow[];
 }
-
-const HEALTH_BADGE: Record<SourceHealth, string> = {
-  healthy: "text-ok",
-  stale: "text-warn",
-  failing: "text-danger",
-  disabled: "text-fg-soft"
-};
-
-const HEALTH_LABEL: Record<SourceHealth, string> = {
-  healthy: "正常",
-  stale: "陈旧",
-  failing: "失败",
-  disabled: "停用"
-};
 
 // Manual relative-time formatter: the shared dayjs build only extends utc +
 // timezone (no relativeTime plugin), so we compute the diff by hand. Handles
@@ -90,7 +79,7 @@ function relativeFromNow(iso: string | null): string {
 
 function tierColor(tier: "T1" | "T2" | "T3"): string {
   if (tier === "T1") return "bg-accent/15 text-accent";
-  if (tier === "T2") return "bg-gold/15 text-gold";
+  if (tier === "T2") return "bg-gold text-accent";
   return "bg-fg-soft/15 text-fg-soft";
 }
 
@@ -98,6 +87,7 @@ export function SourceTable(): React.JSX.Element {
   const [filter, setFilter] = useState<TierFilter>("ALL");
   const [rows, setRows] = useState<SourceRow[]>([]);
   const [editingSource, setEditingSource] = useState<SourceRow | null>(null);
+  const [deletingSource, setDeletingSource] = useState<SourceRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthPayload | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
@@ -198,17 +188,42 @@ export function SourceTable(): React.JSX.Element {
       }
     }
     setError(null);
-    await fetch(`/api/sources/${row.id}`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ enabled: enabling })
-    });
-    await loadRows();
+    try {
+      const response = await fetch(`/api/sources/${row.id}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled: enabling })
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
+        setError(payload?.error?.message ?? "更新信源状态失败");
+        return;
+      }
+      await loadRows();
+    } catch {
+      setError("更新信源状态失败，请检查网络后重试");
+    }
   }
 
-  async function deleteSource(row: SourceRow): Promise<void> {
-    await fetch(`/api/sources/${row.id}`, { method: "DELETE" });
-    await loadRows();
+  async function confirmDelete(): Promise<void> {
+    if (!deletingSource) return;
+    setError(null);
+    try {
+      const response = await fetch(`/api/sources/${deletingSource.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
+        setError(payload?.error?.message ?? "删除信源失败");
+        return;
+      }
+      setDeletingSource(null);
+      await loadRows();
+    } catch {
+      setError("删除信源失败，请检查网络后重试");
+    }
   }
 
   function beginEdit(row: SourceRow): void {
@@ -225,17 +240,56 @@ export function SourceTable(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
+      <Dialog
+        ariaLabel="确认删除信源"
+        onClose={() => {
+          setDeletingSource(null);
+          setError(null);
+        }}
+        open={deletingSource !== null}
+        panelClassName="w-full max-w-md border border-border bg-surface p-6 shadow-pop"
+      >
+        <h2 className="font-display text-lg font-semibold text-danger">
+          确认删除信源
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+          删除后该信源将停止抓取。确认删除「{deletingSource?.name}」？
+        </p>
+        {error ? (
+          <p className="mt-3 text-sm text-danger" role="alert">{error}</p>
+        ) : null}
+        <div className="mt-5 flex gap-2">
+          <button
+            className="min-h-11 flex-1 border border-danger bg-danger px-4 py-2 font-mono text-xs text-white hover:bg-danger/90"
+            onClick={() => void confirmDelete()}
+            type="button"
+          >
+            确认删除
+          </button>
+          <button
+            className="min-h-11 border border-border bg-surface px-4 py-2 font-mono text-xs text-fg-muted hover:bg-bg-deep"
+            onClick={() => {
+              setDeletingSource(null);
+              setError(null);
+            }}
+            type="button"
+          >
+            取消
+          </button>
+        </div>
+      </Dialog>
+
       {/* ---- KPI strip ---- */}
       <section className="grid grid-cols-2 gap-4 md:grid-cols-5">
         {kpis.map((kpi) => (
           <div
             key={kpi.label}
-            className="border border-border bg-surface p-4 shadow-card"
+            className="panel-surface p-4"
           >
-            <p className="font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+            <p className="eyebrow">
               {kpi.label}
             </p>
-            <p className="mt-2 font-display text-2xl tracking-tightest text-fg">
+            <p className="mt-2 font-display text-2xl text-fg">
               {kpi.value}
             </p>
           </div>
@@ -283,7 +337,7 @@ export function SourceTable(): React.JSX.Element {
       {/* ---- 2-column: table + form ---- */}
       <section className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         {/* left: source table */}
-        <div className="min-w-0 border border-border bg-surface shadow-card">
+        <div className="panel-surface min-w-0">
           <div className="flex items-baseline justify-between border-b border-hairline px-4 py-4 sm:px-6">
             <h3 className="font-display text-base font-semibold text-fg">
               信源列表
@@ -299,7 +353,7 @@ export function SourceTable(): React.JSX.Element {
             </p>
           ) : null}
           {error ? (
-            <p className="px-4 py-4 font-mono text-sm text-danger sm:px-6">{error}</p>
+            <p className="px-4 py-4 font-mono text-sm text-danger sm:px-6" role="alert">{error}</p>
           ) : null}
           <div className="divide-y divide-hairline md:hidden">
             {filteredRows.length === 0 ? (
@@ -357,8 +411,8 @@ export function SourceTable(): React.JSX.Element {
                         <dt className="font-mono text-[10px] uppercase tracking-widest text-fg-soft">
                           健康
                         </dt>
-                        <dd className={healthRow ? HEALTH_BADGE[healthRow.health] : "text-fg-soft"}>
-                          {healthRow ? HEALTH_LABEL[healthRow.health] : "—"}
+                        <dd className={healthRow ? SOURCE_HEALTH_META[healthRow.health].className : "text-fg-soft"}>
+                          {healthRow ? SOURCE_HEALTH_META[healthRow.health].label : "—"}
                         </dd>
                       </div>
                       <div>
@@ -423,7 +477,10 @@ export function SourceTable(): React.JSX.Element {
                       <button
                         type="button"
                         className="min-h-10 border border-danger/25 px-2 font-mono text-[11px] text-danger"
-                        onClick={() => void deleteSource(row)}
+                        onClick={() => {
+                          setError(null);
+                          setDeletingSource(row);
+                        }}
                       >
                         删除
                       </button>
@@ -437,15 +494,15 @@ export function SourceTable(): React.JSX.Element {
             <table className="w-full min-w-[900px] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-hairline">
-                  <th className="px-6 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">ID</th>
-                  <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">名称</th>
-                  <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">Tier</th>
-                  <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">URL</th>
-                  <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">状态</th>
-                  <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">健康</th>
-                  <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">最近成功</th>
-                  <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">失败</th>
-                  <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">操作</th>
+                  <th className="px-6 py-3 eyebrow">ID</th>
+                  <th className="px-3 py-3 eyebrow">名称</th>
+                  <th className="px-3 py-3 eyebrow">Tier</th>
+                  <th className="px-3 py-3 eyebrow">URL</th>
+                  <th className="px-3 py-3 eyebrow">状态</th>
+                  <th className="px-3 py-3 eyebrow">健康</th>
+                  <th className="px-3 py-3 eyebrow">最近成功</th>
+                  <th className="px-3 py-3 eyebrow">失败</th>
+                  <th className="px-3 py-3 eyebrow">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-hairline">
@@ -505,8 +562,8 @@ export function SourceTable(): React.JSX.Element {
                           </td>
                           <td className="px-3 py-3">
                             {healthRow ? (
-                              <span className={`font-mono text-xs ${HEALTH_BADGE[healthRow.health]}`}>
-                                {HEALTH_LABEL[healthRow.health]}
+                              <span className={`font-mono text-xs ${SOURCE_HEALTH_META[healthRow.health].className}`}>
+                                {SOURCE_HEALTH_META[healthRow.health].label}
                               </span>
                             ) : (
                               <span className="font-mono text-xs text-fg-soft">—</span>
@@ -551,7 +608,10 @@ export function SourceTable(): React.JSX.Element {
                               <button
                                 type="button"
                                 className="min-h-8 rounded-none px-2 py-1 font-mono text-[11px] text-danger hover:bg-danger/10"
-                                onClick={() => void deleteSource(row)}
+                                onClick={() => {
+                                  setError(null);
+                                  setDeletingSource(row);
+                                }}
                               >
                                 删除
                               </button>

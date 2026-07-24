@@ -21,6 +21,7 @@ import {
   Building2,
   BarChart3
 } from "lucide-react";
+import { safeExternalUrl } from "@/lib/safe-external-url";
 
 export const dynamic = "force-dynamic";
 
@@ -61,18 +62,19 @@ export default async function ItemDetailPage({
   }
   const session = await auth();
   const canCreatePrediction = hasRole(session?.user?.role, "editor");
+  const displayUrl = safeExternalUrl(item.displayUrl);
 
   return (
     <div className="@container w-full">
       <div className="mx-auto w-full max-w-[1400px] px-[clamp(1rem,4cqi,2.5rem)] py-[clamp(1.5rem,2.5cqi,2rem)]">
         {/* ── Breadcrumb ── */}
-        <nav className="flex items-center gap-2 text-[11px] font-mono text-fg-soft mb-6">
+        <nav className="mb-6 flex min-h-11 items-center gap-2 font-mono text-[11px] text-fg-soft">
           {from === "alerts" ? (
-            <a href="/alerts" className="hover:text-accent transition-colors">
+            <a href="/alerts" className="inline-flex min-h-11 items-center transition-colors hover:text-accent">
               ← 返回告警
             </a>
           ) : (
-            <a href="/" className="hover:text-accent transition-colors">
+            <a href="/" className="inline-flex min-h-11 items-center transition-colors hover:text-accent">
               时间线
             </a>
           )}
@@ -158,9 +160,9 @@ export default async function ItemDetailPage({
                   </span>
                 </div>
               </div>
-              {item.displayUrl ? (
+              {displayUrl ? (
                 <a
-                  href={item.displayUrl}
+                  href={displayUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="ml-auto flex items-center gap-1.5 text-[11px] text-accent hover:text-accent-flame transition-colors"
@@ -192,7 +194,7 @@ export default async function ItemDetailPage({
                 <h2 className="font-display text-[18px] leading-[24px] text-fg mb-3">
                   原文内容
                 </h2>
-                <div className="text-[14px] leading-[26px] text-fg-muted whitespace-pre-wrap max-h-[600px] overflow-y-auto">
+                <div className="whitespace-pre-wrap text-[14px] leading-[26px] text-fg-muted">
                   {item.content}
                 </div>
               </section>
@@ -296,12 +298,12 @@ export default async function ItemDetailPage({
                   {item.entities.map((entity) => (
                     <div
                       key={entity.id}
-                      className="flex items-center justify-between"
+                      className="flex min-w-0 items-center justify-between gap-3"
                     >
-                      <span className="text-[12px] text-fg">
+                      <span className="min-w-0 truncate text-[12px] text-fg" title={entity.canonicalName}>
                         {entity.canonicalName}
                       </span>
-                      <span className="text-[10px] font-mono text-fg-soft">
+                      <span className="shrink-0 text-[10px] font-mono text-fg-soft">
                         {entityTypeLabel(entity.type)}
                         {entity.circle ? ` · ${entity.circle}` : ""}
                       </span>
@@ -352,7 +354,7 @@ export default async function ItemDetailPage({
                 </div>
                 <div className="flex items-center gap-2">
                   <div
-                    className={`w-2.5 h-2.5 rounded-full ${alertStripClass(item.alertType, item.topCircle).replace("bg-", "bg-")}`}
+                    className={`h-2.5 w-2.5 rounded-full ${alertStripClass(item.alertType, item.topCircle)}`}
                   />
                   <span className="text-[12px] text-fg">
                     {alertTypeLabel(item.alertType)}
@@ -380,7 +382,7 @@ export default async function ItemDetailPage({
                 {item.clusterItems.length} 条
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-4 @3xl:grid-cols-3 @5xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 @3xl:grid-cols-3 @5xl:grid-cols-4">
               {item.clusterItems.map((related) => (
                 <a
                   key={related.id}

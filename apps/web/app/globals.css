@@ -19,6 +19,8 @@
  * shadow-pop reserved for modals / login card only.
  */
 @theme {
+  --breakpoint-shell: 760px;
+
   --fe-accent: #00618f;
   --fe-accent-hover: #008fc4;
   --fe-accent-muted: #0098c8;
@@ -49,19 +51,23 @@
   --color-danger: #c0331a;
   --color-warn: #d97706;
   --color-ok: #2f7d4f;
+  --color-market-up: #e74c3c;
+  --color-market-down: #27ae60;
 
-  --font-display: Arial, "Helvetica Neue", ui-sans-serif, system-ui, sans-serif;
-  --font-body: Arial, "Helvetica Neue", ui-sans-serif, system-ui, sans-serif;
-  --font-mono:
-    "JetBrains Mono", ui-monospace, "IBM Plex Mono", Menlo, monospace;
+  --font-display:
+    Arial, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+  --font-body:
+    Arial, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "IBM Plex Mono", Menlo, monospace;
 
   --shadow-card: none;
   --shadow-pop: 0 12px 32px rgba(0, 97, 143, 0.12);
-
-  --tracking-tightest: -2.4px;
 }
 
 :root {
+  /* FE-Radar 当前仅提供浅色设计 token，避免浏览器自动套用深色表单控件。 */
   color-scheme: light;
 }
 
@@ -90,15 +96,26 @@
   background: var(--color-surface);
 }
 
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--color-fg-soft);
+}
+
 html,
 body {
   margin: 0;
   padding: 0;
   background: #f5f9fc;
   color: #143141;
-  font-family: Arial, "Helvetica Neue", ui-sans-serif, system-ui, sans-serif;
+  font-family:
+    Arial, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
   font-size: 16px;
-  line-height: 1.5;
+  line-height: 1.65;
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -132,15 +149,14 @@ button {
 table.fr {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 table.fr thead th {
   text-align: start;
-  font-family:
-    "JetBrains Mono", ui-monospace, "IBM Plex Mono", Menlo, monospace;
+  font-family: ui-monospace, "IBM Plex Mono", Menlo, monospace;
   font-weight: 400;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 1.4px;
   text-transform: uppercase;
   color: var(--color-fg-soft);
@@ -159,7 +175,7 @@ table.fr tbody tr:hover {
 }
 
 table.fr td.num {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: ui-monospace, "IBM Plex Mono", Menlo, monospace;
   font-variant-numeric: tabular-nums;
   text-align: end;
 }

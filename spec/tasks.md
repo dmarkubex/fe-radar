@@ -1,6 +1,7 @@
 # FE-Radar — Tasks (v0.3 DRAFT)
 
 > **v0.3 changelog (Antigravity 第二轮 Stage 4 Audit fix · 2 Systemic + 1 Edge)**：
+>
 > - **R1**：T-M0-02 constraint 删 `mobile_hash`；T-M4-05a goal / constraint / scope 删 mobileHash 参数与字段；改决策树为"name+dept 唯一匹配自动合并 / 多匹配 manual"
 > - **R2**：T-M0-02 constraint 加 `disabled_at`；T-M5-03 constraint 加 disabled_at 软删（替代旧"删除"语义）
 > - **E1**：T-M3-05 constraint 加 block / pending / dropped 排除（与 T-M3-01 timeline API 一致）
@@ -11,12 +12,14 @@
 > **格式**：每条 task 严格遵循 `.ai/shared/task-template.md`（goal / constraints / ask_agent_first / owner / scope / rollback / acceptance）
 >
 > **DMA-24 复审 4 Minor 处理**：
+>
 > - B1（users schema 同步 v0.7）→ 已直接补到 design.md §8（users 加 mobile_hash/merged_at/merged_from_user_id + merge_conflicts 表）；T-M0-02 验收照此实施
 > - B2（block item timeline 展示规则）→ T-M3-01/02/03 加默认排除 constraint（见下）
 > - B3（代理池 health check 可调）→ T-M1-10 改 health check 周期为可配置（见下）
 > - B4（项目代号词典 admin CRUD）→ MVP 文件加载（env `SCRUBBER_PROJECT_DICT_FILE`），admin CRUD 推迟到 M5+（不阻塞）
 >
 > **v0.2 changelog (DMA-23 Antigravity Stage 4 Fix)**：
+>
 > - **R1 (Critical · 外部 LLM 泄密)** → 新增 T-M2-14 (`scrubber` 模块) + T-M2-15 (LLM 链集成)；修 T-M2-06/08 + T-M4-03 加 "调 LLM 前必经 scrubber" constraint
 > - **R2 (Critical · 账号合并)** → 新增 T-M4-05a (合并策略 + 冲突 resolve)；修 T-M4-05 scope 加 merge hook
 > - **R3 (Critical · 爬虫抗封锁)** → 新增 T-M1-10 (代理池 + UA 轮换)；修 T-M1-02/03/04 加切代理 fallback constraint
@@ -29,18 +32,19 @@
 
 ## 0. Sub-Agent 分工
 
-| Agent | 职责 | 主要 scope |
-|---|---|---|
-| `agent-infra` | monorepo 脚手架 / Docker Swarm / CI / 监控 / 部署 | `package.json` / `pnpm-workspace.yaml` / `deploy/*` / `.github/workflows/*` / `scripts/*` |
-| `agent-db` | Drizzle schema / migration / seed / 索引 | `packages/db/**` |
-| `agent-llm` | 三家 LLM SDK 封装 / prompt 模板 | `packages/llm/**` |
-| `agent-core` | 业务规则纯函数（评分 / 配额 / 聚类 / 告警 / 优先级判定） | `packages/core/**` · `packages/shared/**` |
-| `agent-worker` | BullMQ jobs（fetcher / pipeline / scheduler / cleanup） | `apps/worker/**` |
-| `agent-web-api` | Next.js Route Handlers + 中间件 + Zod schema | `apps/web/app/api/**` · `apps/web/lib/api/**` · `apps/web/middleware.ts` |
-| `agent-web-ui` | Next.js 页面 / 组件 / hooks / 状态 | `apps/web/app/**`（除 `api/`）· `apps/web/components/**` · `apps/web/hooks/**` |
-| `agent-auth` | 本地账号 + 钉钉 OAuth + RBAC 中间件 | `apps/web/app/api/auth/**` · `apps/web/lib/auth/**` · users 表（与 agent-db 协作）|
+| Agent           | 职责                                                     | 主要 scope                                                                                |
+| --------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `agent-infra`   | monorepo 脚手架 / Docker Swarm / CI / 监控 / 部署        | `package.json` / `pnpm-workspace.yaml` / `deploy/*` / `.github/workflows/*` / `scripts/*` |
+| `agent-db`      | Drizzle schema / migration / seed / 索引                 | `packages/db/**`                                                                          |
+| `agent-llm`     | 三家 LLM SDK 封装 / prompt 模板                          | `packages/llm/**`                                                                         |
+| `agent-core`    | 业务规则纯函数（评分 / 配额 / 聚类 / 告警 / 优先级判定） | `packages/core/**` · `packages/shared/**`                                                 |
+| `agent-worker`  | BullMQ jobs（fetcher / pipeline / scheduler / cleanup）  | `apps/worker/**`                                                                          |
+| `agent-web-api` | Next.js Route Handlers + 中间件 + Zod schema             | `apps/web/app/api/**` · `apps/web/lib/api/**` · `apps/web/middleware.ts`                  |
+| `agent-web-ui`  | Next.js 页面 / 组件 / hooks / 状态                       | `apps/web/app/**`（除 `api/`）· `apps/web/components/**` · `apps/web/hooks/**`            |
+| `agent-auth`    | 本地账号 + 钉钉 OAuth + RBAC 中间件                      | `apps/web/app/api/auth/**` · `apps/web/lib/auth/**` · users 表（与 agent-db 协作）        |
 
 **并行安全保证**：
+
 - 每个 task 的 scope 必须 ≤ 1 个 agent；多 agent 协作的功能拆为 a/b/... 子 task
 - 跨 agent 接口先由 `agent-core` / `packages/shared` 定义类型，再各自实现
 - 同一 milestone 内**同一文件**的修改不允许两个 task 并发；CI 用 `git diff --name-only` 检查 PR 间 file 重叠
@@ -49,15 +53,15 @@
 
 ## 1. Milestone 概览
 
-| M | 主题 | 目标日期 | task 数 | 关键 sub-agent |
-|---|---|---|---|---|
-| M0 | 脚手架与基线 | 2026-05-17 | 10 | infra / db / web-ui / auth |
-| M1 | 抓取层 | 2026-05-31 | 10（+1 R3 代理池）| worker / db / web-api / web-ui / infra |
-| M2 | Pipeline 与评分 | 2026-06-14 | 15（+2 R1 scrubber）| llm / worker / core |
-| M3 | 前端核心页面 | 2026-06-22 | 8 | web-ui / web-api |
-| M4 | 告警 · 日报 · 钉钉 | 2026-06-27 | 9（+1 R2 合并）| worker / web-ui / web-api / auth |
-| M5 | 后台 · 监控 · 上线 | 2026-06-30 | 8 | web-api / web-ui / worker / infra |
-| **合计** | | | **60** | |
+| M        | 主题               | 目标日期   | task 数              | 关键 sub-agent                         |
+| -------- | ------------------ | ---------- | -------------------- | -------------------------------------- |
+| M0       | 脚手架与基线       | 2026-05-17 | 10                   | infra / db / web-ui / auth             |
+| M1       | 抓取层             | 2026-05-31 | 10（+1 R3 代理池）   | worker / db / web-api / web-ui / infra |
+| M2       | Pipeline 与评分    | 2026-06-14 | 15（+2 R1 scrubber） | llm / worker / core                    |
+| M3       | 前端核心页面       | 2026-06-22 | 8                    | web-ui / web-api                       |
+| M4       | 告警 · 日报 · 钉钉 | 2026-06-27 | 9（+1 R2 合并）      | worker / web-ui / web-api / auth       |
+| M5       | 后台 · 监控 · 上线 | 2026-06-30 | 8                    | web-api / web-ui / worker / infra      |
+| **合计** |                    |            | **60**               |                                        |
 
 ---
 
@@ -221,7 +225,7 @@ task: T-M0-06
     - "apps/web/app/layout.tsx"
     - "apps/web/app/page.tsx"
     - "apps/web/app/globals.css"
-    - "apps/web/tailwind.config.ts"
+    - "apps/web/tailwind.config.ts（历史任务记录；已随 Tailwind 4 迁移删除，配置迁至 apps/web/app/globals.css）"
     - "apps/web/components.json (shadcn 配置)"
     - "apps/web/components/ui/*（仅初始组件）"
     - "apps/web/next.config.js"
@@ -1633,6 +1637,7 @@ T-M0-01 (monorepo)
 ```
 
 **并行最大化策略**：
+
 - M0 完毕后 M1（worker）+ M2 packages/core 部分（quota/scoring/cluster/alert/scrubber）可并行起跑（packages/core 不依赖 db）
 - M2 内部 LLM clients (T-M2-02/03/04) 完全并行；T-M2-14 可与之并行（packages/core 独立）
 - M2 内部 core 纯函数 task (T-M2-10/11/12/14) 完全并行
@@ -1645,21 +1650,21 @@ T-M0-01 (monorepo)
 
 ## 9. 风险登记（task 维度）
 
-| Task | 风险 | 缓解 |
-|---|---|---|
-| T-M0-09 | zhparser pgvector 镜像不支持 | 自定义 Dockerfile + fallback ILIKE |
-| T-M1-04 | playwright 内存泄漏 | BrowserContext 池化 + 周期 restart |
-| T-M1-10 | 代理池法务边界（不绕 robots.txt）| 代码层断言 robots.txt 解析仍生效；admin 后台 feature flag 可一键关 |
-| T-M2-02 | 本地 Qwen GPU 容量不足 | 限速 + fallback DeepSeek |
-| T-M2-09 | ivfflat / HNSW 选型 | M2 实施前 50K + 500K benchmark + 报告（DMA-23 E1）|
-| T-M2-10 | 多 worker 并发建簇竞态 | Redis 分布式锁 + Lua 原子（DMA-23 E2）|
-| T-M2-12 | Lua 脚本边界 + priority 饥饿 | 100% 测试 + 并发 fuzz + 陈旧度监控（DMA-23 E3）|
-| T-M2-14 | scrubber 假阳性 / 假阴性 | 100 条人工样本召回 ≥ 95% / 假阳性 ≤ 5% + 持续迭代词典 |
-| T-M2-15 | scrubber 性能压垮 LLM 吞吐 | 1KB < 5ms 基准；超阈值告警 |
-| T-M3-04 | zhparser FTS 性能 | 索引 + ILIKE fallback |
-| T-M4-05 | 钉钉 AppKey 回调白名单未配 | M0–M3 走本地账号，M4 启动前线下补 |
-| T-M4-05a | 合并冲突误判（碎片化账号）| 仅自动合并强匹配（dingtalk_id 或 username+手机号），name+dept 同名走人工 confirm；audit log 完整 |
-| T-M5-05 | cleanup 误删活跃 cluster | testcontainers 集成测试 + 双层检查（无 cluster_items） |
+| Task     | 风险                              | 缓解                                                                                             |
+| -------- | --------------------------------- | ------------------------------------------------------------------------------------------------ |
+| T-M0-09  | zhparser pgvector 镜像不支持      | 自定义 Dockerfile + fallback ILIKE                                                               |
+| T-M1-04  | playwright 内存泄漏               | BrowserContext 池化 + 周期 restart                                                               |
+| T-M1-10  | 代理池法务边界（不绕 robots.txt） | 代码层断言 robots.txt 解析仍生效；admin 后台 feature flag 可一键关                               |
+| T-M2-02  | 本地 Qwen GPU 容量不足            | 限速 + fallback DeepSeek                                                                         |
+| T-M2-09  | ivfflat / HNSW 选型               | M2 实施前 50K + 500K benchmark + 报告（DMA-23 E1）                                               |
+| T-M2-10  | 多 worker 并发建簇竞态            | Redis 分布式锁 + Lua 原子（DMA-23 E2）                                                           |
+| T-M2-12  | Lua 脚本边界 + priority 饥饿      | 100% 测试 + 并发 fuzz + 陈旧度监控（DMA-23 E3）                                                  |
+| T-M2-14  | scrubber 假阳性 / 假阴性          | 100 条人工样本召回 ≥ 95% / 假阳性 ≤ 5% + 持续迭代词典                                            |
+| T-M2-15  | scrubber 性能压垮 LLM 吞吐        | 1KB < 5ms 基准；超阈值告警                                                                       |
+| T-M3-04  | zhparser FTS 性能                 | 索引 + ILIKE fallback                                                                            |
+| T-M4-05  | 钉钉 AppKey 回调白名单未配        | M0–M3 走本地账号，M4 启动前线下补                                                                |
+| T-M4-05a | 合并冲突误判（碎片化账号）        | 仅自动合并强匹配（dingtalk_id 或 username+手机号），name+dept 同名走人工 confirm；audit log 完整 |
+| T-M5-05  | cleanup 误删活跃 cluster          | testcontainers 集成测试 + 双层检查（无 cluster_items）                                           |
 
 ---
 

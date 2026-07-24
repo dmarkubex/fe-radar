@@ -19,13 +19,13 @@ export function LoginPanel({ dingtalkEnabled, localLoginAllowed }: LoginPanelPro
   if (!dingtalkEnabled) {
     return (
       <>
-        <h2 className="font-display text-[28px] lg:text-[32px] font-normal tracking-[-0.7px] mb-1.5">
+        <h2 className="mb-1.5 font-display text-[28px] font-normal lg:text-[32px]">
           本地账号登录
         </h2>
         <div className="text-fg-muted text-sm mb-6">使用本地账号登录</div>
         <LocalLoginForm />
         <small className="mt-6 block text-fg-soft text-xs">
-          本地账号模式；需 admin 预置（admin / admin123）
+          请联系管理员开通账号
         </small>
       </>
     );
@@ -35,7 +35,7 @@ export function LoginPanel({ dingtalkEnabled, localLoginAllowed }: LoginPanelPro
   if (mode === "dingtalk") {
     return (
       <>
-        <h2 className="font-display text-[28px] lg:text-[32px] font-normal tracking-[-0.7px] mb-1.5">
+        <h2 className="mb-1.5 font-display text-[28px] font-normal lg:text-[32px]">
           钉钉扫码登录
         </h2>
         <div className="text-fg-muted text-sm mb-6">
@@ -76,7 +76,7 @@ export function LoginPanel({ dingtalkEnabled, localLoginAllowed }: LoginPanelPro
   // Local credentials mode (switched from DingTalk)
   return (
     <>
-      <h2 className="font-display text-[28px] lg:text-[32px] font-normal tracking-[-0.7px] mb-1.5">
+      <h2 className="mb-1.5 font-display text-[28px] font-normal lg:text-[32px]">
         本地账号登录
       </h2>
       <div className="text-fg-muted text-sm mb-6">使用本地账号登录</div>

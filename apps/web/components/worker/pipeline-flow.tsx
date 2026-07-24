@@ -40,7 +40,7 @@ export function PipelineFlow({ payload, error, onRetry, queues }: PipelineFlowPr
 
   if (error) {
     return (
-      <section className="border border-border bg-surface p-6 shadow-card">
+      <section className="panel-surface p-6">
         <div className="flex items-baseline justify-between border-b border-hairline pb-3">
           <h3 className="font-display text-base font-semibold text-fg">流水线流程</h3>
           <span className="font-mono text-[11px] text-danger">加载失败</span>
@@ -61,7 +61,7 @@ export function PipelineFlow({ payload, error, onRetry, queues }: PipelineFlowPr
 
   if (!payload) {
     return (
-      <section className="border border-border bg-surface p-6 shadow-card">
+      <section className="panel-surface p-6">
         <div className="flex items-baseline justify-between border-b border-hairline pb-3">
           <h3 className="font-display text-base font-semibold text-fg">流水线流程</h3>
           <span className="font-mono text-[11px] text-fg-soft">加载中…</span>
@@ -76,7 +76,7 @@ export function PipelineFlow({ payload, error, onRetry, queues }: PipelineFlowPr
   const stages = payload.stages;
 
   return (
-    <section className="border border-border bg-surface p-6 shadow-card">
+    <section className="panel-surface p-6">
       <div className="flex items-baseline justify-between border-b border-hairline pb-3">
         <h3 className="font-display text-base font-semibold text-fg">流水线流程</h3>
         <span className="font-mono text-[11px] text-fg-soft">
@@ -144,7 +144,7 @@ export function PipelineFlow({ payload, error, onRetry, queues }: PipelineFlowPr
         {expanded ? (
           <div className="mt-4 border border-hairline bg-bg p-3">
             <div className="mb-2 flex items-baseline justify-between">
-              <h4 className="font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+              <h4 className="eyebrow">
                 阶段详情 · {stages.find((s) => s.key === expanded)?.label ?? ""}
               </h4>
               <span className="font-mono text-[11px] text-fg-soft">{payload.sources.length} 信源</span>

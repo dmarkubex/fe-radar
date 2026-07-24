@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Dialog } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { TargetForm } from "./target-form";
 
 interface TargetRow {
@@ -24,54 +26,52 @@ function DeleteModal({ target, onConfirm, onCancel }: DeleteModalProps): React.J
   const matches = inputValue === target.name;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-      role="dialog"
-      aria-modal="true"
-      aria-label="确认删除推送目标"
+    <Dialog
+      ariaLabel="确认删除推送目标"
+      onClose={onCancel}
+      open
+      panelClassName="w-full max-w-md border border-border bg-surface p-6 shadow-pop"
     >
-      <div className="w-full max-w-md border border-border bg-surface p-6 shadow-card">
-        <h3 className="font-display text-base font-semibold text-danger">
-          确认删除推送目标
-        </h3>
-        <p className="mt-2 text-sm text-fg-muted">
-          此操作不可撤销。推送目标将被软删除（disabled_at 标记）。
-        </p>
-        <p className="mt-3 text-sm text-fg">
-          请输入目标名称{" "}
-          <span className="font-mono font-semibold text-fg">
-            &ldquo;{target.name}&rdquo;
-          </span>{" "}
-          以确认删除：
-        </p>
-        <input
-          className="mt-2 h-9 w-full border border-border bg-bg px-3 text-sm text-fg placeholder:text-fg-soft focus:outline-none focus:border-accent"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          placeholder={target.name}
-          aria-label="输入目标名称确认删除"
-          data-testid="delete-confirm-input"
-        />
-        <div className="mt-4 flex gap-2">
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={!matches}
-            className="flex-1 border border-danger bg-danger py-2 font-mono text-xs uppercase tracking-wide text-bg transition-colors hover:bg-danger/90 disabled:cursor-not-allowed disabled:opacity-40"
-            data-testid="delete-confirm-btn"
-          >
-            确认删除
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="border border-border bg-surface px-4 py-2 font-mono text-xs uppercase tracking-wide text-fg-muted transition-colors hover:bg-bg-deep"
-          >
-            取消
-          </button>
-        </div>
+      <h3 className="font-display text-base font-semibold text-danger">
+        确认删除推送目标
+      </h3>
+      <p className="mt-2 text-sm text-fg-muted">
+        此操作不可撤销。推送目标将被软删除（disabled_at 标记）。
+      </p>
+      <p className="mt-3 text-sm text-fg">
+        请输入目标名称{" "}
+        <span className="font-mono font-semibold text-fg">
+          &ldquo;{target.name}&rdquo;
+        </span>{" "}
+        以确认删除：
+      </p>
+      <input
+        className="mt-2 h-11 w-full border border-border bg-bg px-3 text-sm text-fg placeholder:text-fg-soft focus:border-accent focus:outline-none"
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        placeholder={target.name}
+        aria-label="输入目标名称确认删除"
+        data-testid="delete-confirm-input"
+      />
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={!matches}
+          className="min-h-11 flex-1 border border-danger bg-danger py-2 font-mono text-xs uppercase tracking-wide text-bg transition-colors hover:bg-danger/90 disabled:cursor-not-allowed disabled:opacity-40"
+          data-testid="delete-confirm-btn"
+        >
+          确认删除
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="min-h-11 border border-border bg-surface px-4 py-2 font-mono text-xs uppercase tracking-wide text-fg-muted transition-colors hover:bg-bg-deep"
+        >
+          取消
+        </button>
       </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -117,19 +117,31 @@ export function TargetTable(): React.JSX.Element {
   }, [loadRows]);
 
   async function toggleEnabled(row: TargetRow): Promise<void> {
-    await fetch(`/api/briefing/targets/${row.id}`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ enabled: !row.enabled })
-    });
-    await loadRows();
+    try {
+      const response = await fetch(`/api/briefing/targets/${row.id}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled: !row.enabled })
+      });
+      if (!response.ok) throw new Error("更新状态失败");
+      await loadRows();
+    } catch (cause) {
+      addToast(false, cause instanceof Error ? cause.message : "更新状态失败");
+    }
   }
 
   async function confirmDelete(): Promise<void> {
     if (!deletingTarget) return;
-    await fetch(`/api/briefing/targets/${deletingTarget.id}`, { method: "DELETE" });
-    setDeletingTarget(null);
-    await loadRows();
+    try {
+      const response = await fetch(`/api/briefing/targets/${deletingTarget.id}`, {
+        method: "DELETE"
+      });
+      if (!response.ok) throw new Error("删除失败");
+      setDeletingTarget(null);
+      await loadRows();
+    } catch (cause) {
+      addToast(false, cause instanceof Error ? cause.message : "删除失败");
+    }
   }
 
   async function testPush(row: TargetRow): Promise<void> {
@@ -152,7 +164,7 @@ export function TargetTable(): React.JSX.Element {
   return (
     <div className="space-y-6">
       {/* ---- Toast notifications ---- */}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2" aria-live="polite">
+      <div className="fixed bottom-4 right-4 z-[60] flex flex-col gap-2" aria-live="polite">
         {toasts.map((toast) => (
           <div
             key={toast.id}
@@ -179,28 +191,27 @@ export function TargetTable(): React.JSX.Element {
 
       {/* ---- Edit form modal ---- */}
       {editingTarget ? (
-        <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-black/60"
-          role="dialog"
-          aria-modal="true"
+        <Dialog
+          ariaLabel={`编辑推送目标 ${editingTarget.name}`}
+          onClose={() => setEditingTarget(null)}
+          open
+          panelClassName="w-full max-w-md border border-border bg-surface-warm p-6 shadow-pop"
         >
-          <div className="w-full max-w-md border border-border bg-surface-warm p-6 shadow-card">
-            <TargetForm
-              initial={editingTarget}
-              onSaved={() => {
-                setEditingTarget(null);
-                void loadRows();
-              }}
-              onCancel={() => setEditingTarget(null)}
-            />
-          </div>
-        </div>
+          <TargetForm
+            initial={editingTarget}
+            onSaved={() => {
+              setEditingTarget(null);
+              void loadRows();
+            }}
+            onCancel={() => setEditingTarget(null)}
+          />
+        </Dialog>
       ) : null}
 
       {/* ---- 2-column: table + new form ---- */}
       <section className="grid gap-6 lg:grid-cols-[1fr_380px]">
         {/* left: target table */}
-        <div className="border border-border bg-surface shadow-card">
+        <div className="panel-surface">
           <div className="flex items-baseline justify-between border-b border-hairline px-6 py-4">
             <h3 className="font-display text-base font-semibold text-fg">
               推送目标列表
@@ -216,13 +227,13 @@ export function TargetTable(): React.JSX.Element {
             <table className="w-full border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-hairline">
-                  <th className="px-6 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">ID</th>
-                  <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">名称</th>
-                  <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">渠道</th>
-                  <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">Webhook URL</th>
-                  <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">密钥</th>
-                  <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">状态</th>
-                  <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">操作</th>
+                  <th className="px-6 py-3 eyebrow">ID</th>
+                  <th className="px-3 py-3 eyebrow">名称</th>
+                  <th className="px-3 py-3 eyebrow">渠道</th>
+                  <th className="px-3 py-3 eyebrow">Webhook URL</th>
+                  <th className="px-3 py-3 eyebrow">密钥</th>
+                  <th className="px-3 py-3 eyebrow">状态</th>
+                  <th className="px-3 py-3 eyebrow">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-hairline">
@@ -316,13 +327,14 @@ export function TargetTable(): React.JSX.Element {
               <p className="font-mono text-[11px] text-fg-soft">
                 点击下方按钮开始新增钉钉群机器人推送目标。
               </p>
-              <button
+              <Button
                 type="button"
                 onClick={() => setShowForm(true)}
-                className="w-full border border-accent bg-accent py-2 font-mono text-xs uppercase tracking-wide text-bg transition-colors hover:bg-accent/90"
+                className="w-full"
+                variant="accent"
               >
                 新建推送目标
-              </button>
+              </Button>
             </div>
           )}
         </div>

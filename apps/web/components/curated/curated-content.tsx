@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { fetchTimeline } from "@/lib/api/timeline-query";
 import { formatAppTime, scoreLabel, SOURCE_TIER_LABELS } from "@/components/timeline/meta";
+import { safeExternalUrl } from "@/lib/safe-external-url";
 
 export async function CuratedContent({
   category
@@ -16,7 +18,11 @@ export async function CuratedContent({
   return (
     <>
       {heroItem ? (
-        <section className="hero-pick grid gap-0 sm:grid-cols-[1fr_280px]">
+        <Link
+          aria-label={`查看详情：${heroItem.title}`}
+          className="hero-pick grid gap-0 shell:grid-cols-[1fr_280px]"
+          href={`/items/${heroItem.id}`}
+        >
           <div className="border border-hairline bg-surface p-6">
             <div className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
               <span
@@ -69,7 +75,7 @@ export async function CuratedContent({
             </div>
           </div>
 
-          <div className="signal-panel border border-hairline bg-bg-deep p-5 sm:border-l-0">
+          <div className="signal-panel border border-hairline bg-bg-deep p-5 shell:border-l-0">
             <p className="font-mono text-[13px] font-medium uppercase tracking-[1.4px] text-fg-soft">
               综合评分
             </p>
@@ -105,7 +111,7 @@ export async function CuratedContent({
               </div>
             ) : null}
           </div>
-        </section>
+        </Link>
       ) : (
         <div className="border border-hairline bg-surface px-6 py-12 text-center text-sm text-fg-muted">
           该分类暂无精选条目
@@ -113,11 +119,13 @@ export async function CuratedContent({
       )}
 
       {gridItems.length > 0 ? (
-        <section className="pick-grid grid gap-4 sm:grid-cols-3">
+        <section className="pick-grid grid gap-4 shell:grid-cols-3">
           {gridItems.map((item) => (
-            <article
+            <Link
+              aria-label={`查看详情：${item.title}`}
               key={item.id}
               className="group flex flex-col gap-3 border border-hairline bg-surface p-5 transition-colors hover:border-border-strong"
+              href={`/items/${item.id}`}
             >
               <div className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
                 <span
@@ -160,7 +168,7 @@ export async function CuratedContent({
                   {scoreLabel(item.qualityScore)}
                 </span>
               </div>
-            </article>
+            </Link>
           ))}
         </section>
       ) : null}
@@ -170,7 +178,7 @@ export async function CuratedContent({
           <h2 className="mb-3 font-mono text-[10px] font-medium uppercase tracking-[1.4px] text-fg-soft">
             同主题更多
           </h2>
-          <div className="overflow-x-auto rounded-none border border-border">
+          <div className="hidden overflow-x-auto rounded-none border border-border shell:block">
             <table className="fr">
               <thead>
                 <tr>
@@ -181,7 +189,9 @@ export async function CuratedContent({
                 </tr>
               </thead>
               <tbody>
-                {tableItems.map((item) => (
+                {tableItems.map((item) => {
+                  const displayUrl = safeExternalUrl(item.displayUrl);
+                  return (
                   <tr key={item.id}>
                     <td className="whitespace-nowrap">
                       <span
@@ -195,9 +205,9 @@ export async function CuratedContent({
                       </span>
                     </td>
                     <td className="max-w-[400px] break-words">
-                      {item.displayUrl ? (
+                      {displayUrl ? (
                         <a
-                          href={item.displayUrl}
+                          href={displayUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm font-medium text-fg hover:text-accent"
@@ -220,9 +230,35 @@ export async function CuratedContent({
                       {scoreLabel(item.qualityScore)}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+          <div className="grid gap-3 shell:hidden">
+            {tableItems.map((item) => (
+              <Link
+                aria-label={`查看详情：${item.title}`}
+                className="border border-border bg-surface p-4"
+                href={`/items/${item.id}`}
+                key={item.id}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-mono text-[10px] text-accent">
+                    {item.sourceTier} · {item.sourceName}
+                  </span>
+                  <span className="font-mono text-sm font-semibold tabular-nums text-accent">
+                    {scoreLabel(item.qualityScore)}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm font-medium leading-6 text-fg">
+                  {item.title}
+                </p>
+                <p className="mt-2 font-mono text-[10px] text-fg-soft">
+                  {formatAppTime(item.scoredAt)}
+                </p>
+              </Link>
+            ))}
           </div>
         </section>
       ) : null}

@@ -269,9 +269,10 @@ export default async function BriefingListPage(): Promise<React.JSX.Element> {
                         </span>
                       )}
                       {row.genStatus === "failed" && row.genError && (
-                        <span className="min-w-0 truncate font-mono text-[10px] text-danger">
-                          · {row.genError}
-                        </span>
+                        <details className="min-w-0 font-mono text-[10px] text-danger">
+                          <summary className="cursor-pointer">失败原因</summary>
+                          <p className="mt-1 max-w-[48ch] break-words leading-4" title={row.genError}>{row.genError}</p>
+                        </details>
                       )}
                       {expired && row.docxPath && (
                         <span className="font-mono text-[10px] text-fg-soft">
@@ -287,7 +288,7 @@ export default async function BriefingListPage(): Promise<React.JSX.Element> {
                   {canView ? (
                     <Link
                       href={`/briefing/${row.id}`}
-                      className="flex items-center gap-1 text-[12px] text-accent hover:text-accent-flame transition-colors font-mono"
+                      className="flex min-h-11 items-center gap-1 font-mono text-[12px] text-accent transition-colors hover:text-accent-flame"
                     >
                       查看详情
                       <ChevronRight className="h-3 w-3" />

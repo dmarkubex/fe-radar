@@ -1,6 +1,9 @@
 import { and, desc, eq } from "drizzle-orm";
 import { getDb, itemAnalysis, items, sources } from "@fe-radar/db";
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
+import Link from "next/link";
+import { PageFrame } from "@/components/layout/page-frame";
+import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +11,18 @@ type PageSearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+const FILTERS = [
+  { state: undefined, label: "全部" },
+  { state: "pending_over_quota", label: "待处理" },
+  { state: "dropped_quota_expired", label: "已丢弃" },
+] as const;
+
+function quotaLabel(state: string | null): string {
+  if (state === "pending_over_quota") return "待处理";
+  if (state === "dropped_quota_expired") return "超时丢弃";
+  return state ?? "未知";
 }
 
 export default async function AdminBacklogPage({ searchParams }: { searchParams: PageSearchParams }): Promise<React.JSX.Element> {
@@ -30,38 +45,84 @@ export default async function AdminBacklogPage({ searchParams }: { searchParams:
     .limit(100);
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8">
-      <header>
-        <p className="text-sm font-medium text-zinc-500">后台</p>
-        <h1 className="mt-2 text-2xl font-semibold text-zinc-950">Backlog 抽查</h1>
-      </header>
-      <div className="flex gap-2">
-        <a className={`rounded-md px-3 py-1.5 text-sm ${!state ? "bg-zinc-950 text-white" : "bg-zinc-100"}`} href="/admin/backlog">全部</a>
-        <a className={`rounded-md px-3 py-1.5 text-sm ${state === "pending_over_quota" ? "bg-zinc-950 text-white" : "bg-zinc-100"}`} href="/admin/backlog?state=pending_over_quota">Pending</a>
-        <a className={`rounded-md px-3 py-1.5 text-sm ${state === "dropped_quota_expired" ? "bg-zinc-950 text-white" : "bg-zinc-100"}`} href="/admin/backlog?state=dropped_quota_expired">Dropped</a>
-      </div>
-      <section className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-zinc-50 text-left text-zinc-500">
-            <tr>
-              <th className="p-3">标题</th>
-              <th className="p-3">信源</th>
-              <th className="p-3">状态</th>
-              <th className="p-3">抓取时间</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr className="border-t border-zinc-100" key={row.id}>
-                <td className="p-3 font-medium text-zinc-950">{row.title}</td>
-                <td className="p-3">{row.sourceName}</td>
-                <td className="p-3">{row.quotaState}</td>
-                <td className="p-3">{dayjs(row.fetchedAt).tz(APP_TIMEZONE).format("YYYY-MM-DD HH:mm")}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <PageFrame>
+      <PageHeader
+        eyebrow="/ 后台 · ADMIN · BACKLOG"
+        title="Backlog 抽查"
+        description="查看超出评分配额的待处理与超时丢弃条目。"
+      />
+      <nav aria-label="Backlog 状态" className="flex flex-wrap gap-2">
+        {FILTERS.map((filter) => {
+          const active = state === filter.state;
+          const href = filter.state ? `/admin/backlog?state=${filter.state}` : "/admin/backlog";
+          return (
+            <Link
+              aria-current={active ? "page" : undefined}
+              className={`inline-flex min-h-10 items-center px-3 py-1.5 font-mono text-xs ${
+                active
+                  ? "bg-accent text-white"
+                  : "border border-border bg-surface text-fg-muted hover:bg-bg-deep"
+              }`}
+              href={href}
+              key={filter.label}
+            >
+              {filter.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <section className="panel-surface">
+        {rows.length === 0 ? (
+          <p className="px-6 py-12 text-center text-sm text-fg-muted">当前筛选条件下暂无 backlog 条目。</p>
+        ) : (
+          <>
+            <div className="divide-y divide-hairline md:hidden">
+              {rows.map((row) => (
+                <article className="space-y-2 p-4" key={row.id}>
+                  <div className="flex items-start justify-between gap-3">
+                    <h2 className="text-sm font-medium text-fg">{row.title}</h2>
+                    <span className="shrink-0 bg-bg-deep px-2 py-1 font-mono text-[10px] text-fg-muted">
+                      {quotaLabel(row.quotaState)}
+                    </span>
+                  </div>
+                  {row.summaryZh ? <p className="line-clamp-3 text-sm text-fg-muted">{row.summaryZh}</p> : null}
+                  <p className="font-mono text-[11px] text-fg-soft">
+                    {row.sourceName} · {dayjs(row.fetchedAt).tz(APP_TIMEZONE).format("YYYY-MM-DD HH:mm")}
+                  </p>
+                </article>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-bg font-mono text-[11px] uppercase text-fg-soft">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">条目</th>
+                    <th className="px-4 py-3 font-medium">信源</th>
+                    <th className="px-4 py-3 font-medium">状态</th>
+                    <th className="px-4 py-3 font-medium">抓取时间</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-hairline">
+                  {rows.map((row) => (
+                    <tr key={row.id}>
+                      <td className="max-w-xl px-4 py-3">
+                        <p className="font-medium text-fg">{row.title}</p>
+                        {row.summaryZh ? <p className="mt-1 line-clamp-2 text-xs text-fg-muted">{row.summaryZh}</p> : null}
+                      </td>
+                      <td className="px-4 py-3 text-fg-muted">{row.sourceName}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-fg-muted">{quotaLabel(row.quotaState)}</td>
+                      <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-fg-muted">
+                        {dayjs(row.fetchedAt).tz(APP_TIMEZONE).format("YYYY-MM-DD HH:mm")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </section>
-    </main>
+    </PageFrame>
   );
 }

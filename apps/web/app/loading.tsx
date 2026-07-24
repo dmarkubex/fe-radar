@@ -9,7 +9,7 @@ export default function Loading(): React.JSX.Element {
         <div className="mt-2 h-3 w-full max-w-2xl animate-pulse rounded-none bg-bg-deep" />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 shell:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="flex flex-col gap-2 rounded-none border border-hairline bg-surface px-4 py-3">
             <div className="h-2.5 w-12 animate-pulse rounded-none bg-bg-deep" />

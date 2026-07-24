@@ -1,6 +1,8 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ItemDetailDialog } from "@/components/timeline/item-detail-dialog";
@@ -46,6 +48,8 @@ function TimelineListInner({
   variant: "list" | "timeline";
 }): React.JSX.Element {
   const [activeItemId, setActiveItemId] = useState<number | null>(null);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const timeline = useTimeline(endpoint, initialData);
   // 在全量 flatMap 后的 items 上分组，跨页同日合并
   const items = timeline.data?.pages.flatMap((page) => page.items) ?? [];
@@ -82,7 +86,7 @@ function TimelineListInner({
             <section className="relative" key={dayGroup.dayKey}>
               {/* 粗节点：日期，sticky 吸顶，z-[5] 低于 app-shell header (z-10/z-30) */}
               <div
-                className="sticky top-10 z-[5] -ml-8 mb-2 flex items-center gap-3 bg-bg py-1 pr-2 max-[760px]:ml-0"
+                className="sticky top-[var(--shell-header-h)] z-[5] -ml-8 mb-2 flex items-center gap-3 bg-bg py-1 pr-2 max-[760px]:ml-0"
                 role="heading"
                 aria-level={2}
               >
@@ -124,7 +128,14 @@ function TimelineListInner({
           items.map((item) => <TimelineCard item={item} key={item.id} onOpen={setActiveItemId} />)
         )
       ) : (
-        <div className="border border-border bg-surface p-8 text-center text-sm text-fg-soft">暂无条目</div>
+        <div className="border border-border bg-surface p-8 text-center text-sm text-fg-soft">
+          <p>暂无条目</p>
+          {searchParams.size > 0 ? (
+            <Link className="mt-3 inline-flex min-h-10 items-center text-accent hover:underline" href={pathname}>
+              清除筛选
+            </Link>
+          ) : null}
+        </div>
       )}
 
       {timeline.hasNextPage ? (

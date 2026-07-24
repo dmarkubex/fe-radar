@@ -26,8 +26,8 @@ export default function LoginPage(): React.JSX.Element {
               / 行业情报雷达 V1
             </div>
             <h1 className="font-display text-[36px] leading-[1.02] tracking-normal font-normal sm:text-[44px] lg:text-[52px] xl:text-[56px]">
-              <span className="block whitespace-nowrap">行业信号先行</span>
-              <span className="block whitespace-nowrap">进入决策视野</span>
+              <span className="block whitespace-nowrap max-[420px]:whitespace-normal">行业信号先行</span>
+              <span className="block whitespace-nowrap max-[420px]:whitespace-normal">进入决策视野</span>
             </h1>
             <p className="text-white/70 text-sm lg:text-base leading-[1.55] mt-4 max-w-[42ch]">
               每 6 小时抓取集团关注的行业信源，经 5 维评分和关注圈分类后，沉淀为时间线、精选、日报与告警。

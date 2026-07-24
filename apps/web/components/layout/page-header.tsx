@@ -15,11 +15,9 @@ export function PageHeader({
   return (
     <header className={paddingBottom}>
       {eyebrow ? (
-        <p className="font-mono text-[10px] font-medium uppercase tracking-[1.4px] text-fg-soft">
-          {eyebrow}
-        </p>
+        <p className="eyebrow">{eyebrow}</p>
       ) : null}
-      <h1 className="mt-1 display-fluid font-semibold tracking-tight text-fg">
+      <h1 className="mt-1 font-display display-fluid font-semibold text-fg">
         {title}
       </h1>
       {description ? (

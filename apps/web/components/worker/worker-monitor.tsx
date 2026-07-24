@@ -3,6 +3,10 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
 import type { PipelineFlowPayload } from "@/lib/api/pipeline-flow-query";
+import {
+  SOURCE_HEALTH_META,
+  type SourceHealth,
+} from "@/components/shared/source-health-meta";
 
 import { PipelineFlow } from "./pipeline-flow";
 
@@ -36,8 +40,6 @@ interface WorkerStatus {
   };
   queues: QueueRow[];
 }
-
-type SourceHealth = "healthy" | "stale" | "failing" | "disabled";
 
 interface SourceRow {
   id: number;
@@ -84,20 +86,6 @@ function relativeFromNow(iso: string | null): string {
   const days = Math.round(abs / 86400);
   return `${days} 天${suffix}`;
 }
-
-const HEALTH_BADGE: Record<SourceHealth, string> = {
-  healthy: "text-ok",
-  stale: "text-warn",
-  failing: "text-danger",
-  disabled: "text-fg-soft",
-};
-
-const HEALTH_LABEL: Record<SourceHealth, string> = {
-  healthy: "正常",
-  stale: "陈旧",
-  failing: "失败",
-  disabled: "停用",
-};
 
 export function WorkerMonitor(): React.JSX.Element {
   const [worker, setWorker] = useState<WorkerStatus | null>(null);
@@ -160,7 +148,7 @@ export function WorkerMonitor(): React.JSX.Element {
 
   if (loading && !worker && !health) {
     return (
-      <div className="border border-border bg-surface p-6 shadow-card">
+      <div className="panel-surface p-6">
         <p className="font-mono text-xs text-fg-muted">加载中…</p>
       </div>
     );
@@ -193,7 +181,7 @@ export function WorkerMonitor(): React.JSX.Element {
       />
 
       {/* ---- Worker status header ---- */}
-      <section className="border border-border bg-surface p-6 shadow-card">
+      <section className="panel-surface p-6">
         <div className="flex items-baseline justify-between border-b border-hairline pb-3">
           <h3 className="font-display text-base font-semibold text-fg">Worker 心跳</h3>
           <span className="font-mono text-[11px] text-fg-soft">
@@ -238,7 +226,7 @@ export function WorkerMonitor(): React.JSX.Element {
       </section>
 
       {/* ---- Queue table ---- */}
-      <section className="border border-border bg-surface p-6 shadow-card">
+      <section className="panel-surface p-6">
         <div className="flex items-baseline justify-between border-b border-hairline pb-3">
           <h3 className="font-display text-base font-semibold text-fg">队列状态</h3>
           <span className="font-mono text-[11px] text-fg-soft">
@@ -249,18 +237,18 @@ export function WorkerMonitor(): React.JSX.Element {
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-hairline">
-                <th className="py-3 pr-4 font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="py-3 pr-4 eyebrow">
                   队列
                 </th>
                 {(["等待", "处理中", "延迟", "完成", "失败", "暂停"] as const).map((h) => (
                   <th
                     key={h}
-                    className="px-3 py-3 text-right font-mono text-[11px] uppercase tracking-widest text-fg-soft"
+                    className="px-3 py-3 text-right eyebrow"
                   >
                     {h}
                   </th>
                 ))}
-                <th className="px-3 py-3 text-right font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="px-3 py-3 text-right eyebrow">
                   下次运行
                 </th>
               </tr>
@@ -316,7 +304,7 @@ export function WorkerMonitor(): React.JSX.Element {
       </section>
 
       {/* ---- Source health ---- */}
-      <section className="border border-border bg-surface p-6 shadow-card">
+      <section className="panel-surface p-6">
         <div className="flex items-baseline justify-between border-b border-hairline pb-3">
           <h3 className="font-display text-base font-semibold text-fg">信源健康</h3>
           <span className="font-mono text-[11px] text-fg-soft">
@@ -329,17 +317,17 @@ export function WorkerMonitor(): React.JSX.Element {
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
           {(
             [
-              { key: "healthy", label: "正常", tone: "text-ok" },
-              { key: "stale", label: "陈旧", tone: "text-warn" },
-              { key: "failing", label: "失败", tone: "text-danger" },
-              { key: "disabled", label: "停用", tone: "text-fg-soft" },
+              { key: "healthy", ...SOURCE_HEALTH_META.healthy },
+              { key: "stale", ...SOURCE_HEALTH_META.stale },
+              { key: "failing", ...SOURCE_HEALTH_META.failing },
+              { key: "disabled", ...SOURCE_HEALTH_META.disabled },
             ] as const
           ).map((cell) => (
             <div key={cell.key} className="border border-border bg-bg p-3">
               <p className="font-mono text-[13px] uppercase tracking-widest text-fg-soft">
                 {cell.label}
               </p>
-              <p className={`mt-1 font-display text-3xl tabular-nums tracking-tightest ${cell.tone}`}>
+              <p className={`mt-1 font-display text-3xl tabular-nums ${cell.className}`}>
                 {health?.summary[cell.key] ?? 0}
               </p>
             </div>
@@ -351,25 +339,25 @@ export function WorkerMonitor(): React.JSX.Element {
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-hairline">
-                <th className="py-3 pr-4 font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="py-3 pr-4 eyebrow">
                   信源
                 </th>
-                <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="px-3 py-3 eyebrow">
                   Tier
                 </th>
-                <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="px-3 py-3 eyebrow">
                   类型
                 </th>
-                <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="px-3 py-3 eyebrow">
                   状态
                 </th>
-                <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="px-3 py-3 eyebrow">
                   最近成功
                 </th>
-                <th className="px-3 py-3 text-right font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="px-3 py-3 text-right eyebrow">
                   失败数
                 </th>
-                <th className="px-3 py-3 text-right font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="px-3 py-3 text-right eyebrow">
                   下次抓取
                 </th>
               </tr>
@@ -383,9 +371,9 @@ export function WorkerMonitor(): React.JSX.Element {
                   <td className="px-3 py-3 font-mono text-xs text-fg-muted">{s.fetcherType}</td>
                   <td className="px-3 py-3">
                     <span
-                      className={`inline-block px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${HEALTH_BADGE[s.health]}`}
+                      className={`inline-block px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${SOURCE_HEALTH_META[s.health].className}`}
                     >
-                      {HEALTH_LABEL[s.health]}
+                      {SOURCE_HEALTH_META[s.health].label}
                     </span>
                   </td>
                   <td className="px-3 py-3 font-mono text-xs text-fg-muted">

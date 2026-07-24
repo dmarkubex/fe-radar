@@ -51,11 +51,10 @@ export default async function HomePage({ searchParams }: { searchParams: PageSea
         description="时间倒序排列，每条经 8 阶段 pipeline 处理：去重、NER、5 维评分、聚簇、告警判定。左侧色条 = 关注圈 / 告警类型，右侧评分面板可展开详情。"
       />
 
-      <div className="stats-bar grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatsCell label="全量" value={String(totalCount)} />
-        <StatsCell label="命中筛选" value={String(filteredCount)} sub="C1+C2" />
-        <StatsCell label="自家告警" value={String(alertCount)} accent />
-        <StatsCell label="下次抓取" value="06:00" sub="CST" />
+      <div className="stats-bar grid grid-cols-2 gap-3 shell:grid-cols-3">
+        <StatsCell label="本页条目" value={String(totalCount)} />
+        <StatsCell label="本页命中" value={String(filteredCount)} sub="C1+C2" />
+        <StatsCell label="本页自家告警" value={String(alertCount)} accent />
       </div>
 
       <FilterBar />

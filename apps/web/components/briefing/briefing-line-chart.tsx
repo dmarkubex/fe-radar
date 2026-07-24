@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
 
 interface QuotePoint {
   observedAt: string;
@@ -56,16 +57,20 @@ export function BriefingLineChart({ data, label, unit = "" }: BriefingLineChartP
   const last = points[points.length - 1]!;
   const first = points[0]!;
   const diff = last.numVal - first.numVal;
-  const strokeColor = diff >= 0 ? "#e74c3c" : "#27ae60";
+  const strokeColor =
+    diff >= 0
+      ? "var(--color-market-up, #e74c3c)"
+      : "var(--color-market-down, #27ae60)";
 
   // X-axis labels: show first and last dates
-  const fmt = (iso: string): string => {
-    const d = new Date(iso);
-    return `${d.getMonth() + 1}/${d.getDate()}`;
-  };
+  const fmt = (iso: string): string =>
+    dayjs(iso).tz(APP_TIMEZONE).format("M/D");
 
   // Y-axis: 3 ticks
   const yTicks = [minV, minV + range / 2, maxV];
+  const useTenThousands = maxV >= 10000;
+  const formatTick = (tick: number): string =>
+    useTenThousands ? `${(tick / 10000).toFixed(2)}万` : Math.round(tick).toLocaleString("zh-CN");
 
   return (
     <div className="w-full">
@@ -105,7 +110,7 @@ export function BriefingLineChart({ data, label, unit = "" }: BriefingLineChartP
                 fill="currentColor"
                 opacity={0.45}
               >
-                {tick >= 10000 ? `${(tick / 10000).toFixed(1)}万` : tick.toFixed(0)}
+                {formatTick(tick)}
               </text>
             </g>
           );

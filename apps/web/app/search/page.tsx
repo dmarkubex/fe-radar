@@ -4,6 +4,8 @@ import { TimelineList } from "@/components/timeline/timeline-list";
 import { auth } from "@/auth";
 import { fetchTimeline } from "@/lib/api/timeline-query";
 import { hasRole } from "@/lib/auth/rbac";
+import { PageFrame } from "@/components/layout/page-frame";
+import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -37,11 +39,8 @@ export default async function SearchPage({ searchParams }: { searchParams: PageS
   const endpoint = `/api/search?${query.toString()}`;
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-6 md:px-6">
-      <header className="flex flex-col gap-1">
-        <p className="text-sm font-medium text-zinc-500">全文检索</p>
-        <h1 className="text-2xl font-semibold text-zinc-950">搜索</h1>
-      </header>
+    <PageFrame>
+      <PageHeader eyebrow="全文检索" title="搜索" variant="compact" />
       <SearchBox initialQuery={q} />
       <FilterBar />
       {q ? (
@@ -51,8 +50,8 @@ export default async function SearchPage({ searchParams }: { searchParams: PageS
           initialData={initialData}
         />
       ) : (
-        <div className="rounded-lg border border-zinc-200 bg-white p-8 text-sm text-zinc-500">输入关键词后开始检索</div>
+        <div className="panel-surface p-8 text-sm text-fg-muted">输入关键词后开始检索</div>
       )}
-    </main>
+    </PageFrame>
   );
 }

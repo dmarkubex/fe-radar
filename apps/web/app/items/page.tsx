@@ -58,7 +58,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: PageSe
       <FilterBar />
 
       <div className="flex items-center justify-between border-b border-border pb-2 font-mono text-[11px] tracking-[0.4px] text-fg-muted">
-        <span>RESULTS · {initialData.items.length} ITEMS</span>
+        <span>CURRENT PAGE · {initialData.items.length} ITEMS</span>
         <span>{q ? `QUERY · ${q}` : "LATEST"}</span>
       </div>
 

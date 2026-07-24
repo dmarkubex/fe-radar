@@ -9,7 +9,7 @@ export default function Loading(): React.JSX.Element {
         <div className="mt-2 h-3 w-full max-w-2xl animate-pulse rounded-none bg-bg-deep" />
       </div>
 
-      <div className="grid grid-cols-5 gap-0 border border-border-strong">
+      <div className="grid grid-cols-2 gap-0 border border-border-strong shell:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex flex-col items-center gap-2 border-r border-hairline bg-surface px-3 py-2.5 last:border-r-0">
             <div className="h-4 w-4 animate-pulse rounded-none bg-bg-deep" />
@@ -19,7 +19,7 @@ export default function Loading(): React.JSX.Element {
         ))}
       </div>
 
-      <section className="grid gap-0 sm:grid-cols-[1fr_280px]">
+      <section className="grid gap-0 shell:grid-cols-[1fr_280px]">
         <div className="border border-hairline bg-surface p-6">
           <div className="flex flex-wrap gap-2">
             <div className="h-4 w-12 animate-pulse rounded-none bg-bg-deep" />
@@ -40,7 +40,7 @@ export default function Loading(): React.JSX.Element {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 shell:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="flex flex-col gap-3 border border-hairline bg-surface p-5">
             <div className="flex flex-wrap gap-2">

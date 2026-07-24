@@ -3,6 +3,8 @@ import { ScoringConfigEditor } from "@/components/scoring-config/scoring-config-
 import type { ScoringConfigBody } from "@/lib/api/scoring-config-schema";
 import { isMockMode } from "@/lib/mock-mode";
 import { mockScoringConfig } from "@/lib/mock-data";
+import { PageFrame } from "@/components/layout/page-frame";
+import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -38,22 +40,15 @@ export default async function AdminScoringConfigPage(): Promise<React.JSX.Elemen
 
 function ScoringConfigPageContent({ initial }: { initial: ScoringConfigBody }): React.JSX.Element {
   return (
-    <main className="min-h-screen bg-bg px-6 py-8 font-body text-fg">
-      <div className="mx-auto w-full max-w-7xl space-y-8 pb-24">
-        <header className="space-y-2">
-          <p className="font-mono text-xs tracking-wide text-fg-soft uppercase">
-            / 评分配置 · ADMIN · SCORING
-          </p>
-          <h1 className="font-display display-fluid tracking-tightest text-fg">
-            评分配置
-          </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-fg-muted">
-            调一次权重，等半秒回测就知道效果。
-          </p>
-        </header>
-
+    <PageFrame size="full">
+      <PageHeader
+        eyebrow="/ 评分配置 · ADMIN · SCORING"
+        title="评分配置"
+        description="调整评分权重、信源与关注圈系数，以及各分类精选阈值。"
+      />
+      <div className="pb-24">
         <ScoringConfigEditor initialValue={initial} />
       </div>
-    </main>
+    </PageFrame>
   );
 }

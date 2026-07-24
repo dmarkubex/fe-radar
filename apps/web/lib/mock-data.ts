@@ -568,6 +568,7 @@ export function mockFetchDashboardData(): DashboardData {
   return {
     metrics: [
       { label: "信源", value: mockSources.length },
+      { label: "今日抓取", value: scored },
       { label: "已评分", value: scored },
       { label: "精选", value: curated },
       { label: "反馈", value: 3 },

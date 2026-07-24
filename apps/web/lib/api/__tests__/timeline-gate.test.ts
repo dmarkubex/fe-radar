@@ -119,7 +119,11 @@ vi.mock("@fe-radar/db", () => ({
   itemEntities: mockItemEntities
 }));
 
-import { fetchItemDetail, fetchTimeline } from "../timeline-query";
+import {
+  fetchCuratedCategoryStats,
+  fetchItemDetail,
+  fetchTimeline
+} from "../timeline-query";
 
 function makeQueryBuilder(rows: unknown[]) {
   const whereFn = vi.fn().mockReturnValue({
@@ -229,5 +233,43 @@ describe("行业闸门 visibleItemConditions（通过 fetchTimeline 注入 db）
     const result = await fetchItemDetail(404, { db: db as never });
 
     expect(result).toBeNull();
+  });
+});
+
+describe("精选分类聚合", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("单次聚合返回真实计数并为无数据分类补零，不应用 200 条 limit", async () => {
+    const groupBy = vi
+      .fn()
+      .mockResolvedValue([
+        { category: "政策与标准", count: 237, topScore: 96.5 }
+      ]);
+    const where = vi.fn().mockReturnValue({ groupBy });
+    const chain = {
+      innerJoin: vi.fn().mockReturnThis(),
+      leftJoin: vi.fn().mockReturnThis(),
+      where
+    };
+    const db = {
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue(chain)
+      })
+    };
+
+    const result = await fetchCuratedCategoryStats(["policy", "market"], {
+      db: db as never
+    });
+
+    expect(result).toEqual([
+      { category: "policy", count: 237, topScore: 96.5 },
+      { category: "market", count: 0, topScore: null }
+    ]);
+    expect(db.select).toHaveBeenCalledTimes(1);
+    expect(groupBy).toHaveBeenCalledWith(mockItemAnalysis.category);
+    expect(JSON.stringify(where.mock.calls[0]?.[0])).toContain("ia.is_curated");
+    expect(JSON.stringify(where.mock.calls[0]?.[0])).toContain("IS NOT FALSE");
   });
 });

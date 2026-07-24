@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { AppShell } from "@/components/layout/app-shell";
 import { auth } from "@/auth";
@@ -7,6 +7,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "FE-Radar",
   description: "远东控股产业情报雷达",
+};
+export const viewport: Viewport = {
+  themeColor: "#005b86",
+  viewportFit: "cover"
 };
 
 export default async function RootLayout({

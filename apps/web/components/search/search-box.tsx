@@ -1,20 +1,28 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 export function SearchBox({ initialQuery }: { initialQuery: string }): React.JSX.Element {
   const [query, setQuery] = useState(initialQuery);
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   return (
     <form
       className="flex gap-2 border border-border bg-surface p-3"
       onSubmit={(event) => {
         event.preventDefault();
-        router.replace(query.trim() ? `/search?q=${encodeURIComponent(query.trim())}` : "/search");
+        const next = new URLSearchParams(searchParams);
+        const value = query.trim();
+        if (value) next.set("q", value);
+        else next.delete("q");
+        next.delete("cursor");
+        const suffix = next.toString();
+        router.replace(`${pathname}${suffix ? `?${suffix}` : ""}`);
       }}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2 border border-border-strong px-3">

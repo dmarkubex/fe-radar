@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { Button } from "@/components/ui/button";
 import type { ScoringConfigBody } from "@/lib/api/scoring-config-schema";
 
 const DIM_LABELS: { key: keyof ScoringConfigBody["weights"]; label: string; tooltip: string }[] = [
@@ -112,25 +113,31 @@ export function ScoringConfigEditor({ initialValue }: EditorProps): React.JSX.El
   async function save(): Promise<void> {
     setStatus("保存中…");
     const body: ScoringConfigBody = { weights, tCoef, cCoef, thresholds };
-    const response = await fetch("/api/scoring-config", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (response.ok) {
+    try {
+      const response = await fetch("/api/scoring-config", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
+        setStatus(`保存失败：${payload?.error?.message ?? "请检查权重和是否为 1.00"}`);
+        return;
+      }
       setStatus("已保存 ✓");
       setDirty(false);
-    } else {
-      setStatus("保存失败：请检查权重和是否为 1.00");
+    } catch {
+      setStatus("保存失败：网络异常，请稍后重试");
     }
   }
 
   return (
     <>
-      {/* ---- 2-column: weights + backtest ---- */}
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section>
         {/* left: 5D weight sliders */}
-        <div className="border border-border bg-surface p-6 shadow-card">
+        <div className="panel-surface p-6">
           <div className="flex items-baseline justify-between border-b border-hairline pb-3">
             <h3 className="font-display text-base font-semibold text-fg">
               5 维权重
@@ -187,7 +194,7 @@ export function ScoringConfigEditor({ initialValue }: EditorProps): React.JSX.El
           {/* w-sum bar */}
           <div className="mt-6 border-t border-hairline pt-4">
             <div className="flex items-baseline justify-between">
-              <span className="font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+              <span className="eyebrow">
                 权重总和
               </span>
               <span
@@ -206,7 +213,7 @@ export function ScoringConfigEditor({ initialValue }: EditorProps): React.JSX.El
 
           {/* Tier / Circle coefficients */}
           <div className="mt-6 border-t border-hairline pt-4 space-y-4">
-            <h4 className="font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+            <h4 className="eyebrow">
               Tier 系数
             </h4>
             <div className="grid grid-cols-3 gap-3">
@@ -228,7 +235,7 @@ export function ScoringConfigEditor({ initialValue }: EditorProps): React.JSX.El
               ))}
             </div>
 
-            <h4 className="font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+            <h4 className="eyebrow">
               关注圈系数
             </h4>
             <div className="grid grid-cols-3 gap-3">
@@ -252,70 +259,10 @@ export function ScoringConfigEditor({ initialValue }: EditorProps): React.JSX.El
           </div>
         </div>
 
-        {/* right: backtest + changelog */}
-        <div className="space-y-6">
-          {/* backtest */}
-          <div className="border border-border bg-surface p-6 shadow-card">
-            <div className="flex items-baseline justify-between border-b border-hairline pb-3">
-              <h3 className="font-display text-base font-semibold text-fg">
-                回测
-              </h3>
-              <span className="font-mono text-[11px] text-fg-soft">
-                模拟权重效果
-              </span>
-            </div>
-            <div className="mt-4 space-y-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setStatus("回测中…");
-                  setTimeout(() => setStatus("回测完成：精选命中率 82%"), 800);
-                }}
-                className="w-full border border-accent bg-accent py-2 font-mono text-xs uppercase tracking-wide text-bg transition-colors hover:bg-accent/90"
-              >
-                运行回测
-              </button>
-              <p className="font-mono text-xs text-fg-muted">
-                使用最近 7 天数据模拟新权重的精选命中率。
-              </p>
-              {status.includes("回测") ? (
-                <div className="border border-border bg-bg p-4">
-                  <p className="font-mono text-sm text-fg">{status}</p>
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          {/* changelog */}
-          <div className="border border-border bg-surface p-6 shadow-card">
-            <div className="flex items-baseline justify-between border-b border-hairline pb-3">
-              <h3 className="font-display text-base font-semibold text-fg">
-                变更记录
-              </h3>
-            </div>
-            <div className="mt-4 space-y-0 divide-y divide-hairline">
-              <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-3">
-                <span className="font-mono text-[10px] text-fg-soft">v3</span>
-                <span className="text-sm text-fg-muted">调整 D1 权重 0.30 → 0.25</span>
-                <span className="font-mono text-[11px] text-fg-soft">2026-05-10</span>
-              </div>
-              <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-3">
-                <span className="font-mono text-[10px] text-fg-soft">v2</span>
-                <span className="text-sm text-fg-muted">新增 C3 关注圈阈值</span>
-                <span className="font-mono text-[11px] text-fg-soft">2026-05-08</span>
-              </div>
-              <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-3">
-                <span className="font-mono text-[10px] text-fg-soft">v1</span>
-                <span className="text-sm text-fg-muted">初始配置</span>
-                <span className="font-mono text-[11px] text-fg-soft">2026-05-01</span>
-              </div>
-            </div>
-          </div>
-        </div>
       </section>
 
       {/* ---- Threshold matrix ---- */}
-      <section className="border border-border bg-surface p-6 shadow-card">
+      <section className="panel-surface p-6">
         <div className="flex items-baseline justify-between border-b border-hairline pb-3">
           <h3 className="font-display text-base font-semibold text-fg">
             阈值矩阵
@@ -328,16 +275,16 @@ export function ScoringConfigEditor({ initialValue }: EditorProps): React.JSX.El
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-hairline">
-                <th className="py-3 pr-4 font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="py-3 pr-4 eyebrow">
                   分类
                 </th>
-                <th className="px-3 py-3 text-center font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="px-3 py-3 text-center eyebrow">
                   C1
                 </th>
-                <th className="px-3 py-3 text-center font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="px-3 py-3 text-center eyebrow">
                   C2
                 </th>
-                <th className="px-3 py-3 text-center font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="px-3 py-3 text-center eyebrow">
                   C3
                 </th>
               </tr>
@@ -371,7 +318,7 @@ export function ScoringConfigEditor({ initialValue }: EditorProps): React.JSX.El
       </section>
 
       {/* ---- Alert rules ---- */}
-      <section className="border border-border bg-surface p-6 shadow-card">
+      <section className="panel-surface p-6">
         <div className="flex items-baseline justify-between border-b border-hairline pb-3">
           <h3 className="font-display text-base font-semibold text-fg">
             告警规则
@@ -384,16 +331,16 @@ export function ScoringConfigEditor({ initialValue }: EditorProps): React.JSX.El
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-hairline">
-                <th className="py-3 pr-4 font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="py-3 pr-4 eyebrow">
                   规则
                 </th>
-                <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="px-3 py-3 eyebrow">
                   条件
                 </th>
-                <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="px-3 py-3 eyebrow">
                   通道
                 </th>
-                <th className="px-3 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <th className="px-3 py-3 eyebrow">
                   优先级
                 </th>
               </tr>
@@ -441,18 +388,14 @@ export function ScoringConfigEditor({ initialValue }: EditorProps): React.JSX.El
               >
                 重置
               </button>
-              <button
+              <Button
                 type="button"
                 disabled={!wValid}
                 onClick={() => void save()}
-                className={`border px-4 py-2 font-mono text-xs uppercase tracking-wide transition-colors ${
-                  wValid
-                    ? "border-accent bg-accent text-bg hover:bg-accent/90"
-                    : "cursor-not-allowed border-border bg-bg-deep text-fg-soft"
-                }`}
+                variant="accent"
               >
                 保存配置
-              </button>
+              </Button>
             </div>
           </div>
         </div>

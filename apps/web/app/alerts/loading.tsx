@@ -1,6 +1,6 @@
 export default function Loading(): React.JSX.Element {
   return (
-    <main>
+    <div>
       <header className="border-b border-hairline pad-fluid-x py-5">
         <div className="h-2.5 w-28 animate-pulse rounded-none bg-bg-deep" />
         <div className="mt-2 h-8 w-80 max-w-full animate-pulse rounded-none bg-bg-deep" />
@@ -48,6 +48,6 @@ export default function Loading(): React.JSX.Element {
           </article>
         ))}
       </div>
-    </main>
+    </div>
   );
 }

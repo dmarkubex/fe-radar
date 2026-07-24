@@ -22,8 +22,8 @@ export default function GlobalError({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "#f2f7fa",
-          color: "#13313f",
+          backgroundColor: "#f5f9fc",
+          color: "#143141",
           fontFamily:
             "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
         }}

@@ -56,3 +56,11 @@ scripts/samples/
 *.crt
 *.p12
 *.pfx
+
+# 会话临时产出（与项目代码无关）
+/.zcode/
+/diff.patch
+/diff.txt
+/diff_output.txt
+/status.txt
+/output/

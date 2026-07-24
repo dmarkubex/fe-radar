@@ -1,5 +1,9 @@
 import { fetchAlerts, fetchAlertCount } from "@/lib/api/alerts-query";
 import { AlertList } from "@/components/alerts/alert-list";
+import {
+  alertStripClass,
+  alertTypeLabel,
+} from "@/components/shared/alert-strip";
 
 export const dynamic = "force-dynamic";
 
@@ -51,13 +55,13 @@ export default async function AlertsPage({
   const p1Count = items.filter((i) => i.alertLevel === "L1").length;
 
   return (
-    <main>
+    <div>
       <header className="grid grid-cols-[max-content_minmax(260px,360px)_minmax(0,1fr)] items-baseline gap-x-[18px] border-b border-hairline pad-fluid-x py-5 max-[1100px]:grid-cols-1 max-[1100px]:gap-y-1">
         <div className="font-mono text-[10px] font-medium uppercase tracking-[1.4px] text-fg-soft">
           / ALERTS · {rangeLabel}
         </div>
         <h1 className="m-0 display-fluid font-semibold tracking-tight text-fg">
-          {total} 条告警 · {p1Count} 条 P1 需立即关注
+          {total} 条告警 · 本页 {p1Count} 条 P1
         </h1>
         <div className="min-w-0">
           <p className="m-0 text-xs leading-6 text-fg-muted max-[760px]:hidden">
@@ -99,52 +103,52 @@ export default async function AlertsPage({
       </header>
 
       <div className="pad-fluid-x py-5">
-        <div className="mb-4 grid grid-cols-1 gap-px border border-border bg-border sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mb-4 grid grid-cols-1 gap-px border border-border bg-border shell:grid-cols-2 lg:grid-cols-5">
           <SummaryCell
             active={filterType === "own"}
             href={alertHref("own")}
             count={counts.own}
-            label="自家公司 · C1"
-            delta="含 P1 事故与中标动态"
-            pip="bg-accent"
+            label={`${alertTypeLabel("own")} · C1`}
+            delta="C1 命中即告警"
+            pip={alertStripClass("own", "C1")}
           />
           <SummaryCell
             active={filterType === "legal"}
             href={alertHref("legal")}
             count={counts.legal}
-            label="竞品涉诉 · C2"
+            label={`${alertTypeLabel("legal")} · C2`}
             delta="交易所法定披露"
-            pip="bg-fg"
+            pip={alertStripClass("legal", "C2")}
           />
           <SummaryCell
             active={filterType === "risk"}
             href={alertHref("risk")}
             count={counts.risk}
-            label="竞品风险 · C2"
+            label={`${alertTypeLabel("risk")} · C2`}
             delta="dataPro 风险库"
-            pip="bg-orange-500"
+            pip={alertStripClass("risk", "C2")}
           />
           <SummaryCell
             active={filterType === "safety"}
             href={alertHref("safety")}
             count={counts.safety}
-            label="安全事故"
-            delta="行业内 · 最近 6h"
-            pip="bg-warn"
+            label={alertTypeLabel("safety")}
+            delta="事故实体 + D5 高风险"
+            pip={alertStripClass("safety", null)}
           />
           <SummaryCell
             active={filterType === "policy"}
             href={alertHref("policy")}
             count={counts.policy}
-            label="政策突发"
+            label={alertTypeLabel("policy")}
             delta="能源局 / 工信部政策"
-            pip="bg-sunshine-700"
+            pip={alertStripClass("policy", null)}
           />
         </div>
 
         <AlertList items={items} filterRange={filterRange} />
       </div>
-    </main>
+    </div>
   );
 }
 

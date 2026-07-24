@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { DEFAULT_SOURCE_CATEGORIES, DEFAULT_SOURCE_CONFIGS, SMM_HQ_QUOTES_TEMPLATE } from "./source-default-configs";
 import type { FetcherType } from "./source-default-configs";
 
@@ -37,11 +38,15 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
 
   function parseConfigRecord(): Record<string, unknown> | null {
     try {
-      return JSON.parse(config) as Record<string, unknown>;
+      const parsed = JSON.parse(config) as unknown;
+      return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+        ? parsed as Record<string, unknown>
+        : null;
     } catch {
       return null;
     }
   }
+  const configError = parseConfigRecord() ? null : "Config 必须是有效的 JSON 对象。";
 
   function currentQuotesAdapter(): string {
     const parsed = parseConfigRecord();
@@ -77,13 +82,18 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
   async function submit(formData: FormData): Promise<void> {
     setError(null);
     try {
+      const parsedConfig = parseConfigRecord();
+      if (!parsedConfig) {
+        setError("Config 必须是有效的 JSON 对象。");
+        return;
+      }
       const body = {
         name: String(formData.get("name") ?? ""),
         url: String(formData.get("url") ?? ""),
         tier: formData.get("tier"),
         fetcherType: formData.get("fetcherType"),
         category,
-        config: JSON.parse(config) as unknown,
+        config: parsedConfig,
       };
       const response = await fetch(
         isEdit ? `/api/sources/${editing!.id}` : "/api/sources",
@@ -133,13 +143,13 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
 
       <div className="space-y-3">
         <div>
-          <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+          <label className="mb-1 block eyebrow">
             名称
           </label>
           <input className={FIELD} name="name" placeholder="信源名称" defaultValue={editing?.name ?? ""} />
         </div>
         <div>
-          <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+          <label className="mb-1 block eyebrow">
             URL
           </label>
           <input
@@ -160,7 +170,7 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+            <label className="mb-1 block eyebrow">
               Tier
             </label>
             <select className={FIELD} name="tier" defaultValue={editing?.tier ?? "T2"}>
@@ -170,7 +180,7 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
             </select>
           </div>
           <div>
-            <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+            <label className="mb-1 block eyebrow">
               抓取类型
             </label>
             <select
@@ -191,7 +201,7 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
           </div>
         </div>
         <div>
-          <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+          <label className="mb-1 block eyebrow">
             分类
           </label>
           <input
@@ -212,7 +222,7 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <label className="mb-1 block eyebrow">
                   Adapter
                 </label>
                 <select
@@ -243,7 +253,7 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
                 </select>
               </div>
               <div>
-                <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+                <label className="mb-1 block eyebrow">
                   Metric Keys（逗号分隔）
                 </label>
                 <input
@@ -264,7 +274,7 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
               </div>
             </div>
             <div>
-              <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+              <label className="mb-1 block eyebrow">
                 Endpoint URL
               </label>
               <input
@@ -282,23 +292,27 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
         ) : null}
 
         <div>
-          <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+          <label className="mb-1 block eyebrow">
             Config JSON
           </label>
           <textarea
+            aria-invalid={Boolean(configError)}
             className="min-h-32 w-full border border-border bg-bg p-3 font-mono text-xs text-fg focus:outline-none focus:border-accent"
             value={config}
             onChange={(e) => setConfig(e.target.value)}
           />
+          {configError ? <p className="mt-1 text-xs text-danger" role="alert">{configError}</p> : null}
         </div>
       </div>
 
-      <button
+      <Button
         type="submit"
-        className="w-full border border-accent bg-accent py-2 font-mono text-xs uppercase tracking-wide text-bg transition-colors hover:bg-accent/90"
+        className="w-full"
+        disabled={Boolean(configError)}
+        variant="accent"
       >
         {isEdit ? "保存修改" : "新建"}
-      </button>
+      </Button>
 
       {error ? (
         <p className="font-mono text-xs text-danger">{error}</p>

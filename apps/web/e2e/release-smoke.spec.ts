@@ -1,30 +1,8 @@
-import { expect, test, type Page } from "@playwright/test";
-
-const adminUsername = process.env.E2E_ADMIN_USERNAME ?? "admin";
-const adminPassword = process.env.E2E_ADMIN_PASSWORD ?? process.env.SEED_ADMIN_PASSWORD ?? "admin123";
-
-async function login(page: Page): Promise<void> {
-  const csrfResponse = await page.request.get("/api/auth/csrf");
-  expect(csrfResponse.ok()).toBe(true);
-  const csrf = await csrfResponse.json() as { csrfToken: string };
-  const response = await page.request.post("/api/auth/callback/credentials", {
-    form: {
-      csrfToken: csrf.csrfToken,
-      username: adminUsername,
-      password: adminPassword,
-      callbackUrl: "/"
-    },
-    maxRedirects: 0
-  });
-  expect([302, 303]).toContain(response.status());
-  const location = response.headers().location;
-  expect(location, "credentials login should not redirect back with an auth error").toBeTruthy();
-  expect(location).not.toContain("error=CredentialsSignin");
-}
+import { expect, test } from "./fixtures";
 
 test.describe("release smoke", () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(async ({ login }) => {
+    await login("admin");
   });
 
   test("timeline loads", async ({ page }) => {
@@ -52,8 +30,9 @@ test.describe("release smoke", () => {
   test("daily loads", async ({ page }) => {
     // Navigate to a seeded date so the report is present (seed-release-data seeds 2026-05-24..26).
     await page.goto("/daily?date=2026-05-26");
-    // Assert a section that only renders when sections data is present (not just the page skeleton).
-    await expect(page.getByText("今日判断")).toBeVisible();
+    // Assert dimensions that only render when section data is present (not just the page skeleton).
+    await expect(page.getByRole("heading", { name: /政策/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /市场/ })).toBeVisible();
   });
 
   test("admin dashboard loads", async ({ page }) => {
@@ -69,8 +48,8 @@ test.describe("release smoke", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe("@v11 commodity briefing smoke", () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(async ({ login }) => {
+    await login("admin");
   });
 
   /**
@@ -144,22 +123,37 @@ test.describe("@v11 commodity briefing smoke", () => {
       items: Array<{ id: number; genStatus: string }>
     };
 
-    // Find any succeeded/degraded briefing (push_retry fixture associates a push record)
-    const briefingRow = listBody.items.find(
+    const candidates = listBody.items.filter(
       (item) => item.genStatus === "succeeded" || item.genStatus === "degraded"
     );
-    expect(briefingRow, "应存在可推送状态的简报记录").toBeDefined();
-    if (!briefingRow) return;
+    expect(candidates.length, "应存在可推送状态的简报记录").toBeGreaterThan(0);
 
-    const detailResp = await page.request.get(`/api/briefing/${briefingRow.id}`);
-    expect(detailResp.ok()).toBe(true);
-    const detailBody = await detailResp.json() as {
-      briefing: { id: number };
-      pushes: Array<{ pushStatus: string; attemptCount: number }>
-    };
-
-    const failedPush = detailBody.pushes.find((p) => p.pushStatus === "failed");
-    expect(failedPush, "应存在 push_status=failed 的推送记录").toBeDefined();
+    let failedPush: {
+      pushStatus: string;
+      attemptCount: number;
+      errorDetail?: string | null;
+    } | undefined;
+    for (const candidate of candidates) {
+      const detailResp = await page.request.get(`/api/briefing/${candidate.id}`);
+      expect(detailResp.ok()).toBe(true);
+      const detailBody = await detailResp.json() as {
+        briefing: { id: number };
+        pushes: Array<{
+          pushStatus: string;
+          attemptCount: number;
+          errorDetail?: string | null;
+        }>
+      };
+      failedPush = detailBody.pushes.find(
+        (push) =>
+          push.pushStatus === "failed" &&
+          push.attemptCount === 3 &&
+          push.errorDetail ===
+            "E2E smoke fixture: mock DingTalk 5xx — HTTP 500 Internal Server Error"
+      );
+      if (failedPush) break;
+    }
+    expect(failedPush, "应存在 push-retry fixture 对应的失败推送记录").toBeDefined();
     expect(failedPush?.attemptCount).toBe(3);
   });
 

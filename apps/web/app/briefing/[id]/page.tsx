@@ -42,9 +42,9 @@ interface BriefingPayload {
 }
 
 const TREND_COLOR: Record<string, string> = {
-  "偏多": "text-danger",
+  "偏多": "text-market-up",
   "区间震荡": "text-warn",
-  "偏弱": "text-ok",
+  "偏弱": "text-market-down",
 };
 
 const PUSH_STATUS_META: Record<string, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
@@ -103,8 +103,7 @@ export default async function BriefingDetailPage({
     .where(eq(briefingPushes.briefingId, numId));
 
   // Fetch 7-day quotes for CU and LC
-  const since = new Date();
-  since.setDate(since.getDate() - 7);
+  const since = dayjs().tz(APP_TIMEZONE).subtract(7, "day").toDate();
 
   const [cuQuotes, lcQuotes] = await Promise.all([
     db
@@ -147,8 +146,8 @@ export default async function BriefingDetailPage({
   return (
     <div className="mx-auto w-full max-w-[1100px] px-6 py-8 md:px-10">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-[11px] font-mono text-fg-soft mb-6">
-        <Link href="/briefing" className="hover:text-accent transition-colors">
+      <nav className="mb-6 flex min-h-11 items-center gap-2 font-mono text-[11px] text-fg-soft">
+        <Link href="/briefing" className="inline-flex min-h-11 items-center transition-colors hover:text-accent">
           每日简报
         </Link>
         <ChevronRight className="h-3 w-3" />
@@ -337,7 +336,7 @@ function MetalCard({ label, abbr, payload, chartData, chartUnit, srNull }: Metal
       )}
 
       {/* S/R cards */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 shell:grid-cols-2">
         <div className="rounded-[2px] border border-border bg-bg-deep p-3 text-center">
           <div className="font-mono text-[9px] uppercase tracking-[0.8px] text-fg-soft mb-1">支撑位</div>
           <div className="font-mono text-[16px] text-fg font-semibold">

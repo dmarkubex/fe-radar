@@ -46,5 +46,9 @@ export async function GET(request: NextRequest, context: RouteContext): Promise<
     .leftJoin(briefingTargets, eq(briefingPushes.targetId, briefingTargets.id))
     .where(eq(briefingPushes.briefingId, numId));
 
-  return Response.json({ briefing, pushes });
+  const visiblePushes = pushes.map(({ errorDetail, ...push }) =>
+    user.role === "admin" ? { ...push, errorDetail } : push
+  );
+
+  return Response.json({ briefing, pushes: visiblePushes });
 }

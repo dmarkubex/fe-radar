@@ -90,6 +90,7 @@ export async function fetchDashboardData(db?: DbClient): Promise<DashboardData> 
     }).from(sources),
     db.select({
       total: count(),
+      fetchedToday: sql<number>`count(*) filter (where ${gte(items.fetchedAt, startOfDay)})::int`,
       scored: sql<number>`count(${itemAnalysis.itemId})::int`,
       curated: sql<number>`count(*) filter (where ${itemAnalysis.isCurated} = true)::int`
     }).from(items).leftJoin(itemAnalysis, eq(itemAnalysis.itemId, items.id)),
@@ -116,6 +117,7 @@ export async function fetchDashboardData(db?: DbClient): Promise<DashboardData> 
   return {
     metrics: [
       { label: "信源", value: sourceTotals?.total ?? 0 },
+      { label: "今日抓取", value: itemTotals?.fetchedToday ?? 0 },
       { label: "已评分", value: itemTotals?.scored ?? 0 },
       { label: "精选", value: itemTotals?.curated ?? 0 },
       { label: "反馈", value: feedbackTotals?.total ?? 0 },

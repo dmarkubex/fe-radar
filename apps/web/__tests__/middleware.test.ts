@@ -19,7 +19,7 @@ vi.mock("next-auth/jwt", () => ({ getToken: mockGetToken }));
 import middleware from "../middleware";
 import type { NextRequest } from "next/server";
 
-const mw = (path: string): Promise<{ status: number; headers: Headers }> => {
+const mw = (path: string) => {
   const url = `http://localhost${path}`;
   const req = { nextUrl: new URL(url), url, headers: new Headers() } as unknown as NextRequest;
   return middleware(req);
@@ -44,7 +44,9 @@ describe("middleware auth gate (Antigravity #5)", () => {
 
   it("returns 403 when a viewer hits an admin API path", async () => {
     mockGetToken.mockResolvedValue({ role: "viewer", sub: "1" });
-    expect((await mw("/api/admin/worker")).status).toBe(403);
+    const res = await mw("/api/admin/worker");
+    expect(res.status).toBe(403);
+    expect(res.headers.get("content-type")).toContain("application/json");
   });
 
   it("returns 403 when a viewer hits an editor (sources) API path", async () => {
@@ -65,6 +67,43 @@ describe("middleware auth gate (Antigravity #5)", () => {
   it("returns 403 when an editor hits an admin API path", async () => {
     mockGetToken.mockResolvedValue({ role: "editor", sub: "1" });
     expect((await mw("/api/users")).status).toBe(403);
+  });
+
+  it("allows an editor through the source-health API", async () => {
+    mockGetToken.mockResolvedValue({ role: "editor", sub: "1" });
+    const res = await mw("/api/admin/source-health");
+    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
+  });
+
+  it("keeps other admin APIs admin-only for an editor", async () => {
+    mockGetToken.mockResolvedValue({ role: "editor", sub: "1" });
+    expect((await mw("/api/admin/worker")).status).toBe(403);
+  });
+
+  it.each(["/admin/entities", "/admin/sources"])(
+    "allows an editor through %s",
+    async (path) => {
+      mockGetToken.mockResolvedValue({ role: "editor", sub: "1" });
+      const res = await mw(path);
+      expect(res.status).not.toBe(401);
+      expect(res.status).not.toBe(403);
+    }
+  );
+
+  it("returns an HTML 403 page when an editor hits another admin page", async () => {
+    mockGetToken.mockResolvedValue({ role: "editor", sub: "1" });
+    const res = await mw("/admin/users");
+    expect(res.status).toBe(403);
+    expect(res.headers.get("content-type")).toContain("text/html");
+    expect(await res.text()).toContain("<div role=\"main\">");
+  });
+
+  it("returns an HTML 403 page when a viewer hits an editor admin page", async () => {
+    mockGetToken.mockResolvedValue({ role: "viewer", sub: "1" });
+    const res = await mw("/admin/entities");
+    expect(res.status).toBe(403);
+    expect(res.headers.get("content-type")).toContain("text/html");
   });
 
   it("allows an admin through an admin API path (no 401/403)", async () => {

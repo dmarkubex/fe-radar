@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -11,6 +12,19 @@ import { useModalBehavior } from "@/hooks/use-modal-behavior";
 import type { UserRole } from "@fe-radar/shared";
 
 const ROLE_WEIGHT: Record<UserRole, number> = { viewer: 1, editor: 2, admin: 3 };
+
+function BrandLogo({ compact = false }: { compact?: boolean }): React.JSX.Element {
+  const width = compact ? 96 : 128;
+  return (
+    <Image
+      alt="远东控股集团"
+      className={`block h-auto border border-white/[0.18] bg-white px-1 py-0.5 ${compact ? "w-[96px]" : "w-[128px]"}`}
+      height={compact ? 19 : 26}
+      src="/fareast-logo.png"
+      width={width}
+    />
+  );
+}
 
 function canSee(role: UserRole | undefined, minRole: UserRole): boolean {
   return Boolean(role && ROLE_WEIGHT[role] >= ROLE_WEIGHT[minRole]);
@@ -27,11 +41,14 @@ const MONITOR_NAV = [
 
 const DATA_NAV = [
   { href: "/items", label: "条目查询", minRole: "viewer" as UserRole },
+  { href: "/search", label: "全文搜索", minRole: "viewer" as UserRole },
   { href: "/admin/entities", label: "实体库", minRole: "editor" as UserRole },
 ];
 
 const ADMIN_NAV = [
   { href: "/admin/sources", label: "信源 Sources", minRole: "editor" as UserRole },
+  { href: "/admin/backlog", label: "队列 Backlog", minRole: "admin" as UserRole },
+  { href: "/admin/briefing/targets", label: "简报推送 Targets", minRole: "admin" as UserRole },
   { href: "/admin/scoring-config", label: "评分配置 Scoring", minRole: "admin" as UserRole },
   { href: "/admin/worker", label: "运行监控 Monitor", minRole: "admin" as UserRole },
   { href: "/admin/users", label: "用户与权限", minRole: "admin" as UserRole },
@@ -59,14 +76,10 @@ export function AppShell({
   });
 
   return (
-    <div className="grid grid-cols-[188px_1fr] min-h-screen max-[760px]:block">
-      <aside className="bg-surface-deep text-fg-on-dark py-3 border-r border-surface-deep sticky top-0 h-screen overflow-y-auto flex flex-col max-[760px]:hidden">
+    <div className="grid min-h-[100dvh] grid-cols-[188px_1fr] max-shell:block">
+      <aside className="sticky top-0 flex h-[100dvh] flex-col overflow-y-auto border-r border-surface-deep bg-surface-deep py-3 text-fg-on-dark max-shell:hidden">
         <div className="px-3 pb-3 border-b border-white/[0.08] mb-2">
-          <img
-            src="/fareast-logo.png"
-            alt="远东控股集团"
-            className="block h-auto w-[128px] border border-white/[0.18] bg-white px-1 py-0.5"
-          />
+          <BrandLogo />
           <small className="mt-1 block text-[10px] text-white/55 tracking-[1.2px] uppercase">FE-Radar</small>
         </div>
 
@@ -109,38 +122,51 @@ export function AppShell({
         )}
       </aside>
 
-      <main className="@container min-w-0">
-        {isLoggedIn && (
-          <div className="hidden max-[760px]:flex items-center justify-between gap-3 px-4 py-2 bg-surface-deep text-fg-on-dark border-b border-white/[0.08] sticky top-0 z-30">
-            <img
-              src="/fareast-logo.png"
-              alt="远东控股集团"
-              className="block h-auto w-[96px] border border-white/[0.18] bg-white px-1 py-0.5"
-            />
-            <button
-              type="button"
-              aria-label="打开菜单"
-              onClick={() => setDrawerOpen(true)}
-              className="grid place-items-center w-10 h-10 border border-white/20 text-white/80 hover:text-white hover:border-white/40 rounded-[1px] transition-colors"
-            >
-              <Menu className="w-4 h-4" />
-            </button>
-          </div>
-        )}
+      <main className="@container min-w-0 [--shell-header-h:2.5rem] max-shell:[--shell-header-h:6.0625rem]">
+        <div className="contents max-shell:sticky max-shell:top-0 max-shell:z-30 max-shell:block">
+          {isLoggedIn && (
+            <div className="hidden items-center justify-between gap-3 border-b border-white/[0.08] bg-surface-deep px-4 py-2 text-fg-on-dark max-shell:flex">
+              <BrandLogo compact />
+              <button
+                type="button"
+                aria-label="打开菜单"
+                onClick={() => setDrawerOpen(true)}
+                className="grid place-items-center w-10 h-10 border border-white/20 text-white/80 hover:text-white hover:border-white/40 rounded-[1px] transition-colors"
+              >
+                <Menu className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {isLoggedIn && (
+            <div className="sticky top-0 z-10 flex min-h-10 items-center justify-between gap-3 border-b border-border bg-bg px-5 py-2 max-shell:static max-shell:px-4">
+              <div className="shrink-0 text-[10px] uppercase tracking-[0.4px] text-fg-muted max-shell:hidden">
+                {getBreadcrumb(currentPath)}
+              </div>
+              <div className="flex items-center">
+                <AlertBadge />
+              </div>
+            </div>
+          )}
+        </div>
 
         {isLoggedIn && drawerOpen && (
-          <div className="hidden max-[760px]:block fixed inset-0 z-40">
-            <div
+          <div className="fixed inset-0 z-40 hidden max-shell:block">
+            <button
+              aria-label="关闭菜单"
               className="absolute inset-0 bg-black/60"
               onClick={() => setDrawerOpen(false)}
+              type="button"
             />
-            <div ref={drawerRef} className="absolute inset-y-0 left-0 w-[240px] bg-surface-deep text-fg-on-dark flex flex-col overflow-y-auto border-r border-white/[0.08]">
+            <div
+              aria-label="主导航"
+              aria-modal="true"
+              className="absolute inset-y-0 left-0 flex w-[240px] flex-col overflow-y-auto border-r border-white/[0.08] bg-surface-deep text-fg-on-dark transition-transform duration-200 starting:-translate-x-full"
+              ref={drawerRef}
+              role="dialog"
+            >
               <div className="px-3 py-3 border-b border-white/[0.08] flex items-center justify-between">
-                <img
-                  src="/fareast-logo.png"
-                  alt="远东控股集团"
-                  className="block h-auto w-[128px] border border-white/[0.18] bg-white px-1 py-0.5"
-                />
+                <BrandLogo />
                 <button
                   type="button"
                   aria-label="关闭菜单"
@@ -159,16 +185,6 @@ export function AppShell({
           </div>
         )}
 
-        {isLoggedIn && (
-          <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-2 bg-bg border-b border-border max-[760px]:px-4">
-            <div className="text-[10px] text-fg-muted tracking-[0.4px] uppercase shrink-0 max-[760px]:hidden">
-              {getBreadcrumb(currentPath)}
-            </div>
-            <div className="flex items-center">
-              <AlertBadge />
-            </div>
-          </div>
-        )}
         {children}
       </main>
     </div>
@@ -229,6 +245,8 @@ function getBreadcrumb(path?: string): string {
   if (path.startsWith("/items")) return "数据 / 详情";
   if (path.startsWith("/search")) return "监测 / 搜索";
   if (path.startsWith("/admin/sources")) return "管理 / 信源";
+  if (path.startsWith("/admin/backlog")) return "管理 / Backlog";
+  if (path.startsWith("/admin/briefing/targets")) return "管理 / 简报推送";
   if (path.startsWith("/admin/scoring-config")) return "管理 / 评分配置";
   if (path.startsWith("/admin/worker")) return "管理 / 运行监控";
   if (path.startsWith("/admin/users")) return "管理 / 用户";

@@ -16,7 +16,7 @@ export default function Error({
   }, [error]);
 
   return (
-    <main className="flex min-h-[60vh] items-center justify-center pad-fluid-x py-16">
+    <div className="flex min-h-[60vh] items-center justify-center pad-fluid-x py-16">
       <div className="w-full max-w-[480px] border border-danger border-l-4 bg-surface p-8">
         <div className="flex items-center gap-2 font-mono text-[10px] font-medium uppercase tracking-[1.4px] text-danger">
           <AlertTriangle className="h-3.5 w-3.5" />
@@ -47,6 +47,6 @@ export default function Error({
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

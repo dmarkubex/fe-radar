@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export interface TargetFormData {
   id?: number;
@@ -81,7 +82,7 @@ export function TargetForm({ initial, onSaved, onCancel }: TargetFormProps): Rea
 
       <div className="space-y-3">
         <div>
-          <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+          <label className="mb-1 block eyebrow">
             名称
           </label>
           <input
@@ -94,7 +95,7 @@ export function TargetForm({ initial, onSaved, onCancel }: TargetFormProps): Rea
         </div>
 
         <div>
-          <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+          <label className="mb-1 block eyebrow">
             渠道
           </label>
           <input
@@ -106,7 +107,7 @@ export function TargetForm({ initial, onSaved, onCancel }: TargetFormProps): Rea
         </div>
 
         <div>
-          <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+          <label className="mb-1 block eyebrow">
             Webhook URL
           </label>
           <input
@@ -120,7 +121,7 @@ export function TargetForm({ initial, onSaved, onCancel }: TargetFormProps): Rea
         </div>
 
         <div>
-          <label className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+          <label className="mb-1 block eyebrow">
             加签密钥（Sign Secret）
           </label>
           <input
@@ -139,13 +140,14 @@ export function TargetForm({ initial, onSaved, onCancel }: TargetFormProps): Rea
       </div>
 
       <div className="flex gap-2">
-        <button
+        <Button
           type="submit"
           disabled={saving}
-          className="flex-1 border border-accent bg-accent py-2 font-mono text-xs uppercase tracking-wide text-bg transition-colors hover:bg-accent/90 disabled:opacity-50"
+          className="flex-1"
+          variant="accent"
         >
           {saving ? "保存中…" : isEditing ? "保存修改" : "新建"}
-        </button>
+        </Button>
         {onCancel ? (
           <button
             type="button"

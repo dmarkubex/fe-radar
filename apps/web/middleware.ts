@@ -7,6 +7,9 @@ import type { NextRequest } from "next/server";
 export default async function middleware(request: NextRequest): Promise<NextResponse> {
   const pathname = request.nextUrl.pathname;
 
+  const isEditorAdminPage = ["/admin/entities", "/admin/sources"].some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  );
   const isAdminPath =
     pathname.startsWith("/api/admin") ||
     pathname.startsWith("/api/dashboard") ||
@@ -15,7 +18,10 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     pathname.startsWith("/api/briefing/targets") ||
     pathname.startsWith("/admin");
   const isAdminPage = pathname.startsWith("/admin");
-  const isEditorPath = pathname.startsWith("/api/sources") || pathname.startsWith("/api/entities");
+  const isEditorPath =
+    pathname === "/api/admin/source-health" ||
+    pathname.startsWith("/api/sources") ||
+    pathname.startsWith("/api/entities");
   const isTimelinePage =
     pathname === "/" ||
     pathname.startsWith("/curated") ||
@@ -52,8 +58,15 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     }
 
     const role = token.role;
-    const requiredRole = isAdminPath ? "admin" : isEditorPath ? "editor" : "viewer";
+    const requiredRole =
+      isEditorAdminPage || isEditorPath ? "editor" : isAdminPath ? "admin" : "viewer";
     if (!hasRole(role === "admin" || role === "editor" || role === "viewer" ? role : undefined, requiredRole)) {
+      if (isAdminPage || isTimelinePage) {
+        return new NextResponse(
+          "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><title>403 · 权限不足</title></head><body><div role=\"main\"><h1>403 · 权限不足</h1><p>当前账号无权访问此页面。</p><a href=\"/\">返回首页</a></div></body></html>",
+          { status: 403, headers: { "content-type": "text/html; charset=utf-8" } }
+        );
+      }
       return NextResponse.json({ error: { code: "FORBIDDEN", message: "权限不足" } }, { status: 403 });
     }
   }

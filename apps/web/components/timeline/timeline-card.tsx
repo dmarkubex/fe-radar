@@ -1,6 +1,7 @@
 import { ExternalLink } from "lucide-react";
 import { AlertStrip, alertTypeLabel } from "@/components/shared/alert-strip";
 import { formatAppTime, scoreLabel, SOURCE_TIER_LABELS } from "@/components/timeline/meta";
+import { safeExternalUrl } from "@/lib/safe-external-url";
 
 import type { TimelineItemDto } from "@/lib/api/timeline-query";
 
@@ -13,10 +14,11 @@ export function TimelineCard({
 }): React.JSX.Element {
   const score = item.qualityScore ?? 0;
   const isHigh = score >= 70 || item.alertLevel === "L1";
+  const displayUrl = safeExternalUrl(item.displayUrl);
 
   return (
     <article
-      className={`relative grid grid-cols-1 items-start gap-4 border bg-surface px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-6 sm:px-5 sm:py-[18px] ${
+      className={`relative grid grid-cols-1 items-start gap-4 border bg-surface px-4 py-4 shell:grid-cols-[minmax(0,1fr)_auto] sm:gap-6 sm:px-5 sm:py-[18px] ${
         item.alertType ? "border-accent/50" : "border-hairline"
       }`}
     >
@@ -47,10 +49,10 @@ export function TimelineCard({
           <span>{formatAppTime(item.publishedAt)}</span>
         </div>
 
-        {item.displayUrl ? (
+        {displayUrl ? (
           <a
             className="group mb-2 inline-flex items-start gap-2 text-[17px] leading-[1.4] tracking-normal text-fg hover:text-accent"
-            href={item.displayUrl}
+            href={displayUrl}
             rel="noopener noreferrer"
             target="_blank"
           >
@@ -93,8 +95,8 @@ export function TimelineCard({
           ) : null}
         </div>
       </div>
-      <div className="flex min-w-0 items-center justify-between gap-3 border-t border-hairline pt-3 sm:min-w-[140px] sm:flex-col sm:items-end sm:justify-start sm:border-t-0 sm:pt-0">
-        <div className="flex flex-col items-start gap-1.5 sm:items-end">
+      <div className="flex min-w-0 items-center justify-between gap-3 border-t border-hairline pt-3 shell:flex-col shell:items-end shell:justify-start shell:border-t-0 sm:min-w-[140px] sm:pt-0">
+        <div className="flex flex-col items-start gap-1.5 shell:items-end">
           <div
             className={`font-mono text-3xl leading-none tracking-normal tabular-nums ${
               isHigh ? "text-accent" : "text-fg"
@@ -107,7 +109,7 @@ export function TimelineCard({
           </div>
         </div>
         <button
-          className="border border-border-strong px-3 py-1.5 font-mono text-[11px] tracking-[0.8px] text-fg-muted hover:border-accent/40 hover:bg-accent/5 hover:text-accent sm:mt-2"
+          className="min-h-11 border border-border-strong px-3 py-1.5 font-mono text-[11px] tracking-[0.8px] text-fg-muted hover:border-accent/40 hover:bg-accent/5 hover:text-accent sm:mt-2"
           type="button"
           aria-label={`展开详情：${item.title}`}
           onClick={() => onOpen?.(item.id)}

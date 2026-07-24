@@ -2,6 +2,12 @@ import Link from "next/link";
 import { fetchDashboardData, type DashboardMetric } from "@/lib/api/dashboard-query";
 import { listDisabledProxies } from "@/lib/api/proxy-admin";
 import { ProxyPoolPanel } from "@/components/dashboard/proxy-pool-panel";
+import { PageFrame } from "@/components/layout/page-frame";
+import { PageHeader } from "@/components/layout/page-header";
+import {
+  alertTypeBadgeClass,
+  alertTypeLabel,
+} from "@/components/shared/alert-strip";
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
 
 export const dynamic = "force-dynamic";
@@ -18,13 +24,6 @@ function kpiDelta(tone: string | undefined): string {
   return "text-fg-muted";
 }
 
-function alertBadge(type: string): string {
-  if (type === "own") return "bg-danger/10 text-danger";
-  if (type === "legal") return "bg-fg/10 text-fg";
-  if (type === "safety") return "bg-warn/10 text-warn";
-  return "bg-accent/10 text-accent";
-}
-
 export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
   const [data, disabledProxies] = await Promise.all([
     fetchDashboardData(),
@@ -35,10 +34,11 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
   const dateStr = now.format("YYYY.MM.DD");
   const timeStr = now.format("HH:mm");
   const scored = (data.metrics.find((m) => m.label === "已评分")?.value as number) ?? 0;
+  const fetchedToday = data.metrics.find((m) => m.label === "今日抓取")?.value ?? "—";
   const curated = (data.metrics.find((m) => m.label === "精选")?.value as number) ?? 0;
 
   const kpiCards: DashboardMetric[] = [
-    { label: "今日抓取量", value: scored, tone: "default" },
+    { label: "今日抓取量", value: fetchedToday, tone: "default" },
     { label: "精选条目", value: curated, tone: "default" },
     { label: "自家公司告警", value: data.alertsToday.own, tone: data.alertsToday.own > 0 ? "critical" : "default" },
     {
@@ -52,22 +52,28 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
     { label: "信源总数", value: data.sources.total, max: Math.max(data.sources.total, 1) },
     { label: "停用信源", value: data.sources.disabled, max: Math.max(data.sources.total, 1) },
     { label: "连续失败 ≥7", value: data.sources.failedSevenDays, max: Math.max(data.sources.total, 1) },
-    { label: "待处理 backlog", value: data.backlog.pending, max: Math.max(data.backlog.pending + data.backlog.droppedExpired, 1) },
-    { label: "超时丢弃", value: data.backlog.droppedExpired, max: Math.max(data.backlog.pending + data.backlog.droppedExpired, 1) },
-    { label: "Priority 老化", value: data.backlog.oldPending, max: Math.max(data.backlog.pending, 1) }
+    { label: "待处理 backlog", value: data.backlog.pending, max: Math.max(data.backlog.pending + data.backlog.droppedExpired, 1), href: "/admin/backlog" },
+    { label: "超时丢弃", value: data.backlog.droppedExpired, max: Math.max(data.backlog.pending + data.backlog.droppedExpired, 1), href: "/admin/backlog" },
+    { label: "Priority 老化", value: data.backlog.oldPending, max: Math.max(data.backlog.pending, 1), href: "/admin/backlog" }
   ];
 
   const topMetrics = data.metrics.filter(
-    (m) => !["信源", "已评分", "精选"].includes(m.label)
+    (m) => !["信源", "今日抓取", "已评分", "精选"].includes(m.label)
   );
 
   const alertEntries: { type: string; count: number }[] = [
     { type: "own", count: data.alertsToday.own },
     { type: "legal", count: data.alertsToday.legal },
     { type: "safety", count: data.alertsToday.safety },
-    { type: "policy", count: data.alertsToday.policy }
+    { type: "policy", count: data.alertsToday.policy },
+    { type: "risk", count: data.alertsToday.risk }
   ];
-  const alertsTotal = data.alertsToday.own + data.alertsToday.legal + data.alertsToday.safety + data.alertsToday.policy;
+  const alertsTotal =
+    data.alertsToday.own +
+    data.alertsToday.legal +
+    data.alertsToday.safety +
+    data.alertsToday.policy +
+    data.alertsToday.risk;
 
   const scrubberPending = data.scrubberPending;
   const mergeConflictsPending = data.mergeConflictsPending;
@@ -76,21 +82,16 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
   const sourceHealth = [
     { rank: 1, name: "活跃信源", count: data.sources.total - data.sources.disabled, max: data.sources.total },
     { rank: 2, name: "停用信源", count: data.sources.disabled, max: data.sources.total },
-    { rank: 3, name: "连续失败 ≥7天", count: data.sources.failedSevenDays, max: data.sources.total }
+    { rank: 3, name: "连续失败 ≥7 次", count: data.sources.failedSevenDays, max: data.sources.total }
   ];
 
   return (
-    <main className="min-h-screen bg-bg pad-fluid font-body text-fg">
-      <div className="mx-auto w-full max-w-7xl space-y-8">
-        {/* ---- page-head ---- */}
-        <header className="space-y-2">
-          <p className="font-mono text-xs tracking-wide text-fg-soft uppercase">
-            概览 · {dateStr} · {timeStr}
-          </p>
-          <h1 className="font-display display-fluid tracking-tightest text-fg">
-            FE-Radar 运行仪表盘
-          </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-fg-muted">
+    <PageFrame size="full">
+        <PageHeader
+          eyebrow={`概览 · ${dateStr} · ${timeStr}`}
+          title="FE-Radar 运行仪表盘"
+          description={
+            <>
             已评分 <span className="font-display font-semibold text-fg">{scored}</span>{" "}
             条 · 精选{" "}
             <span className="font-display font-semibold text-fg">{curated}</span>{" "}
@@ -100,8 +101,9 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
             <span className="font-display font-semibold text-fg">{mergeConflictsPending}</span>{" "}
             · 近 7 天审计{" "}
             <span className="font-display font-semibold text-fg">{recentAuditCount}</span>
-          </p>
-        </header>
+            </>
+          }
+        />
 
         {/* ---- KPI grid ---- */}
         <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -109,6 +111,8 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
             const href =
               card.label === "精选条目"
                 ? "/curated"
+                : card.label === "自家公司告警"
+                  ? "/alerts?type=own"
                 : card.label === "信源健康度"
                   ? "/admin/sources"
                   : null;
@@ -147,18 +151,18 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
         {/* ---- trend + alerts row ---- */}
         <section className="grid gap-6 lg:grid-cols-2">
           {/* left: trend bars */}
-          <div className="border border-border bg-surface p-6 shadow-card">
+          <div className="panel-surface p-6">
             <div className="flex items-baseline justify-between border-b border-hairline pb-3">
-              <h3 className="font-display text-base font-semibold text-fg">近 7 天各维度</h3>
+              <h3 className="font-display text-base font-semibold text-fg">当前运行状态</h3>
               <span className="font-mono text-[11px] text-fg-soft">
-                更新 {timeStr}
+                更新 {timeStr} · 各项按对应总量归一
               </span>
             </div>
             <div className="mt-5 space-y-4">
               {trendDimensions.map((dim) => {
                 const pct = Math.round((dim.value / dim.max) * 100);
-                return (
-                  <div key={dim.label} className="space-y-1">
+                const content = (
+                  <div className="space-y-1">
                     <div className="flex items-baseline justify-between">
                       <span className="font-mono text-sm text-fg-muted">{dim.label}</span>
                       <span className="font-mono text-sm tabular-nums text-fg">{dim.value}</span>
@@ -171,12 +175,17 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
                     </div>
                   </div>
                 );
+                return dim.href ? (
+                  <Link className="block hover:opacity-80" href={dim.href} key={dim.label}>{content}</Link>
+                ) : (
+                  <div key={dim.label}>{content}</div>
+                );
               })}
             </div>
           </div>
 
           {/* right: real-time alerts */}
-          <div className="border border-border bg-surface p-6 shadow-card">
+          <div className="panel-surface p-6">
             <div className="flex items-baseline justify-between border-b border-hairline pb-3">
               <h3 className="font-display text-base font-semibold text-fg">今日告警</h3>
               <span className="font-mono text-[11px] text-fg-soft">
@@ -190,16 +199,11 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
                   className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-3"
                 >
                   <span
-                    className={`inline-block rounded-none px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${alertBadge(entry.type)}`}
+                    className={`inline-block rounded-none px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${alertTypeBadgeClass(entry.type)}`}
                   >
-                    {entry.type}
+                    {alertTypeLabel(entry.type)}
                   </span>
-                  <span className="text-sm text-fg">
-                    {entry.type === "own" && "自家公司相关"}
-                    {entry.type === "legal" && "竞品涉诉"}
-                    {entry.type === "safety" && "安全合规"}
-                    {entry.type === "policy" && "政策变动"}
-                  </span>
+                  <span className="text-sm text-fg">{alertTypeLabel(entry.type)}</span>
                   <span className="font-mono text-sm tabular-nums text-fg">
                     {entry.count}
                   </span>
@@ -236,7 +240,7 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
         {/* ---- TOP picks + source ranking ---- */}
         <section className="grid gap-6 lg:grid-cols-2">
           {/* left: TOP picks */}
-          <div className="border border-border bg-surface p-6 shadow-card">
+          <div className="panel-surface p-6">
             <div className="flex items-baseline justify-between border-b border-hairline pb-3">
               <h3 className="font-display text-base font-semibold text-fg">关键指标 TOP</h3>
               <span className="font-mono text-[11px] text-fg-soft">
@@ -264,7 +268,7 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
           </div>
 
           {/* right: source ranking */}
-          <div className="border border-border bg-surface p-6 shadow-card">
+          <div className="panel-surface p-6">
             <div className="flex items-baseline justify-between gap-3 border-b border-hairline pb-3">
               <h3 className="font-display text-base font-semibold text-fg">信源健康排名</h3>
               <div className="flex items-baseline gap-3">
@@ -295,7 +299,7 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
                     <div className="h-2 w-full bg-bg-deep">
                       <div
                         className={`h-full transition-all ${
-                          src.name === "停用信源" || src.name === "连续失败 ≥7天"
+                          src.name === "停用信源" || src.name === "连续失败 ≥7 次"
                             ? "bg-warn"
                             : "bg-ok"
                         }`}
@@ -308,7 +312,7 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
             </div>
 
             <div className="mt-6 border-t border-hairline pt-4">
-              <h4 className="font-mono text-[11px] uppercase tracking-widest text-fg-soft">
+              <h4 className="eyebrow">
                 代理池
               </h4>
               <div className="mt-3">
@@ -317,7 +321,6 @@ export default async function AdminDashboardPage(): Promise<React.JSX.Element> {
             </div>
           </div>
         </section>
-      </div>
-    </main>
+    </PageFrame>
   );
 }

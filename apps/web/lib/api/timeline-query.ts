@@ -75,6 +75,12 @@ export interface TimelineResult {
   nextCursor: string | null;
 }
 
+export interface CuratedCategoryStat {
+  category: string;
+  count: number;
+  topScore: number | null;
+}
+
 export interface TimelineCursorRow {
   id: number;
   publishedAt: Date;
@@ -367,6 +373,72 @@ export async function fetchTimeline(options: {
     items: page.map(toTimelineItem),
     nextCursor
   };
+}
+
+export async function fetchCuratedCategoryStats(
+  categories: string[],
+  options: { db?: DbClient } = {}
+): Promise<CuratedCategoryStat[]> {
+  const requested = categories.map((category) => ({
+    category,
+    dbCategory:
+      normalizeTimelineFilters({ curated: true, category }).category ?? category
+  }));
+  if (requested.length === 0) {
+    return [];
+  }
+
+  if (isMockMode()) {
+    return requested.map(({ category }) => {
+      const data = mockFetchTimeline({
+        filters: { curated: true, category },
+        limit: Number.MAX_SAFE_INTEGER
+      });
+      return {
+        category,
+        count: data.items.length,
+        topScore: data.items[0]?.qualityScore ?? null
+      };
+    });
+  }
+
+  const db = options.db ?? getDb();
+  const dbCategories = [
+    ...new Set(requested.map(({ dbCategory }) => dbCategory))
+  ];
+  const rows = await db
+    .select({
+      category: itemAnalysis.category,
+      count: sql<number>`count(distinct ${items.id})::int`,
+      topScore: sql<number | null>`max(${itemAnalysis.qualityScore})`
+    })
+    .from(items)
+    .innerJoin(sources, eq(items.sourceId, sources.id))
+    .innerJoin(itemAnalysis, eq(itemAnalysis.itemId, items.id))
+    .leftJoin(clusterItems, eq(clusterItems.itemId, items.id))
+    .leftJoin(clusters, eq(clusters.id, clusterItems.clusterId))
+    .where(
+      and(
+        inArray(itemAnalysis.category, dbCategories),
+        visibleItemConditions({ curated: true }, false)
+      )
+    )
+    .groupBy(itemAnalysis.category);
+  const byCategory = new Map(
+    rows.map((row) => [
+      row.category,
+      {
+        count: Number(row.count),
+        topScore: row.topScore === null ? null : Number(row.topScore)
+      }
+    ])
+  );
+
+  return requested.map(({ category, dbCategory }) => ({
+    category,
+    count: byCategory.get(dbCategory)?.count ?? 0,
+    topScore: byCategory.get(dbCategory)?.topScore ?? null
+  }));
 }
 
 export async function fetchItemDetail(
