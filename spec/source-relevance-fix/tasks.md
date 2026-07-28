@@ -88,7 +88,7 @@
 - **goal**：在**部署内网 + 代理池通电**的真实网络下复测被 R1 误杀的一批 T1 源（国家发改委 / 工信部 / 中电联 / 中国能源报 / 巨潮），据实重新启用。这是投入产出比最高的一卡——T1 源是产业情报的相关性基石。
 - **前置**：`handoff.md` Human Action Required 的 P0 第①项（住宅代理 `docker secret create proxy_list` + `PROXY_POOL_ENABLED=true`）必须先落地，见 `docs/runbook/deploy-portainer.md` §7.1；T-REL-01 已合入（否则无法复检 disabled 源）。
 - **constraints**：
-  - **必须先测后改**：在部署 worker 环境跑 `pnpm --filter @fe-radar/worker verify:sources -- --include-disabled`，用生产代理 / robots / 真实 UA / 解析器拿到 ≥3 条真实条目的结论后再写迁移；禁止凭本文档的本机实测结果直接启用（本机结论仅证明"源站活着"，不证明"部署网络能抓到列表条目"）。
+  - **必须先测后改**：在部署 worker 环境跑生产路径复检（**生产容器**：`cd /app/apps/worker && node --import ./register-aliases.mjs dist/apps/worker/src/scripts/verify-sources.js --include-disabled`；**开发机**：`pnpm --filter @fe-radar/worker verify:sources -- --include-disabled`），用生产代理 / robots / 真实 UA / 解析器拿到 ≥3 条真实条目的结论后再写迁移；禁止凭本文档的本机实测结果直接启用（本机结论仅证明"源站活着"，不证明"部署网络能抓到列表条目"）。生产镜像无 tsx/TS 源码，勿在容器内用 pnpm/tsx。
   - 重激活门槛沿用既有标准：**smoke 返回 ≥ 3 条**才启用，达不到的保持 disabled 并更新 `last_error` 说明原因。
   - 迁移 `0038` 必须带 admin 保护守卫（参照 `0035` 的 `admin_snapshot ? 'enabled'` 写法），**不覆盖 admin 后台已手工改过的行**。
   - 重激活时必须同时 `fail_count=0, last_error=NULL` —— 系统按 `fail_count>=7` 自动禁用且**不会自动恢复**（见 runbook §7.3），只改 `enabled=true` 会在 7 次失败后再次被打回。

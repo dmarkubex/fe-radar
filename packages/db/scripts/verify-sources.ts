@@ -4,6 +4,9 @@
  * This intentionally checks HTTP/selector reachability without importing worker runtime policy.
  * Operations must use @fe-radar/worker verify:sources for proxy/robots/real-parser evidence.
  */
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+
 import { createDbClient } from "../src/client";
 import {
   listSources,
@@ -370,7 +373,15 @@ async function main(): Promise<void> {
   process.exit(0);
 }
 
-const isMain = process.argv[1]?.endsWith("verify-sources.ts");
+// ESM entry detection: compare this module URL to argv[1] (resolved).
+// Why not endsWith(".ts"): production runs compiled .js; a .ts-only suffix guard left
+// isMain false and main() never ran (silent exit 0). import.meta.url matches both
+// tsx (.ts, package.json verify:sources) and node (.js).
+// MIRROR: apps/worker/src/scripts/verify-sources.ts — same guard; change both or neither.
+const isMain = Boolean(
+  process.argv[1] &&
+    import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+);
 if (isMain) {
   main().catch((error) => {
     console.error(error instanceof Error ? error.message : error);

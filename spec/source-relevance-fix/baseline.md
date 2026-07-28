@@ -75,5 +75,5 @@ _结果：待填_
 ## 数据到位后的后续动作
 
 1. 本文件填完 → T-REL-08 依第 4 组数据决定是否启动。
-2. 第 5 组数据 + 部署网络 `pnpm --filter @fe-radar/worker verify:sources -- --include-disabled` 生产路径解析报告 → 作为 T-REL-02 写 `0038` 迁移的唯一依据（见 `blocked-register.md`）。
+2. 第 5 组数据 + 部署网络生产路径解析报告 → 作为 T-REL-02 写 `0038` 迁移的唯一依据（命令见 `blocked-register.md` T-REL-02：生产容器用 `node ... verify-sources.js`，开发机用 `pnpm --filter @fe-radar/worker verify:sources`）。
 3. 第 2/3 组数据作为 T-REL-06 关键词闸门效果的对照基线（"抽查 20 条无产业无关条目"需对照基线，不接受"感觉好多了"）。

@@ -5,6 +5,9 @@
  * dispatch, including proxy selection, real-UA policy, and robots checks, then requires >=3
  * parsed items. It is read-only: re-enabling a source remains a migration/admin action.
  */
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+
 import {
   createDbClient,
   listSources,
@@ -172,7 +175,15 @@ async function main(): Promise<void> {
   process.exit(0);
 }
 
-const isMain = process.argv[1]?.endsWith("verify-sources.ts");
+// ESM entry detection: compare this module URL to argv[1] (resolved).
+// Why not endsWith(".ts"): production image runs compiled .js only (Dockerfile.worker
+// COPYs dist/, no TS source / no tsx), so a .ts-only suffix guard left isMain false and
+// main() never ran (silent exit 0). import.meta.url matches both tsx (.ts) and node (.js).
+// MIRROR: packages/db/scripts/verify-sources.ts — same guard; change both or neither.
+const isMain = Boolean(
+  process.argv[1] &&
+    import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+);
 if (isMain) {
   main().catch((error) => {
     console.error(error instanceof Error ? error.message : error);

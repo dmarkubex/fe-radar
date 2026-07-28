@@ -31,7 +31,15 @@
 
 - 阻塞点：① 代理池 P0 未落地；② 部署网络复测未执行。
 - **本轮刻意未做**：未写 `0038` 迁移。卡片 constraints 明写「必须先测后改……禁止凭本文档的本机实测结果直接启用」，本机 `HTTP:000` 既不能证明源站死、也不能证明活。
-- 解除条件（按序）：代理池通电 → `pnpm --filter @fe-radar/worker verify:sources -- --include-disabled` 走生产 fetcher（代理池 / 真实 UA / robots / 解析器）并将报告落盘 `verify-report.md` → 仅对 smoke ≥3 条的源写 `0038`（带 `admin_touched_at IS NULL` + `admin_snapshot ? 'enabled'` 守卫，且重激活必须同时 `fail_count=0, last_error=NULL`）。复检只读，不自动改 `enabled`。
+- 解除条件（按序）：代理池通电 → 走生产 fetcher 复检（代理池 / 真实 UA / robots / 解析器）并将报告落盘 `verify-report.md` → 仅对 smoke ≥3 条的源写 `0038`（带 `admin_touched_at IS NULL` + `admin_snapshot ? 'enabled'` 守卫，且重激活必须同时 `fail_count=0, last_error=NULL`）。复检只读，不自动改 `enabled`。
+  - **生产 worker 容器**（镜像内无 tsx、无 TS 源码，只含 `dist/`）：
+    ```
+    cd /app/apps/worker && node --import ./register-aliases.mjs dist/apps/worker/src/scripts/verify-sources.js --include-disabled
+    ```
+  - **开发机**（有 monorepo + tsx）：
+    ```
+    pnpm --filter @fe-radar/worker verify:sources -- --include-disabled
+    ```
 - 未达标源保持 disabled，`last_error` 必须写本次复测的真实原因，不得留两个月前的旧记录。
 
 ### T-REL-03 国家能源局适配 — 代码就绪 / 启用 BLOCKED
