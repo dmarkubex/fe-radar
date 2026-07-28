@@ -4,6 +4,8 @@ import type * as FeRadarCore from "@fe-radar/core";
 const {
   mockGetDb,
   mockFetchRss,
+  mockFetchHtml,
+  mockFetchSourceItems,
   mockDedupItems,
   mockEnqueueEnabledSources,
   mockRecordSourceFailure,
@@ -11,10 +13,12 @@ const {
   mockAdmitToScoring,
   mockRollbackAdmit,
   mockEnqueueItemPipeline,
-  mockDrainPendingQuotaBacklog,
+  mockDrainPendingQuotaBacklog
 } = vi.hoisted(() => ({
   mockGetDb: vi.fn(),
   mockFetchRss: vi.fn(),
+  mockFetchHtml: vi.fn(),
+  mockFetchSourceItems: vi.fn(),
   mockDedupItems: vi.fn(),
   mockEnqueueEnabledSources: vi.fn(),
   mockRecordSourceFailure: vi.fn(),
@@ -22,7 +26,7 @@ const {
   mockAdmitToScoring: vi.fn(),
   mockRollbackAdmit: vi.fn(),
   mockEnqueueItemPipeline: vi.fn(),
-  mockDrainPendingQuotaBacklog: vi.fn(),
+  mockDrainPendingQuotaBacklog: vi.fn()
 }));
 
 vi.mock("node:crypto", () => ({ randomUUID: () => "test-uuid" }));
@@ -68,12 +72,7 @@ vi.mock("../../scheduler", () => ({
 }));
 
 vi.mock("../../fetchers", () => ({
-  fetchRss: mockFetchRss,
-  fetchHtml: vi.fn(),
-  fetchPlaywright: vi.fn(),
-  fetchAnnouncements: vi.fn(),
-  fetchCrawl: vi.fn(),
-  dataproAdapter: { fetch: vi.fn() }
+  fetchSourceItems: mockFetchSourceItems
 }));
 
 vi.mock("../../dedup", () => ({
@@ -102,7 +101,7 @@ vi.mock("@fe-radar/core", async (importOriginal) => {
   return {
     ...actual,
     admitToScoring: mockAdmitToScoring,
-    rollbackAdmit: mockRollbackAdmit,
+    rollbackAdmit: mockRollbackAdmit
   };
 });
 
@@ -117,8 +116,16 @@ vi.mock("../context", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   handlerContext: { qwen: {}, deepSeek: {}, playwrightPool: null },
   loadOwnCompanyProfile: vi.fn().mockResolvedValue({
-    names: new Set(["远东控股", "远东控股集团", "远东电缆", "远东智慧能源", "远东智慧能源股份", "远东股份", "远东智慧"]),
-  }),
+    names: new Set([
+      "远东控股",
+      "远东控股集团",
+      "远东电缆",
+      "远东智慧能源",
+      "远东智慧能源股份",
+      "远东股份",
+      "远东智慧"
+    ])
+  })
 }));
 
 function makeDb(sourceRow: Record<string, unknown> | null) {
@@ -127,12 +134,12 @@ function makeDb(sourceRow: Record<string, unknown> | null) {
   const whereResult = {
     limit: vi.fn().mockResolvedValue(sourceRow ? [sourceRow] : []),
     // existing-items query awaits where() directly (no limit)
-    then: undefined as unknown,
+    then: undefined as unknown
   };
   // Make where() thenable so `await db.select().from().where()` resolves to []
   const whereFn = vi.fn().mockImplementation(() => {
     const result = Object.assign([], {
-      limit: whereResult.limit,
+      limit: whereResult.limit
     });
     return result;
   });
@@ -145,26 +152,28 @@ function makeDb(sourceRow: Record<string, unknown> | null) {
         return {
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue(sourceRow ? [sourceRow] : []),
-            }),
-          }),
+              limit: vi.fn().mockResolvedValue(sourceRow ? [sourceRow] : [])
+            })
+          })
         };
       }
       return {
         from: vi.fn().mockReturnValue({
-          where: whereFn,
-        }),
+          where: whereFn
+        })
       };
     }),
     insert: vi.fn().mockReturnValue({ values: insertValues }),
     update: vi.fn().mockReturnValue({
-      set: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) }),
+      set: vi
+        .fn()
+        .mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) })
     }),
     _insertValues: insertValues,
-    _insertReturning: insertReturning,
+    _insertReturning: insertReturning
   };
   const db = Object.assign(dbBase, {
-    transaction: vi.fn(async (cb: (tx: typeof dbBase) => unknown) => cb(dbBase)),
+    transaction: vi.fn(async (cb: (tx: typeof dbBase) => unknown) => cb(dbBase))
   });
   mockGetDb.mockReturnValue(db);
   return db;
@@ -172,15 +181,31 @@ function makeDb(sourceRow: Record<string, unknown> | null) {
 
 import { handleFetchJob } from "../fetch";
 
+beforeEach(() => {
+  mockFetchSourceItems.mockImplementation(
+    (config: { type: string }, ...args: unknown[]) =>
+      config.type === "html"
+        ? mockFetchHtml(config, ...args)
+        : mockFetchRss(config, ...args)
+  );
+});
+
 describe("handleFetchJob keyword filter (Fix-3)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockMarkSourceSuccess.mockResolvedValue(undefined);
     mockDedupItems.mockReturnValue({ accepted: [] });
-    mockAdmitToScoring.mockResolvedValue({ state: "admitted", counterKey: "k" });
+    mockAdmitToScoring.mockResolvedValue({
+      state: "admitted",
+      counterKey: "k"
+    });
     mockRollbackAdmit.mockResolvedValue(undefined);
     mockEnqueueItemPipeline.mockResolvedValue(undefined);
-    mockDrainPendingQuotaBacklog.mockResolvedValue({ expired: 0, readmitted: 0, stillPending: 0 });
+    mockDrainPendingQuotaBacklog.mockResolvedValue({
+      expired: 0,
+      readmitted: 0,
+      stillPending: 0
+    });
   });
 
   it("keywordFilter 匹配：命中关键词的 item 保留，全部丢弃时 candidates 为空", async () => {
@@ -227,6 +252,44 @@ describe("handleFetchJob keyword filter (Fix-3)", () => {
     }>;
     expect(candidatesArg).toHaveLength(1);
     expect(candidatesArg[0]?.title).toBe("电缆行业新动态");
+  });
+
+  it("HTML 宽口径源同样在 pre-dedup 阶段应用 keywordFilter", async () => {
+    const source = {
+      id: 13,
+      name: "凤凰财经 能源",
+      enabled: true,
+      failCount: 0,
+      config: {
+        type: "html",
+        listUrl: "https://finance.ifeng.com/",
+        selectors: { item: "a", title: "a", link: "a", date: "span" },
+        keywordFilter: ["光纤", "储能"]
+      }
+    };
+    makeDb(source);
+    mockFetchHtml.mockResolvedValue([
+      {
+        url: "https://finance.ifeng.com/1",
+        title: "明星餐饮投资",
+        content: "消费行业动态",
+        publishedAt: new Date()
+      },
+      {
+        url: "https://finance.ifeng.com/2",
+        title: "光纤集采启动",
+        content: "运营商扩大采购",
+        publishedAt: new Date()
+      }
+    ]);
+
+    await handleFetchJob({ data: { sourceId: 13 } as never });
+
+    const candidatesArg = mockDedupItems.mock.calls[0]?.[0] as Array<{
+      title: string;
+    }>;
+    expect(candidatesArg).toHaveLength(1);
+    expect(candidatesArg[0]?.title).toBe("光纤集采启动");
   });
 
   it("keywordFilter 为空数组时不过滤（全保留）", async () => {
@@ -304,10 +367,17 @@ describe("handleFetchJob quota admit (C0)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockMarkSourceSuccess.mockResolvedValue(undefined);
-    mockAdmitToScoring.mockResolvedValue({ state: "admitted", counterKey: "k" });
+    mockAdmitToScoring.mockResolvedValue({
+      state: "admitted",
+      counterKey: "k"
+    });
     mockRollbackAdmit.mockResolvedValue(undefined);
     mockEnqueueItemPipeline.mockResolvedValue(undefined);
-    mockDrainPendingQuotaBacklog.mockResolvedValue({ expired: 0, readmitted: 0, stillPending: 0 });
+    mockDrainPendingQuotaBacklog.mockResolvedValue({
+      expired: 0,
+      readmitted: 0,
+      stillPending: 0
+    });
   });
 
   it("writes real quotaState and skips pipeline when pending_over_quota", async () => {
@@ -316,7 +386,7 @@ describe("handleFetchJob quota admit (C0)", () => {
       name: "配额测试源",
       enabled: true,
       failCount: 0,
-      config: { type: "rss", url: "http://example.com/rss" },
+      config: { type: "rss", url: "http://example.com/rss" }
     };
     const db = makeDb(source);
     mockFetchRss.mockResolvedValue([
@@ -324,8 +394,8 @@ describe("handleFetchJob quota admit (C0)", () => {
         url: "http://a.com/1",
         title: "普通行业新闻",
         content: "内容",
-        publishedAt: new Date(),
-      },
+        publishedAt: new Date()
+      }
     ]);
     mockDedupItems.mockReturnValue({
       accepted: [
@@ -334,19 +404,25 @@ describe("handleFetchJob quota admit (C0)", () => {
           url: "http://a.com/1",
           title: "普通行业新闻",
           content: "内容",
-          publishedAt: new Date(),
-        },
-      ],
+          publishedAt: new Date()
+        }
+      ]
     });
-    mockAdmitToScoring.mockResolvedValue({ state: "pending_over_quota", counterKey: "scoring:counter:normal:2026-07-11" });
+    mockAdmitToScoring.mockResolvedValue({
+      state: "pending_over_quota",
+      counterKey: "scoring:counter:normal:2026-07-11"
+    });
 
     await handleFetchJob({ data: { sourceId: 20 } as never });
 
     expect(mockAdmitToScoring).toHaveBeenCalled();
     const analysisInsert = db._insertValues.mock.calls.find(
-      (call: unknown[]) => (call[0] as { quotaState?: string }).quotaState !== undefined
+      (call: unknown[]) =>
+        (call[0] as { quotaState?: string }).quotaState !== undefined
     );
-    expect(analysisInsert?.[0]).toMatchObject({ quotaState: "pending_over_quota" });
+    expect(analysisInsert?.[0]).toMatchObject({
+      quotaState: "pending_over_quota"
+    });
     expect(mockEnqueueItemPipeline).not.toHaveBeenCalled();
     expect(mockMarkSourceSuccess).toHaveBeenCalledTimes(1);
   });
@@ -377,7 +453,7 @@ describe("handleFetchJob quota admit (C0)", () => {
       name: "配额回滚测试源",
       enabled: true,
       failCount: 0,
-      config: { type: "rss", url: "http://example.com/rss" },
+      config: { type: "rss", url: "http://example.com/rss" }
     };
     const db = makeDb(source);
     const accepted = {
@@ -385,7 +461,7 @@ describe("handleFetchJob quota admit (C0)", () => {
       url: "http://a.com/rollback",
       title: "远东电缆公告",
       content: "内容",
-      publishedAt: new Date(),
+      publishedAt: new Date()
     };
     mockFetchRss.mockResolvedValue([accepted]);
     mockDedupItems.mockReturnValue({ accepted: [accepted] });
@@ -394,11 +470,12 @@ describe("handleFetchJob quota admit (C0)", () => {
     await handleFetchJob({ data: { sourceId: 21 } as never });
 
     const analysisCallIndex = db._insertValues.mock.calls.findIndex(
-      (call: unknown[]) => (call[0] as { quotaState?: string }).quotaState === "admitted",
+      (call: unknown[]) =>
+        (call[0] as { quotaState?: string }).quotaState === "admitted"
     );
-    expect(db._insertValues.mock.invocationCallOrder[analysisCallIndex]).toBeLessThan(
-      mockEnqueueItemPipeline.mock.invocationCallOrder[0]!,
-    );
+    expect(
+      db._insertValues.mock.invocationCallOrder[analysisCallIndex]
+    ).toBeLessThan(mockEnqueueItemPipeline.mock.invocationCallOrder[0]!);
     expect(db.update).toHaveBeenCalledTimes(1);
     expect(mockRollbackAdmit).toHaveBeenCalledWith("k", expect.anything());
     expect(mockMarkSourceSuccess).not.toHaveBeenCalled();
@@ -410,12 +487,24 @@ describe("handleFetchJob quota admit (C0)", () => {
       name: "事务回滚测试源",
       enabled: true,
       failCount: 0,
-      config: { type: "rss", url: "http://example.com/rss" },
+      config: { type: "rss", url: "http://example.com/rss" }
     };
     const db = makeDb(source);
     const accepted = [
-      { sourceId: 22, url: "http://a.com/fail", title: "第一条", content: "内容", publishedAt: new Date() },
-      { sourceId: 22, url: "http://a.com/ok", title: "第二条", content: "内容", publishedAt: new Date() },
+      {
+        sourceId: 22,
+        url: "http://a.com/fail",
+        title: "第一条",
+        content: "内容",
+        publishedAt: new Date()
+      },
+      {
+        sourceId: 22,
+        url: "http://a.com/ok",
+        title: "第二条",
+        content: "内容",
+        publishedAt: new Date()
+      }
     ];
     mockFetchRss.mockResolvedValue(accepted);
     mockDedupItems.mockReturnValue({ accepted });
@@ -427,12 +516,20 @@ describe("handleFetchJob quota admit (C0)", () => {
     await handleFetchJob({ data: { sourceId: 22 } as never });
 
     const analysisCalls = db._insertValues.mock.calls.filter(
-      (call: unknown[]) => (call[0] as { quotaState?: string }).quotaState !== undefined,
+      (call: unknown[]) =>
+        (call[0] as { quotaState?: string }).quotaState !== undefined
     );
     expect(analysisCalls).toHaveLength(1);
-    expect(analysisCalls[0]?.[0]).toMatchObject({ itemId: 2, quotaState: "admitted" });
+    expect(analysisCalls[0]?.[0]).toMatchObject({
+      itemId: 2,
+      quotaState: "admitted"
+    });
     expect(mockAdmitToScoring).toHaveBeenCalledTimes(2);
-    expect(mockEnqueueItemPipeline).toHaveBeenCalledWith(expect.anything(), 2, "test-uuid");
+    expect(mockEnqueueItemPipeline).toHaveBeenCalledWith(
+      expect.anything(),
+      2,
+      "test-uuid"
+    );
     expect(mockMarkSourceSuccess).not.toHaveBeenCalled();
   });
 
@@ -442,7 +539,7 @@ describe("handleFetchJob quota admit (C0)", () => {
       name: "分析写入失败测试源",
       enabled: true,
       failCount: 0,
-      config: { type: "rss", url: "http://example.com/rss" },
+      config: { type: "rss", url: "http://example.com/rss" }
     };
     const db = makeDb(source);
     const accepted = {
@@ -450,12 +547,13 @@ describe("handleFetchJob quota admit (C0)", () => {
       url: "http://a.com/analysis-fail",
       title: "远东电缆公告",
       content: "内容",
-      publishedAt: new Date(),
+      publishedAt: new Date()
     };
     mockFetchRss.mockResolvedValue([accepted]);
     mockDedupItems.mockReturnValue({ accepted: [accepted] });
     db._insertValues.mockImplementation((values: { quotaState?: string }) => {
-      if (values.quotaState !== undefined) return Promise.reject(new Error("db disconnected"));
+      if (values.quotaState !== undefined)
+        return Promise.reject(new Error("db disconnected"));
       return { returning: db._insertReturning };
     });
 

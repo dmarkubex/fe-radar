@@ -1,7 +1,14 @@
 import { z } from "zod";
 
 const tierSchema = z.enum(["T1", "T2", "T3"]);
-const fetcherTypeSchema = z.enum(["rss", "html", "playwright", "quotes", "announcement", "crawl"]);
+const fetcherTypeSchema = z.enum([
+  "rss",
+  "html",
+  "playwright",
+  "quotes",
+  "announcement",
+  "crawl"
+]);
 
 const quotesAdapterSchema = z.enum([
   "shfe",
@@ -25,76 +32,91 @@ const quotesRegexRuleSchema = z.object({
   group: z.number().int().min(1).optional()
 });
 
-const quotesSmmHqItemSchema = z.object({
-  metric_key: z.string().min(1),
-  emit_metric_keys: z.array(z.string().min(1)).optional(),
-  kind: z.enum(["product", "instrument"]).optional(),
-  column_no: z.string().min(1).optional(),
-  product_id: z.string().min(1).optional(),
-  product_name: z.string().min(1).optional(),
-  product_names: z.array(z.string().min(1)).optional(),
-  instrument_id: z.string().min(1).optional(),
-  typename: z.string().min(1).optional(),
-  value_field: z.string().min(1).optional()
-}).refine(
-  (value) => Boolean(value.column_no),
-  {
+const quotesSmmHqItemSchema = z
+  .object({
+    metric_key: z.string().min(1),
+    emit_metric_keys: z.array(z.string().min(1)).optional(),
+    kind: z.enum(["product", "instrument"]).optional(),
+    column_no: z.string().min(1).optional(),
+    product_id: z.string().min(1).optional(),
+    product_name: z.string().min(1).optional(),
+    product_names: z.array(z.string().min(1)).optional(),
+    instrument_id: z.string().min(1).optional(),
+    typename: z.string().min(1).optional(),
+    value_field: z.string().min(1).optional()
+  })
+  .refine((value) => Boolean(value.column_no), {
     message: "smm-hq item requires column_no",
     path: ["column_no"]
-  }
-).refine(
-  (value) => value.kind !== "instrument" || Boolean(value.instrument_id || value.typename),
-  {
-    message: "smm-hq instrument item requires instrument_id or typename",
-    path: ["instrument_id"]
-  }
-).refine(
-  (value) => value.kind === "instrument" || Boolean(value.product_id || value.product_name || value.product_names?.length),
-  {
-    message: "smm-hq product item requires product_id, product_name, or product_names",
-    path: ["product_id"]
-  }
-);
-
-const endpointSchema = z.string().min(1).refine(
-  (value) => {
-    if (value.startsWith("/")) return true;
-    try {
-      new URL(value);
-      return true;
-    } catch {
-      return false;
+  })
+  .refine(
+    (value) =>
+      value.kind !== "instrument" ||
+      Boolean(value.instrument_id || value.typename),
+    {
+      message: "smm-hq instrument item requires instrument_id or typename",
+      path: ["instrument_id"]
     }
-  },
-  { message: "endpoint must be an absolute URL or a relative path beginning with /" }
-);
+  )
+  .refine(
+    (value) =>
+      value.kind === "instrument" ||
+      Boolean(
+        value.product_id || value.product_name || value.product_names?.length
+      ),
+    {
+      message:
+        "smm-hq product item requires product_id, product_name, or product_names",
+      path: ["product_id"]
+    }
+  );
 
-const quotesConfigSchema = z.object({
-  type: z.literal("quotes"),
-  adapter: quotesAdapterSchema,
-  metric_keys: z.array(z.string().min(1)).min(1),
-  endpoint: endpointSchema,
-  retry: quotesRetrySchema,
-  regex_rules: z.array(quotesRegexRuleSchema).optional(),
-  items: z.array(quotesSmmHqItemSchema).optional()
-}).refine(
-  (value) => value.adapter === "smm-hq" || value.items === undefined,
-  {
+const endpointSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (value) => {
+      if (value.startsWith("/")) return true;
+      try {
+        new URL(value);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    {
+      message:
+        "endpoint must be an absolute URL or a relative path beginning with /"
+    }
+  );
+
+const quotesConfigSchema = z
+  .object({
+    type: z.literal("quotes"),
+    adapter: quotesAdapterSchema,
+    metric_keys: z.array(z.string().min(1)).min(1),
+    endpoint: endpointSchema,
+    retry: quotesRetrySchema,
+    regex_rules: z.array(quotesRegexRuleSchema).optional(),
+    items: z.array(quotesSmmHqItemSchema).optional()
+  })
+  .refine((value) => value.adapter === "smm-hq" || value.items === undefined, {
     message: "quotes items are only valid for smm-hq adapter",
     path: ["items"]
-  }
-).refine(
-  (value) => value.adapter !== "smm-hq" || Boolean(value.items?.length),
-  {
-    message: "smm-hq adapter requires items",
-    path: ["items"]
-  }
-);
+  })
+  .refine(
+    (value) => value.adapter !== "smm-hq" || Boolean(value.items?.length),
+    {
+      message: "smm-hq adapter requires items",
+      path: ["items"]
+    }
+  );
 
 export const sourceConfigSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("rss"),
-    url: z.string().url()
+    url: z.string().url(),
+    keywordFilter: z.array(z.string().min(1)).optional()
   }),
   z.object({
     type: z.literal("html"),
@@ -107,27 +129,42 @@ export const sourceConfigSchema = z.discriminatedUnion("type", [
       date: z.string().min(1),
       content: z.string().min(1).optional()
     }),
-    useRealUa: z.boolean().optional()
+    useRealUa: z.boolean().optional(),
+    keywordFilter: z.array(z.string().min(1)).optional(),
+    verificationBlocked: z.boolean().optional(),
+    verificationBlockedReason: z.string().min(1).optional()
   }),
   z.object({
     type: z.literal("playwright"),
     listUrl: z.string().url(),
     waitFor: z.string().min(1),
     extractor: z.string().startsWith("() =>"),
-    useRealUa: z.boolean().optional()
+    useRealUa: z.boolean().optional(),
+    verificationBlocked: z.boolean().optional(),
+    verificationBlockedReason: z.string().min(1).optional()
   }),
   quotesConfigSchema,
   z.object({
     type: z.literal("announcement"),
-    adapter: z.enum(["cninfo", "szse", "sse"]),
+    adapter: z.enum(["cninfo", "szse", "sse", "nea-news"]),
     searchkey: z.string().min(1).optional(),
-    titleKeywords: z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]).optional(),
+    titleKeywords: z
+      .union([z.string().min(1), z.array(z.string().min(1)).min(1)])
+      .optional(),
     litigationFilter: z.boolean().optional(),
-    stock: z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]).optional(),
+    stock: z
+      .union([z.string().min(1), z.array(z.string().min(1)).min(1)])
+      .optional(),
     stocks: z.array(z.string().min(1)).optional(),
-    stockCode: z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]).optional(),
-    secCode: z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]).optional(),
-    securityCode: z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]).optional(),
+    stockCode: z
+      .union([z.string().min(1), z.array(z.string().min(1)).min(1)])
+      .optional(),
+    secCode: z
+      .union([z.string().min(1), z.array(z.string().min(1)).min(1)])
+      .optional(),
+    securityCode: z
+      .union([z.string().min(1), z.array(z.string().min(1)).min(1)])
+      .optional(),
     useRealUa: z.boolean().optional(),
     pageNum: z.number().int().min(1).optional(),
     pageSize: z.number().int().min(1).max(200).optional(),
@@ -136,8 +173,12 @@ export const sourceConfigSchema = z.discriminatedUnion("type", [
     endDate: z.string().min(1).optional(),
     seDate: z.string().min(1).optional(),
     tabName: z.string().min(1).optional(),
-    channelCode: z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]).optional(),
-    bigCategoryId: z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]).optional(),
+    channelCode: z
+      .union([z.string().min(1), z.array(z.string().min(1)).min(1)])
+      .optional(),
+    bigCategoryId: z
+      .union([z.string().min(1), z.array(z.string().min(1)).min(1)])
+      .optional(),
     companyName: z.string().min(1).optional(),
     bulletinType: z.string().min(1).optional(),
     category: z.string().min(1).optional(),
@@ -173,8 +214,15 @@ const sourceBodySchema = z.object({
   enabled: z.boolean().optional()
 });
 
-function fetcherMatchesConfig(value: { fetcherType?: string; config?: { type: string } }): boolean {
-  return !value.fetcherType || !value.config || value.fetcherType === value.config.type;
+function fetcherMatchesConfig(value: {
+  fetcherType?: string;
+  config?: { type: string };
+}): boolean {
+  return (
+    !value.fetcherType ||
+    !value.config ||
+    value.fetcherType === value.config.type
+  );
 }
 
 function crawlRiskKeywordsConfigured(value: {
@@ -189,7 +237,11 @@ function crawlRiskKeywordsConfigured(value: {
   if (value.config?.type !== "crawl" || value.config.riskFilter !== true) {
     return true;
   }
-  return Boolean(value.config.entityKeywords?.length && value.config.riskKeywords?.length && value.config.includeDomains?.length);
+  return Boolean(
+    value.config.entityKeywords?.length &&
+    value.config.riskKeywords?.length &&
+    value.config.includeDomains?.length
+  );
 }
 
 function announcementConfigValid(value: {
@@ -226,13 +278,76 @@ function announcementConfigValid(value: {
       return false;
     }
     if (value.config.adapter === "cninfo") {
-      return endpoint.hostname === "www.cninfo.com.cn" && endpoint.pathname === "/new/hisAnnouncement/query";
+      // Keep in sync with apps/worker/src/fetchers/announcements/cninfo.ts resolveCninfoEndpoint.
+      // apps/web and apps/worker must not import each other, so the allowlist rules are duplicated on purpose.
+      // Constraints (all must hold): protocol already limited to http:/https: above (NOT https-only —
+      // DEFAULT_ENDPOINT and seed configs are http://; forcing https would break the live T1 CNINFO
+      // source), hostname www.cninfo.com.cn, path exact match, port empty (default 80/443 only —
+      // non-default ports are a different origin), username/password empty (Node/Undici fetch throws
+      // on credentialed URLs and would be mis-wrapped as FETCH_TIMEOUT by the worker retry loop).
+      // query/hash are intentionally unrestricted: they do not change the request destination.
+      return (
+        endpoint.hostname === "www.cninfo.com.cn" &&
+        endpoint.pathname === "/new/hisAnnouncement/query" &&
+        endpoint.port === "" &&
+        endpoint.username === "" &&
+        endpoint.password === ""
+      );
     }
     if (value.config.adapter === "szse") {
-      return endpoint.hostname === "www.szse.cn" && endpoint.pathname === "/api/disc/announcement/annList";
+      // Keep in sync with apps/worker/src/fetchers/announcements/szse.ts resolveSzseEndpoint.
+      // apps/web and apps/worker must not import each other, so the allowlist rules are duplicated on purpose.
+      // Constraints (all must hold): protocol already limited to http:/https: above (NOT https-only —
+      // DEFAULT_ENDPOINT and seed configs are http://; forcing https would break the live T1 SZSE
+      // source), hostname www.szse.cn, path exact match, port empty (default 80/443 only —
+      // non-default ports are a different origin), username/password empty (Node/Undici fetch throws
+      // on credentialed URLs and would be mis-wrapped as FETCH_TIMEOUT by the worker retry loop).
+      // query/hash are intentionally unrestricted: they do not change the request destination.
+      return (
+        endpoint.hostname === "www.szse.cn" &&
+        endpoint.pathname === "/api/disc/announcement/annList" &&
+        endpoint.port === "" &&
+        endpoint.username === "" &&
+        endpoint.password === ""
+      );
     }
     if (value.config.adapter === "sse") {
-      return endpoint.hostname === "query.sse.com.cn" && endpoint.pathname === "/security/stock/queryCompanyBulletin.do";
+      // Keep in sync with apps/worker/src/fetchers/announcements/sse.ts validateSseEndpoint.
+      // apps/web and apps/worker must not import each other, so the allowlist rules are duplicated on purpose.
+      // Constraints (all must hold): protocol already limited to http:/https: above (NOT https-only —
+      // DEFAULT_ENDPOINT and seed configs are http://; forcing https would break the live T1 SSE
+      // source), hostname query.sse.com.cn, path exact match, port empty (default 80/443 only —
+      // non-default ports are a different origin), username/password empty (Node/Undici fetch throws
+      // on credentialed URLs and would be mis-wrapped as FETCH_TIMEOUT by the worker retry loop).
+      // query/hash are intentionally unrestricted: they do not change the request destination.
+      return (
+        endpoint.hostname === "query.sse.com.cn" &&
+        endpoint.pathname === "/security/stock/queryCompanyBulletin.do" &&
+        endpoint.port === "" &&
+        endpoint.username === "" &&
+        endpoint.password === ""
+      );
+    }
+    if (value.config.adapter === "nea-news") {
+      // Keep in sync with apps/worker/src/fetchers/announcements/nea-news.ts resolveNeaNewsEndpoint.
+      // apps/web and apps/worker must not import each other, so the allowlist rules are duplicated on purpose.
+      // Only the path shape is relaxed (upstream republish changes the content hash); protocol,
+      // hostname, port, and credentials stay strict (SSRF / fetch-safety boundary).
+      // Constraints (all must hold): protocol https:, hostname www.nea.gov.cn, path matches
+      // NEA_ALLOWED_PATH, port empty (default 443 only — non-default ports are a different origin),
+      // username/password empty (Node fetch throws on credentialed URLs and would be mis-wrapped as
+      // FETCH_TIMEOUT by the worker retry loop). query/hash are intentionally unrestricted: they do
+      // not change the request destination (host/port/path), are not an SSRF surface, and upstream
+      // may add cache-busting params later.
+      const NEA_ALLOWED_PATH = /^\/xwzx\/ds_[0-9a-f]{32}\.json$/;
+      return (
+        endpoint.protocol === "https:" &&
+        endpoint.hostname === "www.nea.gov.cn" &&
+        endpoint.port === "" &&
+        endpoint.username === "" &&
+        endpoint.password === "" &&
+        NEA_ALLOWED_PATH.test(endpoint.pathname)
+      );
     }
     return false;
   } catch {
@@ -240,28 +355,42 @@ function announcementConfigValid(value: {
   }
 }
 
-export const createSourceSchema = sourceBodySchema.refine(fetcherMatchesConfig, {
-  message: "fetcherType must match config.type",
-  path: ["fetcherType"]
-}).refine(crawlRiskKeywordsConfigured, {
-  message: "crawl riskFilter requires entityKeywords, riskKeywords, and includeDomains",
-  path: ["config", "entityKeywords"]
-}).refine(announcementConfigValid, {
-  message: "announcement config requires allowed endpoint and litigation keywords",
-  path: ["config", "endpoint"]
-});
+export const createSourceSchema = sourceBodySchema
+  .refine(fetcherMatchesConfig, {
+    message: "fetcherType must match config.type",
+    path: ["fetcherType"]
+  })
+  .refine(crawlRiskKeywordsConfigured, {
+    message:
+      "crawl riskFilter requires entityKeywords, riskKeywords, and includeDomains",
+    path: ["config", "entityKeywords"]
+  })
+  .refine(announcementConfigValid, {
+    message:
+      "announcement config requires allowed endpoint and litigation keywords",
+    path: ["config", "endpoint"]
+  });
 
-export const updateSourceSchema = sourceBodySchema.partial().refine(fetcherMatchesConfig, {
-  message: "fetcherType must match config.type",
-  path: ["fetcherType"]
-}).refine(crawlRiskKeywordsConfigured, {
-  message: "crawl riskFilter requires entityKeywords, riskKeywords, and includeDomains",
-  path: ["config", "entityKeywords"]
-}).refine(announcementConfigValid, {
-  message: "announcement config requires allowed endpoint and litigation keywords",
-  path: ["config", "endpoint"]
-});
+export const updateSourceSchema = sourceBodySchema
+  .partial()
+  .refine(fetcherMatchesConfig, {
+    message: "fetcherType must match config.type",
+    path: ["fetcherType"]
+  })
+  .refine(crawlRiskKeywordsConfigured, {
+    message:
+      "crawl riskFilter requires entityKeywords, riskKeywords, and includeDomains",
+    path: ["config", "entityKeywords"]
+  })
+  .refine(announcementConfigValid, {
+    message:
+      "announcement config requires allowed endpoint and litigation keywords",
+    path: ["config", "endpoint"]
+  });
 
 export function validationError(details: unknown): Response {
-  return Response.json({ error: { code: "VALIDATION", message: "参数校验失败", details } }, { status: 400 });
+  return Response.json(
+    { error: { code: "VALIDATION", message: "参数校验失败", details } },
+    { status: 400 }
+  );
 }

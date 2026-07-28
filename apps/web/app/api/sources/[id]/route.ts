@@ -2,6 +2,8 @@ import {
   DuplicateEnabledSourceError,
   getDb,
   ProtectedSourceUrlError,
+  SourceFetcherConfigMismatchError,
+  SourceVerificationPolicyError,
   softDeleteSource,
   updateSource
 } from "@fe-radar/db";
@@ -16,7 +18,10 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-export async function PUT(request: NextRequest, context: RouteContext): Promise<Response> {
+export async function PUT(
+  request: NextRequest,
+  context: RouteContext
+): Promise<Response> {
   const authError = await requireRequestRole(request, "editor");
   if (authError) return authError;
 
@@ -34,18 +39,32 @@ export async function PUT(request: NextRequest, context: RouteContext): Promise<
   try {
     source = await updateSource(getDb(), Number(id), parsed.data);
   } catch (error) {
-    if (error instanceof ProtectedSourceUrlError || error instanceof DuplicateEnabledSourceError) {
-      return Response.json({ error: { code: error.code, message: error.message } }, { status: 400 });
+    if (
+      error instanceof ProtectedSourceUrlError ||
+      error instanceof DuplicateEnabledSourceError ||
+      error instanceof SourceFetcherConfigMismatchError ||
+      error instanceof SourceVerificationPolicyError
+    ) {
+      return Response.json(
+        { error: { code: error.code, message: error.message } },
+        { status: 400 }
+      );
     }
     throw error;
   }
   if (!source) {
-    return Response.json({ error: { code: "NOT_FOUND", message: "信源不存在" } }, { status: 404 });
+    return Response.json(
+      { error: { code: "NOT_FOUND", message: "信源不存在" } },
+      { status: 404 }
+    );
   }
   return Response.json(source);
 }
 
-export async function DELETE(request: NextRequest, context: RouteContext): Promise<Response> {
+export async function DELETE(
+  request: NextRequest,
+  context: RouteContext
+): Promise<Response> {
   const authError = await requireRequestRole(request, "editor");
   if (authError) return authError;
 
@@ -55,7 +74,10 @@ export async function DELETE(request: NextRequest, context: RouteContext): Promi
   }
   const source = await softDeleteSource(getDb(), Number(id));
   if (!source) {
-    return Response.json({ error: { code: "NOT_FOUND", message: "信源不存在" } }, { status: 404 });
+    return Response.json(
+      { error: { code: "NOT_FOUND", message: "信源不存在" } },
+      { status: 404 }
+    );
   }
   return Response.json(source);
 }

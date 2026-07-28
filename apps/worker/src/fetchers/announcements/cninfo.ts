@@ -23,6 +23,14 @@ const STATIC_BASE_URL = "http://static.cninfo.com.cn";
 const DEFAULT_PAGE_SIZE = 30;
 const DEFAULT_PAGE_NUM = 1;
 const DEFAULT_LOOKBACK_DAYS = 7;
+// Keep in sync with apps/web/lib/api/sources-schema.ts announcementConfigValid (cninfo branch).
+// apps/web and apps/worker must not import each other, so the allowlist rules are duplicated on purpose.
+// Constraints (all must hold): protocol http: or https: (NOT https-only — DEFAULT_ENDPOINT and seed
+// configs are http://; forcing https would break the live T1 CNINFO source), hostname www.cninfo.com.cn,
+// path exact match, port empty (default 80/443 only — non-default ports are a different origin),
+// username/password empty (Node/Undici fetch throws on credentialed URLs and would be mis-wrapped as
+// FETCH_TIMEOUT by the retry loop). query/hash are intentionally unrestricted: they do not change
+// the request destination (host/port/path) and are not an SSRF surface.
 const ALLOWED_ENDPOINT_HOST = "www.cninfo.com.cn";
 const ALLOWED_ENDPOINT_PATH = "/new/hisAnnouncement/query";
 
@@ -147,7 +155,15 @@ export function buildCninfoFormBody(params: Record<string, string>): string {
 export function resolveCninfoEndpoint(config: AnnouncementSourceConfig): string {
   const endpoint = typeof config.endpoint === "string" && config.endpoint.trim() ? config.endpoint.trim() : DEFAULT_ENDPOINT;
   const parsed = new URL(endpoint);
-  if (parsed.hostname !== ALLOWED_ENDPOINT_HOST || parsed.pathname !== ALLOWED_ENDPOINT_PATH) {
+  // Mirror of apps/web announcementConfigValid cninfo branch — keep byte-for-byte intent equal.
+  if (
+    (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+    parsed.hostname !== ALLOWED_ENDPOINT_HOST ||
+    parsed.pathname !== ALLOWED_ENDPOINT_PATH ||
+    parsed.port !== "" ||
+    parsed.username !== "" ||
+    parsed.password !== ""
+  ) {
     throw new SourceFetchError("FETCH_CONFIG", `CNINFO endpoint is not allowed: ${endpoint}`, { endpoint });
   }
   return endpoint;

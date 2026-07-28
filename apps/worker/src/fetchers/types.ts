@@ -22,6 +22,7 @@ export interface HtmlSourceConfig {
   type: "html";
   listUrl: string;
   insecureTLS?: boolean;
+  keywordFilter?: string[];
   selectors: {
     item: string;
     title: string;
@@ -52,4 +53,11 @@ export type { CrawlSourceConfig };
 export type { DataproSourceConfig };
 export type { WebsearchSourceConfig };
 
-export type SourceConfig = RssSourceConfig | HtmlSourceConfig | PlaywrightSourceConfig | AnnouncementSourceConfig | CrawlSourceConfig | DataproSourceConfig | WebsearchSourceConfig;
+export type SourceConfig =
+  | RssSourceConfig
+  | HtmlSourceConfig
+  | PlaywrightSourceConfig
+  | AnnouncementSourceConfig
+  | CrawlSourceConfig
+  | DataproSourceConfig
+  | WebsearchSourceConfig;

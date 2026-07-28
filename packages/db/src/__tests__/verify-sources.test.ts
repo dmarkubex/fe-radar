@@ -4,11 +4,21 @@ import {
   suggestionFor,
   checkHtmlOrRss,
   checkPlaywright,
+  disabledSourceSuggestion,
+  enabledReachabilitySummary,
+  reachabilityGateFailed,
+  sourcesForVerification,
   verifySource,
   type VerifyResult
 } from "../../scripts/verify-sources";
 
-function makeSource(overrides: Partial<SourceRecord> & { name: string; url: string; fetcherType: FetcherType }): SourceRecord {
+function makeSource(
+  overrides: Partial<SourceRecord> & {
+    name: string;
+    url: string;
+    fetcherType: FetcherType;
+  }
+): SourceRecord {
   return {
     id: 1,
     tier: "T1",
@@ -75,14 +85,18 @@ describe("verify-sources", () => {
     });
 
     it("fails on network error (ECONNREFUSED)", async () => {
-      globalThis.fetch = vi.fn().mockRejectedValue(new Error("fetch failed: ECONNREFUSED"));
+      globalThis.fetch = vi
+        .fn()
+        .mockRejectedValue(new Error("fetch failed: ECONNREFUSED"));
       const result = await checkHtmlOrRss("https://example.com");
       expect(result.ok).toBe(false);
       expect(result.error).toContain("ECONNREFUSED");
     });
 
     it("fails on TLS/SSL error", async () => {
-      globalThis.fetch = vi.fn().mockRejectedValue(new Error("SSL certificate verification failed"));
+      globalThis.fetch = vi
+        .fn()
+        .mockRejectedValue(new Error("SSL certificate verification failed"));
       const result = await checkHtmlOrRss("https://example.com");
       expect(result.ok).toBe(false);
       expect(result.error).toContain("SSL");
@@ -103,32 +117,73 @@ describe("verify-sources", () => {
 
   describe("suggestionFor", () => {
     it("returns empty string for passing results", () => {
-      const result: VerifyResult = { name: "test", fetcherType: "html", url: "https://example.com", ok: true, suggestion: "" };
+      const result: VerifyResult = {
+        name: "test",
+        fetcherType: "html",
+        url: "https://example.com",
+        ok: true,
+        suggestion: ""
+      };
       expect(suggestionFor(result)).toBe("");
     });
 
     it("suggests disabling/proxy for 403", () => {
-      const result: VerifyResult = { name: "test", fetcherType: "html", url: "https://example.com", ok: false, status: 403, suggestion: "" };
+      const result: VerifyResult = {
+        name: "test",
+        fetcherType: "html",
+        url: "https://example.com",
+        ok: false,
+        status: 403,
+        suggestion: ""
+      };
       expect(suggestionFor(result)).toContain("403");
     });
 
     it("suggests URL verification for 404", () => {
-      const result: VerifyResult = { name: "test", fetcherType: "html", url: "https://example.com", ok: false, status: 404, suggestion: "" };
+      const result: VerifyResult = {
+        name: "test",
+        fetcherType: "html",
+        url: "https://example.com",
+        ok: false,
+        status: 404,
+        suggestion: ""
+      };
       expect(suggestionFor(result)).toContain("404");
     });
 
     it("suggests TLS fix for SSL errors", () => {
-      const result: VerifyResult = { name: "test", fetcherType: "html", url: "https://example.com", ok: false, error: "TLS handshake failed", suggestion: "" };
+      const result: VerifyResult = {
+        name: "test",
+        fetcherType: "html",
+        url: "https://example.com",
+        ok: false,
+        error: "TLS handshake failed",
+        suggestion: ""
+      };
       expect(suggestionFor(result)).toContain("TLS");
     });
 
     it("suggests timeout fix for timeout errors", () => {
-      const result: VerifyResult = { name: "test", fetcherType: "html", url: "https://example.com", ok: false, error: "Connection timeout", suggestion: "" };
+      const result: VerifyResult = {
+        name: "test",
+        fetcherType: "html",
+        url: "https://example.com",
+        ok: false,
+        error: "Connection timeout",
+        suggestion: ""
+      };
       expect(suggestionFor(result)).toContain("timed out");
     });
 
     it("suggests selector fix for playwright selector errors", () => {
-      const result: VerifyResult = { name: "test", fetcherType: "playwright", url: "https://example.com", ok: false, error: "selector timeout for '.news-list': waiting failed", suggestion: "" };
+      const result: VerifyResult = {
+        name: "test",
+        fetcherType: "playwright",
+        url: "https://example.com",
+        ok: false,
+        error: "selector timeout for '.news-list': waiting failed",
+        suggestion: ""
+      };
       expect(suggestionFor(result)).toContain("selector");
     });
   });
@@ -155,7 +210,10 @@ describe("verify-sources", () => {
       const result = await verifySource(source);
       expect(result.ok).toBe(true);
       expect(result.url).toBe("https://example.com/news");
-      expect(globalThis.fetch).toHaveBeenCalledWith("https://example.com/news", expect.anything());
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "https://example.com/news",
+        expect.anything()
+      );
     });
 
     it("html source falls back to source.url when no config URLs", async () => {
@@ -260,7 +318,11 @@ describe("verify-sources", () => {
         name: "pw-listurl",
         url: "https://example.com",
         fetcherType: "playwright",
-        config: { listUrl: "https://example.com/news", waitFor: ".news-list", extractor: "() => []" }
+        config: {
+          listUrl: "https://example.com/news",
+          waitFor: ".news-list",
+          extractor: "() => []"
+        }
       });
 
       const mockBrowser = {
@@ -277,7 +339,10 @@ describe("verify-sources", () => {
 
       const result = await checkPlaywright(source);
       expect(result.ok).toBe(true);
-      expect(globalThis.fetch).toHaveBeenCalledWith("https://example.com/news", expect.anything());
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "https://example.com/news",
+        expect.anything()
+      );
 
       vi.doUnmock("playwright");
     });
@@ -322,7 +387,11 @@ describe("verify-sources", () => {
 
       const mockPage = {
         goto: vi.fn().mockResolvedValue(undefined),
-        waitForSelector: vi.fn().mockRejectedValue(new Error("waiting for selector '.slow-selector' timed out")),
+        waitForSelector: vi
+          .fn()
+          .mockRejectedValue(
+            new Error("waiting for selector '.slow-selector' timed out")
+          ),
         $$eval: vi.fn().mockResolvedValue(0)
       };
       const mockBrowser = {
@@ -370,13 +439,122 @@ describe("verify-sources", () => {
     });
   });
 
-  describe("disabled sources are not verified", () => {
-    it("listSources filters to enabled=true, so disabled sources are excluded", () => {
-      const enabledSource = makeSource({ name: "enabled-src", url: "https://enabled.example.com", fetcherType: "html", enabled: true });
-      const disabledSource = makeSource({ name: "disabled-src", url: "https://disabled.example.com", fetcherType: "html", enabled: false });
-      const toVerify = [enabledSource, disabledSource].filter((s) => s.enabled);
+  describe("disabled source verification", () => {
+    it("keeps the default selection limited to enabled sources", () => {
+      const enabledSource = makeSource({
+        name: "enabled-src",
+        url: "https://enabled.example.com",
+        fetcherType: "html",
+        enabled: true
+      });
+      const disabledSource = makeSource({
+        name: "disabled-src",
+        url: "https://disabled.example.com",
+        fetcherType: "html",
+        enabled: false
+      });
+      const toVerify = sourcesForVerification(
+        [enabledSource, disabledSource],
+        false
+      );
       expect(toVerify).toHaveLength(1);
       expect(toVerify[0]!.name).toBe("enabled-src");
+    });
+
+    it("includes disabled sources only when explicitly requested", () => {
+      const enabledSource = makeSource({
+        name: "enabled-src",
+        url: "https://enabled.example.com",
+        fetcherType: "html",
+        enabled: true
+      });
+      const disabledSource = makeSource({
+        name: "disabled-src",
+        url: "https://disabled.example.com",
+        fetcherType: "html",
+        enabled: false
+      });
+      expect(
+        sourcesForVerification([enabledSource, disabledSource], true)
+      ).toHaveLength(2);
+    });
+
+    it("never probes sources blocked from verification by compliance policy", () => {
+      const robotsBlocked = makeSource({
+        name: "robots-blocked",
+        url: "https://example.com/disallowed",
+        fetcherType: "html",
+        enabled: false,
+        config: { verificationBlocked: true }
+      });
+      expect(sourcesForVerification([robotsBlocked], true)).toEqual([]);
+    });
+
+    it("excludes disabled failures from the enabled-source reachability gate", () => {
+      const summary = enabledReachabilitySummary([
+        {
+          name: "enabled-ok",
+          fetcherType: "html",
+          url: "https://ok.example.com",
+          sourceEnabled: true,
+          ok: true,
+          suggestion: ""
+        },
+        {
+          name: "disabled-fail",
+          fetcherType: "html",
+          url: "https://fail.example.com",
+          sourceEnabled: false,
+          ok: false,
+          suggestion: "failed"
+        }
+      ]);
+      expect(summary).toEqual({
+        enabledCount: 1,
+        okCount: 1,
+        failCount: 0,
+        ratio: 1
+      });
+      expect(reachabilityGateFailed(summary, true)).toBe(false);
+    });
+
+    it("does not fail the optional disabled-source report when no enabled source exists", () => {
+      const summary = enabledReachabilitySummary([
+        {
+          name: "disabled-fail",
+          fetcherType: "html",
+          url: "https://fail.example.com",
+          sourceEnabled: false,
+          ok: false,
+          suggestion: "failed"
+        }
+      ]);
+      expect(summary.enabledCount).toBe(0);
+      expect(reachabilityGateFailed(summary, true)).toBe(false);
+      expect(reachabilityGateFailed(summary, false)).toBe(true);
+    });
+
+    it("gives disabled sources an explicit re-enable or keep-disabled recommendation", () => {
+      expect(
+        disabledSourceSuggestion({
+          name: "recovered",
+          fetcherType: "html",
+          url: "https://recovered.example.com",
+          sourceEnabled: false,
+          ok: true,
+          suggestion: ""
+        })
+      ).toContain("content smoke");
+      expect(
+        disabledSourceSuggestion({
+          name: "still-failing",
+          fetcherType: "html",
+          url: "https://failed.example.com",
+          sourceEnabled: false,
+          ok: false,
+          suggestion: "Check DNS."
+        })
+      ).toContain("Still unreachable");
     });
   });
 
@@ -386,7 +564,12 @@ describe("verify-sources", () => {
         name: "北极星电力新闻网",
         url: "https://news.bjx.com.cn/",
         fetcherType: "playwright",
-        config: { type: "playwright", listUrl: "https://news.bjx.com.cn/", waitFor: ".news-list", extractor: "() => []" }
+        config: {
+          type: "playwright",
+          listUrl: "https://news.bjx.com.cn/",
+          waitFor: ".news-list",
+          extractor: "() => []"
+        }
       });
       expect(after0011.fetcherType).toBe("playwright");
       expect(after0011.url).toBe("https://news.bjx.com.cn/");
@@ -399,7 +582,11 @@ describe("verify-sources", () => {
         url: "https://smartgrid.bjx.com.cn/",
         fetcherType: "playwright",
         enabled: false,
-        config: { type: "playwright", listUrl: "https://smartgrid.bjx.com.cn/", waitFor: "body" }
+        config: {
+          type: "playwright",
+          listUrl: "https://smartgrid.bjx.com.cn/",
+          waitFor: "body"
+        }
       });
       expect(after0011.enabled).toBe(false);
     });
@@ -409,7 +596,16 @@ describe("verify-sources", () => {
         name: "国家发改委",
         url: "https://www.ndrc.gov.cn/xwdt/xwfb/",
         fetcherType: "html",
-        config: { type: "html", listUrl: "https://www.ndrc.gov.cn/xwdt/xwfb/", selectors: { item: "ul.u-list > li", title: "a", link: "a", date: "span" } }
+        config: {
+          type: "html",
+          listUrl: "https://www.ndrc.gov.cn/xwdt/xwfb/",
+          selectors: {
+            item: "ul.u-list > li",
+            title: "a",
+            link: "a",
+            date: "span"
+          }
+        }
       });
       const config = after0011.config as { selectors: { item: string } };
       expect(config.selectors.item).toBe("ul.u-list > li");
@@ -419,9 +615,21 @@ describe("verify-sources", () => {
   describe("quotes sources excluded from v1.0 news gate", () => {
     it("quotes fetcherType is filtered out from news verification", () => {
       const sources = [
-        makeSource({ name: "html-src", url: "https://example.com", fetcherType: "html" }),
-        makeSource({ name: "quotes-src", url: "https://quotes.example.com", fetcherType: "quotes" }),
-        makeSource({ name: "rss-src", url: "https://rss.example.com", fetcherType: "rss" })
+        makeSource({
+          name: "html-src",
+          url: "https://example.com",
+          fetcherType: "html"
+        }),
+        makeSource({
+          name: "quotes-src",
+          url: "https://quotes.example.com",
+          fetcherType: "quotes"
+        }),
+        makeSource({
+          name: "rss-src",
+          url: "https://rss.example.com",
+          fetcherType: "rss"
+        })
       ];
       const newsSources = sources.filter((s) => s.fetcherType !== "quotes");
       expect(newsSources).toHaveLength(2);
@@ -433,7 +641,10 @@ describe("verify-sources", () => {
     it("the script imports from src/repos/sources (DB-backed), not from 0004_sources_seed.sql", async () => {
       const { readFileSync } = await import("node:fs");
       const { resolve } = await import("node:path");
-      const scriptPath = resolve(import.meta.dirname, "../../scripts/verify-sources.ts");
+      const scriptPath = resolve(
+        import.meta.dirname,
+        "../../scripts/verify-sources.ts"
+      );
       const scriptContent = readFileSync(scriptPath, "utf8");
       expect(scriptContent).toContain("listSources");
       expect(scriptContent).toContain("createDbClient");
@@ -443,7 +654,10 @@ describe("verify-sources", () => {
     it("the script fails fast when DATABASE_URL is not set", async () => {
       const { readFileSync } = await import("node:fs");
       const { resolve } = await import("node:path");
-      const scriptPath = resolve(import.meta.dirname, "../../scripts/verify-sources.ts");
+      const scriptPath = resolve(
+        import.meta.dirname,
+        "../../scripts/verify-sources.ts"
+      );
       const scriptContent = readFileSync(scriptPath, "utf8");
       expect(scriptContent).toContain("DATABASE_URL");
       expect(scriptContent).toMatch(/Cannot verify|not set/);

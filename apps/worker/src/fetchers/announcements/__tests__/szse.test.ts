@@ -179,6 +179,81 @@ describe("szseAdapter.fetch", () => {
     })).rejects.toMatchObject({ code: "FETCH_CONFIG" });
   });
 
+  it("rejects non-default ports (different origin on the same host)", () => {
+    for (const bad of [
+      "http://www.szse.cn:8080/api/disc/announcement/annList",
+      "https://www.szse.cn:8443/api/disc/announcement/annList",
+    ]) {
+      expect(() =>
+        szse.resolveSzseEndpoint({
+          type: "announcement",
+          adapter: "szse",
+          endpoint: bad,
+        })
+      ).toThrow(/not allowed/);
+    }
+  });
+
+  it("rejects endpoints with embedded credentials (Node fetch cannot construct them)", () => {
+    for (const bad of [
+      "http://u:p@www.szse.cn/api/disc/announcement/annList",
+      "http://u@www.szse.cn/api/disc/announcement/annList",
+      // password-only: username="" password="pass" — must hit password !== "" clause
+      "http://:pass@www.szse.cn/api/disc/announcement/annList",
+    ]) {
+      expect(() =>
+        szse.resolveSzseEndpoint({
+          type: "announcement",
+          adapter: "szse",
+          endpoint: bad,
+        })
+      ).toThrow(/not allowed/);
+    }
+  });
+
+  it("rejects non-http(s) protocols", () => {
+    expect(() =>
+      szse.resolveSzseEndpoint({
+        type: "announcement",
+        adapter: "szse",
+        endpoint: "file://www.szse.cn/api/disc/announcement/annList",
+      })
+    ).toThrow(/not allowed/);
+  });
+
+  it("still accepts seed http:// DEFAULT_ENDPOINT and https upgrade on default port", () => {
+    // Seed and DEFAULT_ENDPOINT are http:// — must NOT force https (would break live T1).
+    expect(
+      szse.resolveSzseEndpoint({
+        type: "announcement",
+        adapter: "szse",
+        endpoint: "http://www.szse.cn/api/disc/announcement/annList",
+      })
+    ).toBe("http://www.szse.cn/api/disc/announcement/annList");
+    expect(
+      szse.resolveSzseEndpoint({
+        type: "announcement",
+        adapter: "szse",
+        endpoint: "https://www.szse.cn/api/disc/announcement/annList",
+      })
+    ).toBe("https://www.szse.cn/api/disc/announcement/annList");
+  });
+
+  it("still rejects wrong host or path", () => {
+    for (const bad of [
+      "http://evil.example/api/disc/announcement/annList",
+      "http://www.szse.cn/other/path",
+    ]) {
+      expect(() =>
+        szse.resolveSzseEndpoint({
+          type: "announcement",
+          adapter: "szse",
+          endpoint: bad,
+        })
+      ).toThrow(/not allowed/);
+    }
+  });
+
   it("skips malformed records while keeping valid ones", async () => {
     mockFetch.mockImplementation(async (_url, init) => {
       if (init?.method === "POST") {

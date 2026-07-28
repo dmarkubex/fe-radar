@@ -5,7 +5,7 @@ const {
   mockGetDb,
   mockMarkSourceSuccess,
   mockRecordSourceFailure,
-  mockFetchAnnouncements,
+  mockFetchSourceItems,
   mockEnqueueItemPipeline,
   mockFlowProducer,
   mockRedis,
@@ -26,7 +26,7 @@ const {
     mockGetDb: vi.fn(),
     mockMarkSourceSuccess: vi.fn().mockResolvedValue(undefined),
     mockRecordSourceFailure: vi.fn().mockResolvedValue(undefined),
-    mockFetchAnnouncements: vi.fn(),
+    mockFetchSourceItems: vi.fn(),
     mockEnqueueItemPipeline: vi.fn().mockResolvedValue(undefined),
     mockFlowProducer: vi.fn(function () {
       return { close: vi.fn().mockResolvedValue(undefined) };
@@ -92,10 +92,7 @@ vi.mock("../queues", () => ({
 }));
 
 vi.mock("../fetchers", () => ({
-  fetchRss: vi.fn(),
-  fetchHtml: vi.fn(),
-  fetchPlaywright: vi.fn(),
-  fetchAnnouncements: mockFetchAnnouncements,
+  fetchSourceItems: mockFetchSourceItems,
 }));
 
 vi.mock("../fetchers/playwright", () => ({
@@ -209,7 +206,7 @@ function makeDb() {
 describe("handleFetchJob announcement routing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetchAnnouncements.mockResolvedValue([
+    mockFetchSourceItems.mockResolvedValue([
       {
         title: "远东股份公告",
         url: "https://example.com/a",
@@ -224,9 +221,10 @@ describe("handleFetchJob announcement routing", () => {
 
     await __testables.handleFetchJob({ data: { sourceId: 7 } });
 
-    expect(mockFetchAnnouncements).toHaveBeenCalledWith(
+    expect(mockFetchSourceItems).toHaveBeenCalledWith(
       { type: "announcement", adapter: "stub-announcement-adapter" },
-      { sourceName: "交易所公告", useRealUa: false }
+      { sourceName: "交易所公告", useRealUa: false },
+      null
     );
     expect(db.insert).toHaveBeenCalledWith(mockItems);
     expect(db.insert).toHaveBeenCalledWith(mockItemAnalysis);

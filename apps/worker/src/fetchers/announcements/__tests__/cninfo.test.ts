@@ -246,6 +246,81 @@ describe("cninfoAdapter.fetch", () => {
     })).rejects.toMatchObject({ code: "FETCH_CONFIG" });
   });
 
+  it("rejects non-default ports (different origin on the same host)", () => {
+    for (const bad of [
+      "http://www.cninfo.com.cn:8080/new/hisAnnouncement/query",
+      "https://www.cninfo.com.cn:8443/new/hisAnnouncement/query",
+    ]) {
+      expect(() =>
+        cninfo.resolveCninfoEndpoint({
+          type: "announcement",
+          adapter: "cninfo",
+          endpoint: bad,
+        })
+      ).toThrow(/not allowed/);
+    }
+  });
+
+  it("rejects endpoints with embedded credentials (Node fetch cannot construct them)", () => {
+    for (const bad of [
+      "http://u:p@www.cninfo.com.cn/new/hisAnnouncement/query",
+      "http://u@www.cninfo.com.cn/new/hisAnnouncement/query",
+      // password-only: username="" password="pass" — must hit password !== "" clause
+      "http://:pass@www.cninfo.com.cn/new/hisAnnouncement/query",
+    ]) {
+      expect(() =>
+        cninfo.resolveCninfoEndpoint({
+          type: "announcement",
+          adapter: "cninfo",
+          endpoint: bad,
+        })
+      ).toThrow(/not allowed/);
+    }
+  });
+
+  it("rejects non-http(s) protocols", () => {
+    expect(() =>
+      cninfo.resolveCninfoEndpoint({
+        type: "announcement",
+        adapter: "cninfo",
+        endpoint: "file://www.cninfo.com.cn/new/hisAnnouncement/query",
+      })
+    ).toThrow(/not allowed/);
+  });
+
+  it("still accepts seed http:// DEFAULT_ENDPOINT and https upgrade on default port", () => {
+    // Seed and DEFAULT_ENDPOINT are http:// — must NOT force https (would break live T1).
+    expect(
+      cninfo.resolveCninfoEndpoint({
+        type: "announcement",
+        adapter: "cninfo",
+        endpoint: "http://www.cninfo.com.cn/new/hisAnnouncement/query",
+      })
+    ).toBe("http://www.cninfo.com.cn/new/hisAnnouncement/query");
+    expect(
+      cninfo.resolveCninfoEndpoint({
+        type: "announcement",
+        adapter: "cninfo",
+        endpoint: "https://www.cninfo.com.cn/new/hisAnnouncement/query",
+      })
+    ).toBe("https://www.cninfo.com.cn/new/hisAnnouncement/query");
+  });
+
+  it("still rejects wrong host or path", () => {
+    for (const bad of [
+      "http://evil.example/new/hisAnnouncement/query",
+      "http://www.cninfo.com.cn/other/path",
+    ]) {
+      expect(() =>
+        cninfo.resolveCninfoEndpoint({
+          type: "announcement",
+          adapter: "cninfo",
+          endpoint: bad,
+        })
+      ).toThrow(/not allowed/);
+    }
+  });
+
   it("skips malformed records while keeping valid ones", async () => {
     mockFetch.mockImplementation(async (_url, init) => {
       if (init?.method === "POST") {

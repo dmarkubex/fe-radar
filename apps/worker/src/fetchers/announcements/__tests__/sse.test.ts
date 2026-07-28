@@ -208,6 +208,51 @@ describe("sseAdapter.fetch", () => {
       },
     })).rejects.toMatchObject({ code: "FETCH_CONFIG" });
   });
+
+  it("rejects non-default ports (different origin on the same host)", () => {
+    for (const bad of [
+      "http://query.sse.com.cn:8080/security/stock/queryCompanyBulletin.do",
+      "https://query.sse.com.cn:8443/security/stock/queryCompanyBulletin.do",
+    ]) {
+      expect(() => sse.validateSseEndpoint(bad)).toThrow(/not allowed/);
+    }
+  });
+
+  it("rejects endpoints with embedded credentials (Node fetch cannot construct them)", () => {
+    for (const bad of [
+      "http://u:p@query.sse.com.cn/security/stock/queryCompanyBulletin.do",
+      "http://u@query.sse.com.cn/security/stock/queryCompanyBulletin.do",
+      // password-only: username="" password="pass" — must hit password !== "" clause
+      "http://:pass@query.sse.com.cn/security/stock/queryCompanyBulletin.do",
+    ]) {
+      expect(() => sse.validateSseEndpoint(bad)).toThrow(/not allowed/);
+    }
+  });
+
+  it("rejects non-http(s) protocols", () => {
+    expect(() =>
+      sse.validateSseEndpoint("file://query.sse.com.cn/security/stock/queryCompanyBulletin.do")
+    ).toThrow(/not allowed/);
+  });
+
+  it("still accepts seed http:// DEFAULT_ENDPOINT and https upgrade on default port", () => {
+    // Seed and DEFAULT_ENDPOINT are http:// — must NOT force https (would break live T1).
+    expect(
+      sse.validateSseEndpoint("http://query.sse.com.cn/security/stock/queryCompanyBulletin.do")
+    ).toBe("http://query.sse.com.cn/security/stock/queryCompanyBulletin.do");
+    expect(
+      sse.validateSseEndpoint("https://query.sse.com.cn/security/stock/queryCompanyBulletin.do")
+    ).toBe("https://query.sse.com.cn/security/stock/queryCompanyBulletin.do");
+  });
+
+  it("still rejects wrong host or path", () => {
+    for (const bad of [
+      "http://evil.example/security/stock/queryCompanyBulletin.do",
+      "http://query.sse.com.cn/other/path",
+    ]) {
+      expect(() => sse.validateSseEndpoint(bad)).toThrow(/not allowed/);
+    }
+  });
 });
 
 describe("mapSseResponseToStandardItems", () => {

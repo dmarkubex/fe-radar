@@ -9,7 +9,8 @@
     "lint": "eslint src --max-warnings=0",
     "start": "node dist/main.js",
     "test": "vitest run --passWithNoTests",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:sources": "tsx src/scripts/verify-sources.ts"
   },
   "dependencies": {
     "@fe-radar/core": "workspace:*",

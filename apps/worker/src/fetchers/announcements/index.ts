@@ -1,13 +1,20 @@
 import { SourceFetchError } from "@fe-radar/shared";
-import type { AnnouncementSourceConfig, FetchContext, StandardItem } from "../types";
+import type {
+  AnnouncementSourceConfig,
+  FetchContext,
+  StandardItem
+} from "../types";
 import { cninfoAdapter } from "./cninfo";
+import { neaNewsAdapter } from "./nea-news";
 import { sseAdapter } from "./sse";
 import type { AnnouncementAdapter } from "./types";
 import { szseAdapter } from "./szse";
 
 const adapterRegistry: Record<string, AnnouncementAdapter> = {};
 
-export function registerAnnouncementAdapter(adapter: AnnouncementAdapter): void {
+export function registerAnnouncementAdapter(
+  adapter: AnnouncementAdapter
+): void {
   adapterRegistry[adapter.name] = adapter;
 }
 
@@ -29,10 +36,11 @@ export async function fetchAnnouncements(
 
   return adapter.fetch({
     ...ctx,
-    sourceConfig: config,
+    sourceConfig: config
   });
 }
 
 registerAnnouncementAdapter(sseAdapter);
 registerAnnouncementAdapter(szseAdapter);
 registerAnnouncementAdapter(cninfoAdapter);
+registerAnnouncementAdapter(neaNewsAdapter);

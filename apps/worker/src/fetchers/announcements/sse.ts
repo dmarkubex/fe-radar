@@ -22,6 +22,14 @@ const DEFAULT_PAGE_SIZE = 30;
 const DEFAULT_BEGIN_PAGE = 0;
 const DEFAULT_LOOKBACK_DAYS = 7;
 const SSE_REFERER = "http://www.sse.com.cn/disclosure/bulletin/company/";
+// Keep in sync with apps/web/lib/api/sources-schema.ts announcementConfigValid (sse branch).
+// apps/web and apps/worker must not import each other, so the allowlist rules are duplicated on purpose.
+// Constraints (all must hold): protocol http: or https: (NOT https-only — DEFAULT_ENDPOINT and seed
+// configs are http://; forcing https would break the live T1 SSE source), hostname query.sse.com.cn,
+// path exact match, port empty (default 80/443 only — non-default ports are a different origin),
+// username/password empty (Node/Undici fetch throws on credentialed URLs and would be mis-wrapped as
+// FETCH_TIMEOUT by the retry loop). query/hash are intentionally unrestricted: they do not change
+// the request destination (host/port/path) and are not an SSRF surface.
 const ALLOWED_ENDPOINT_HOST = "query.sse.com.cn";
 const ALLOWED_ENDPOINT_PATH = "/security/stock/queryCompanyBulletin.do";
 
@@ -155,7 +163,15 @@ export function buildSseQueryUrl(config: AnnouncementSourceConfig, now = new Dat
 
 export function validateSseEndpoint(endpoint: string): string {
   const parsed = new URL(endpoint);
-  if (parsed.hostname !== ALLOWED_ENDPOINT_HOST || parsed.pathname !== ALLOWED_ENDPOINT_PATH) {
+  // Mirror of apps/web announcementConfigValid sse branch — keep byte-for-byte intent equal.
+  if (
+    (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+    parsed.hostname !== ALLOWED_ENDPOINT_HOST ||
+    parsed.pathname !== ALLOWED_ENDPOINT_PATH ||
+    parsed.port !== "" ||
+    parsed.username !== "" ||
+    parsed.password !== ""
+  ) {
     throw new SourceFetchError("FETCH_CONFIG", `SSE endpoint is not allowed: ${endpoint}`, { endpoint });
   }
   return endpoint;
