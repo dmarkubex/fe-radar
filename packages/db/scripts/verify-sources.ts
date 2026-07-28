@@ -37,6 +37,25 @@ const TIMEOUT_MS = 10_000;
 const PLAYWRIGHT_SELECTOR_TIMEOUT_MS = 5_000;
 const USER_AGENT = "FE-Radar Verify Bot (+https://fe-radar.internal/bot)";
 
+// MIRROR: 按 fetcher 类型镜像 rss.ts / html.ts 的读取字段，三处必须同步。
+function verificationTargetUrl(
+  source: SourceRecord,
+  config: Record<string, unknown> | null
+): string {
+  const configKey =
+    source.fetcherType === "rss"
+      ? "url"
+      : source.fetcherType === "html" || source.fetcherType === "playwright"
+        ? "listUrl"
+        : undefined;
+  const targetUrl = configKey
+    ? (config?.[configKey] as string | undefined)
+    : undefined;
+  if (targetUrl === "")
+    throw new Error(`config.${configKey} must not be empty`);
+  return targetUrl ?? source.url;
+}
+
 export function suggestionFor(result: VerifyResult): string {
   if (result.ok) return "";
   if (result.status === 403)
@@ -104,7 +123,7 @@ export async function checkPlaywright(
     };
   }
 
-  const targetUrl = (config?.listUrl as string) || source.url;
+  const targetUrl = verificationTargetUrl(source, config);
 
   const urlCheck = await checkHtmlOrRss(targetUrl);
   if (!urlCheck.ok) {
@@ -181,8 +200,7 @@ export async function verifySource(
 ): Promise<VerifyResult> {
   if (source.fetcherType === "html" || source.fetcherType === "rss") {
     const config = source.config as Record<string, unknown> | null;
-    const targetUrl =
-      (config?.listUrl as string) || (config?.url as string) || source.url;
+    const targetUrl = verificationTargetUrl(source, config);
     const check = await checkHtmlOrRss(targetUrl);
     return {
       name: source.name,
@@ -196,7 +214,7 @@ export async function verifySource(
 
   if (source.fetcherType === "playwright") {
     const config = source.config as Record<string, unknown> | null;
-    const targetUrl = (config?.listUrl as string) || source.url;
+    const targetUrl = verificationTargetUrl(source, config);
     const check = await checkPlaywright(source);
     return {
       name: source.name,

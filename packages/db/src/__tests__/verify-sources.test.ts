@@ -216,17 +216,85 @@ describe("verify-sources", () => {
       );
     });
 
-    it("html source falls back to source.url when no config URLs", async () => {
+    it("html source ignores config.url and falls back to source.url when listUrl is absent", async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
       const source = makeSource({
         name: "test-html",
         url: "https://example.com",
         fetcherType: "html",
-        config: {}
+        config: { url: "https://legacy.example.com" }
       });
       const result = await verifySource(source);
       expect(result.ok).toBe(true);
       expect(result.url).toBe("https://example.com");
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "https://example.com",
+        expect.anything()
+      );
+    });
+
+    it.each([
+      {
+        name: "界面新闻 能源",
+        sourceUrl: "https://www.jiemian.com/lists/55.html",
+        configUrl: "http://rsshub:1200/jiemian/lists/856"
+      },
+      {
+        name: "36氪 快讯",
+        sourceUrl: "https://36kr.com/information/web_news/",
+        configUrl: "http://rsshub:1200/36kr/information/web_news"
+      },
+      {
+        name: "第一财经 头条",
+        sourceUrl: "https://www.yicai.com/news/energy/",
+        configUrl: "http://rsshub:1200/yicai/headline"
+      }
+    ])(
+      "$name rss source uses config.url as target",
+      async ({ name, sourceUrl, configUrl }) => {
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+        const source = makeSource({
+          name,
+          url: sourceUrl,
+          fetcherType: "rss",
+          config: { url: configUrl }
+        });
+
+        const result = await verifySource(source);
+
+        expect(result.ok).toBe(true);
+        expect(result.url).toBe(configUrl);
+        expect(globalThis.fetch).toHaveBeenCalledWith(
+          configUrl,
+          expect.anything()
+        );
+      }
+    );
+
+    it("rejects an empty listUrl instead of silently probing source.url", async () => {
+      const source = makeSource({
+        name: "test-html",
+        url: "https://example.com",
+        fetcherType: "html",
+        config: { listUrl: "" }
+      });
+
+      await expect(verifySource(source)).rejects.toThrow(
+        "config.listUrl must not be empty"
+      );
+    });
+
+    it("rejects an empty rss config.url instead of silently probing source.url", async () => {
+      const source = makeSource({
+        name: "test-rss",
+        url: "https://example.com/rss.xml",
+        fetcherType: "rss",
+        config: { url: "" }
+      });
+
+      await expect(verifySource(source)).rejects.toThrow(
+        "config.url must not be empty"
+      );
     });
 
     it("html source fails on non-2xx", async () => {

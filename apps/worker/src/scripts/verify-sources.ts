@@ -54,6 +54,25 @@ function sourceConfig(source: SourceRecord): Record<string, unknown> {
     : {};
 }
 
+// MIRROR: 按 fetcher 类型镜像 rss.ts / html.ts 的读取字段，三处必须同步。
+function verificationTargetUrl(
+  source: SourceRecord,
+  config: Record<string, unknown> | null
+): string {
+  const configKey =
+    source.fetcherType === "rss"
+      ? "url"
+      : source.fetcherType === "html" || source.fetcherType === "playwright"
+        ? "listUrl"
+        : undefined;
+  const targetUrl = configKey
+    ? (config?.[configKey] as string | undefined)
+    : undefined;
+  if (targetUrl === "")
+    throw new Error(`config.${configKey} must not be empty`);
+  return targetUrl ?? source.url;
+}
+
 export async function verifySourcesWithWorker(
   sources: readonly SourceRecord[],
   options: VerifyOptions = {}
@@ -107,9 +126,10 @@ export async function verifySourcesWithWorker(
 
     try {
       const useRealUa = config.useRealUa === true;
-      const protocol = new URL(source.url).protocol;
+      const targetUrl = verificationTargetUrl(source, config);
+      const protocol = new URL(targetUrl).protocol;
       if (protocol === "http:" || protocol === "https:") {
-        await robotsCheck(source.url, acquireUserAgent(useRealUa));
+        await robotsCheck(targetUrl, acquireUserAgent(useRealUa));
       }
       const items = await fetchItems(config as unknown as SourceConfig, {
         sourceName: source.name,

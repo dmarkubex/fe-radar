@@ -19,6 +19,43 @@
 
 **关键纪律**：本机失真网络正是根因 R1 —— `0014` 当初就是在这种网络下把政府源误判为"不可达"并批量禁用。因此本轮**刻意不产出 `0038` 迁移**，避免用同一口失真的井水再打一次水。
 
+## G4-3：0022 生产效果边界披露
+
+生产 baseline 的账本已有 0022 记录，repair 命中后走 `skipped`，**本文件的业务 SQL 在生产永远不会执行**。G4 只保证全新库 / 灾难恢复 / CI 能跑过 0022，**不保证生产的北极星信源配置被改写**。生产那 6 条源的修复属于另一批次（信源实抓验证）。
+
+## R-VERIFY-01：verify 门禁对 announcement / crawl 的 robots 探针 ≠ 实际请求地址
+
+**登记日期**：2026-07-28（G4/P2 批次第 4 轮评审，grok 发现，omp 独立复核确认）
+**性质**：既有缺陷，非本批引入 —— 本批前 `verify-sources.ts:110-112` 对**所有** fetcher
+类型一律 `robotsCheck(source.url)`，本批的 `verificationTargetUrl()` 对 announcement/crawl
+走 `configKey=undefined → source.url`，与改动前逐字等价。
+
+**缺陷**：`NON_CONTENT_FETCHERS` 只排除 quotes/datapro/websearch，announcement 与 crawl
+会走到探测；外层对 `source.url` 查 robots，内层 `fetchItems()` 却请求 `config.endpoint`：
+
+| 源     | 探针（source.url）                                 | 实际请求（config.endpoint / DEFAULT）                            | 严重度                         |
+| ------ | -------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------ |
+| SSE    | `http://www.sse.com.cn/disclosure/...`             | `http://query.sse.com.cn/security/stock/queryCompanyBulletin.do` | **跨 origin，两套 robots.txt** |
+| SZSE   | `/disclosure/listed/notice/`                       | `/api/disc/announcement/annList`                                 | 同 host 异 path                |
+| CNINFO | `/new/disclosure`                                  | `/new/hisAnnouncement/query`                                     | 同 host 异 path                |
+| NEA    | `/xwzx/nyyw.htm`                                   | `/xwzx/ds_*.json`                                                | 同 base，基本无害              |
+| crawl  | `https://internal.fe-radar/crawl/c1-risk`（dummy） | Firecrawl 云端 API                                               | 类别不适用                     |
+
+**测试盲区**：`makeSource()` 默认 `fetcherType="announcement"`，首个用例只断言
+`robotsCheck.toHaveBeenCalledTimes(2)`，从不断言 URL 参数 —— 所以「只修 rss、继续漏
+announcement」不会让任何测试翻红。修复时必须先补断言 URL 的用例。
+
+**为什么不在 G4/P2 批次修**：需独立设计决策 —— robots 该打 `config.endpoint` 还是
+`source.url`？API endpoint 未必允许常规 UA 的 GET；SZSE/CNINFO 的 `config.endpoint` 可选
+（有 DEFAULT_ENDPOINT 回退）而 NEA 必填，两种模式需分别处理。不是一行补丁。
+
+**归属**：P0-a 抓取质量批次（与「html fetcher 把导航链接当新闻」「Firecrawl 噪声页过滤」
+「verify 的 >=3 条闸门数条数不看质量」同属「什么算一次合格的抓取/验证」这一根问题）。
+
+**已被推翻的错误结论（不得再引用）**：kimi 在该轮曾断言「其余 5 种 fetcher 回落
+`source.url` 均正确」——该结论系未读 announcement 适配器与 0013/0039 seed 即盖章，已由
+grok 举证推翻、omp 独立复核确认。
+
 ## 逐卡状态
 
 ### T-REL-00 现状盘点 — BLOCKED（运维）

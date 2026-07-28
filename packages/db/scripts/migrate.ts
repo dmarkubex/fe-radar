@@ -112,6 +112,22 @@ export function checksum(content: string): string {
   return createHash("sha256").update(content).digest("hex");
 }
 
+// 0022 never executed in production (0001–0037 were baselined), but its old SQL cannot
+// bootstrap a fresh database. Keep checksum enforcement strict to this reviewed repair pair.
+// Chosen repair: after one approved skip, advance the ledger to the current checksum so the
+// exception converges and can be retired safely after every deployed ledger has been upgraded.
+const PUBLISHED_MIGRATION_REPAIRS = new Map([
+  [
+    "0022_bjx_html_fetcher.sql",
+    {
+      previous:
+        "5f43113c2ceac0acfa731dca73bc2b4dd5a14cba0fcb8e74b4088456ec9e56c7",
+      current:
+        "c476393a58aa422491355e96ba57df18bbe3af30288af8ed6ca94fcc718e6894"
+    }
+  ]
+]);
+
 /**
  * Minimal port the migration runner needs from a database connection. Real
  * implementation talks to Postgres; tests use an in-memory fake so the ledger
@@ -125,7 +141,16 @@ export interface LedgerPort {
   tableExists(name: string): Promise<boolean>;
   getApplied(): Promise<Map<string, string>>;
   insertBaselineRow(file: string, checksum: string): Promise<void>;
-  applyMigration(file: string, statements: string[], checksum: string): Promise<void>;
+  repairChecksum(
+    file: string,
+    previousChecksum: string,
+    currentChecksum: string
+  ): Promise<void>;
+  applyMigration(
+    file: string,
+    statements: string[],
+    checksum: string
+  ): Promise<void>;
 }
 
 export function createPostgresLedger(sql: postgres.Sql): LedgerPort {
@@ -165,6 +190,16 @@ export function createPostgresLedger(sql: postgres.Sql): LedgerPort {
         VALUES (${file}, ${fileChecksum})
       `;
     },
+    async repairChecksum(file, previousChecksum, currentChecksum) {
+      const result = await sql`
+        UPDATE schema_migrations
+        SET checksum = ${currentChecksum}
+        WHERE filename = ${file} AND checksum = ${previousChecksum}
+      `;
+      if (result.count !== 1) {
+        throw new Error(`failed to repair checksum ledger entry for ${file}`);
+      }
+    },
     async applyMigration(file, statements, fileChecksum) {
       await sql.begin(async (tx) => {
         for (const stmt of statements) {
@@ -193,7 +228,9 @@ export interface RunMigrationsOptions {
  * It records history without re-executing SQL; once the ledger has any row, baseline
  * is refused so it can't be used to silently skip a migration on a normal deploy.
  */
-export async function runMigrations(options: RunMigrationsOptions): Promise<string[]> {
+export async function runMigrations(
+  options: RunMigrationsOptions
+): Promise<string[]> {
   const { files, readFile, ledger, baseline, log = console.log } = options;
   const output: string[] = [];
   const emit = (line: string) => {
@@ -216,7 +253,9 @@ export async function runMigrations(options: RunMigrationsOptions): Promise<stri
       }
       const baselineIndex = files.indexOf(baseline);
       if (baselineIndex === -1) {
-        throw new Error(`MIGRATION_BASELINE=${baseline} does not match any migration file`);
+        throw new Error(
+          `MIGRATION_BASELINE=${baseline} does not match any migration file`
+        );
       }
       for (const file of files.slice(0, baselineIndex + 1)) {
         const content = readFile(file);
@@ -228,7 +267,9 @@ export async function runMigrations(options: RunMigrationsOptions): Promise<stri
       }
     }
   } else if (baseline) {
-    throw new Error("MIGRATION_BASELINE is only allowed when schema_migrations is empty; ledger already has entries");
+    throw new Error(
+      "MIGRATION_BASELINE is only allowed when schema_migrations is empty; ledger already has entries"
+    );
   }
 
   for (const file of files) {
@@ -241,17 +282,27 @@ export async function runMigrations(options: RunMigrationsOptions): Promise<stri
     const previousChecksum = applied.get(file);
 
     if (previousChecksum !== undefined) {
-      if (previousChecksum !== fileChecksum) {
+      const repair = PUBLISHED_MIGRATION_REPAIRS.get(file);
+      const isApprovedRepair =
+        repair?.previous === previousChecksum &&
+        repair.current === fileChecksum;
+      if (previousChecksum !== fileChecksum && !isApprovedRepair) {
         throw new Error(
           `checksum mismatch for already-applied migration ${file}: published migrations must not change ` +
             `(ledger has ${previousChecksum}, file now hashes to ${fileChecksum})`
         );
       }
-      emit(`skipped ${file}`);
+      if (isApprovedRepair) {
+        await ledger.repairChecksum(file, previousChecksum, fileChecksum);
+        applied.set(file, fileChecksum);
+      }
+      emit(`${isApprovedRepair ? "repaired" : "skipped"} ${file}`);
       continue;
     }
 
-    const statements = splitStatements(toRunnableSql(content)).filter((stmt) => !isBeginOrCommit(stmt));
+    const statements = splitStatements(toRunnableSql(content)).filter(
+      (stmt) => !isBeginOrCommit(stmt)
+    );
     await ledger.applyMigration(file, statements, fileChecksum);
     applied.set(file, fileChecksum);
     emit(`applied ${file}`);
@@ -294,7 +345,9 @@ async function main(): Promise<void> {
   }
 }
 
-const isDirectRun = process.argv[1] !== undefined && import.meta.url === `file://${process.argv[1]}`;
+const isDirectRun =
+  process.argv[1] !== undefined &&
+  import.meta.url === `file://${process.argv[1]}`;
 if (isDirectRun) {
   main().catch((error) => {
     console.error(error instanceof Error ? error.message : error);

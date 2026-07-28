@@ -113,4 +113,95 @@ describe("worker production-path source verification", () => {
     });
     expect(source.enabled).toBe(false);
   });
+
+  it("checks robots against config.listUrl when it differs from the source URL", async () => {
+    const robotsCheck = vi.fn().mockResolvedValue(undefined);
+    const fetchItems = vi.fn().mockResolvedValue([item, item, item]);
+
+    await verifySourcesWithWorker(
+      [
+        makeSource({
+          url: "https://guangfu.bjx.com.cn/",
+          fetcherType: "html",
+          config: {
+            type: "html",
+            listUrl: "https://www.bjx.com.cn/"
+          }
+        })
+      ],
+      { fetchItems, robotsCheck }
+    );
+
+    expect(robotsCheck).toHaveBeenCalledWith(
+      "https://www.bjx.com.cn/",
+      expect.any(String)
+    );
+  });
+
+  it("checks rss robots against config.url when it differs from the source URL", async () => {
+    const robotsCheck = vi.fn().mockResolvedValue(undefined);
+    const fetchItems = vi.fn().mockResolvedValue([item, item, item]);
+
+    await verifySourcesWithWorker(
+      [
+        makeSource({
+          name: "第一财经 头条",
+          url: "https://www.yicai.com/news/energy/",
+          fetcherType: "rss",
+          config: {
+            type: "rss",
+            url: "http://rsshub:1200/yicai/headline"
+          }
+        })
+      ],
+      { fetchItems, robotsCheck }
+    );
+
+    expect(robotsCheck).toHaveBeenCalledWith(
+      "http://rsshub:1200/yicai/headline",
+      expect.any(String)
+    );
+  });
+
+  it("rejects an empty html listUrl instead of silently probing source.url", async () => {
+    const robotsCheck = vi.fn();
+    const fetchItems = vi.fn();
+
+    const results = await verifySourcesWithWorker(
+      [
+        makeSource({
+          fetcherType: "html",
+          config: { type: "html", listUrl: "" }
+        })
+      ],
+      { fetchItems, robotsCheck }
+    );
+
+    expect(results).toMatchObject([
+      { status: "fail", error: "config.listUrl must not be empty" }
+    ]);
+    expect(robotsCheck).not.toHaveBeenCalled();
+    expect(fetchItems).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty rss config.url instead of silently probing source.url", async () => {
+    const robotsCheck = vi.fn();
+    const fetchItems = vi.fn();
+
+    const results = await verifySourcesWithWorker(
+      [
+        makeSource({
+          fetcherType: "rss",
+          config: { type: "rss", url: "" }
+        })
+      ],
+      { fetchItems, robotsCheck }
+    );
+
+    expect(results).toMatchObject([
+      { status: "fail", error: "config.url must not be empty" }
+    ]);
+    expect(robotsCheck).not.toHaveBeenCalled();
+    expect(fetchItems).not.toHaveBeenCalled();
+  });
 });
