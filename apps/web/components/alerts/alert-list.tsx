@@ -281,7 +281,7 @@ function BigAlert({
         <div className="mt-3 flex flex-wrap gap-1.5">
           {item.topCircle === "C1" ? (
             <span className="border border-surface-deep bg-surface-deep px-2 py-1 text-[11px] text-white">
-              C1 自家
+              C1 核心圈
             </span>
           ) : null}
           {item.eventType ? (
@@ -357,7 +357,8 @@ function groupByLevel(
 
 function alertReason(item: TimelineItemDto): string {
   if (item.alertType === "own")
-    return "C1 自家公司实体命中，告警不依赖质量分门槛。";
+    // own = C1 中「远东」系列子集命中（requirements §9），不是整圈 C1
+    return "C1 中自家公司实体命中，告警不依赖质量分门槛。";
   if (item.alertType === "legal") return "竞品或关键链条企业出现涉诉披露。";
   if (item.alertType === "safety") return "事故实体或安全风险维度触发。";
   if (item.alertType === "policy") return "T1 政策源或政策影响维度触发。";

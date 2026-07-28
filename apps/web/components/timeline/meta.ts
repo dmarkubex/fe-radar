@@ -44,10 +44,23 @@ export const CATEGORY_TABS = CURATED_CATEGORY_TABS.map((category) => ({
   label: category.shortLabel
 }));
 
+/** 关注圈筛选项；label/title 对齐 requirements.md §5.1–§5.3（C1≠自家公司，自家是 C1 子集） */
 export const CIRCLE_FILTERS = [
-  { value: "C1", label: "C1 自家公司" },
-  { value: "C2", label: "C2 关键链条" },
-  { value: "C3", label: "C3 行业面" }
+  {
+    value: "C1",
+    label: "C1 核心圈",
+    title: "核心圈：自家公司 + 核心客户（国网/南网）+ 直接监管（能源局/发改委/工信部）+ 五大发电"
+  },
+  {
+    value: "C2",
+    label: "C2 战略圈",
+    title: "战略圈：主要竞品 + 关键上下游"
+  },
+  {
+    value: "C3",
+    label: "C3 行业圈",
+    title: "行业圈：电力/电缆/储能行业其他公司、协会、媒体、研究机构"
+  }
 ];
 
 export function formatAppTime(value: string | null): string {

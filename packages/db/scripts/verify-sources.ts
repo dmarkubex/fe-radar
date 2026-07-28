@@ -4,6 +4,7 @@
  * This intentionally checks HTTP/selector reachability without importing worker runtime policy.
  * Operations must use @fe-radar/worker verify:sources for proxy/robots/real-parser evidence.
  */
+import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -373,14 +374,28 @@ async function main(): Promise<void> {
   process.exit(0);
 }
 
-// ESM entry detection: compare this module URL to argv[1] (resolved).
-// Why not endsWith(".ts"): production runs compiled .js; a .ts-only suffix guard left
-// isMain false and main() never ran (silent exit 0). import.meta.url matches both
-// tsx (.ts, package.json verify:sources) and node (.js).
-// MIRROR: apps/worker/src/scripts/verify-sources.ts — same guard; change both or neither.
+// ESM entry detection: compare this module URL to argv[1] (realpath).
+// Why not endsWith(".ts"): a .ts-only suffix guard left isMain false and main() never
+// ran (silent exit 0). This package's formal entry is tsx via package.json
+// `verify:sources` (`tsx scripts/verify-sources.ts`); worker is the package that runs
+// compiled .js in production. import.meta.url still matches both tsx (.ts) and node
+// (.js) if someone does compile this script.
+// Why realpath: macOS /tmp → /private/tmp (and any ln -s). resolve() alone keeps the
+// symlink path while Node's import.meta.url is already realpath'd → isMain false →
+// silent exit 0. realpathSync throws if the path is missing; fall back to resolve().
+// MIRROR: apps/worker/src/scripts/verify-sources.ts + apps/worker/src/scripts/backfill-circles.ts
+// — same guard; change all three or none.
+function resolveArgvPath(p: string): string {
+  const abs = resolve(p);
+  try {
+    return realpathSync(abs);
+  } catch {
+    return abs;
+  }
+}
 const isMain = Boolean(
   process.argv[1] &&
-    import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+    import.meta.url === pathToFileURL(resolveArgvPath(process.argv[1])).href
 );
 if (isMain) {
   main().catch((error) => {

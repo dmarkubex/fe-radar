@@ -5,6 +5,7 @@
  * dispatch, including proxy selection, real-UA policy, and robots checks, then requires >=3
  * parsed items. It is read-only: re-enabling a source remains a migration/admin action.
  */
+import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -175,14 +176,26 @@ async function main(): Promise<void> {
   process.exit(0);
 }
 
-// ESM entry detection: compare this module URL to argv[1] (resolved).
+// ESM entry detection: compare this module URL to argv[1] (realpath).
 // Why not endsWith(".ts"): production image runs compiled .js only (Dockerfile.worker
 // COPYs dist/, no TS source / no tsx), so a .ts-only suffix guard left isMain false and
 // main() never ran (silent exit 0). import.meta.url matches both tsx (.ts) and node (.js).
-// MIRROR: packages/db/scripts/verify-sources.ts — same guard; change both or neither.
+// Why realpath: macOS /tmp → /private/tmp (and any ln -s). resolve() alone keeps the
+// symlink path while Node's import.meta.url is already realpath'd → isMain false →
+// silent exit 0. realpathSync throws if the path is missing; fall back to resolve().
+// MIRROR: packages/db/scripts/verify-sources.ts + apps/worker/src/scripts/backfill-circles.ts
+// — same guard; change all three or none.
+function resolveArgvPath(p: string): string {
+  const abs = resolve(p);
+  try {
+    return realpathSync(abs);
+  } catch {
+    return abs;
+  }
+}
 const isMain = Boolean(
   process.argv[1] &&
-    import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+    import.meta.url === pathToFileURL(resolveArgvPath(process.argv[1])).href
 );
 if (isMain) {
   main().catch((error) => {
