@@ -109,6 +109,9 @@ export function isBeginOrCommit(stmt: string): boolean {
 }
 
 export function checksum(content: string): string {
+  // Compatibility warning: this hashes raw bytes, so LF/CRLF checkouts produce different
+  // ledger values. Moving builds between hosts can brick migrate until checksum normalization
+  // is paired with a one-time schema_migrations ledger rewrite (R-MIGRATE-01).
   return createHash("sha256").update(content).digest("hex");
 }
 
@@ -120,10 +123,18 @@ const PUBLISHED_MIGRATION_REPAIRS = new Map([
   [
     "0022_bjx_html_fetcher.sql",
     {
-      previous:
+      previous: new Set([
+        // Historical d64e1c5 checkout on LF hosts.
         "5f43113c2ceac0acfa731dca73bc2b4dd5a14cba0fcb8e74b4088456ec9e56c7",
-      current:
-        "c476393a58aa422491355e96ba57df18bbe3af30288af8ed6ca94fcc718e6894"
+        // The same historical content on Windows core.autocrlf=true (production ledger).
+        "a87b2857febeaaf1a773a8f38e4c27874d7742d93229eec66fb645213aa5d4d5"
+      ]),
+      current: new Set([
+        // Reviewed repair content on LF hosts.
+        "c476393a58aa422491355e96ba57df18bbe3af30288af8ed6ca94fcc718e6894",
+        // The same reviewed repair content on Windows core.autocrlf=true.
+        "a2af29fbed76f4df52fe3dd9f16706412887f3a3d98b4940ae9e98559c20c50b"
+      ])
     }
   ]
 ]);
@@ -284,8 +295,8 @@ export async function runMigrations(
     if (previousChecksum !== undefined) {
       const repair = PUBLISHED_MIGRATION_REPAIRS.get(file);
       const isApprovedRepair =
-        repair?.previous === previousChecksum &&
-        repair.current === fileChecksum;
+        repair?.previous.has(previousChecksum) === true &&
+        repair.current.has(fileChecksum);
       if (previousChecksum !== fileChecksum && !isApprovedRepair) {
         throw new Error(
           `checksum mismatch for already-applied migration ${file}: published migrations must not change ` +

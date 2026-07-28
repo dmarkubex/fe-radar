@@ -1,4 +1,13 @@
-import { readFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from "node:fs";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   checksum,
@@ -85,8 +94,11 @@ const BJX_MIGRATION = readFileSync(
   new URL(`../../migrations/${BJX_MIGRATION_FILE}`, import.meta.url),
   "utf8"
 );
-const LEGACY_BJX_CHECKSUM =
+const BJX_MIGRATION_CRLF = BJX_MIGRATION.replace(/\r?\n/g, "\r\n");
+const LEGACY_BJX_CHECKSUM_LF =
   "5f43113c2ceac0acfa731dca73bc2b4dd5a14cba0fcb8e74b4088456ec9e56c7";
+const LEGACY_BJX_CHECKSUM_CRLF =
+  "a87b2857febeaaf1a773a8f38e4c27874d7742d93229eec66fb645213aa5d4d5";
 
 describe("migrate ledger", () => {
   it("applies every file on a fresh database and records checksums", async () => {
@@ -208,7 +220,7 @@ describe("migrate ledger", () => {
   it("accepts only the reviewed 0022 checksum repair and converges the ledger without executing it", async () => {
     const ledger = new FakeLedger({
       sourcesExists: true,
-      seed: new Map([[BJX_MIGRATION_FILE, LEGACY_BJX_CHECKSUM]])
+      seed: new Map([[BJX_MIGRATION_FILE, LEGACY_BJX_CHECKSUM_LF]])
     });
 
     const output = await runMigrations({
@@ -233,10 +245,117 @@ describe("migrate ledger", () => {
     expect(secondOutput).toEqual([`skipped ${BJX_MIGRATION_FILE}`]);
   });
 
+  it("repairs a production CRLF ledger and converges to the current CRLF checksum", async () => {
+    const ledger = new FakeLedger({
+      sourcesExists: true,
+      seed: new Map([[BJX_MIGRATION_FILE, LEGACY_BJX_CHECKSUM_CRLF]])
+    });
+
+    const output = await runMigrations({
+      files: [BJX_MIGRATION_FILE],
+      readFile: () => BJX_MIGRATION_CRLF,
+      ledger,
+      log: () => {}
+    });
+
+    expect(output).toEqual([`repaired ${BJX_MIGRATION_FILE}`]);
+    expect(ledger.appliedCalls).toEqual([]);
+    expect(ledger.applied.get(BJX_MIGRATION_FILE)).toBe(
+      checksum(BJX_MIGRATION_CRLF)
+    );
+  });
+
+  it("rejects an arbitrary on-disk 0022 rewrite against the production legacy ledger", () => {
+    const sandbox = mkdtempSync(
+      fileURLToPath(new URL("../../.migrate-review-", import.meta.url))
+    );
+    const scriptsDir = join(sandbox, "scripts");
+    const migrationsDir = join(sandbox, "migrations");
+    const rewrittenMigration = `${BJX_MIGRATION}\n-- arbitrary unreviewed rewrite\n`;
+
+    try {
+      mkdirSync(scriptsDir);
+      mkdirSync(migrationsDir);
+      writeFileSync(
+        join(scriptsDir, "migrate.ts"),
+        `${readFileSync(new URL("../migrate.ts", import.meta.url), "utf8")}
+export { PUBLISHED_MIGRATION_REPAIRS };
+`
+      );
+      writeFileSync(
+        join(migrationsDir, BJX_MIGRATION_FILE),
+        rewrittenMigration
+      );
+
+      const moduleUrl = pathToFileURL(join(scriptsDir, "migrate.ts")).href;
+      const migrationPath = join(migrationsDir, BJX_MIGRATION_FILE);
+      const probe = `
+        import assert from "node:assert/strict";
+        import { readFileSync } from "node:fs";
+        const migration = await import(${JSON.stringify(moduleUrl)});
+        const content = readFileSync(${JSON.stringify(migrationPath)}, "utf8");
+        const repair = migration.PUBLISHED_MIGRATION_REPAIRS.get(${JSON.stringify(BJX_MIGRATION_FILE)});
+        assert.equal(repair.current.has(migration.checksum(content)), false);
+        const applied = new Map([[${JSON.stringify(BJX_MIGRATION_FILE)}, ${JSON.stringify(LEGACY_BJX_CHECKSUM_CRLF)}]]);
+        const ledger = {
+          async lock() {},
+          async unlock() {},
+          async ensureTable() {},
+          async tableExists() { return true; },
+          async getApplied() { return new Map(applied); },
+          async insertBaselineRow() {},
+          async repairChecksum(file, previousChecksum, currentChecksum) {
+            assert.equal(applied.get(file), previousChecksum);
+            applied.set(file, currentChecksum);
+          },
+          async applyMigration() { throw new Error("must not execute SQL"); }
+        };
+        await assert.rejects(
+          migration.runMigrations({
+            files: [${JSON.stringify(BJX_MIGRATION_FILE)}],
+            readFile: () => content,
+            ledger,
+            log: () => {}
+          }),
+          /checksum mismatch/
+        );
+      `;
+      const result = spawnSync(
+        process.execPath,
+        ["--import", "tsx", "--input-type=module", "--eval", probe],
+        {
+          cwd: fileURLToPath(new URL("../..", import.meta.url)),
+          encoding: "utf8"
+        }
+      );
+
+      expect(result.status, result.stderr || result.stdout).toBe(0);
+    } finally {
+      rmSync(sandbox, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a legacy checksum outside the reviewed LF and CRLF variants", async () => {
+    const unreviewedLegacyChecksum = checksum("unreviewed legacy 0022");
+    const ledger = new FakeLedger({
+      sourcesExists: true,
+      seed: new Map([[BJX_MIGRATION_FILE, unreviewedLegacyChecksum]])
+    });
+
+    await expect(
+      runMigrations({
+        files: [BJX_MIGRATION_FILE],
+        readFile: () => BJX_MIGRATION,
+        ledger,
+        log: () => {}
+      })
+    ).rejects.toThrow(/checksum mismatch/);
+  });
+
   it("still rejects any further change to the repaired 0022 migration", async () => {
     const ledger = new FakeLedger({
       sourcesExists: true,
-      seed: new Map([[BJX_MIGRATION_FILE, LEGACY_BJX_CHECKSUM]])
+      seed: new Map([[BJX_MIGRATION_FILE, LEGACY_BJX_CHECKSUM_LF]])
     });
 
     await expect(

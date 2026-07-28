@@ -23,6 +23,46 @@
 
 生产 baseline 的账本已有 0022 记录，repair 命中后走 `skipped`，**本文件的业务 SQL 在生产永远不会执行**。G4 只保证全新库 / 灾难恢复 / CI 能跑过 0022，**不保证生产的北极星信源配置被改写**。生产那 6 条源的修复属于另一批次（信源实抓验证）。
 
+## R-MIGRATE-01：checksum 对换行敏感，迁移构建主机会 brick 生产 migrate
+
+**状态**：BLOCKED / `needs_human_review`（本批只登记，不改 checksum 算法）
+
+- 现象：`schema_migrations.checksum` 记录迁移文件原始字节的 SHA-256；同一 SQL 的 LF 与
+  CRLF checkout 哈希不同。构建主机从 Windows 切到 Linux（或反向）时，全部已登记迁移会
+  抛 `checksum mismatch`，migrate 容器非零退出并阻断部署。
+- 根因：`checksum()` 未归一化换行，且生产账本由 Windows `core.autocrlf=true` 构建产物写入。
+- 残余风险：0022 在 Windows 收敛到 CRLF-current 后，构建机若切到 Linux，0022 及全部
+  CRLF 账本行仍会再次 brick。
+- 正确修法方向：独立设计并发布“换行归一化 checksum + 一次性
+  `schema_migrations` 账本重写”；两者必须原子配套，不能单独改算法。
+
+## R-MIGRATE-02：`migrate.ts` 的 isMain 守卫同 G7 缺陷，失效则迁移静默不执行
+
+**登记日期**：2026-07-28（主持者在 CRLF 批次核验时发现）
+**位置**：`packages/db/scripts/migrate.ts:361`
+
+```ts
+import.meta.url === `file://${process.argv[1]}`;
+```
+
+与 G7 已修的三个脚本同类缺陷，且更弱：既没走 `pathToFileURL`（路径含空格/特殊字符即
+失效），也没 `realpathSync`（经符号链接调用即失效）。
+
+**后果比 G7 严重**：守卫失效时 `main()` 不执行，migrate 容器**静默 exit 0**，
+迁移一条没跑却报成功——部署看起来正常，数据库实际没变。这正是本项目
+`MIGRATION_BASELINE` 之外的第二种「账本与现实脱节」的成因。
+
+**当前未出事的原因**：容器内以 tsx 跑绝对路径、无空格、无符号链接。属运气而非设计。
+
+**修法**：与 G7 三处统一为
+`import.meta.url === pathToFileURL(realpathSync(resolve(process.argv[1]))).href`
+（realpathSync 抛错时回落 resolve）。四处应互指 MIRROR 注释。
+
+**为何不在本批修**：本批范围是 checksum 换行失配，migrate.ts 的入口守卫属独立问题；
+且改动需覆盖「tsx 直跑 / 编译产物 / 被 import / npm script」四种调用形态的回归测试。
+
+**归属**：与 G7 同类，建议并入下一个脚本入口批次一并处理。
+
 ## R-VERIFY-01：verify 门禁对 announcement / crawl 的 robots 探针 ≠ 实际请求地址
 
 **登记日期**：2026-07-28（G4/P2 批次第 4 轮评审，grok 发现，omp 独立复核确认）
