@@ -34,6 +34,27 @@ function scoringBusinessDate(now = new Date()): string {
   return dayjs(now).tz(APP_TIMEZONE).format("YYYY-MM-DD");
 }
 
+export function filterGate0MaxAge(
+  sourceItems: StandardItem[],
+  config: SourceConfig,
+  now = new Date()
+): StandardItem[] {
+  const maxAgeHours = (
+    config as SourceConfig & { gate0?: { maxAgeHours?: unknown } }
+  ).gate0?.maxAgeHours;
+  if (
+    typeof maxAgeHours !== "number" ||
+    !Number.isFinite(maxAgeHours) ||
+    maxAgeHours <= 0
+  ) {
+    return sourceItems;
+  }
+  const cutoff = now.getTime() - maxAgeHours * 60 * 60 * 1_000;
+  return sourceItems.filter(
+    (item) => item.publishedAt.getTime() >= cutoff
+  );
+}
+
 export async function handleFetchJob(job: {
   data: FetchSourceJob;
 }): Promise<void> {
@@ -134,6 +155,20 @@ export async function handleFetchJob(job: {
         "keyword filter dropped items"
       );
     }
+  }
+
+  const beforeAgeFilter = rawItems.length;
+  rawItems = filterGate0MaxAge(rawItems, config);
+  if (rawItems.length < beforeAgeFilter) {
+    logger.info(
+      {
+        sourceId,
+        sourceName: source.name,
+        filtered: beforeAgeFilter - rawItems.length,
+        kept: rawItems.length
+      },
+      "gate0 max-age filter dropped stale items"
+    );
   }
 
   const candidates: DedupCandidate[] = rawItems.map((item) => ({

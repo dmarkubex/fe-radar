@@ -179,7 +179,54 @@ function makeDb(sourceRow: Record<string, unknown> | null) {
   return db;
 }
 
-import { handleFetchJob } from "../fetch";
+import { filterGate0MaxAge, handleFetchJob } from "../fetch";
+
+describe("filterGate0MaxAge", () => {
+  it("keeps only items inside the configured Gate 0 window", () => {
+    const now = new Date("2026-08-04T04:00:00.000Z");
+    const items = [
+      {
+        url: "https://example.com/fresh",
+        title: "fresh",
+        content: "",
+        publishedAt: new Date("2026-08-04T03:00:00.000Z")
+      },
+      {
+        url: "https://example.com/stale",
+        title: "stale",
+        content: "",
+        publishedAt: new Date("2026-08-03T03:59:59.000Z")
+      }
+    ];
+
+    expect(
+      filterGate0MaxAge(
+        items,
+        {
+          type: "announcement",
+          adapter: "test",
+          gate0: { maxAgeHours: 24 }
+        },
+        now
+      )
+    ).toEqual([items[0]]);
+  });
+
+  it("leaves existing sources without a Gate 0 window unchanged", () => {
+    const items = [
+      {
+        url: "https://example.com/old",
+        title: "old",
+        content: "",
+        publishedAt: new Date("2020-01-01T00:00:00.000Z")
+      }
+    ];
+
+    expect(
+      filterGate0MaxAge(items, { type: "rss", url: "https://example.com" })
+    ).toBe(items);
+  });
+});
 
 beforeEach(() => {
   mockFetchSourceItems.mockImplementation(
