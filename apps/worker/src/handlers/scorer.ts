@@ -8,12 +8,15 @@ import type { PipelineJob } from "../queues";
 import { runScorer } from "../jobs/scorer";
 
 import { logger, handlerContext } from "./context";
+import { passesIndustryGate } from "./pipeline-gate";
 
 export async function handleScorerJob(job: { data: PipelineJob }): Promise<void> {
   const db = getDb();
   const itemId = job.data.itemId;
   const correlationId = job.data.correlationId;
   logger.info({ itemId, correlationId, stage: "scorer" }, "pipeline stage");
+  if (!await passesIndustryGate(db, itemId)) return;
+
   const [row] = await db.select({
     title: items.title,
     content: items.content,

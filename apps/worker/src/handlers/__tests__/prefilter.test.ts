@@ -13,7 +13,14 @@ const { mockGetDb, mockRunPrefilter, mockWithScrubber } = vi.hoisted(() => ({
 vi.mock("@fe-radar/db", () => ({
   getDb: mockGetDb,
   items: { id: "items.id", title: "items.title", content: "items.content" },
-  itemAnalysis: { itemId: "ia.item_id", isIndustryRelated: "ia.is_industry_related" },
+  itemAnalysis: {
+    itemId: "ia.item_id",
+    isIndustryRelated: "ia.is_industry_related",
+    isCurated: "ia.is_curated",
+    alertType: "ia.alert_type",
+    alertLevel: "ia.alert_level",
+    quotaState: "ia.quota_state",
+  },
 }));
 
 vi.mock("@fe-radar/llm", () => ({
@@ -75,7 +82,7 @@ describe("handlePrefilterJob", () => {
     expect(db._updateWhere).toHaveBeenCalledTimes(1);
   });
 
-  it("boundary: 'unknown' result → isIndustryRelated=null (fail-open)", async () => {
+  it("boundary: 'unknown' result clears presentation state and remains pending", async () => {
     const db = makeDb([{ title: "无关新闻", content: null }]);
     mockRunPrefilter.mockResolvedValue({ isIndustryRelated: "unknown", reason: "x" });
 
@@ -87,7 +94,12 @@ describe("handlePrefilterJob", () => {
       expect.anything(),
       expect.anything(),
     );
-    expect(db._updateSet).toHaveBeenCalledWith({ isIndustryRelated: null });
+    expect(db._updateSet).toHaveBeenCalledWith({
+      isIndustryRelated: null,
+      isCurated: false,
+      alertType: null,
+      alertLevel: null,
+    });
   });
 
   it("explicit false result → isIndustryRelated=false", async () => {
@@ -96,7 +108,13 @@ describe("handlePrefilterJob", () => {
 
     await handlePrefilterJob({ data: { itemId: 5 } as never });
 
-    expect(db._updateSet).toHaveBeenCalledWith({ isIndustryRelated: false });
+    expect(db._updateSet).toHaveBeenCalledWith({
+      isIndustryRelated: false,
+      isCurated: false,
+      alertType: null,
+      alertLevel: null,
+      quotaState: "dropped_filter",
+    });
   });
 
   it("empty path: item not found → warns and does not call runPrefilter or update", async () => {

@@ -3,14 +3,13 @@ import type { EntityFinancialSnapshot, EntityHit, QualityScoreResult, ScoreAtoms
 export const CIRCLE_RANK = { C1: 3, C2: 2, C3: 1 } as const;
 
 export function computeD2Chain(entities: EntityHit[]): number {
-  const circles = entities.map((entity) => entity.circle).filter((circle): circle is "C1" | "C2" | "C3" => circle === "C1" || circle === "C2" || circle === "C3");
-  if (circles.length === 0) {
-    return 0;
-  }
+  if (entities.some((entity) => entity.circle === "C1")) return 95;
 
-  const topCircle = pickTopCircle(entities);
-  const base = topCircle === "C1" ? 90 : topCircle === "C2" ? 65 : 40;
-  return clampScore(base + Math.min(10, circles.length * 2));
+  const c2Count = new Set(entities.filter((entity) => entity.circle === "C2").map((entity) => entity.id)).size;
+  if (c2Count >= 2) return 80;
+  if (c2Count === 1) return 70;
+  if (entities.some((entity) => entity.circle === "C3")) return 50;
+  return 20;
 }
 
 export function computeD3Market(financials: EntityFinancialSnapshot[]): number | null {

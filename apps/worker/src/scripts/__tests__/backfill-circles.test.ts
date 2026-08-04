@@ -6,6 +6,7 @@ import { EntityDictionary } from "../../lib/entities-dict";
 import {
   applyBackfillPlan,
   findCircleLinks,
+  parseBackfillArgs,
   planAnalysisUpdate,
   selectNewLinks,
   type BackfillWriter,
@@ -77,11 +78,7 @@ describe("backfill circles", () => {
       d5Business: 50
     };
     const entityHits = [farEastLink.entity, stateGridEntity];
-    const update = planAnalysisUpdate(
-      analysis,
-      entityHits,
-      config
-    );
+    const update = planAnalysisUpdate(analysis, entityHits, config);
     const online = curateItem({
       atoms: {
         d1Policy: analysis.d1Policy,
@@ -98,8 +95,8 @@ describe("backfill circles", () => {
     expect(update).toEqual({
       itemId: 1,
       topCircle: "C1",
-      d2Chain: 94,
-      qualityScore: 73.2
+      d2Chain: 95,
+      qualityScore: 73.5
     });
     expect(update?.d2Chain).toBe(online.d2Chain);
     expect(update?.qualityScore).toBe(online.qualityScore);
@@ -110,6 +107,56 @@ describe("backfill circles", () => {
       "qualityScore",
       "topCircle"
     ]);
+  });
+
+  it("recomputes no-entity items with the design baseline D2=20", () => {
+    expect(
+      planAnalysisUpdate(
+        {
+          itemId: 2,
+          tier: "T1",
+          currentTopCircle: null,
+          currentQualityScore: null,
+          d1Policy: 0,
+          d2Chain: 0,
+          d3Market: 0,
+          d4Tech: 0,
+          d5Business: 0
+        },
+        [],
+        config
+      )
+    ).toEqual({
+      itemId: 2,
+      topCircle: "C3",
+      d2Chain: 20,
+      qualityScore: 4.25
+    });
+  });
+
+  it("requires a fixed window and defaults the CLI to dry-run", () => {
+    expect(
+      parseBackfillArgs([
+        "--run-id",
+        "canary-7d",
+        "--from",
+        "2026-05-01T00:00:00+08:00",
+        "--until",
+        "2026-05-08T00:00:00+08:00"
+      ])
+    ).toMatchObject({ runId: "canary-7d", dryRun: true });
+    expect(
+      parseBackfillArgs([
+        "--run-id",
+        "canary-7d",
+        "--from",
+        "2026-05-01T00:00:00+08:00",
+        "--until",
+        "2026-05-08T00:00:00+08:00",
+        "--apply"
+      ])
+    ).toMatchObject({ dryRun: false });
+    expect(() => parseBackfillArgs([])).toThrow("固定窗口");
   });
 
   it("does not call either writer in dry-run mode", async () => {

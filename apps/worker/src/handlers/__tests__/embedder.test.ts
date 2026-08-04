@@ -1,9 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-const { mockGetDb, mockRunEmbedder, mockWithScrubber } = vi.hoisted(() => ({
+const { mockGetDb, mockRunEmbedder, mockWithScrubber, mockPassesIndustryGate } = vi.hoisted(() => ({
   mockGetDb: vi.fn(),
   mockRunEmbedder: vi.fn(),
   mockWithScrubber: vi.fn((client: unknown) => client),
+  mockPassesIndustryGate: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("@fe-radar/db", () => ({
@@ -15,6 +16,7 @@ vi.mock("@fe-radar/db", () => ({
 vi.mock("@fe-radar/llm", () => ({ withScrubber: mockWithScrubber }));
 vi.mock("drizzle-orm", () => ({ eq: vi.fn((a: unknown, b: unknown) => ({ a, b })) }));
 vi.mock("../../jobs/embedder", () => ({ runEmbedder: mockRunEmbedder }));
+vi.mock("../pipeline-gate", () => ({ passesIndustryGate: mockPassesIndustryGate }));
 vi.mock("../context", () => ({ logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() }, handlerContext: { qwen: { id: "qwen" } } }));
 
 function makeDb(selectRows: unknown[]) {
@@ -42,6 +44,7 @@ describe("handleEmbedderJob", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockWithScrubber.mockImplementation((client: unknown) => client);
+    mockPassesIndustryGate.mockResolvedValue(true);
   });
 
   it("normal path: persists JSON-serialized embedding when runEmbedder returns a vector", async () => {
@@ -77,6 +80,17 @@ describe("handleEmbedderJob", () => {
     await handleEmbedderJob({ data: { itemId: 404 } as never });
 
     expect(mockRunEmbedder).not.toHaveBeenCalled();
+    expect(db.update).not.toHaveBeenCalled();
+  });
+
+  it("hard gate: unrelated item skips embedding and all writes", async () => {
+    const db = makeDb([]);
+    mockPassesIndustryGate.mockResolvedValue(false);
+
+    await handleEmbedderJob({ data: { itemId: 24 } as never });
+
+    expect(mockRunEmbedder).not.toHaveBeenCalled();
+    expect(db.select).not.toHaveBeenCalled();
     expect(db.update).not.toHaveBeenCalled();
   });
 });

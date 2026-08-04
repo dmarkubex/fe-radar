@@ -6,12 +6,15 @@ import type { PipelineJob } from "../queues";
 import { runEmbedder } from "../jobs/embedder";
 
 import { logger, handlerContext } from "./context";
+import { passesIndustryGate } from "./pipeline-gate";
 
 export async function handleEmbedderJob(job: { data: PipelineJob }): Promise<void> {
   const db = getDb();
   const itemId = job.data.itemId;
   const correlationId = job.data.correlationId;
   logger.info({ itemId, correlationId, stage: "embedder" }, "pipeline stage");
+  if (!await passesIndustryGate(db, itemId)) return;
+
   const [row] = await db.select({
     title: items.title,
     summaryZh: itemAnalysis.summaryZh,

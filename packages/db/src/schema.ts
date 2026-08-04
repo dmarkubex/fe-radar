@@ -211,6 +211,34 @@ export const scoringConfig = pgTable("scoring_config", {
   updatedBy: bigint("updated_by", { mode: "number" }).references(() => users.id)
 });
 
+export const scoringReprocessRuns = pgTable("scoring_reprocess_runs", {
+  runId: text("run_id").primaryKey(),
+  fromAt: timestamp("from_at", { withTimezone: true }).notNull(),
+  untilAt: timestamp("until_at", { withTimezone: true }).notNull(),
+  status: text("status").notNull().default("prepared"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true })
+}, (table) => ({
+  statusCheck: check("scoring_reprocess_runs_status_check", sql`${table.status} IN ('prepared', 'running', 'completed', 'failed')`),
+  windowCheck: check("scoring_reprocess_runs_window_check", sql`${table.fromAt} < ${table.untilAt}`),
+  statusCreatedIdx: index("scoring_reprocess_runs_status_created_idx").on(table.status, table.createdAt.desc())
+}));
+
+export const scoringReprocessTargets = pgTable("scoring_reprocess_targets", {
+  runId: text("run_id").notNull().references(() => scoringReprocessRuns.runId, { onDelete: "cascade" }),
+  itemId: bigint("item_id", { mode: "number" }).notNull().references(() => items.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("pending"),
+  attempts: integer("attempts").notNull().default(0),
+  lastError: text("last_error"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => ({
+  pk: primaryKey({ columns: [table.runId, table.itemId] }),
+  statusCheck: check("scoring_reprocess_targets_status_check", sql`${table.status} IN ('pending', 'running', 'completed', 'failed', 'skipped_filter', 'pending_quota')`),
+  attemptsCheck: check("scoring_reprocess_targets_attempts_check", sql`${table.attempts} >= 0`),
+  runStatusUpdatedIdx: index("scoring_reprocess_targets_run_status_updated_idx").on(table.runId, table.status, table.updatedAt),
+  itemIdx: index("scoring_reprocess_targets_item_idx").on(table.itemId)
+}));
+
 export const sourceRelations = relations(sources, ({ many }) => ({
   items: many(items)
 }));

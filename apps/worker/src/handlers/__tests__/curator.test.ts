@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockCurateItem, mockGetDb, mockLoadScoringConfig } = vi.hoisted(() => ({
+const { mockCurateItem, mockGetDb, mockLoadScoringConfig, mockPassesIndustryGate } = vi.hoisted(() => ({
   mockCurateItem: vi.fn(),
   mockGetDb: vi.fn(),
   mockLoadScoringConfig: vi.fn(),
+  mockPassesIndustryGate: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("@fe-radar/core", () => ({
@@ -47,6 +48,8 @@ vi.mock("drizzle-orm", () => ({
   eq: vi.fn((a: unknown, b: unknown) => ({ a, b })),
 }));
 
+vi.mock("../pipeline-gate", () => ({ passesIndustryGate: mockPassesIndustryGate }));
+
 vi.mock("../context", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   loadScoringConfig: mockLoadScoringConfig,
@@ -82,6 +85,7 @@ describe("handleCuratorJob", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockLoadScoringConfig.mockResolvedValue({ thresholds: { quality: 60 } });
+    mockPassesIndustryGate.mockResolvedValue(true);
     mockCurateItem.mockReturnValue({
       d2Chain: 95,
       qualityScore: 88,
@@ -124,5 +128,20 @@ describe("handleCuratorJob", () => {
       alertLevel: "L1",
     }));
     expect(db._updateWhere).toHaveBeenCalledTimes(1);
+  });
+
+  it("hard gate: unrelated item clears stale presentation state without curating", async () => {
+    const db = makeDb([]);
+    mockPassesIndustryGate.mockResolvedValue(false);
+
+    await handleCuratorJob({ data: { itemId: 43, correlationId: "c-43" } as never });
+
+    expect(mockCurateItem).not.toHaveBeenCalled();
+    expect(db.select).not.toHaveBeenCalled();
+    expect(db._updateSet).toHaveBeenCalledWith({
+      isCurated: false,
+      alertType: null,
+      alertLevel: null,
+    });
   });
 });

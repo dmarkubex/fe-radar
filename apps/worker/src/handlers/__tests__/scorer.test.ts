@@ -1,11 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-const { mockGetDb, mockRunScorer, mockWithScrubber, mockComputeD3Market, mockListLatestFinancialsByMetric } = vi.hoisted(() => ({
+const { mockGetDb, mockRunScorer, mockWithScrubber, mockComputeD3Market, mockListLatestFinancialsByMetric, mockPassesIndustryGate } = vi.hoisted(() => ({
   mockGetDb: vi.fn(),
   mockRunScorer: vi.fn(),
   mockWithScrubber: vi.fn((client: unknown) => client),
   mockComputeD3Market: vi.fn(),
   mockListLatestFinancialsByMetric: vi.fn().mockResolvedValue([]),
+  mockPassesIndustryGate: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("@fe-radar/db", () => ({
@@ -33,6 +34,7 @@ vi.mock("@fe-radar/core", () => ({
 vi.mock("@fe-radar/llm", () => ({ withScrubber: mockWithScrubber }));
 vi.mock("drizzle-orm", () => ({ eq: vi.fn((a: unknown, b: unknown) => ({ a, b })) }));
 vi.mock("../../jobs/scorer", () => ({ runScorer: mockRunScorer }));
+vi.mock("../pipeline-gate", () => ({ passesIndustryGate: mockPassesIndustryGate }));
 vi.mock("../context", () => ({
   logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() },
   handlerContext: { deepSeek: { id: "deepSeek" } },
@@ -76,6 +78,7 @@ describe("handleScorerJob", () => {
     vi.clearAllMocks();
     mockWithScrubber.mockImplementation((client: unknown) => client);
     mockListLatestFinancialsByMetric.mockResolvedValue([]);
+    mockPassesIndustryGate.mockResolvedValue(true);
   });
 
   it("normal path: persists all five-dimension scores returned by runScorer", async () => {
@@ -110,6 +113,17 @@ describe("handleScorerJob", () => {
     await handleScorerJob({ data: { itemId: 404 } as never });
 
     expect(mockRunScorer).not.toHaveBeenCalled();
+    expect(db.update).not.toHaveBeenCalled();
+  });
+
+  it("hard gate: unrelated item skips scorer and all writes", async () => {
+    const db = makeDb([]);
+    mockPassesIndustryGate.mockResolvedValue(false);
+
+    await handleScorerJob({ data: { itemId: 14 } as never });
+
+    expect(mockRunScorer).not.toHaveBeenCalled();
+    expect(db.select).not.toHaveBeenCalled();
     expect(db.update).not.toHaveBeenCalled();
   });
 

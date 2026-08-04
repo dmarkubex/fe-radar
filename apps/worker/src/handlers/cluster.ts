@@ -5,6 +5,7 @@ import type { PipelineJob } from "../queues";
 import { createRedisConnection } from "../queues";
 import { withClusterCreateLock } from "../jobs/cluster";
 import { logger } from "./context";
+import { passesIndustryGate } from "./pipeline-gate";
 
 export function cosineSimilarity(a: number[], b: number[]): number {
   let dot = 0;
@@ -27,6 +28,7 @@ export async function handleClusterJob(job: { data: PipelineJob }): Promise<void
   const itemId = job.data.itemId;
   const correlationId = job.data.correlationId;
   logger.info({ itemId, correlationId, stage: "cluster" }, "pipeline stage");
+  if (!await passesIndustryGate(db, itemId)) return;
 
   const [row] = await db.select({
     embedding: itemAnalysis.embedding,

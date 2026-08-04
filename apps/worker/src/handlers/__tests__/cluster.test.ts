@@ -1,10 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-const { mockGetDb, mockCreateRedisConnection, mockWithClusterCreateLock } = vi.hoisted(() => ({
+const { mockGetDb, mockCreateRedisConnection, mockWithClusterCreateLock, mockPassesIndustryGate } = vi.hoisted(() => ({
   mockGetDb: vi.fn(),
   mockCreateRedisConnection: vi.fn(() => ({ id: "redis", quit: vi.fn().mockResolvedValue(undefined) })),
   // default: lock simply runs the callback (lock acquired)
   mockWithClusterCreateLock: vi.fn(async (_redis: unknown, fn: () => Promise<unknown>) => fn()),
+  mockPassesIndustryGate: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("@fe-radar/db", () => ({
@@ -21,6 +22,7 @@ vi.mock("drizzle-orm", () => ({
 
 vi.mock("../../queues", () => ({ createRedisConnection: mockCreateRedisConnection }));
 vi.mock("../../jobs/cluster", () => ({ withClusterCreateLock: mockWithClusterCreateLock }));
+vi.mock("../pipeline-gate", () => ({ passesIndustryGate: mockPassesIndustryGate }));
 vi.mock("../context", () => ({ logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 
 /**
@@ -91,6 +93,7 @@ describe("handleClusterJob", () => {
     vi.clearAllMocks();
     mockCreateRedisConnection.mockReturnValue({ id: "redis", quit: vi.fn().mockResolvedValue(undefined) });
     mockWithClusterCreateLock.mockImplementation(async (_redis: unknown, fn: () => Promise<unknown>) => fn());
+    mockPassesIndustryGate.mockResolvedValue(true);
   });
 
   it("match-existing: similar candidate (sim>=0.85) → inserts into clusterItems, no new cluster", async () => {
@@ -151,5 +154,16 @@ describe("handleClusterJob", () => {
 
     expect(mockWithClusterCreateLock).not.toHaveBeenCalled();
     expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it("hard gate: unrelated item skips clustering and Redis", async () => {
+    const db = makeDb({ analysisRows: [] });
+    mockPassesIndustryGate.mockResolvedValue(false);
+
+    await handleClusterJob({ data: { itemId: 6 } as never });
+
+    expect(db.select).not.toHaveBeenCalled();
+    expect(db.insert).not.toHaveBeenCalled();
+    expect(mockCreateRedisConnection).not.toHaveBeenCalled();
   });
 });

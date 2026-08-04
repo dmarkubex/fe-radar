@@ -9,6 +9,7 @@ import { createRedisConnection, createWebsearchQueue } from "../queues";
 import { runNer } from "../jobs/ner";
 
 import { logger, handlerContext, loadEntityDictionary } from "./context";
+import { passesIndustryGate } from "./pipeline-gate";
 
 /** C1 > C2 > C3 > null — used when alias fallback hits multiple entities. */
 const CIRCLE_RANK_SQL = sql`CASE ${entities.circle}
@@ -119,6 +120,8 @@ export async function handleNerJob(job: { data: PipelineJob }): Promise<void> {
   const itemId = job.data.itemId;
   const correlationId = job.data.correlationId;
   logger.info({ itemId, correlationId, stage: "ner" }, "pipeline stage");
+  if (!await passesIndustryGate(db, itemId)) return;
+
   const [row] = await db.select({
     title: items.title,
     content: items.content,

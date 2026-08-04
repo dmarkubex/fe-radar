@@ -10,8 +10,14 @@ const config = {
 } as const;
 
 describe("scoring and curator", () => {
-  it("computes D2_chain from entities without LLM", () => {
-    expect(computeD2Chain([{ id: 1, type: "company", canonicalName: "远东控股", circle: "C1" }])).toBeGreaterThan(90);
+  it("computes D2_chain from entity circles without LLM", () => {
+    const entity = (id: number, circle?: "C1" | "C2" | "C3") => ({ id, type: "company", canonicalName: `公司${id}`, circle });
+
+    expect(computeD2Chain([entity(1, "C1")])).toBe(95);
+    expect(computeD2Chain([entity(1, "C2"), entity(2, "C2")])).toBe(80);
+    expect(computeD2Chain([entity(1, "C2")])).toBe(70);
+    expect(computeD2Chain([entity(1, "C3")])).toBe(50);
+    expect(computeD2Chain([])).toBe(20);
   });
 
   it("applies tier and circle coefficients", () => {

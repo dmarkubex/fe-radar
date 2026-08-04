@@ -28,11 +28,17 @@ export async function handlePrefilterJob(job: { data: PipelineJob }): Promise<vo
     withScrubber(handlerContext.deepSeek),
   );
 
+  const isIndustryRelated = result.isIndustryRelated === true
+    ? true
+    : result.isIndustryRelated === false
+      ? false
+      : null;
+
   await db.update(itemAnalysis).set({
-    isIndustryRelated: result.isIndustryRelated === true
-      ? true
-      : result.isIndustryRelated === false
-        ? false
-        : null,
+    isIndustryRelated,
+    ...(isIndustryRelated === true
+      ? {}
+      : { isCurated: false, alertType: null, alertLevel: null }),
+    ...(isIndustryRelated === false ? { quotaState: "dropped_filter" } : {}),
   }).where(eq(itemAnalysis.itemId, itemId));
 }

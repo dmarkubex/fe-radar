@@ -8,6 +8,8 @@ import {
   itemAnalysis,
   itemEntities,
   items,
+  scoringReprocessRuns,
+  scoringReprocessTargets,
   scoringConfig,
   sources
 } from "@fe-radar/db";
@@ -57,6 +59,12 @@ export interface AnalysisUpdate {
   qualityScore: number;
 }
 
+export interface BackfillWindow {
+  runId: string;
+  from: Date;
+  until: Date;
+}
+
 export interface BackfillPlan {
   links: CircleLink[];
   updates: AnalysisUpdate[];
@@ -76,6 +84,9 @@ export interface CircleDistribution {
 
 export interface BackfillStats {
   dryRun: boolean;
+  runId: string;
+  from: Date;
+  until: Date;
   scannedItems: number;
   matchedItems: number;
   linksToCreate: number;
@@ -280,12 +291,33 @@ function scoreChanged(before: number | null, after: number): boolean {
 }
 
 export async function runBackfillCircles(
-  options: { dryRun?: boolean } = {}
+  options: BackfillWindow & { dryRun?: boolean }
 ): Promise<BackfillStats> {
-  const dryRun = options.dryRun ?? false;
+  const dryRun = options.dryRun ?? true;
+  if (!(options.from < options.until)) {
+    throw new Error("--from 必须早于 --until");
+  }
   const db = createDbClient({ runtime: "worker" });
 
   return db.transaction(async (tx) => {
+    const [run] = await tx
+      .select({
+        fromAt: scoringReprocessRuns.fromAt,
+        untilAt: scoringReprocessRuns.untilAt
+      })
+      .from(scoringReprocessRuns)
+      .where(eq(scoringReprocessRuns.runId, options.runId))
+      .limit(1);
+    if (!run) throw new Error(`run_id=${options.runId} 尚未 prepare`);
+    if (
+      run.fromAt.getTime() !== options.from.getTime() ||
+      run.untilAt.getTime() !== options.until.getTime()
+    ) {
+      throw new Error(
+        `run_id=${options.runId} 的固定窗口与 --from/--until 不一致`
+      );
+    }
+
     const dictionaryRows = await tx
       .select({
         id: entities.id,
@@ -327,7 +359,9 @@ export async function runBackfillCircles(
     let scannedItems = 0;
     let cursor = 0;
     let matchedLinks: CircleLink[] = [];
+    let windowItemIds: number[] = [];
     for (;;) {
+      // run targets are the immutable authority; published_at may change after prepare.
       const itemRows = await tx
         .select({
           id: items.id,
@@ -335,27 +369,26 @@ export async function runBackfillCircles(
           content: items.content
         })
         .from(items)
-        .where(gt(items.id, cursor))
+        .innerJoin(
+          scoringReprocessTargets,
+          eq(scoringReprocessTargets.itemId, items.id)
+        )
+        .where(
+          and(
+            eq(scoringReprocessTargets.runId, options.runId),
+            gt(items.id, cursor)
+          )
+        )
         .orderBy(asc(items.id))
         .limit(READ_BATCH_SIZE);
       if (itemRows.length === 0) break;
       scannedItems += itemRows.length;
+      windowItemIds = windowItemIds.concat(itemRows.map((row) => row.id));
       matchedLinks = matchedLinks.concat(findCircleLinks(itemRows, dictionary));
       cursor = itemRows[itemRows.length - 1]!.id;
     }
 
-    const existingCircleLinks = await tx
-      .selectDistinct({ itemId: itemEntities.itemId })
-      .from(itemEntities)
-      .innerJoin(entities, eq(entities.id, itemEntities.entityId))
-      .where(inArray(entities.circle, ["C1", "C2"]));
-    const affectedItemIds = [
-      ...new Set(
-        matchedLinks
-          .map((link) => link.itemId)
-          .concat(existingCircleLinks.map((row) => row.itemId))
-      )
-    ];
+    const affectedItemIds = windowItemIds;
 
     const entityHitsByItem = new Map<number, Map<number, EntityHit>>();
     const existingLinkKeys = new Set<string>();
@@ -418,6 +451,11 @@ export async function runBackfillCircles(
         analyses.set(row.itemId, { ...row, tier: row.tier });
       }
     }
+    if (analyses.size !== affectedItemIds.length) {
+      throw new Error(
+        `窗口内 ${affectedItemIds.length - analyses.size} 个 item 缺少 analysis/source，已中止且未写库`
+      );
+    }
 
     let updates: AnalysisUpdate[] = [];
     for (const analysis of analyses.values()) {
@@ -436,6 +474,11 @@ export async function runBackfillCircles(
           count: sql<number>`count(*)::int`
         })
         .from(itemAnalysis)
+        .innerJoin(
+          scoringReprocessTargets,
+          eq(scoringReprocessTargets.itemId, itemAnalysis.itemId)
+        )
+        .where(eq(scoringReprocessTargets.runId, options.runId))
         .groupBy(itemAnalysis.topCircle)
     );
 
@@ -496,11 +539,19 @@ export async function runBackfillCircles(
               count: sql<number>`count(*)::int`
             })
             .from(itemAnalysis)
+            .innerJoin(
+              scoringReprocessTargets,
+              eq(scoringReprocessTargets.itemId, itemAnalysis.itemId)
+            )
+            .where(eq(scoringReprocessTargets.runId, options.runId))
             .groupBy(itemAnalysis.topCircle)
         );
 
     return {
       dryRun,
+      runId: options.runId,
+      from: options.from,
+      until: options.until,
       scannedItems,
       matchedItems: new Set(matchedLinks.map((link) => link.itemId)).size,
       linksToCreate: links.length,
@@ -524,7 +575,7 @@ export async function runBackfillCircles(
 function printStats(stats: BackfillStats): void {
   const mode = stats.dryRun ? "DRY-RUN" : "WRITE";
   console.log(
-    `${mode} scanned_items=${stats.scannedItems} matched_items=${stats.matchedItems}`
+    `${mode} run_id=${stats.runId} from=${stats.from.toISOString()} until=${stats.until.toISOString()} scanned_items=${stats.scannedItems} matched_items=${stats.matchedItems}`
   );
   console.log(
     `${mode} item_entity_links would_create=${stats.linksToCreate} created=${stats.linksCreated}`
@@ -544,11 +595,32 @@ async function main(): Promise<void> {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is required");
   }
-  const stats = await runBackfillCircles({
-    dryRun: process.argv.includes("--dry-run")
-  });
+  const args = parseBackfillArgs(process.argv.slice(2));
+  const stats = await runBackfillCircles(args);
   printStats(stats);
   process.exit(0);
+}
+
+export function parseBackfillArgs(
+  args: readonly string[]
+): BackfillWindow & { dryRun: boolean } {
+  const valueAfter = (flag: string): string | undefined => {
+    const index = args.indexOf(flag);
+    return index >= 0 ? args[index + 1] : undefined;
+  };
+  const runId = valueAfter("--run-id")?.trim();
+  const fromText = valueAfter("--from");
+  const untilText = valueAfter("--until");
+  if (!runId || !fromText || !untilText) {
+    throw new Error("必须提供 --run-id 及固定窗口 --from <ISO> --until <ISO>");
+  }
+  const from = new Date(fromText);
+  const until = new Date(untilText);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(until.getTime())) {
+    throw new Error("--from/--until 必须是有效 ISO 时间");
+  }
+  if (!(from < until)) throw new Error("--from 必须早于 --until");
+  return { runId, from, until, dryRun: !args.includes("--apply") };
 }
 
 // ESM entry detection: compare this module URL to argv[1] (realpath).
@@ -567,7 +639,7 @@ function resolveArgvPath(p: string): string {
 }
 const isMain = Boolean(
   process.argv[1] &&
-    import.meta.url === pathToFileURL(resolveArgvPath(process.argv[1])).href
+  import.meta.url === pathToFileURL(resolveArgvPath(process.argv[1])).href
 );
 if (isMain) {
   main().catch((error) => {

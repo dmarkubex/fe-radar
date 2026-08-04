@@ -12,6 +12,7 @@ const {
   mockQueueClose,
   mockRedis,
   mockLogger,
+  mockPassesIndustryGate,
 } = vi.hoisted(() => {
   const mockQueueAdd = vi.fn().mockResolvedValue(undefined);
   const mockQueueClose = vi.fn().mockResolvedValue(undefined);
@@ -33,6 +34,7 @@ const {
     mockQueueClose,
     mockRedis,
     mockLogger,
+    mockPassesIndustryGate: vi.fn().mockResolvedValue(true),
   };
 });
 
@@ -64,6 +66,7 @@ vi.mock("drizzle-orm", () => ({
   ),
 }));
 vi.mock("../../jobs/ner", () => ({ runNer: mockRunNer }));
+vi.mock("../pipeline-gate", () => ({ passesIndustryGate: mockPassesIndustryGate }));
 vi.mock("../context", () => ({
   logger: mockLogger,
   handlerContext: { qwen: { id: "qwen" }, deepSeek: { id: "deepseek" } },
@@ -183,6 +186,7 @@ describe("handleNerJob", () => {
     vi.clearAllMocks();
     mockWithScrubber.mockImplementation((client: unknown) => client);
     mockLoadEntityDictionary.mockResolvedValue({ match: () => [] });
+    mockPassesIndustryGate.mockResolvedValue(true);
   });
 
   it("normal path: links entity when canonicalName resolves to an existing entity row", async () => {
@@ -318,6 +322,19 @@ describe("handleNerJob", () => {
     expect(mockLoadEntityDictionary).not.toHaveBeenCalled();
     expect(db.insert).not.toHaveBeenCalled();
   });
+
+  it("hard gate: unrelated item skips NER, entity writes, and websearch", async () => {
+    const db = makeDb([]);
+    mockPassesIndustryGate.mockResolvedValue(false);
+
+    await handleNerJob({ data: { itemId: 405 } as never });
+
+    expect(mockRunNer).not.toHaveBeenCalled();
+    expect(mockLoadEntityDictionary).not.toHaveBeenCalled();
+    expect(db.select).not.toHaveBeenCalled();
+    expect(db.insert).not.toHaveBeenCalled();
+    expect(mockCreateRedisConnection).not.toHaveBeenCalled();
+  });
 });
 
 describe("handleNerJob — websearch trigger (T-ARK-17)", () => {
@@ -333,6 +350,7 @@ describe("handleNerJob — websearch trigger (T-ARK-17)", () => {
     mockRedis.set.mockResolvedValue("OK");
     mockQueueAdd.mockResolvedValue(undefined);
     mockQueueClose.mockResolvedValue(undefined);
+    mockPassesIndustryGate.mockResolvedValue(true);
   });
 
   it("enqueues websearch for C1/C2 entities hit (admitted, no cooldown)", async () => {

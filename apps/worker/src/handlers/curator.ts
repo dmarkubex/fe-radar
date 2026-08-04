@@ -6,12 +6,22 @@ import type { EntityHit } from "@fe-radar/core";
 import type { PipelineJob } from "../queues";
 
 import { logger, loadScoringConfig, loadOwnCompanyProfile } from "./context";
+import { passesIndustryGate } from "./pipeline-gate";
 
 export async function handleCuratorJob(job: { data: PipelineJob }): Promise<void> {
   const db = getDb();
   const itemId = job.data.itemId;
   const correlationId = job.data.correlationId;
   logger.info({ itemId, correlationId, stage: "curator" }, "pipeline stage");
+
+  if (!await passesIndustryGate(db, itemId)) {
+    await db.update(itemAnalysis).set({
+      isCurated: false,
+      alertType: null,
+      alertLevel: null,
+    }).where(eq(itemAnalysis.itemId, itemId));
+    return;
+  }
 
   const [itemRow] = await db.select({
     sourceId: items.sourceId,

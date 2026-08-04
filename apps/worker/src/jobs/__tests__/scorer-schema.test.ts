@@ -58,6 +58,7 @@ describe("scorer schema", () => {
         maximum: 100
       });
     }
+    expect(vi.mocked(client.chatJson).mock.calls[0]?.[0].temperature).toBe(0);
   });
 
   it("keeps low 0-100 scores unchanged and clamps to the 0-100 range", async () => {

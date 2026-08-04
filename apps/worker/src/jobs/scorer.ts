@@ -48,7 +48,8 @@ export async function runScorer(
         system: SCORING_SYSTEM_PROMPT,
         user: text,
         schemaName: "scoring",
-        schema
+        schema,
+        temperature: 0
       })
     ).value;
     return normalizeScoringResult(result);
