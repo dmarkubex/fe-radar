@@ -181,3 +181,49 @@ describe("fetchTextWithPolicy dispatcher", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("fetchTextWithPolicy init support", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.acquire.mockReturnValue(undefined);
+  });
+
+  it("forwards POST method and body while keeping the policy user-agent", async () => {
+    mockFetch.mockResolvedValueOnce(textResponse("ok"));
+
+    await fetchTextWithPolicy(
+      "https://ecp.sgcc.com.cn/ecp2.0/ecpwcmcore/index/noteList",
+      {
+        timeoutMs: 1000,
+        init: {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "user-agent": "evil-attempted-override"
+          },
+          body: '{"index":1,"size":1}'
+        }
+      }
+    );
+
+    const init = mockFetch.mock.calls[0]?.[1] as CapturedFetchInit;
+    expect(init.method).toBe("POST");
+    expect(init.body).toBe('{"index":1,"size":1}');
+    const headers = init.headers as Record<string, string>;
+    expect(headers["user-agent"]).toBe("test-agent");
+    expect(headers["content-type"]).toBe("application/json");
+    // Caller-supplied signal must not replace the policy timeout abort.
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("omits caller init when not provided", async () => {
+    mockFetch.mockResolvedValueOnce(textResponse("ok"));
+
+    await fetchTextWithPolicy("https://example.com/news", { timeoutMs: 1000 });
+
+    const init = mockFetch.mock.calls[0]?.[1] as CapturedFetchInit;
+    expect(init.method).toBeUndefined();
+    const headers = init.headers as Record<string, string>;
+    expect(headers["user-agent"]).toBe("test-agent");
+  });
+});

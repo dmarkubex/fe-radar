@@ -5,7 +5,10 @@ import type {
   StandardItem
 } from "../types";
 import { cninfoAdapter } from "./cninfo";
+import { chnEnergyTenderAdapter } from "./chnenergy-tender";
 import { neaNewsAdapter } from "./nea-news";
+import { powerChinaTenderAdapter } from "./powerchina-tender";
+import { sgccTenderAdapter } from "./sgcc-tender";
 import { sseAdapter } from "./sse";
 import type { AnnouncementAdapter } from "./types";
 import { szseAdapter } from "./szse";
@@ -44,3 +47,6 @@ registerAnnouncementAdapter(sseAdapter);
 registerAnnouncementAdapter(szseAdapter);
 registerAnnouncementAdapter(cninfoAdapter);
 registerAnnouncementAdapter(neaNewsAdapter);
+registerAnnouncementAdapter(sgccTenderAdapter);
+registerAnnouncementAdapter(powerChinaTenderAdapter);
+registerAnnouncementAdapter(chnEnergyTenderAdapter);

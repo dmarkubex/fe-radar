@@ -28,6 +28,69 @@ const NON_CONTENT_FETCHERS = new Set<FetcherType>([
   "websearch"
 ]);
 
+export function parseSourceIdArg(argv: readonly string[]): number | null {
+  const idx = argv.indexOf("--source-id");
+  if (idx === -1) return null;
+  const raw = argv[idx + 1];
+  if (raw === undefined || raw === "") {
+    throw new Error("--source-id requires a positive integer value");
+  }
+  if (!/^[1-9][0-9]*$/.test(raw)) {
+    throw new Error(
+      `--source-id value "${raw}" is not a positive integer (must be >0, digits only)`
+    );
+  }
+  const parsed = Number(raw);
+  if (!Number.isSafeInteger(parsed)) {
+    throw new Error(
+      `--source-id value "${raw}" is not a positive integer (must be >0, digits only)`
+    );
+  }
+  return parsed;
+}
+
+export function filterSourcesById(
+  sources: readonly SourceRecord[],
+  id: number
+): SourceRecord[] {
+  return sources.filter((source) => source.id === id);
+}
+
+export function toJsonlResult(result: DeepVerifyResult): string {
+  const payload: Record<string, unknown> = {
+    kind: "result",
+    id: result.id,
+    name: result.name,
+    url: result.url,
+    fetcherType: result.fetcherType,
+    sourceEnabled: result.sourceEnabled,
+    status: result.status
+  };
+  if (result.itemCount !== undefined) {
+    payload.itemCount = result.itemCount;
+  }
+  if (result.error !== undefined) {
+    payload.error = result.error;
+  }
+  return `${JSON.stringify(payload)}\n`;
+}
+
+export function toJsonlSummary(results: DeepVerifyResult[]): string {
+  const passed = results.filter((result) => result.status === "pass").length;
+  const failed = results.filter((result) => result.status === "fail").length;
+  const skipped = results.filter(
+    (result) => result.status === "skipped"
+  ).length;
+  const payload = {
+    kind: "summary",
+    passed,
+    failed,
+    skipped,
+    total: results.length
+  };
+  return `${JSON.stringify(payload)}\n`;
+}
+
 export interface DeepVerifyResult {
   id: number;
   name: string;
@@ -155,7 +218,7 @@ export async function verifySourcesWithWorker(
   return results;
 }
 
-function printResults(results: DeepVerifyResult[]): void {
+export function printResults(results: DeepVerifyResult[]): void {
   for (const result of results) {
     const disabled = result.sourceEnabled ? "" : " [DISABLED]";
     const count =
@@ -176,19 +239,44 @@ function printResults(results: DeepVerifyResult[]): void {
   );
 }
 
+export function printJsonlResults(results: DeepVerifyResult[]): void {
+  for (const result of results) {
+    process.stdout.write(toJsonlResult(result));
+  }
+  process.stdout.write(toJsonlSummary(results));
+}
+
 async function main(): Promise<void> {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is required");
   }
 
   const includeDisabled = process.argv.includes("--include-disabled");
+  const jsonOutput = process.argv.includes("--json");
+  const sourceId = parseSourceIdArg(process.argv);
+
   const db = createDbClient({ runtime: "worker" });
-  const sources = await listSources(
+  const allSources = await listSources(
     db,
     includeDisabled ? {} : { enabled: true }
   );
+
+  const sources =
+    sourceId === null ? allSources : filterSourcesById(allSources, sourceId);
+  if (sourceId !== null && sources.length === 0) {
+    throw new Error(
+      `--source-id ${sourceId} not found in sources table (include-disabled=${
+        includeDisabled ? "true" : "false"
+      })`
+    );
+  }
+
   const results = await verifySourcesWithWorker(sources, { includeDisabled });
-  printResults(results);
+  if (jsonOutput) {
+    printJsonlResults(results);
+  } else {
+    printResults(results);
+  }
 
   if (results.some((result) => result.status === "fail")) {
     throw new Error("one or more sources failed the >=3 parsed-item gate");
@@ -215,7 +303,7 @@ function resolveArgvPath(p: string): string {
 }
 const isMain = Boolean(
   process.argv[1] &&
-    import.meta.url === pathToFileURL(resolveArgvPath(process.argv[1])).href
+  import.meta.url === pathToFileURL(resolveArgvPath(process.argv[1])).href
 );
 if (isMain) {
   main().catch((error) => {

@@ -31,6 +31,18 @@ export interface FetchTextOptions {
     input: string,
     init: FetchInitWithDispatcher
   ) => Promise<Response>;
+  /**
+   * Optional extra RequestInit to merge into the policy fetch (e.g. POST method
+   * and JSON body for adapters hitting public search APIs). The policy layer
+   * still owns the user-agent, dispatcher, timeout abort, robots check, retry
+   * loop, response-size limit, and proxy release semantics. Caller-supplied
+   * headers are merged in but cannot remove or replace the policy-managed
+   * `user-agent` header. Caller-supplied `signal` is ignored — the policy
+   * layer always attaches its own timeout abort to preserve retry behavior.
+   */
+  init?: Omit<RequestInit, "headers" | "signal" | "dispatcher"> & {
+    headers?: HeadersInit;
+  };
 }
 
 function buildDispatcher(
@@ -165,12 +177,27 @@ export async function fetchTextWithPolicy(
     }
 
     try {
+      const callerHeaders = options.init?.headers;
+      // Merge caller headers, but always pin the policy-managed user-agent so
+      // adapters cannot downgrade the rotated UA. We keep the result as a
+      // plain object so the merged headers survive fetch impls that read
+      // `init.headers` as a string-keyed record (undici does this).
+      const mergedHeaders: Record<string, string> = {};
+      if (callerHeaders) {
+        const tmp = new Headers(callerHeaders);
+        tmp.forEach((value, key) => {
+          mergedHeaders[key.toLowerCase()] = value;
+        });
+      }
+      mergedHeaders["user-agent"] = userAgent;
+      // Caller-supplied `signal` is intentionally ignored — the policy layer
+      // always attaches its own timeout abort to keep retry semantics intact.
       const response = await fetchImpl(url, {
-        headers: { "user-agent": userAgent },
+        ...(options.init ?? {}),
+        headers: mergedHeaders,
         signal: AbortSignal.timeout(options.timeoutMs),
         dispatcher
       });
-
       if (response.status === 403 || response.status === 429) {
         proxyPool.release(proxy, false);
         proxy = proxyPool.acquire({ retry: true });

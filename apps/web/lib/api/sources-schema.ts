@@ -112,11 +112,36 @@ const quotesConfigSchema = z
     }
   );
 
+const gate0Schema = z
+  .object({
+    domains: z
+      .array(
+        z.enum([
+          "own_company",
+          "products",
+          "industry_policy",
+          "competitors",
+          "upstream",
+          "downstream"
+        ])
+      )
+      .min(1)
+      .refine((values) => new Set(values).size === values.length),
+    signalKinds: z
+      .array(z.enum(["tender"]))
+      .min(1)
+      .refine((values) => new Set(values).size === values.length)
+      .optional(),
+    maxAgeHours: z.number().int().min(1).max(8760)
+  })
+  .strict();
+
 export const sourceConfigSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("rss"),
     url: z.string().url(),
-    keywordFilter: z.array(z.string().min(1)).optional()
+    keywordFilter: z.array(z.string().min(1)).optional(),
+    gate0: gate0Schema.optional()
   }),
   z.object({
     type: z.literal("html"),
@@ -132,7 +157,8 @@ export const sourceConfigSchema = z.discriminatedUnion("type", [
     useRealUa: z.boolean().optional(),
     keywordFilter: z.array(z.string().min(1)).optional(),
     verificationBlocked: z.boolean().optional(),
-    verificationBlockedReason: z.string().min(1).optional()
+    verificationBlockedReason: z.string().min(1).optional(),
+    gate0: gate0Schema.optional()
   }),
   z.object({
     type: z.literal("playwright"),
@@ -141,12 +167,21 @@ export const sourceConfigSchema = z.discriminatedUnion("type", [
     extractor: z.string().startsWith("() =>"),
     useRealUa: z.boolean().optional(),
     verificationBlocked: z.boolean().optional(),
-    verificationBlockedReason: z.string().min(1).optional()
+    verificationBlockedReason: z.string().min(1).optional(),
+    gate0: gate0Schema.optional()
   }),
   quotesConfigSchema,
   z.object({
     type: z.literal("announcement"),
-    adapter: z.enum(["cninfo", "szse", "sse", "nea-news"]),
+    adapter: z.enum([
+      "cninfo",
+      "szse",
+      "sse",
+      "nea-news",
+      "sgcc-tender",
+      "powerchina-tender",
+      "chnenergy-tender"
+    ]),
     searchkey: z.string().min(1).optional(),
     titleKeywords: z
       .union([z.string().min(1), z.array(z.string().min(1)).min(1)])
@@ -185,7 +220,20 @@ export const sourceConfigSchema = z.discriminatedUnion("type", [
     column: z.string().min(1).optional(),
     plate: z.string().min(1).optional(),
     trade: z.string().min(1).optional(),
-    endpoint: z.string().url().optional()
+    endpoint: z.string().url().optional(),
+    keywords: z
+      .array(z.string().trim().min(1))
+      .min(1)
+      .max(20)
+      .refine((values) => new Set(values).size === values.length)
+      .optional(),
+    noticeKinds: z
+      .array(z.enum(["tender", "purchase", "candidate", "result"]))
+      .min(1)
+      .max(4)
+      .refine((values) => new Set(values).size === values.length)
+      .optional(),
+    gate0: gate0Schema.optional()
   }),
   z.object({
     type: z.literal("crawl"),
@@ -200,7 +248,8 @@ export const sourceConfigSchema = z.discriminatedUnion("type", [
     riskFilter: z.boolean().optional(),
     entityKeywords: z.array(z.string().min(1)).optional(),
     riskKeywords: z.array(z.string().min(1)).optional(),
-    maxContentLength: z.number().int().min(100).max(5000).optional()
+    maxContentLength: z.number().int().min(100).max(5000).optional(),
+    gate0: gate0Schema.optional()
   })
 ]);
 
@@ -252,6 +301,9 @@ function announcementConfigValid(value: {
     litigationFilter?: boolean;
     searchkey?: string;
     titleKeywords?: string | string[];
+    keywords?: string[];
+    noticeKinds?: string[];
+    pageSize?: number;
   };
 }): boolean {
   if (value.config?.type !== "announcement") {
@@ -264,6 +316,26 @@ function announcementConfigValid(value: {
       ? titleKeywords.length > 0
       : typeof titleKeywords === "string" && titleKeywords.trim().length > 0;
     if (!hasTitleKeywords && !value.config.searchkey?.trim()) {
+      return false;
+    }
+  }
+
+  if (
+    value.config.adapter === "sgcc-tender" ||
+    value.config.adapter === "powerchina-tender" ||
+    value.config.adapter === "chnenergy-tender"
+  ) {
+    // Mirrors apps/worker/src/fetchers/announcements/sgcc-tender.ts (T-G0-04 worker side).
+    // apps/web and apps/worker must not import each other, so the allowlist rules are duplicated on purpose.
+    // sgcc-tender requires endpoint + keywords + noticeKinds as a unit (no fallback to titleKeywords/searchkey).
+    if (
+      !value.config.endpoint ||
+      !value.config.keywords?.length ||
+      !value.config.noticeKinds?.length ||
+      (value.config.adapter !== "chnenergy-tender" &&
+        value.config.pageSize !== undefined &&
+        value.config.pageSize > 20)
+    ) {
       return false;
     }
   }
@@ -347,6 +419,52 @@ function announcementConfigValid(value: {
         endpoint.username === "" &&
         endpoint.password === "" &&
         NEA_ALLOWED_PATH.test(endpoint.pathname)
+      );
+    }
+    if (value.config.adapter === "sgcc-tender") {
+      // Mirrors apps/worker/src/fetchers/announcements/sgcc-tender.ts (T-G0-04 worker side).
+      // Constraints (all must hold): protocol https:, hostname ecp.sgcc.com.cn, port empty,
+      // username/password empty (same fetch-safety boundary as cninfo/szse/sse),
+      // search/hash empty (would change the request destination or carry credentials),
+      // pathname normalized by collapsing repeated slashes equals the canonical SGCC noteList path.
+      // query is intentionally unrestricted: noticeKinds/keywords/pageNo are POST body or query params
+      // and do not change the request destination (host/port/path).
+      // URL.pathname does NOT collapse internal repeated slashes; we collapse /+ → / before comparing.
+      const normalizedPath = endpoint.pathname.replace(/\/+/g, "/");
+      return (
+        endpoint.protocol === "https:" &&
+        endpoint.hostname === "ecp.sgcc.com.cn" &&
+        endpoint.port === "" &&
+        endpoint.username === "" &&
+        endpoint.password === "" &&
+        endpoint.search === "" &&
+        endpoint.hash === "" &&
+        normalizedPath === "/ecp2.0/ecpwcmcore/index/noteList"
+      );
+    }
+    if (value.config.adapter === "powerchina-tender") {
+      return (
+        endpoint.protocol === "https:" &&
+        endpoint.hostname === "bid.powerchina.cn" &&
+        endpoint.port === "" &&
+        endpoint.username === "" &&
+        endpoint.password === "" &&
+        endpoint.search === "" &&
+        endpoint.hash === "" &&
+        endpoint.pathname ===
+          "/newcbs/recpro-newmember/BidAnnouncementSummary/list"
+      );
+    }
+    if (value.config.adapter === "chnenergy-tender") {
+      return (
+        endpoint.protocol === "https:" &&
+        endpoint.hostname === "www.chnenergybidding.com.cn" &&
+        endpoint.port === "" &&
+        endpoint.username === "" &&
+        endpoint.password === "" &&
+        endpoint.search === "" &&
+        endpoint.hash === "" &&
+        endpoint.pathname === "/bidweb/"
       );
     }
     return false;

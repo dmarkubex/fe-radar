@@ -1,7 +1,16 @@
 import type { FetcherType, SourceRecord } from "@fe-radar/db";
 import { describe, expect, it, vi } from "vitest";
 
-import { verifySourcesWithWorker } from "../verify-sources";
+import {
+  filterSourcesById,
+  parseSourceIdArg,
+  printJsonlResults,
+  printResults,
+  toJsonlResult,
+  toJsonlSummary,
+  verifySourcesWithWorker,
+  type DeepVerifyResult
+} from "../verify-sources";
 
 function makeSource(
   overrides: Partial<SourceRecord> & {
@@ -203,5 +212,77 @@ describe("worker production-path source verification", () => {
     ]);
     expect(robotsCheck).not.toHaveBeenCalled();
     expect(fetchItems).not.toHaveBeenCalled();
+  });
+});
+
+describe("worker verify-sources CLI flags and JSONL output (T-G0-02a)", () => {
+  const pass: DeepVerifyResult = {
+    id: 7,
+    name: "国家能源局",
+    url: "https://www.nea.gov.cn/xwzx/nyyw.htm",
+    fetcherType: "announcement",
+    sourceEnabled: true,
+    status: "pass",
+    itemCount: 3
+  };
+
+  it("parses a positive source id and rejects invalid values", () => {
+    expect(parseSourceIdArg([])).toBeNull();
+    expect(parseSourceIdArg(["--source-id", "42"])).toBe(42);
+    for (const value of [undefined, "", "0", "-1", "3.14", "12abc"]) {
+      const argv =
+        value === undefined ? ["--source-id"] : ["--source-id", value];
+      expect(() => parseSourceIdArg(argv)).toThrow(/positive integer/);
+    }
+  });
+
+  it("filters to one source and returns empty for an unknown id", () => {
+    const sources = [makeSource({ id: 10 }), makeSource({ id: 11 })];
+    expect(filterSourcesById(sources, 11)).toEqual([sources[1]]);
+    expect(filterSourcesById(sources, 999)).toEqual([]);
+  });
+
+  it("emits one JSON result line plus a final summary", () => {
+    const failed: DeepVerifyResult = {
+      ...pass,
+      id: 8,
+      status: "fail",
+      error: "failed"
+    };
+    expect(JSON.parse(toJsonlResult(pass))).toMatchObject({
+      kind: "result",
+      id: 7
+    });
+    expect(JSON.parse(toJsonlSummary([pass, failed]))).toEqual({
+      kind: "summary",
+      passed: 1,
+      failed: 1,
+      skipped: 0,
+      total: 2
+    });
+
+    const write = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    printJsonlResults([pass, failed]);
+    const lines = write.mock.calls
+      .map(([chunk]) => String(chunk).trim())
+      .filter(Boolean);
+    write.mockRestore();
+    expect(lines.map((line) => JSON.parse(line).kind)).toEqual([
+      "result",
+      "result",
+      "summary"
+    ]);
+  });
+
+  it("keeps default text output compatible", () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    printResults([pass]);
+    expect(log.mock.calls.map(([line]) => String(line))).toEqual([
+      "PASS\t国家能源局\tannouncement\thttps://www.nea.gov.cn/xwzx/nyyw.htm items=3",
+      "worker-content-verification passed=1 failed=0 skipped=0"
+    ]);
+    log.mockRestore();
   });
 });
