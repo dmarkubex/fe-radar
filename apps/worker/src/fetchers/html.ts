@@ -11,6 +11,23 @@ function firstSelectorMatch(root: Cheerio<AnyNode>, selector: string) {
 
 const DOMESTIC_DATE =
   /(\d{4})(?:\s*年\s*|[./-])(\d{1,2})(?:\s*月\s*|[./-])(\d{1,2})/;
+const US_DATE = /\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/;
+const ENGLISH_DATE =
+  /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s*(\d{1,2}),?\s+(\d{4})\b/i;
+const MONTHS = [
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "may",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "oct",
+  "nov",
+  "dec"
+];
 const DOMESTIC_TIME = /(?:T|\s)(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/;
 const EXPLICIT_TIMEZONE = /(?:Z|[+-]\d{2}:?\d{2}|GMT|UTC)\s*$/i;
 
@@ -23,12 +40,16 @@ export function parsePublishedAt(raw: string | null | undefined): Date | null {
     return Number.isNaN(date.getTime()) ? null : date;
   }
 
-  const match = DOMESTIC_DATE.exec(value);
-  if (!match) return null;
+  const domestic = DOMESTIC_DATE.exec(value);
+  const us = domestic ? null : US_DATE.exec(value);
+  const english = domestic || us ? null : ENGLISH_DATE.exec(value);
+  if (!domestic && !us && !english) return null;
   const time = DOMESTIC_TIME.exec(value);
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
+  const year = Number(domestic?.[1] ?? us?.[3] ?? english?.[3]);
+  const month = english
+    ? MONTHS.indexOf(english[1]!.slice(0, 3).toLowerCase()) + 1
+    : Number(domestic?.[2] ?? us?.[1]);
+  const day = Number(domestic?.[3] ?? us?.[2] ?? english?.[2]);
   const hour = Number(time?.[1] ?? 0);
   const minute = Number(time?.[2] ?? 0);
   const second = Number(time?.[3] ?? 0);

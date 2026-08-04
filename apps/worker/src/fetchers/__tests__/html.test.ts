@@ -74,6 +74,18 @@ describe("parsePublishedAt", () => {
     expect(hy?.toISOString()).toBe("2026-05-11T04:00:00.000Z");
   });
 
+  it("parses English and US-style official-site dates as Asia/Shanghai", () => {
+    expect(parsePublishedAt("Aug 03, 2026")?.toISOString()).toBe(
+      "2026-08-02T16:00:00.000Z"
+    );
+    expect(parsePublishedAt("Jul.30 2026")?.toISOString()).toBe(
+      "2026-07-29T16:00:00.000Z"
+    );
+    expect(parsePublishedAt("7/21/2026")?.toISOString()).toBe(
+      "2026-07-20T16:00:00.000Z"
+    );
+  });
+
   it("preserves an explicit timezone", () => {
     const parsed = parsePublishedAt("2026-05-11T09:30:00Z");
     expect(parsed?.toISOString()).toBe("2026-05-11T09:30:00.000Z");
