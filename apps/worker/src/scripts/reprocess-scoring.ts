@@ -546,8 +546,11 @@ const isMain = Boolean(
   import.meta.url === pathToFileURL(resolveArgvPath(process.argv[1])).href
 );
 if (isMain) {
-  main().catch((error) => {
-    console.error(error instanceof Error ? error.message : error);
-    process.exit(1);
-  });
+  main().then(
+    () => process.exit(0),
+    (error) => {
+      console.error(error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  );
 }
