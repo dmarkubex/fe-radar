@@ -8,8 +8,8 @@
 # ---------- deps：安装 monorepo 依赖（带缓存的 frozen install） ----------
 ARG NODE_WEB_IMAGE=docker.m.daocloud.io/library/node:22-slim
 ARG NPM_REGISTRY=https://registry.npmmirror.com
-ARG DEBIAN_MIRROR=https://mirrors.aliyun.com/debian
-ARG DEBIAN_SECURITY_MIRROR=https://mirrors.aliyun.com/debian-security
+ARG DEBIAN_MIRROR=http://mirrors.aliyun.com/debian
+ARG DEBIAN_SECURITY_MIRROR=http://mirrors.aliyun.com/debian-security
 FROM ${NODE_WEB_IMAGE} AS deps
 ENV TZ=Asia/Shanghai
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
@@ -73,14 +73,12 @@ ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
 ENV npm_config_registry=${NPM_REGISTRY}
 ARG PNPM_VERSION=11.0.9
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates && \
-    sed -i \
+RUN sed -i \
       -e "s#http://deb.debian.org/debian-security#${DEBIAN_SECURITY_MIRROR}#g" \
       -e "s#http://deb.debian.org/debian#${DEBIAN_MIRROR}#g" \
       /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true && \
     apt-get update && \
-    apt-get install -y --no-install-recommends postgresql-client && \
+    apt-get install -y --no-install-recommends ca-certificates postgresql-client && \
     rm -rf /var/lib/apt/lists/* && \
     (command -v pnpm >/dev/null || npm install -g pnpm@${PNPM_VERSION} --registry=${NPM_REGISTRY} --no-audit --no-fund) && \
     groupadd -g 1001 nodejs && \
