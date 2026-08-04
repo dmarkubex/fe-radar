@@ -274,7 +274,8 @@ async function prepareRun(args: ReprocessArgs): Promise<void> {
       SELECT ${args.runId}, i.id
       FROM items i
       INNER JOIN item_analysis a ON a.item_id = i.id
-      WHERE i.published_at >= ${from} AND i.published_at < ${until}
+      WHERE i.published_at >= ${from.toISOString()}
+        AND i.published_at < ${until.toISOString()}
       ON CONFLICT (run_id, item_id) DO NOTHING
     `);
   });
