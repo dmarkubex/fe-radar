@@ -50,6 +50,61 @@ describe("sources schema Gate 0", () => {
     ).toBe(true);
   });
 
+  it("accepts the allowlisted fourth-batch official JSON adapters", () => {
+    expect(
+      createSourceSchema.safeParse(
+        source({
+          adapter: "nexans-news",
+          endpoint:
+            "https://www.nexans.com/ajax.php?action=last_posts&cpt_slug=documents&wpml_lang=en&page=1&tag_to_display=document_types",
+          keywords: undefined,
+          noticeKinds: undefined
+        })
+      ).success
+    ).toBe(true);
+    expect(
+      createSourceSchema.safeParse(
+        source({
+          adapter: "huawei-digital-power-news",
+          endpoint:
+            "https://digitalpower.huawei.com/service/portalapplication/v1/digitalpower/news",
+          searchkey: "ESS",
+          contentId: "48e0a5ce972c4e4aa847fd0e1b127b19",
+          pageSize: 50,
+          keywords: undefined,
+          noticeKinds: undefined
+        })
+      ).success
+    ).toBe(true);
+  });
+
+  it("rejects hostile fourth-batch official JSON endpoints", () => {
+    expect(
+      createSourceSchema.safeParse(
+        source({
+          adapter: "nexans-news",
+          endpoint:
+            "https://evil.example/ajax.php?action=last_posts&cpt_slug=documents&wpml_lang=en&page=1&tag_to_display=document_types",
+          keywords: undefined,
+          noticeKinds: undefined
+        })
+      ).success
+    ).toBe(false);
+    expect(
+      createSourceSchema.safeParse(
+        source({
+          adapter: "huawei-digital-power-news",
+          endpoint:
+            "https://digitalpower.huawei.com/service/portalapplication/v1/digitalpower/news",
+          searchkey: "ESS",
+          contentId: "bad",
+          keywords: undefined,
+          noticeKinds: undefined
+        })
+      ).success
+    ).toBe(false);
+  });
+
   it("rejects hostile endpoints and missing required fields", () => {
     expect(
       createSourceSchema.safeParse(

@@ -14,6 +14,8 @@ const DOMESTIC_DATE =
 const US_DATE = /\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/;
 const ENGLISH_DATE =
   /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s*(\d{1,2}),?\s+(\d{4})\b/i;
+const ENGLISH_DATE_DAY_FIRST =
+  /\b(\d{1,2})\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+(\d{4})\b/i;
 const MONTHS = [
   "jan",
   "feb",
@@ -43,13 +45,20 @@ export function parsePublishedAt(raw: string | null | undefined): Date | null {
   const domestic = DOMESTIC_DATE.exec(value);
   const us = domestic ? null : US_DATE.exec(value);
   const english = domestic || us ? null : ENGLISH_DATE.exec(value);
-  if (!domestic && !us && !english) return null;
+  const englishDayFirst =
+    domestic || us || english ? null : ENGLISH_DATE_DAY_FIRST.exec(value);
+  if (!domestic && !us && !english && !englishDayFirst) return null;
   const time = DOMESTIC_TIME.exec(value);
-  const year = Number(domestic?.[1] ?? us?.[3] ?? english?.[3]);
-  const month = english
-    ? MONTHS.indexOf(english[1]!.slice(0, 3).toLowerCase()) + 1
+  const year = Number(
+    domestic?.[1] ?? us?.[3] ?? english?.[3] ?? englishDayFirst?.[3]
+  );
+  const englishMonth = english?.[1] ?? englishDayFirst?.[2];
+  const month = englishMonth
+    ? MONTHS.indexOf(englishMonth.slice(0, 3).toLowerCase()) + 1
     : Number(domestic?.[2] ?? us?.[1]);
-  const day = Number(domestic?.[3] ?? us?.[2] ?? english?.[2]);
+  const day = Number(
+    domestic?.[3] ?? us?.[2] ?? english?.[2] ?? englishDayFirst?.[1]
+  );
   const hour = Number(time?.[1] ?? 0);
   const minute = Number(time?.[2] ?? 0);
   const second = Number(time?.[3] ?? 0);

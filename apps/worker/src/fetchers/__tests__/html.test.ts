@@ -84,6 +84,9 @@ describe("parsePublishedAt", () => {
     expect(parsePublishedAt("7/21/2026")?.toISOString()).toBe(
       "2026-07-20T16:00:00.000Z"
     );
+    expect(parsePublishedAt("09 July 2026")?.toISOString()).toBe(
+      "2026-07-08T16:00:00.000Z"
+    );
   });
 
   it("preserves an explicit timezone", () => {

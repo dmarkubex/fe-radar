@@ -7,6 +7,10 @@ import type {
 import { cninfoAdapter } from "./cninfo";
 import { chnEnergyTenderAdapter } from "./chnenergy-tender";
 import { neaNewsAdapter } from "./nea-news";
+import {
+  huaweiDigitalPowerNewsAdapter,
+  nexansNewsAdapter
+} from "./official-news";
 import { powerChinaTenderAdapter } from "./powerchina-tender";
 import { sgccTenderAdapter } from "./sgcc-tender";
 import { sseAdapter } from "./sse";
@@ -50,3 +54,5 @@ registerAnnouncementAdapter(neaNewsAdapter);
 registerAnnouncementAdapter(sgccTenderAdapter);
 registerAnnouncementAdapter(powerChinaTenderAdapter);
 registerAnnouncementAdapter(chnEnergyTenderAdapter);
+registerAnnouncementAdapter(nexansNewsAdapter);
+registerAnnouncementAdapter(huaweiDigitalPowerNewsAdapter);

@@ -191,9 +191,15 @@ export const sourceConfigSchema = z.discriminatedUnion("type", [
       "nea-news",
       "sgcc-tender",
       "powerchina-tender",
-      "chnenergy-tender"
+      "chnenergy-tender",
+      "nexans-news",
+      "huawei-digital-power-news"
     ]),
     searchkey: z.string().min(1).optional(),
+    contentId: z
+      .string()
+      .regex(/^[0-9a-f]{32}$/)
+      .optional(),
     titleKeywords: z
       .union([z.string().min(1), z.array(z.string().min(1)).min(1)])
       .optional(),
@@ -315,6 +321,7 @@ function announcementConfigValid(value: {
     keywords?: string[];
     noticeKinds?: string[];
     pageSize?: number;
+    contentId?: string;
   };
 }): boolean {
   if (value.config?.type !== "announcement") {
@@ -349,6 +356,19 @@ function announcementConfigValid(value: {
     ) {
       return false;
     }
+  }
+
+  if (
+    value.config.adapter === "huawei-digital-power-news" &&
+    (!value.config.endpoint ||
+      !value.config.searchkey?.trim() ||
+      !value.config.contentId)
+  ) {
+    return false;
+  }
+
+  if (value.config.adapter === "nexans-news" && !value.config.endpoint) {
+    return false;
   }
 
   if (!value.config.endpoint) {
@@ -476,6 +496,33 @@ function announcementConfigValid(value: {
         endpoint.search === "" &&
         endpoint.hash === "" &&
         endpoint.pathname === "/bidweb/"
+      );
+    }
+    if (value.config.adapter === "nexans-news") {
+      const expected = new URL(
+        "https://www.nexans.com/ajax.php?action=last_posts&cpt_slug=documents&wpml_lang=en&page=1&tag_to_display=document_types"
+      );
+      return (
+        endpoint.protocol === "https:" &&
+        endpoint.hostname === expected.hostname &&
+        endpoint.port === "" &&
+        endpoint.username === "" &&
+        endpoint.password === "" &&
+        endpoint.pathname === expected.pathname &&
+        endpoint.hash === "" &&
+        endpoint.searchParams.toString() === expected.searchParams.toString()
+      );
+    }
+    if (value.config.adapter === "huawei-digital-power-news") {
+      return (
+        endpoint.protocol === "https:" &&
+        endpoint.hostname === "digitalpower.huawei.com" &&
+        endpoint.port === "" &&
+        endpoint.username === "" &&
+        endpoint.password === "" &&
+        endpoint.search === "" &&
+        endpoint.hash === "" &&
+        endpoint.pathname === "/service/portalapplication/v1/digitalpower/news"
       );
     }
     return false;
