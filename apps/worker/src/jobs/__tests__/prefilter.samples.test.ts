@@ -64,6 +64,8 @@ describe("prefilter samples", () => {
     await runPrefilter({ title: "光通信项目", content: "" }, qwen, qwen);
 
     expect(PREFILTER_SYSTEM_PROMPT).toContain("光纤光缆与光通信");
+    expect(PREFILTER_SYSTEM_PROMPT).toContain("submarine cable");
+    expect(PREFILTER_SYSTEM_PROMPT).toContain("energy storage");
     expect(PREFILTER_SYSTEM_PROMPT).toContain("消费电子");
     expect(PREFILTER_SYSTEM_PROMPT).toContain("通用机器人");
     expect(qwen.chatJson).toHaveBeenCalledWith(
