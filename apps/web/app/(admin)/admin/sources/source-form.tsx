@@ -250,6 +250,7 @@ export function SourceForm({ onSaved, editing, onCancelEdit }: SourceFormProps):
                   <option value="chinabond">chinabond（中国货币网）</option>
                   <option value="rsshub-extract">rsshub-extract</option>
                   <option value="smm-hq">smm-hq（上海有色网）</option>
+                  <option value="exchange-api">exchange-api（USD/CNY 参考汇率）</option>
                 </select>
               </div>
               <div>

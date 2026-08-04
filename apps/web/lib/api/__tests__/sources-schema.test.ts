@@ -95,4 +95,42 @@ describe("sources schema Gate 0", () => {
       }).success
     ).toBe(true);
   });
+
+  it("accepts the keyless USD/CNY quotes adapter", () => {
+    expect(
+      createSourceSchema.safeParse({
+        name: "Exchange API USD/CNY",
+        url: "https://latest.currency-api.pages.dev/v1/currencies/usd.min.json",
+        fetcherType: "quotes",
+        config: {
+          type: "quotes",
+          adapter: "exchange-api",
+          metric_keys: ["fx_usdcny"],
+          endpoint:
+            "https://latest.currency-api.pages.dev/v1/currencies/usd.min.json",
+          retry: { max: 3, backoffMs: 1500 }
+        },
+        tier: "T2",
+        category: "市场数据",
+        enabled: false
+      }).success
+    ).toBe(true);
+    expect(
+      createSourceSchema.safeParse({
+        name: "Bad Exchange API",
+        url: "https://example.com/latest/USD",
+        fetcherType: "quotes",
+        config: {
+          type: "quotes",
+          adapter: "exchange-api",
+          metric_keys: ["fx_usdcny"],
+          endpoint: "https://example.com/latest/USD",
+          retry: { max: 3, backoffMs: 1500 }
+        },
+        tier: "T2",
+        category: "市场数据",
+        enabled: false
+      }).success
+    ).toBe(false);
+  });
 });

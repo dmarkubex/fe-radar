@@ -88,7 +88,7 @@ v1.1 在 v1.0 架构（`design §1`）基础上**新增 5 个组件**（图中�
 | ---------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------- |
 | `packages/db` schema（sources / entities）     | 追加行 / 追加 entity 类型                       | 不修改 v1.0 列；仅 `sources.fetcher_type` CHECK 扩展（§7） |
 | `packages/db` schema（其他表）                 | 不读不写                                        | 不修改                                                     |
-| `apps/worker/fetchers/{rss,html,playwright}`   | RSSHub 走 rss fetcher / 央行走 html fetcher     | 不修改                                                     |
+| `apps/worker/fetchers/{rss,html,playwright}`   | RSSHub 走 rss fetcher / 公共汇率走 JSON fetcher | 不修改                                                     |
 | `apps/worker/lib/{proxy-pool,ua-pool,robots}`  | quotes fetcher 复用                             | 不修改                                                     |
 | `apps/worker/scheduler`                        | 新增 cron 项                                    | 仅追加新 cron entry，不改现有                              |
 | `apps/worker/jobs/daily-gen`                   | 不读不写                                        | 不修改                                                     |
@@ -112,7 +112,7 @@ apps/
         shfe.ts                   ← 上期所适配器
         gfex.ts                   ← 广期所适配器
         lme.ts                    ← LME 延迟数据适配器
-        pboc.ts                   ← 央行 USD/CNY 中间价适配器
+        exchange-rate-api.ts      ← USD/CNY 日度参考汇率适配器
         chinabond.ts              ← 中国货币网 10Y 国债适配器
         rsshub-extract.ts         ← RSSHub item 数值正则抽取
         __tests__/*

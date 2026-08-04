@@ -30,7 +30,7 @@
 **一句话**：v1.0 是"看新闻"，v1.1 是"看价格"；两者共用 sources / pipeline / 关注圈 / LLM / 推送通道。
 
 **与 v1.0 两条产品哲学的承接**：
-1. **信源比信息重要** → v1.1 信源同样分级 T1（交易所官方接口 / 央行）/ T2（SMM / 生意社 / RSSHub 包装的资讯）/ T3（综合财经媒体快讯）
+1. **信源比信息重要** → v1.1 信源同样分级 T1（交易所官方接口 / 央行）/ T2（SMM / 生意社 / 公共汇率 API / RSSHub 包装的资讯）/ T3（综合财经媒体快讯）
 2. **能用脚本就别用 Agent** → **价格数值禁止 LLM 抽取**（数值精度敏感），数值来源必须是交易所接口或网页正则；LLM 只生成"行情逻辑总结""走势预判"段落
 
 ---
@@ -55,7 +55,7 @@
 | FR | 功能 | 描述 |
 |---|---|---|
 | FR-101 | 每日简报自动生成 | 工作日 **16:00 Asia/Shanghai** 自动触发；周六日不生成；遇法定节假日跳过（节假日表手工维护） |
-| FR-102 | 数值型 fetcher | 拉广期所 / 上期所 / LME / 央行 / 中国货币网 / RSSHub 包装的 SMM/生意社快讯，写入 `commodity_quotes` 时序表 |
+| FR-102 | 数值型 fetcher | 拉广期所 / 上期所 / LME / 公共汇率 API / 中国货币网 / RSSHub 包装的 SMM/生意社快讯，写入 `commodity_quotes` 时序表 |
 | FR-103 | 简报内容生成 | 沿用 §7 模板字段；价格数值来自 `commodity_quotes`；"行情逻辑总结""走势预判"两段由 Kimi K2.6 生成 |
 | FR-104 | 简报渲染 docx | 用 `design/templates/briefing.docx` 模板（占位符）+ docxtemplater 渲染；产物存 MinIO + 写 `commodity_briefings.docx_path` |
 | FR-105 | 钉钉工作群推送 | 工作日 16:05 向指定群推送 **actionCard 消息卡片**（标题 + 当日核心摘要 + 站内深链 `/briefing/[id]`），用户点击跳详情页凭已登录态下载 docx；钉钉群机器人 webhook + 加签；失败重试 3 次，最终失败标 `push_status=failed` + admin Dashboard 红色告警。**v1.1 MVP 不发原生 docx 文件消息**（自定义机器人不支持，企业内部机器人 + 文件 API 推迟到 v1.2 评估） |
@@ -109,7 +109,7 @@
 | 广州期货交易所 - 行情数据 | API/HTML | 碳酸锂主力 / 仓单 |
 | 上海期货交易所 - 行情数据 | API/HTML | 沪铜主力 / 库存周报 |
 | LME - 官方延迟数据 | HTML | 伦铜价 |
-| 中国人民银行 - 汇率中间价 | HTML | USD/CNY 中间价 |
+| Exchange API | JSON | USD/CNY 日度参考汇率 |
 | 中国货币网 - 国债收益率 | HTML | 10Y 国债收益率 |
 | 国家统计局 - PMI（月度）| RSS | PMI 发布提醒 + 抓数值 |
 | 海关总署 - 进出口数据（月度）| RSS | 铜精矿 / 碳酸锂进口量发布提醒 |
@@ -150,7 +150,7 @@
 | 1# 电解铜现货均价 | SMM RSSHub | 日 |
 | 电池级碳酸锂现货均价 | SMM RSSHub | 日 |
 | 升贴水 / 期现基差 | 代码计算（现货 - 期货） | 日 |
-| USD/CNY 中间价 | 央行 | 日 |
+| USD/CNY 参考汇率 | Exchange API | 日 |
 | 10Y 国债收益率 | 中国货币网 | 日 |
 | 广期所碳酸锂仓单 | 广期所 | 日 |
 
@@ -191,7 +191,7 @@
 - `{{cu.price.shfe_main}}` 沪铜主力
 - `{{cu.price.shfe_main_change}}` 涨跌
 - `{{lc.indicator.lithium_index}}` 锂矿指数（v1.1 渲染为"详见 Wind"）
-- `{{macro.usd_cny_mid}}` 央行中间价
+- `{{macro.usd_cny_mid}}` USD/CNY 日度参考汇率
 - `{{cu.analysis.logic_summary}}` LLM 生成的"当日行情逻辑总结"
 - `{{cu.outlook.support}}` / `{{cu.outlook.resistance}}` / `{{cu.outlook.trend}}` LLM 生成的支撑/压力/趋势判定
 
@@ -203,7 +203,7 @@
 | `{{cu.outlook.trend}}` | enum 三选一 | 输入近 5 个交易日 CU 主力序列 + 当日逻辑总结 → "偏多" / "区间震荡" / "偏弱" |
 | `{{lc.analysis.logic_summary}}` | string ≤200 字 | 同上，碳酸锂 |
 | `{{lc.outlook.trend}}` | enum 三选一 | 同上，碳酸锂 |
-| `{{macro.summary}}` | string ≤150 字 | 输入 USD/CNY 中间价 + 10Y 国债 + 当日 macro 类 items 摘要 → 输出宏观总结 |
+| `{{macro.summary}}` | string ≤150 字 | 输入 USD/CNY 参考汇率 + 10Y 国债 + 当日 macro 类 items 摘要 → 输出宏观总结 |
 | `{{risk_notes[]}}` | string array ≤5 项 | 输入两品种 logic_summary + 近期事件摘要 → 输出 ≤5 条风险提示，每条 ≤100 字 |
 | `{{procurement_advice}}` | enum 四选一 | 输入两品种 trend → §7.3 4 选 1 采购建议 |
 
@@ -282,7 +282,7 @@ v1.0 关注圈 C2 已含上游：江西铜业、铜陵有色、云南铜业、�
 
 ### 10.2 信源 tier 配置
 
-新增信源按 §5 分层录入 `sources.tier`：T1=广期所/上期所/央行/统计局/海关；T2=SMM/生意社（RSSHub 包装）/长江有色/中汽协；T3=不新增。
+新增信源按 §5 分层录入 `sources.tier`：T1=广期所/上期所/央行/统计局/海关；T2=SMM/生意社（RSSHub 包装）/长江有色/中汽协/公共汇率 API；T3=不新增。
 
 ### 10.3 不破坏的字段
 

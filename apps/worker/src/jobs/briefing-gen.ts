@@ -76,7 +76,7 @@ export const KEY_METRIC_FIELDS = [
   "cu_change_pct", // SHFE 沪铜涨跌幅
   "lc_main_close", // GFEX 碳酸锂主力收盘
   "lc_change_pct", // GFEX 碳酸锂涨跌幅
-  "fx_usdcny", // 央行美元中间价
+  "fx_usdcny", // USD/CNY 日度参考汇率
 ];
 
 // ─────────────────────────────────────────────────────────────

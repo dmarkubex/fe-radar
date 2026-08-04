@@ -9,6 +9,7 @@ import { pbocAdapter } from "./pboc";
 import { chinabondAdapter } from "./chinabond";
 import { rsshubExtractAdapter } from "./rsshub-extract";
 import { smmHqAdapter } from "./smm-hq";
+import { exchangeRateApiAdapter } from "./exchange-rate-api";
 
 /**
  * Registry of quotes adapters keyed by adapter name.
@@ -82,4 +83,5 @@ export async function fetchQuotes(
   chinabondAdapter,
   rsshubExtractAdapter,
   smmHqAdapter,
+  exchangeRateApiAdapter,
 ].forEach(registerAdapter);

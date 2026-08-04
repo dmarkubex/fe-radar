@@ -17,7 +17,8 @@ const quotesAdapterSchema = z.enum([
   "pboc",
   "chinabond",
   "rsshub-extract",
-  "smm-hq"
+  "smm-hq",
+  "exchange-api"
 ]);
 
 const quotesRetrySchema = z.object({
@@ -109,6 +110,16 @@ const quotesConfigSchema = z
     {
       message: "smm-hq adapter requires items",
       path: ["items"]
+    }
+  )
+  .refine(
+    (value) =>
+      value.adapter !== "exchange-api" ||
+      value.endpoint ===
+        "https://latest.currency-api.pages.dev/v1/currencies/usd.min.json",
+    {
+      message: "exchange-api endpoint is fixed",
+      path: ["endpoint"]
     }
   );
 
