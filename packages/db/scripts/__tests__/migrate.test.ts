@@ -217,6 +217,26 @@ describe("migrate ledger", () => {
     ).rejects.toThrow(/checksum mismatch/);
   });
 
+  it("repairs an LF/CRLF-only checksum mismatch without executing SQL", async () => {
+    const lf = contentOf("0001_init.sql");
+    const crlf = lf.replace(/\n/g, "\r\n");
+    const ledger = new FakeLedger({
+      sourcesExists: true,
+      seed: new Map([["0001_init.sql", checksum(crlf)]])
+    });
+
+    const output = await runMigrations({
+      files: ["0001_init.sql"],
+      readFile: () => lf,
+      ledger,
+      log: () => {}
+    });
+
+    expect(output).toEqual(["repaired 0001_init.sql"]);
+    expect(ledger.appliedCalls).toEqual([]);
+    expect(ledger.applied.get("0001_init.sql")).toBe(checksum(lf));
+  });
+
   it("accepts only the reviewed 0022 checksum repair and converges the ledger without executing it", async () => {
     const ledger = new FakeLedger({
       sourcesExists: true,

@@ -109,10 +109,14 @@ export function isBeginOrCommit(stmt: string): boolean {
 }
 
 export function checksum(content: string): string {
-  // Compatibility warning: this hashes raw bytes, so LF/CRLF checkouts produce different
-  // ledger values. Moving builds between hosts can brick migrate until checksum normalization
-  // is paired with a one-time schema_migrations ledger rewrite (R-MIGRATE-01).
+  // Keep stored checksums byte-exact. runMigrations repairs only LF/CRLF-equivalent
+  // hashes, so genuine published migration changes still fail closed.
   return createHash("sha256").update(content).digest("hex");
+}
+
+function lineEndingChecksums(content: string): Set<string> {
+  const lf = content.replace(/\r\n/g, "\n");
+  return new Set([checksum(lf), checksum(lf.replace(/\n/g, "\r\n"))]);
 }
 
 // 0022 never executed in production (0001–0037 were baselined), but its old SQL cannot
@@ -294,9 +298,14 @@ export async function runMigrations(
 
     if (previousChecksum !== undefined) {
       const repair = PUBLISHED_MIGRATION_REPAIRS.get(file);
-      const isApprovedRepair =
+      const isLineEndingRepair =
+        previousChecksum !== fileChecksum &&
+        lineEndingChecksums(content).has(previousChecksum);
+      const isReviewedContentRepair =
         repair?.previous.has(previousChecksum) === true &&
         repair.current.has(fileChecksum);
+      const isApprovedRepair =
+        isLineEndingRepair || isReviewedContentRepair;
       if (previousChecksum !== fileChecksum && !isApprovedRepair) {
         throw new Error(
           `checksum mismatch for already-applied migration ${file}: published migrations must not change ` +
