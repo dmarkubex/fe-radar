@@ -91,6 +91,9 @@ importers:
       dayjs:
         specifier: ^1.11.19
         version: 1.11.20
+      dingtalk-jsapi:
+        specifier: 3.2.9
+        version: 3.2.9
       drizzle-orm:
         specifier: ^0.45.1
         version: 0.45.2(@types/pg@8.20.0)(pg@8.21.0)(postgres@3.4.9)
@@ -3232,6 +3235,12 @@ packages:
     peerDependencies:
       typescript: ^5.4.4 || ^6.0.2
 
+  dingtalk-jsapi@3.2.9:
+    resolution:
+      {
+        integrity: sha512-VLt8co92z29bdguxUvJLnhpQn7WFjb5rJTODDczieS7I0yyWj5+KwF04sWfMvyIKX0MQPVL++Fyo6z2JucFpgQ==
+      }
+
   doctrine@2.1.0:
     resolution:
       {
@@ -5471,6 +5480,12 @@ packages:
     resolution:
       {
         integrity: sha512-a39t9ApHNx2L4+HBnQKqxxHNs1r7KF+Intd8Q/g1bUh6q0WIp9voPXJ/x0j+ZL45KF1pJd9+q2jLIRMfvEshkA==
+      }
+
+  promise-polyfill@7.1.2:
+    resolution:
+      {
+        integrity: sha512-FuEc12/eKqqoRYIGBrUptCBRhobL19PS2U31vMNTfyck1FxPyMfgsXyW4Mav85y/ZN1hop3hOwRlUDok23oYfQ==
       }
 
   prop-types@15.8.1:
@@ -8125,6 +8140,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  dingtalk-jsapi@3.2.9:
+    dependencies:
+      promise-polyfill: 7.1.2
+
   doctrine@2.1.0:
     dependencies:
       esutils: 2.0.3
@@ -9606,6 +9625,8 @@ snapshots:
       parse-ms: 2.1.0
 
   process-warning@5.0.0: {}
+
+  promise-polyfill@7.1.2: {}
 
   prop-types@15.8.1:
     dependencies:

@@ -11,7 +11,7 @@
  * the clone carries the value while the original does not.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockGetToken } = vi.hoisted(() => ({ mockGetToken: vi.fn() }));
 vi.mock("next-auth/jwt", () => ({ getToken: mockGetToken }));
@@ -19,16 +19,26 @@ vi.mock("next-auth/jwt", () => ({ getToken: mockGetToken }));
 import middleware from "../middleware";
 import type { NextRequest } from "next/server";
 
-const mw = (path: string) => {
+const mw = (path: string, headers = new Headers()) => {
   const url = `http://localhost${path}`;
-  const req = { nextUrl: new URL(url), url, headers: new Headers() } as unknown as NextRequest;
+  const req = { nextUrl: new URL(url), url, headers } as unknown as NextRequest;
   return middleware(req);
 };
 
 // Antigravity #5 — the real auth gate is middleware.ts; cover unauth (401/redirect)
 // and role boundaries (403) that the per-route tests bypass by mocking getRequestUser.
 describe("middleware auth gate (Antigravity #5)", () => {
+  const originalDingtalkEnabled = process.env.DINGTALK_ENABLED;
+
   beforeEach(() => vi.clearAllMocks());
+
+  afterEach(() => {
+    if (originalDingtalkEnabled === undefined) {
+      delete process.env.DINGTALK_ENABLED;
+    } else {
+      process.env.DINGTALK_ENABLED = originalDingtalkEnabled;
+    }
+  });
 
   it("returns 401 for an unauthenticated API request", async () => {
     mockGetToken.mockResolvedValue(null);
@@ -36,10 +46,45 @@ describe("middleware auth gate (Antigravity #5)", () => {
   });
 
   it("redirects an unauthenticated page request to /auth/login", async () => {
+    process.env.DINGTALK_ENABLED = "false";
     mockGetToken.mockResolvedValue(null);
     const res = await mw("/curated");
     expect([302, 307]).toContain(res.status);
     expect(res.headers.get("location")).toContain("/auth/login");
+  });
+
+  it("preserves the full deep link and routes DingTalk clients to in-app login", async () => {
+    process.env.DINGTALK_ENABLED = "true";
+    mockGetToken.mockResolvedValue(null);
+    const res = await mw(
+      "/daily?date=2026-08-06",
+      new Headers({ "user-agent": "Mozilla/5.0 DingTalk/7.0.0" })
+    );
+
+    const location = new URL(res.headers.get("location") ?? "", "http://localhost");
+    expect(location.pathname).toBe("/auth/dingtalk/auto");
+    expect(location.searchParams.get("callbackUrl")).toBe("/daily?date=2026-08-06");
+  });
+
+  it("keeps external browsers on QR login when DingTalk login is enabled", async () => {
+    process.env.DINGTALK_ENABLED = "true";
+    mockGetToken.mockResolvedValue(null);
+    const res = await mw(
+      "/briefing/123?from=card",
+      new Headers({ "user-agent": "Mozilla/5.0 Chrome/120.0.0.0" })
+    );
+
+    const location = new URL(res.headers.get("location") ?? "", "http://localhost");
+    expect(location.pathname).toBe("/auth/login");
+    expect(location.searchParams.get("callbackUrl")).toBe("/briefing/123?from=card");
+  });
+
+  it("does not auth-redirect the in-app login page", async () => {
+    process.env.DINGTALK_ENABLED = "true";
+    const res = await mw("/auth/dingtalk/auto?callbackUrl=%2Fdaily");
+
+    expect(res.headers.get("location")).toBeNull();
+    expect(mockGetToken).not.toHaveBeenCalled();
   });
 
   it("returns 403 when a viewer hits an admin API path", async () => {

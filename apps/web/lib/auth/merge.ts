@@ -20,6 +20,14 @@ export interface MergeUserResult {
 
 export type MergeDecision = "existing" | "auto_merge" | "conflict_new_user" | "new_user";
 
+/** Thrown when a dingtalk_id match exists but disabled_at is set (scan + in-app share this gate). */
+export class UserDisabledError extends Error {
+  constructor() {
+    super("User account is disabled");
+    this.name = "UserDisabledError";
+  }
+}
+
 export function decideMergeAction(existingByUnionid: boolean, candidateCount: number): MergeDecision {
   if (existingByUnionid) {
     return "existing";
@@ -37,6 +45,10 @@ export async function mergeOrCreateUser(input: MergeInput, db: DbClient = getDb(
   return db.transaction(async (tx) => {
     const [existing] = await tx.select().from(users).where(eq(users.dingtalkId, input.unionid)).limit(1);
     if (existing) {
+      // FR-05a: disabled accounts must be rejected for both QR and in-app free-login.
+      if (existing.disabledAt != null) {
+        throw new UserDisabledError();
+      }
       return toResult(existing, input.unionid);
     }
 

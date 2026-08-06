@@ -1,8 +1,9 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
+import { DingtalkInAppProvider } from "@/lib/auth/dingtalk-inapp-provider";
 import { DingtalkProvider, isDingtalkEnabled, isLocalLoginAllowed } from "@/lib/auth/dingtalk-provider";
-import { mergeOrCreateUser } from "@/lib/auth/merge";
+import { mergeOrCreateUser, UserDisabledError } from "@/lib/auth/merge";
 import { findUserByUsername } from "@/lib/auth/users";
 import { verifyPassword } from "@/lib/auth/password";
 
@@ -58,7 +59,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         };
       }
     }),
-    ...(isDingtalkEnabled() ? [DingtalkProvider()] : [])
+    ...(isDingtalkEnabled() ? [DingtalkProvider(), DingtalkInAppProvider()] : [])
   ],
   pages: {
     signIn: "/auth/login"
@@ -72,15 +73,23 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       if (!rawProfile?.unionid || !rawProfile.name) {
         return false;
       }
-      const merged = await mergeOrCreateUser({
-        unionid: rawProfile.unionid,
-        name: rawProfile.name,
-        dept: rawProfile.dept ?? null
-      });
-      user.id = String(merged.id);
-      user.name = merged.name;
-      user.role = merged.role;
-      return true;
+      try {
+        const merged = await mergeOrCreateUser({
+          unionid: rawProfile.unionid,
+          name: rawProfile.name,
+          dept: rawProfile.dept ?? null
+        });
+        user.id = String(merged.id);
+        user.name = merged.name;
+        user.role = merged.role;
+        return true;
+      } catch (err) {
+        // FR-05a: disabled accounts rejected for QR and in-app free-login alike.
+        if (err instanceof UserDisabledError) {
+          return false;
+        }
+        throw err;
+      }
     },
     jwt({ token, user }) {
       if (user && "role" in user) {

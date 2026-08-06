@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { hasRole } from "@/lib/auth/rbac";
+import {
+  buildSafeCallbackUrl,
+  isDingTalkUserAgent
+} from "@/lib/auth/safe-callback-url";
 
 import type { NextRequest } from "next/server";
 
 export default async function middleware(request: NextRequest): Promise<NextResponse> {
   const pathname = request.nextUrl.pathname;
+
+  // /auth/** must never auth-redirect (prevents DingTalk auto-login loops).
+  // Matcher still includes auth paths so x-pathname can be injected for layouts.
+  const isAuthPath = pathname === "/auth" || pathname.startsWith("/auth/");
 
   const isEditorAdminPage = ["/admin/entities", "/admin/sources"].some(
     (path) => pathname === path || pathname.startsWith(`${path}/`)
@@ -40,7 +48,7 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     pathname.startsWith("/api/briefing") ||
     pathname.startsWith("/api/quotes");
 
-  if (isAdminPath || isEditorPath || isTimelinePage || isTimelineApi) {
+  if (!isAuthPath && (isAdminPath || isEditorPath || isTimelinePage || isTimelineApi)) {
     const token = await getToken({
       req: request,
       cookieName: "fe-radar.session-token",
@@ -48,8 +56,13 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     });
 
     if (!token && (isAdminPage || isTimelinePage)) {
-      const loginUrl = new URL("/auth/login", request.url);
-      loginUrl.searchParams.set("callbackUrl", request.nextUrl.pathname);
+      const callbackUrl = buildSafeCallbackUrl(pathname, request.nextUrl.search);
+      const dingtalkEnabled = process.env.DINGTALK_ENABLED === "true";
+      const ua = request.headers.get("user-agent");
+      const loginPath =
+        dingtalkEnabled && isDingTalkUserAgent(ua) ? "/auth/dingtalk/auto" : "/auth/login";
+      const loginUrl = new URL(loginPath, request.url);
+      loginUrl.searchParams.set("callbackUrl", callbackUrl);
       return NextResponse.redirect(loginUrl);
     }
 
