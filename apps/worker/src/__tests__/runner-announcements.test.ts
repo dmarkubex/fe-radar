@@ -121,6 +121,7 @@ vi.mock("../jobs/cleanup", () => ({
 vi.mock("../jobs/quotes-fetch", () => ({ runQuotesFetch: vi.fn() }));
 vi.mock("../jobs/briefing-gen", () => ({ runBriefingGen: vi.fn() }));
 vi.mock("../jobs/briefing-push", () => ({ runBriefingPush: vi.fn(), scheduleLatestBriefingPush: vi.fn() }));
+vi.mock("../jobs/daily-push", () => ({ runScheduledDailyPush: vi.fn() }));
 vi.mock("../jobs/quota-drain", () => ({
   drainPendingQuotaBacklog: vi.fn().mockResolvedValue({ expired: 0, readmitted: 0, stillPending: 0 }),
 }));

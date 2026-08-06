@@ -120,7 +120,10 @@ export function createBriefingGenQueue(connection = createRedisConnection()): Qu
 }
 
 export const QUEUE_BRIEFING_PUSH = "fe-briefing-push";
-export const BRIEFING_PUSH_SCHEDULE_CRON = "0 5 16 * * 1-5";
+/** Minute tick: DB daily_push_config decides whether to send (T-DUP-02). BullMQ 6-field cron. */
+export const BRIEFING_PUSH_SCHEDULE_CRON = "0 * * * * *";
+/** Pre-v1.2 standalone briefing push cron; must be removed on upgrade so it does not co-exist. */
+export const BRIEFING_PUSH_LEGACY_CRON = "0 5 16 * * 1-5";
 export const BRIEFING_PUSH_SCHEDULE_TZ = "Asia/Shanghai";
 
 export interface BriefingPushJob {

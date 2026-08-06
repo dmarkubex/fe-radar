@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DingtalkBotError } from "@fe-radar/shared";
 import {
   DINGTALK_REDACT_PATHS,
+  resolveWebhookUrl,
   sendActionCard,
   sendMarkdown,
   sendText,
@@ -148,6 +149,50 @@ describe("sendActionCard", () => {
     const firstBtn = card.btns[0]!;
     expect(firstBtn.title).toBe("查看完整简报");
     expect(card.btnOrientation).toBe("0"); // default
+  });
+
+  it("does not append timestamp/sign when signSecret is empty", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(okResponse());
+    vi.stubGlobal("fetch", mockFetch);
+
+    await sendActionCard(WEBHOOK, "", {
+      title: "无签名目标",
+      text: "body",
+      btns: [{ title: "查看", actionURL: "http://fe-radar.internal/daily?date=2026-08-03" }],
+    });
+
+    const [calledUrl] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(calledUrl).toBe(WEBHOOK);
+    expect(calledUrl).not.toContain("timestamp=");
+    expect(calledUrl).not.toContain("sign=");
+  });
+
+  it("still signs when signSecret is non-empty", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(FIXED_TS);
+    const mockFetch = vi.fn().mockResolvedValue(okResponse());
+    vi.stubGlobal("fetch", mockFetch);
+
+    await sendActionCard(WEBHOOK, SECRET, {
+      title: "有签名",
+      text: "body",
+      btns: [{ title: "查看", actionURL: "http://fe-radar.internal/briefing/1" }],
+    });
+
+    const [calledUrl] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(calledUrl).toBe(buildSignedUrl(WEBHOOK, SECRET, FIXED_TS));
+  });
+});
+
+describe("resolveWebhookUrl", () => {
+  it("returns raw webhook for empty or whitespace-only secret", () => {
+    expect(resolveWebhookUrl(WEBHOOK, "")).toBe(WEBHOOK);
+    expect(resolveWebhookUrl(WEBHOOK, "   ")).toBe(WEBHOOK);
+  });
+
+  it("returns signed URL for non-empty secret", () => {
+    vi.spyOn(Date, "now").mockReturnValue(FIXED_TS);
+    expect(resolveWebhookUrl(WEBHOOK, SECRET)).toBe(buildSignedUrl(WEBHOOK, SECRET, FIXED_TS));
+    vi.restoreAllMocks();
   });
 });
 

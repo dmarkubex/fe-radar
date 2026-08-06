@@ -40,7 +40,7 @@ import { APP_TIMEZONE, createLogger, dayjs } from "@fe-radar/shared";
 
 import { renderBriefing } from "../lib/briefing-render";
 import { BRIEFING_TEMPLATE_VERSION } from "../lib/briefing-constants";
-import { createBriefingPushQueue, createRedisConnection, QUEUE_QUOTES_FETCH } from "../queues";
+import { createRedisConnection, QUEUE_QUOTES_FETCH } from "../queues";
 
 const logger = createLogger({ service: "briefing-gen" });
 
@@ -448,29 +448,9 @@ export async function runBriefingGen(
     options.force
   );
 
-  // ── Enqueue briefing-push on success ──────────────────────
-  // Push immediately so manual /regenerate and same-day generation reach the
-  // dingtalk targets without waiting for the 16:05 cron. Idempotent via
-  // briefing_pushes UNIQUE(briefing_id, target_id); enqueue failure degrades
-  // gracefully to the cron fallback and never fails the gen job itself.
-  if (briefingId > 0) {
-    // Build the connection explicitly: BullMQ won't quit a passed-in ("shared")
-    // IORedis on queue.close(), so we own the quit() to avoid a per-briefing leak.
-    const pushConn = createRedisConnection();
-    const pushQueue = createBriefingPushQueue(pushConn);
-    try {
-      await pushQueue.add("briefing-push", { briefingId });
-      logger.debug({ briefingId }, "briefing-gen: enqueued briefing-push job");
-    } catch (error) {
-      logger.warn(
-        { briefingId, error: error instanceof Error ? error.message : String(error) },
-        "briefing-gen: failed to enqueue briefing-push (falling back to 16:05 cron)"
-      );
-    } finally {
-      await pushQueue.close();
-      await pushConn.quit();
-    }
-  }
+  // T-DUP-02: do not auto-enqueue a standalone briefing push after generation.
+  // Merged daily push is driven by daily_push_config + minute tick; manual
+  // admin "repush" still enqueues runBriefingPush via /api/briefing/:id/repush.
 
   logger.info(
     { briefingId, briefingDate: todayStr, status: finalStatus, docxPath },

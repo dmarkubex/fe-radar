@@ -1,5 +1,5 @@
 import { pathToFileURL } from "node:url";
-import { Queue } from "bullmq";
+import { Queue, type Queue as BullQueue } from "bullmq";
 import { createLogger, QUEUE_CLEANUP, QUEUES } from "@fe-radar/shared";
 
 import { CLEANUP_SCHEDULE_CRON, CLEANUP_SCHEDULE_TZ } from "./jobs/cleanup";
@@ -20,6 +20,7 @@ import {
   QUOTES_FETCH_SCHEDULE_TZ,
   createRedisConnection,
 } from "./queues";
+import { scheduleBriefingPushCron } from "./scheduler";
 
 import type {
   BriefingGenJob,
@@ -44,6 +45,11 @@ interface RepeatQueue<T> {
       jobId?: string;
     }
   ): Promise<unknown>;
+  removeRepeatable?(
+    name: string,
+    repeat: { pattern: string; tz: string },
+    jobId?: string
+  ): Promise<boolean>;
   close(): Promise<unknown>;
 }
 
@@ -113,10 +119,8 @@ export async function registerRepeatJobs(
   });
   logger.info({ queue: QUEUE_BRIEFING_GEN, pattern: BRIEFING_GEN_SCHEDULE_CRON, tz: BRIEFING_GEN_SCHEDULE_TZ }, "registered repeat job");
 
-  await queues.briefingPush.add("schedule-briefing-push", { briefingId: 0 }, {
-    repeat: { pattern: BRIEFING_PUSH_SCHEDULE_CRON, tz: BRIEFING_PUSH_SCHEDULE_TZ },
-    jobId: "schedule-briefing-push",
-  });
+  // Shared path with bootstrap: remove legacy 16:05 repeat, then minute tick
+  await scheduleBriefingPushCron(queues.briefingPush as unknown as BullQueue<BriefingPushJob>);
   logger.info({ queue: QUEUE_BRIEFING_PUSH, pattern: BRIEFING_PUSH_SCHEDULE_CRON, tz: BRIEFING_PUSH_SCHEDULE_TZ }, "registered repeat job");
 }
 

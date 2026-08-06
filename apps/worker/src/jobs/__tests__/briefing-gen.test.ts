@@ -396,8 +396,8 @@ describe("briefing-gen", () => {
     );
   });
 
-  // ── Case 7: enqueue briefing-push on success (T-CB-13 / FIX-2) ─────────
-  it("enqueues a briefing-push job after a successful generation", async () => {
+  // ── Case 7: T-DUP-02 — no auto enqueue of briefing-push after generation ─
+  it("does not enqueue a briefing-push job after a successful generation", async () => {
     pushQueueAdd.mockClear();
     pushQueueClose.mockClear();
     pushConnQuit.mockClear();
@@ -422,11 +422,10 @@ describe("briefing-gen", () => {
 
     expect(result.status).toBe("succeeded");
     expect(result.briefingId).toBe(88);
-    // briefing-push enqueued with the persisted briefingId, then connection closed
-    expect(pushQueueAdd).toHaveBeenCalledWith("briefing-push", { briefingId: 88 });
-    expect(pushQueueClose).toHaveBeenCalledOnce();
-    // #4 leak-fix: the push queue's Redis connection must also be quit, not just close()d.
-    expect(pushConnQuit).toHaveBeenCalledOnce();
+    // Merged daily push is scheduled separately; gen must not auto-push.
+    expect(pushQueueAdd).not.toHaveBeenCalled();
+    expect(pushQueueClose).not.toHaveBeenCalled();
+    expect(pushConnQuit).not.toHaveBeenCalled();
   });
 
   // ── Case 6: LLM error → gen_status=failed + gen_error text ────────────

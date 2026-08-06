@@ -10,7 +10,8 @@ import { enqueueEnabledQuotesSources, scheduleQuotesFetchCron, scheduleBriefingP
 import { runCleanup, CLEANUP_SCHEDULE_CRON, CLEANUP_SCHEDULE_TZ } from "./jobs/cleanup";
 import { runQuotesFetch } from "./jobs/quotes-fetch";
 import { runBriefingGen as runBriefingGenJob } from "./jobs/briefing-gen";
-import { runBriefingPush, scheduleLatestBriefingPush } from "./jobs/briefing-push";
+import { runBriefingPush } from "./jobs/briefing-push";
+import { runScheduledDailyPush } from "./jobs/daily-push";
 
 import { logger, handlerContext } from "./handlers/context";
 import { handleFetchJob } from "./handlers/fetch";
@@ -243,16 +244,12 @@ export async function startWorker(): Promise<WorkerRuntime> {
     QUEUE_BRIEFING_PUSH,
     async (job) => {
       if (job.data.briefingId === 0) {
-        // cron trigger: find today's briefing and re-enqueue with real id
-        const briefingId = await scheduleLatestBriefingPush();
-        if (briefingId !== null) {
-          await briefingPushQueue.add("briefing-push", { briefingId }, {
-            jobId: `briefing-push-${briefingId}`,
-          });
-          logger.info({ briefingId }, "briefing-push cron: enqueued push job");
-        }
+        // Minute tick: DB schedule for merged daily push (T-DUP-02)
+        const result = await runScheduledDailyPush();
+        logger.info(result, "daily-push tick completed");
         return;
       }
+      // Positive id: manual briefing-only repush (v1.1 ops entry retained)
       logger.info({ jobId: job.id, briefingId: job.data.briefingId }, "processing briefing-push job");
       const result = await runBriefingPush(job.data.briefingId);
       logger.info(result, "briefing-push completed");

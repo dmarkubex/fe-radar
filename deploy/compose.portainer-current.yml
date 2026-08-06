@@ -7,6 +7,7 @@
 #
 # 这是你手改的「跳过 migrate / 3013 端口」恢复版，不是仓库 canonical 文件（canonical 见 stack.yml）。
 # 粘贴进 Portainer → Stacks → 你的 stack → Editor → Update the stack 即可。
+# 合并日报钉钉推送调度在 DB daily_push_config（默认 enabled=false），不在 compose 硬编码发送时间。
 
 services:
   postgres:
@@ -106,6 +107,8 @@ services:
       # ② secret 方案：docker secret create firecrawl_api_key … 后取消注释下一行
       # FIRECRAWL_API_KEY_FILE: /run/secrets/firecrawl_api_key
       FIRECRAWL_BASE_URL: ${FIRECRAWL_BASE_URL:-https://api.firecrawl.dev/v2}
+      REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users,public.commodity_briefings,public.commodity_quotes,public.briefing_targets,public.briefing_template_fields,public.daily_push_config,public.daily_pushes
+      DB_WAIT_TIMEOUT_SECONDS: "180"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -126,6 +129,8 @@ services:
       TZ: Asia/Shanghai
       DATABASE_URL: postgres://fe_radar:${DB_PASSWORD:?在 Portainer stack 环境变量填 DB_PASSWORD}@postgres:5432/fe_radar
       REDIS_URL: redis://redis:6379
+      REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users,public.commodity_briefings,public.commodity_quotes,public.briefing_targets,public.briefing_template_fields,public.daily_push_config,public.daily_pushes
+      DB_WAIT_TIMEOUT_SECONDS: "180"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -157,7 +162,7 @@ services:
       DINGTALK_CORP_ID: ${DINGTALK_CORP_ID:?在 Portainer stack 环境变量填钉钉 CorpId}
       # 应急兜底：SSO 故障时仍允许 admin 用本地账号密码登录（dingtalk-provider.ts:isLocalLoginAllowed）
       EMERGENCY_LOCAL_LOGIN: "true"
-      REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users
+      REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users,public.commodity_briefings,public.commodity_quotes,public.briefing_targets,public.briefing_template_fields,public.daily_push_config,public.daily_pushes
       DB_WAIT_TIMEOUT_SECONDS: "180"
     ports:
       - "3013:3000"

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { createTargetSchema, updateTargetSchema } from "../../../../lib/api/briefing-schema";
+import {
+  createTargetSchema,
+  maskWebhookUrl,
+  scheduleConfigSchema,
+  toPublicTarget,
+  updateTargetSchema,
+} from "../../../../lib/api/briefing-schema";
 
 describe("briefing targets schema — createTargetSchema", () => {
   it("accepts valid dingtalk_bot target with sign_secret", () => {
@@ -82,6 +88,63 @@ describe("briefing targets schema — updateTargetSchema", () => {
     // min(1) rejects empty string (non-null, non-undefined empty string)
     expect(result.success).toBe(false);
   });
+
+  it("accepts update without webhookUrl (edit keep-existing contract)", () => {
+    expect(
+      updateTargetSchema.safeParse({ name: "改名", enabled: true }).success
+    ).toBe(true);
+  });
+});
+
+describe("toPublicTarget / maskWebhookUrl — credential redaction", () => {
+  const raw =
+    "https://oapi.dingtalk.com/robot/send?access_token=SECRET_TOKEN_VALUE";
+
+  it("maskWebhookUrl strips query so access_token never appears", () => {
+    const masked = maskWebhookUrl(raw);
+    expect(masked).not.toContain("access_token");
+    expect(masked).not.toContain("SECRET_TOKEN_VALUE");
+    expect(masked).toContain("oapi.dingtalk.com");
+    expect(masked).toContain("***(masked)");
+  });
+
+  it("toPublicTarget never returns webhookUrl or signSecret fields", () => {
+    const pub = toPublicTarget({
+      id: 1,
+      name: "群A",
+      channel: "dingtalk_bot",
+      webhookUrl: raw,
+      signSecret: "SECxxx",
+      enabled: true,
+      createdAt: null,
+    });
+    expect(pub).toMatchObject({
+      id: 1,
+      name: "群A",
+      channel: "dingtalk_bot",
+      enabled: true,
+      webhookConfigured: true,
+      signSecretConfigured: true,
+    });
+    expect(pub.webhookUrlMasked).not.toContain("access_token");
+    expect(pub.webhookUrlMasked).not.toContain("SECRET_TOKEN");
+    expect(Object.keys(pub)).not.toContain("webhookUrl");
+    expect(Object.keys(pub)).not.toContain("signSecret");
+    expect(JSON.stringify(pub)).not.toContain("SECxxx");
+  });
+
+  it("marks unconfigured secret when null", () => {
+    const pub = toPublicTarget({
+      id: 2,
+      name: "群B",
+      channel: "dingtalk_bot",
+      webhookUrl: "https://example.com/hook",
+      signSecret: null,
+      enabled: false,
+    });
+    expect(pub.signSecretConfigured).toBe(false);
+    expect(pub.webhookConfigured).toBe(true);
+  });
 });
 
 describe("soft-confirm delete — business logic guard", () => {
@@ -115,3 +178,56 @@ describe("test-push toast — result mapping", () => {
     expect(toastText).toBe("推送失败：钉钉返回错误");
   });
 });
+
+describe("scheduleConfigSchema — daily push schedule", () => {
+  it("accepts valid config and strips trailing slash from baseUrl", () => {
+    const result = scheduleConfigSchema.safeParse({
+      enabled: true,
+      sendTime: "16:15",
+      scheduleMode: "business_days",
+      baseUrl: "https://fe-radar.internal/",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.baseUrl).toBe("https://fe-radar.internal");
+      expect(result.data.enabled).toBe(true);
+    }
+  });
+
+  it("rejects invalid HH:mm", () => {
+    expect(
+      scheduleConfigSchema.safeParse({
+        enabled: false,
+        sendTime: "8:00",
+        scheduleMode: "daily",
+        baseUrl: "http://fe-radar.internal",
+      }).success
+    ).toBe(false);
+  });
+
+  it("rejects non-http baseUrl", () => {
+    expect(
+      scheduleConfigSchema.safeParse({
+        enabled: false,
+        sendTime: "16:15",
+        scheduleMode: "daily",
+        baseUrl: "file:///tmp",
+      }).success
+    ).toBe(false);
+  });
+
+  it("rejects unknown scheduleMode", () => {
+    expect(
+      scheduleConfigSchema.safeParse({
+        enabled: false,
+        sendTime: "16:15",
+        scheduleMode: "weekdays",
+        baseUrl: "http://fe-radar.internal",
+      }).success
+    ).toBe(false);
+  });
+});
+
+// Real ActionCard payload assertions live in
+// apps/web/app/api/briefing/targets/[id]/test/__tests__/route.test.ts
+// (imports the route handler directly — T-DUP Round 2).

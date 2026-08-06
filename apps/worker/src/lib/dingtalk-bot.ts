@@ -45,16 +45,28 @@ interface ActionCardOptions {
   btns: ActionCardBtn[];
 }
 
+/**
+ * Resolve the outbound webhook URL.
+ * - Non-empty signSecret → HMAC-signed URL (design §10.2)
+ * - Empty / whitespace-only secret → raw webhook (targets without sign_secret)
+ */
+export function resolveWebhookUrl(webhookUrl: string, signSecret: string): string {
+  if (signSecret.trim() === "") {
+    return webhookUrl;
+  }
+  return signWebhook(webhookUrl, signSecret);
+}
+
 async function postToWebhook(
   webhookUrl: string,
   signSecret: string,
   body: Record<string, unknown>
 ): Promise<void> {
-  const signedUrl = signWebhook(webhookUrl, signSecret);
+  const targetUrl = resolveWebhookUrl(webhookUrl, signSecret);
 
   let response: Response;
   try {
-    response = await fetch(signedUrl, {
+    response = await fetch(targetUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

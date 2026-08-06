@@ -255,8 +255,9 @@ export async function runBriefingPush(briefingId: number): Promise<BriefingPushR
 }
 
 /**
- * Scheduler entry point: finds the latest briefing for today and enqueues a push job.
- * Called by the 16:05 cron trigger (briefingId=0 sentinel).
+ * Resolve today's pushable commodity briefing id (succeeded/degraded).
+ * Kept for ops/tests; scheduled merged push uses runScheduledDailyPush (T-DUP-02).
+ * Manual repush uses runBriefingPush with an explicit positive briefingId.
  */
 export async function scheduleLatestBriefingPush(): Promise<number | null> {
   const db = getDb();
@@ -271,18 +272,18 @@ export async function scheduleLatestBriefingPush(): Promise<number | null> {
     .limit(1);
 
   if (!latest) {
-    logger.info({ date: todayStr }, "briefing-push scheduler: no briefing found for today");
+    logger.info({ date: todayStr }, "briefing-push: no briefing found for today");
     return null;
   }
 
   if (latest.genStatus !== "succeeded" && latest.genStatus !== "degraded") {
     logger.warn(
       { briefingId: latest.id, genStatus: latest.genStatus },
-      "briefing-push scheduler: briefing not in pushable state"
+      "briefing-push: briefing not in pushable state"
     );
     return null;
   }
 
-  logger.info({ briefingId: latest.id }, "briefing-push scheduler: enqueuing push");
+  logger.info({ briefingId: latest.id }, "briefing-push: resolved today's pushable briefing");
   return latest.id;
 }

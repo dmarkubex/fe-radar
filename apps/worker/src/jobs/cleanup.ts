@@ -1,5 +1,14 @@
 import { and, isNull, lt, sql } from "drizzle-orm";
-import { clusterItems, clusters, commodityBriefings, commodityQuotes, dailyReports, getDb, items } from "@fe-radar/db";
+import {
+  clusterItems,
+  clusters,
+  commodityBriefings,
+  commodityQuotes,
+  dailyPushes,
+  dailyReports,
+  getDb,
+  items,
+} from "@fe-radar/db";
 import { APP_TIMEZONE, createLogger, dayjs } from "@fe-radar/shared";
 
 import type { DbClient } from "@fe-radar/db";
@@ -16,6 +25,7 @@ export interface CleanupResult {
   deletedStaleClusters: number;
   deletedCommodityQuotes: number;
   deletedCommodityBriefings: number;
+  deletedDailyPushes: number;
 }
 
 export function retentionCutoff(now = new Date(), days = CLEANUP_RETENTION_DAYS): { timestamp: Date; date: string } {
@@ -58,15 +68,23 @@ export async function runCleanup(db: DbClient = getDb(), now = new Date()): Prom
       .where(lt(commodityBriefings.briefingDate, briefingsCutoff))
       .returning({ id: commodityBriefings.id });
 
+    // T-DUP gate-B: daily_pushes audit 90d (by report_date)
+    const deletedDailyPushes = await tx
+      .delete(dailyPushes)
+      .where(lt(dailyPushes.reportDate, cutoff.date))
+      .returning({ id: dailyPushes.id });
+
     logger.info({ rowsDeleted: deletedCommodityQuotes.length, table: "commodity_quotes", retentionDays: 365 }, "cleanup");
     logger.info({ rowsDeleted: deletedCommodityBriefings.length, table: "commodity_briefings", retentionDays: 90 }, "cleanup");
+    logger.info({ rowsDeleted: deletedDailyPushes.length, table: "daily_pushes", retentionDays: 90 }, "cleanup");
 
     return {
       deletedItems: deletedItems.length,
       deletedDailyReports: deletedDailyReports.length,
       deletedStaleClusters: deletedStaleClusters.length,
       deletedCommodityQuotes: deletedCommodityQuotes.length,
-      deletedCommodityBriefings: deletedCommodityBriefings.length
+      deletedCommodityBriefings: deletedCommodityBriefings.length,
+      deletedDailyPushes: deletedDailyPushes.length,
     };
   });
 }

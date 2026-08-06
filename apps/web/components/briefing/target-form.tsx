@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 export interface TargetFormData {
   id?: number;
   name: string;
-  webhookUrl: string;
-  signSecret?: string | null;
+  /** Masked display only — never a raw webhook with access_token. */
+  webhookUrlMasked?: string;
+  webhookConfigured?: boolean;
+  signSecretConfigured?: boolean;
   enabled: boolean;
 }
 
@@ -36,15 +38,22 @@ export function TargetForm({ initial, onSaved, onCancel }: TargetFormProps): Rea
       const body: Record<string, unknown> = {
         name,
         channel: "dingtalk_bot",
-        webhookUrl,
         enabled: true
       };
 
-      // Only include signSecret if non-empty (empty = keep existing on edit)
-      if (signSecretRaw !== "") {
-        body["signSecret"] = signSecretRaw;
-      } else if (!isEditing) {
-        body["signSecret"] = null;
+      if (isEditing) {
+        // Leave webhook empty → keep existing (do not send webhookUrl).
+        if (webhookUrl !== "") {
+          body["webhookUrl"] = webhookUrl;
+        }
+        // Leave secret empty → keep existing.
+        if (signSecretRaw !== "") {
+          body["signSecret"] = signSecretRaw;
+        }
+      } else {
+        // Create requires webhook.
+        body["webhookUrl"] = webhookUrl;
+        body["signSecret"] = signSecretRaw !== "" ? signSecretRaw : null;
       }
 
       const url = isEditing
@@ -77,7 +86,7 @@ export function TargetForm({ initial, onSaved, onCancel }: TargetFormProps): Rea
         {isEditing ? "编辑推送目标" : "新增推送目标"}
       </h3>
       <p className="font-mono text-[11px] text-fg-soft">
-        渠道固定为钉钉群机器人（dingtalk_bot）。
+        渠道固定为钉钉群机器人（dingtalk_bot）。Webhook 与加签密钥仅存服务端，列表只显示掩码。
       </p>
 
       <div className="space-y-3">
@@ -114,10 +123,22 @@ export function TargetForm({ initial, onSaved, onCancel }: TargetFormProps): Rea
             className={FIELD}
             name="webhookUrl"
             type="url"
-            placeholder="https://oapi.dingtalk.com/robot/send?access_token=..."
-            defaultValue={initial?.webhookUrl ?? ""}
-            required
+            // Never prefill raw webhook (API no longer returns it).
+            defaultValue=""
+            placeholder={
+              isEditing
+                ? "留空则保持原 Webhook 不变"
+                : "https://oapi.dingtalk.com/robot/send?access_token=..."
+            }
+            required={!isEditing}
+            data-testid="target-webhook-input"
           />
+          {isEditing ? (
+            <p className="mt-1 font-mono text-[10px] text-fg-soft" data-testid="target-webhook-hint">
+              当前：{initial?.webhookUrlMasked ?? "—"}
+              {initial?.webhookConfigured ? "（已配置）" : "（未配置）"}。留空提交则保持原值。
+            </p>
+          ) : null}
         </div>
 
         <div>
@@ -130,10 +151,13 @@ export function TargetForm({ initial, onSaved, onCancel }: TargetFormProps): Rea
             type="password"
             placeholder={isEditing ? "留空则保持原值不变" : "可选，填写后开启加签"}
             autoComplete="new-password"
+            data-testid="target-sign-secret-input"
           />
           {isEditing ? (
             <p className="mt-1 font-mono text-[10px] text-fg-soft">
-              当前已设置密钥（显示掩码）。留空提交则保持原值不改。
+              {initial?.signSecretConfigured
+                ? "当前已配置密钥（不显示明文）。留空提交则保持原值。"
+                : "当前未配置密钥。留空则仍不设置。"}
             </p>
           ) : null}
         </div>

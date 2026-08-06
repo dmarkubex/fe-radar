@@ -1,6 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import { FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ } from "../queues";
-import { enqueueEnabledSources, shouldDisableSource } from "../scheduler";
+import {
+  BRIEFING_PUSH_LEGACY_CRON,
+  BRIEFING_PUSH_SCHEDULE_CRON,
+  BRIEFING_PUSH_SCHEDULE_TZ,
+  FETCH_SCHEDULE_CRON,
+  FETCH_SCHEDULE_TZ,
+} from "../queues";
+import {
+  enqueueEnabledSources,
+  removeLegacyBriefingPushRepeat,
+  scheduleBriefingPushCron,
+  shouldDisableSource,
+} from "../scheduler";
 import { enqueueStartupFetch, registerRepeatJobs, shouldFetchOnStartup, type SchedulerRepeatQueues } from "../scheduler-main";
 
 describe("scheduler", () => {
@@ -39,7 +50,11 @@ describe("scheduler", () => {
   });
 
   it("registers all repeat jobs from the scheduler main entrypoint", async () => {
-    const makeQueue = () => ({ add: vi.fn(async () => undefined), close: vi.fn(async () => undefined) });
+    const makeQueue = () => ({
+      add: vi.fn(async () => undefined),
+      removeRepeatable: vi.fn(async () => true),
+      close: vi.fn(async () => undefined),
+    });
     const queues = {
       fetch: makeQueue(),
       daily: makeQueue(),
@@ -77,12 +92,57 @@ describe("scheduler", () => {
       {},
       expect.objectContaining({ jobId: "schedule-briefing-gen" })
     );
+    // Gate-B: legacy 16:05 removed before minute tick registration (scheduler-main path)
+    expect(queues.briefingPush.removeRepeatable).toHaveBeenCalledWith(
+      "schedule-briefing-push",
+      { pattern: BRIEFING_PUSH_LEGACY_CRON, tz: BRIEFING_PUSH_SCHEDULE_TZ },
+      "schedule-briefing-push"
+    );
     expect(queues.briefingPush.add).toHaveBeenCalledWith(
       "schedule-briefing-push",
       { briefingId: 0 },
-      expect.objectContaining({ jobId: "schedule-briefing-push" })
+      expect.objectContaining({
+        jobId: "schedule-briefing-push",
+        repeat: expect.objectContaining({ pattern: BRIEFING_PUSH_SCHEDULE_CRON }),
+      })
     );
+    expect(BRIEFING_PUSH_SCHEDULE_CRON).toBe("0 * * * * *");
+    expect(BRIEFING_PUSH_LEGACY_CRON).toBe("0 5 16 * * 1-5");
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ queue: "fe-fetch" }), "registered repeat job");
+  });
+
+  it("scheduleBriefingPushCron removes legacy repeat before adding minute tick", async () => {
+    const queue = {
+      add: vi.fn(async () => undefined),
+      removeRepeatable: vi.fn(async () => true),
+    };
+    await scheduleBriefingPushCron(queue as never);
+    expect(queue.removeRepeatable).toHaveBeenCalledWith(
+      "schedule-briefing-push",
+      { pattern: BRIEFING_PUSH_LEGACY_CRON, tz: BRIEFING_PUSH_SCHEDULE_TZ },
+      "schedule-briefing-push"
+    );
+    expect(queue.add).toHaveBeenCalledWith(
+      "schedule-briefing-push",
+      { briefingId: 0 },
+      expect.objectContaining({
+        jobId: "schedule-briefing-push",
+        repeat: { pattern: BRIEFING_PUSH_SCHEDULE_CRON, tz: BRIEFING_PUSH_SCHEDULE_TZ },
+      })
+    );
+    // remove before add
+    const removeOrder = queue.removeRepeatable.mock.invocationCallOrder[0] ?? 0;
+    const addOrder = queue.add.mock.invocationCallOrder[0] ?? 0;
+    expect(removeOrder).toBeLessThan(addOrder);
+  });
+
+  it("removeLegacyBriefingPushRepeat swallows missing-repeat errors", async () => {
+    const queue = {
+      removeRepeatable: vi.fn(async () => {
+        throw new Error("not found");
+      }),
+    };
+    await expect(removeLegacyBriefingPushRepeat(queue as never)).resolves.toBeUndefined();
   });
 
   it("parses the startup fetch switch conservatively", () => {

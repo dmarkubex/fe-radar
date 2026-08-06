@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { ScheduleForm } from "@/components/briefing/schedule-form";
 import { TargetTable } from "@/components/briefing/target-table";
 import { PageFrame } from "@/components/layout/page-frame";
 import { PageHeader } from "@/components/layout/page-header";
@@ -18,11 +19,14 @@ export default async function AdminBriefingTargetsPage(): Promise<React.JSX.Elem
   return (
     <PageFrame size="full">
       <PageHeader
-        eyebrow="/ 简报推送目标 · ADMIN · BRIEFING · TARGETS"
-        title="推送目标管理"
-        description="管理钉钉群机器人推送目标，新增 / 编辑 / 停用推送接收方，并可发送测试消息验证配置。"
+        eyebrow="/ 合并日报推送 · ADMIN · DAILY · PUSH"
+        title="合并日报推送"
+        description="配置合并日报定时发送（产业日报 + 铜锂简报 ActionCard），并管理钉钉群机器人目标；测试推送发送真实深链卡片。"
       />
-      <TargetTable />
+      <div className="space-y-6">
+        <ScheduleForm />
+        <TargetTable />
+      </div>
     </PageFrame>
   );
 }

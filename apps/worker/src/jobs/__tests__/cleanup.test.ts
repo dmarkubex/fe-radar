@@ -33,13 +33,14 @@ describe("cleanup runCleanup commodity extensions (T-CB-15)", () => {
     } as unknown as Parameters<typeof runCleanup>[0] & { __calls: DeleteResult[] };
   }
 
-  it("returns counts for v1.0 + v1.1 tables in CleanupResult", async () => {
+  it("returns counts for v1.0 + v1.1 + daily_pushes tables in CleanupResult", async () => {
     const db = makeFakeDb([
       [{ id: 1, date: "2026-01-01" }],
       [{ id: 11 }, { id: 12 }],
       [{ id: 21 }],
       [{ id: 31 }, { id: 32 }, { id: 33 }],
-      [{ id: 41 }]
+      [{ id: 41 }],
+      [{ id: 51 }, { id: 52 }], // daily_pushes
     ]);
     const result = await runCleanup(db, new Date("2026-05-19T00:00:00Z"));
     expect(result).toEqual({
@@ -47,15 +48,17 @@ describe("cleanup runCleanup commodity extensions (T-CB-15)", () => {
       deletedDailyReports: 1,
       deletedStaleClusters: 1,
       deletedCommodityQuotes: 3,
-      deletedCommodityBriefings: 1
+      deletedCommodityBriefings: 1,
+      deletedDailyPushes: 2,
     });
   });
 
   it("handles empty results across all DELETEs", async () => {
-    const db = makeFakeDb([[], [], [], [], []]);
+    const db = makeFakeDb([[], [], [], [], [], []]);
     const result = await runCleanup(db, new Date("2026-05-19T00:00:00Z"));
     expect(result.deletedCommodityQuotes).toBe(0);
     expect(result.deletedCommodityBriefings).toBe(0);
+    expect(result.deletedDailyPushes).toBe(0);
   });
 
   it("propagates transaction errors (rollback semantics rely on db.transaction)", async () => {

@@ -126,3 +126,45 @@ export const briefingTemplateFields = pgTable("briefing_template_fields", {
     sql`(${table.sourceMetric} IS NOT NULL AND ${table.llmPath} IS NULL) OR (${table.sourceMetric} IS NULL AND ${table.llmPath} IS NOT NULL) OR (${table.sourceMetric} IS NULL AND ${table.llmPath} IS NULL)`
   )
 }));
+
+// ---------------------------------------------------------------------------
+// daily_push_config
+// 钉钉合并日报推送调度单例（id 固定为 1）
+// enabled 默认 false：迁移/部署本身不得自动发消息
+// ---------------------------------------------------------------------------
+export const dailyPushConfig = pgTable("daily_push_config", {
+  // No DB DEFAULT on id (0055); singleton row is seeded with explicit id=1.
+  id:           integer("id").primaryKey(),
+  enabled:      boolean("enabled").notNull().default(false),
+  sendTime:     text("send_time").notNull().default("16:15"),
+  scheduleMode: text("schedule_mode").notNull().default("business_days"),
+  baseUrl:      text("base_url").notNull().default("http://fe-radar.internal"),
+  updatedBy:    bigint("updated_by", { mode: "number" }).references(() => users.id),
+  updatedAt:    timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().defaultNow()
+}, (table) => ({
+  singletonCheck:    check("daily_push_config_singleton_check", sql`${table.id} = 1`),
+  sendTimeCheck:     check("daily_push_config_send_time_check", sql`${table.sendTime} ~ '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'`),
+  scheduleModeCheck: check("daily_push_config_schedule_mode_check", sql`${table.scheduleMode} IN ('daily','business_days')`)
+}));
+
+// ---------------------------------------------------------------------------
+// daily_pushes
+// 合并日报按日 / 按目标推送审计；UNIQUE(report_date, target_id) 保证幂等
+// ---------------------------------------------------------------------------
+export const dailyPushes = pgTable("daily_pushes", {
+  id:                 bigserial("id", { mode: "number" }).primaryKey(),
+  reportDate:         date("report_date").notNull(),
+  targetId:           bigint("target_id", { mode: "number" }).notNull().references(() => briefingTargets.id),
+  briefingId:         bigint("briefing_id", { mode: "number" }).references(() => commodityBriefings.id, { onDelete: "set null" }),
+  dailyReportPresent: boolean("daily_report_present").notNull(),
+  briefingPresent:    boolean("briefing_present").notNull(),
+  pushStatus:         text("push_status").notNull(),
+  attemptCount:       integer("attempt_count").notNull().default(0),
+  errorDetail:        text("error_detail"),
+  pushedAt:           timestamp("pushed_at", { mode: "date", withTimezone: true })
+}, (table) => ({
+  pushStatusCheck:       check("daily_pushes_push_status_check", sql`${table.pushStatus} IN ('pending','succeeded','failed')`),
+  reportDateTargetUnique: unique("daily_pushes_report_date_target_key").on(table.reportDate, table.targetId),
+  statusIdx:             index("daily_pushes_status_idx").on(table.pushStatus, table.pushedAt),
+  reportDateIdx:         index("daily_pushes_report_date_idx").on(table.reportDate)
+}));

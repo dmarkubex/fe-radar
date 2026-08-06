@@ -9,8 +9,10 @@ interface TargetRow {
   id: number;
   name: string;
   channel: string;
-  webhookUrl: string;
-  signSecret: string | null;
+  /** Credential-safe fields from API — never raw webhook/secret. */
+  webhookUrlMasked: string;
+  webhookConfigured: boolean;
+  signSecretConfigured: boolean;
   enabled: boolean;
   createdAt: string | null;
 }
@@ -162,7 +164,17 @@ export function TargetTable(): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="briefing-target-table">
+      {rows.length === 0 && !error ? (
+        <p
+          className="border border-warn/40 bg-warn/10 px-4 py-3 font-mono text-xs text-warn"
+          role="status"
+          data-testid="targets-empty-hint"
+        >
+          暂无推送目标。调度即使已启用也不会发送——请先新增至少一个钉钉群机器人目标。
+        </p>
+      ) : null}
+
       {/* ---- Toast notifications ---- */}
       <div className="fixed bottom-4 right-4 z-[60] flex flex-col gap-2" aria-live="polite">
         {toasts.map((toast) => (
@@ -255,11 +267,15 @@ export function TargetTable(): React.JSX.Element {
                       </td>
                       <td className="px-3 py-3 font-medium text-fg">{row.name}</td>
                       <td className="px-3 py-3 font-mono text-xs text-fg-muted">{row.channel}</td>
-                      <td className="max-w-[160px] truncate px-3 py-3 font-mono text-xs text-fg-muted">
-                        {row.webhookUrl}
+                      <td
+                        className="max-w-[200px] truncate px-3 py-3 font-mono text-xs text-fg-muted"
+                        title={row.webhookUrlMasked}
+                        data-testid={`target-webhook-masked-${row.id}`}
+                      >
+                        {row.webhookConfigured ? row.webhookUrlMasked : "—"}
                       </td>
                       <td className="px-3 py-3 font-mono text-xs text-fg-muted">
-                        {row.signSecret ? "••••••••" : "—"}
+                        {row.signSecretConfigured ? "已配置" : "—"}
                       </td>
                       <td className="px-3 py-3">
                         <span className={`font-mono text-xs ${row.enabled ? "text-ok" : "text-fg-soft"}`}>

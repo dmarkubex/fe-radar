@@ -48,7 +48,7 @@ const DATA_NAV = [
 const ADMIN_NAV = [
   { href: "/admin/sources", label: "信源 Sources", minRole: "editor" as UserRole },
   { href: "/admin/backlog", label: "队列 Backlog", minRole: "admin" as UserRole },
-  { href: "/admin/briefing/targets", label: "简报推送 Targets", minRole: "admin" as UserRole },
+  { href: "/admin/briefing/targets", label: "合并日报推送", minRole: "admin" as UserRole },
   { href: "/admin/scoring-config", label: "评分配置 Scoring", minRole: "admin" as UserRole },
   { href: "/admin/worker", label: "运行监控 Monitor", minRole: "admin" as UserRole },
   { href: "/admin/users", label: "用户与权限", minRole: "admin" as UserRole },

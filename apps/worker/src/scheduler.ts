@@ -3,7 +3,15 @@ import type { SourceRecord } from "@fe-radar/db";
 import { listSources, markSourceFailure, type DbClient } from "@fe-radar/db";
 import type { Queue } from "bullmq";
 import type { BriefingPushJob, FetchSourceJob, QuotesFetchJob } from "./queues";
-import { BRIEFING_PUSH_SCHEDULE_CRON, BRIEFING_PUSH_SCHEDULE_TZ, FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, QUOTES_FETCH_SCHEDULE_CRON, QUOTES_FETCH_SCHEDULE_TZ } from "./queues";
+import {
+  BRIEFING_PUSH_LEGACY_CRON,
+  BRIEFING_PUSH_SCHEDULE_CRON,
+  BRIEFING_PUSH_SCHEDULE_TZ,
+  FETCH_SCHEDULE_CRON,
+  FETCH_SCHEDULE_TZ,
+  QUOTES_FETCH_SCHEDULE_CRON,
+  QUOTES_FETCH_SCHEDULE_TZ,
+} from "./queues";
 
 export const FETCH_CONCURRENCY = 5;
 export const DISABLE_AFTER_FAIL_DAYS = 7;
@@ -78,8 +86,28 @@ export async function scheduleQuotesFetchCron(queue: Queue<QuotesFetchJob>): Pro
   });
 }
 
+/**
+ * Remove the pre-unification 16:05 weekday repeat so Portainer upgrades do not
+ * keep both the old pattern and the new minute tick.
+ */
+export async function removeLegacyBriefingPushRepeat(
+  queue: Pick<Queue<BriefingPushJob>, "removeRepeatable">
+): Promise<void> {
+  try {
+    await queue.removeRepeatable(
+      "schedule-briefing-push",
+      { pattern: BRIEFING_PUSH_LEGACY_CRON, tz: BRIEFING_PUSH_SCHEDULE_TZ },
+      "schedule-briefing-push"
+    );
+  } catch {
+    // Absent on fresh installs; ignore.
+  }
+}
+
 export async function scheduleBriefingPushCron(queue: Queue<BriefingPushJob>): Promise<void> {
-  // 工作日 16:05 Asia/Shanghai (cron seconds syntax: 0 5 16 * * 1-5)
+  // Drop legacy 16:05 repeat first, then register minute tick (T-DUP gate-B fix).
+  await removeLegacyBriefingPushRepeat(queue);
+  // Every minute Asia/Shanghai; actual send gated by daily_push_config (T-DUP-02)
   await queue.add("schedule-briefing-push", { briefingId: 0 }, {
     repeat: {
       pattern: BRIEFING_PUSH_SCHEDULE_CRON,

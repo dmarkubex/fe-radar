@@ -1,19 +1,16 @@
 import { eq } from "drizzle-orm";
 import { getDb, briefingTargets } from "@fe-radar/db";
 import { getRequestUser, unauthorized, forbidden, notFound } from "@/lib/api/authz";
-import { updateTargetSchema, validationError } from "@/lib/api/briefing-schema";
+import {
+  toPublicTarget,
+  updateTargetSchema,
+  validationError,
+} from "@/lib/api/briefing-schema";
 
 import type { NextRequest } from "next/server";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
-}
-
-function maskSecret(target: typeof briefingTargets.$inferSelect) {
-  return {
-    ...target,
-    signSecret: target.signSecret ? "***" : null
-  };
 }
 
 export async function PUT(request: NextRequest, context: RouteContext): Promise<Response> {
@@ -31,13 +28,24 @@ export async function PUT(request: NextRequest, context: RouteContext): Promise<
 
   const db = getDb();
 
-  // Build update payload; if signSecret is empty string → keep existing (don't overwrite)
+  // Build update payload:
+  // - webhookUrl: only when explicitly provided as non-empty valid URL
+  // - signSecret: empty string / omit → keep existing; non-empty → update
   const updateData: Partial<typeof briefingTargets.$inferInsert> = {};
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
-  if (parsed.data.webhookUrl !== undefined) updateData.webhookUrl = parsed.data.webhookUrl;
   if (parsed.data.enabled !== undefined) updateData.enabled = parsed.data.enabled;
+  if (
+    parsed.data.webhookUrl !== undefined &&
+    parsed.data.webhookUrl.trim() !== ""
+  ) {
+    updateData.webhookUrl = parsed.data.webhookUrl.trim();
+  }
   if (parsed.data.signSecret !== undefined && parsed.data.signSecret !== "") {
     updateData.signSecret = parsed.data.signSecret;
+  }
+  // Explicit null clears sign secret (nullable optional in schema)
+  if (parsed.data.signSecret === null) {
+    updateData.signSecret = null;
   }
 
   const [updated] = await db
@@ -47,7 +55,7 @@ export async function PUT(request: NextRequest, context: RouteContext): Promise<
     .returning();
 
   if (!updated) return notFound();
-  return Response.json(maskSecret(updated));
+  return Response.json(toPublicTarget(updated));
 }
 
 export async function DELETE(request: NextRequest, context: RouteContext): Promise<Response> {

@@ -1,16 +1,13 @@
 import { isNull } from "drizzle-orm";
 import { getDb, briefingTargets } from "@fe-radar/db";
 import { getRequestUser, unauthorized, forbidden } from "@/lib/api/authz";
-import { createTargetSchema, validationError } from "@/lib/api/briefing-schema";
+import {
+  createTargetSchema,
+  toPublicTarget,
+  validationError,
+} from "@/lib/api/briefing-schema";
 
 import type { NextRequest } from "next/server";
-
-function maskSecret(target: typeof briefingTargets.$inferSelect) {
-  return {
-    ...target,
-    signSecret: target.signSecret ? "***" : null
-  };
-}
 
 export async function GET(request: NextRequest): Promise<Response> {
   const user = await getRequestUser(request);
@@ -24,7 +21,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     .where(isNull(briefingTargets.disabledAt))
     .orderBy(briefingTargets.id);
 
-  return Response.json({ items: rows.map(maskSecret) });
+  return Response.json({ items: rows.map(toPublicTarget) });
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
@@ -48,5 +45,5 @@ export async function POST(request: NextRequest): Promise<Response> {
     })
     .returning();
 
-  return Response.json(maskSecret(created!), { status: 201 });
+  return Response.json(toPublicTarget(created!), { status: 201 });
 }
