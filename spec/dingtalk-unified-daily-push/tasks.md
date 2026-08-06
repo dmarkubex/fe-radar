@@ -39,7 +39,7 @@
 
 ## T-DUP-04 独立评审、生产部署与真机验收
 
-- status: **in_progress**
+- status: **needs_human_review**
 - goal: Codex 独立审查 Grok diff，修复 Critical/Major 后部署 migrate/worker/web 并发送真实验收卡片。
 - constraints: 精确暂存，不带入当前混合工作区其他改动；不得复用 Grafana webhook；必须由管理员录入日报群机器人目标。
 - ask_agent_first: Grok 完成后由 Codex 对照 design 逐文件评审和实跑验证。

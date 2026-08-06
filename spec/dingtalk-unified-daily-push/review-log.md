@@ -84,4 +84,9 @@
 - closure: Round 1 / Round 2 的 6 个 Major 与 3 个 Minor 均已关闭。
 - verification: db 4、core 14、worker 61、web 36，共 115 个定向测试通过；受影响文件 ESLint、`git diff --check`、db/core typecheck 通过。
 - known unrelated blockers: worker 全包 typecheck 仍被既有 `ner-policy.test.ts` 阻断；web 全包 typecheck 仍被既有 `alerts-query.ts` 阻断，本任务未触碰。
-- runtime acceptance: Pending deployment and real DingTalk target.
+- runtime acceptance: **DEPLOYED / HUMAN UAT PENDING**
+  - commit `8571ed5` 已推送并部署到 Portainer stack 89 / endpoint 3。
+  - migration 0055 ledger=1；`daily_push_config` / `daily_pushes` 均存在；migrate exit 0。
+  - worker / scheduler / web 均使用新镜像；启动日志无 error-like 事件。
+  - BullMQ active repeat 仅剩 `0 * * * * *`（Asia/Shanghai）；worker 已连续执行并因配置 disabled 正确跳过。
+  - 今日 `daily_reports=1`、`commodity_briefings=1`；`briefing_targets=0`，故未发送真实群消息，也未启用定时。
