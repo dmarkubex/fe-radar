@@ -250,8 +250,54 @@ docker exec <postgres容器> psql -U fe_radar -d fe_radar -c \
   验收输出必须包含 `briefing-docx-retention`，否则不要启用 v1.1 简报。
 - **Grafana**：生产 stack 通过 Swarm configs 挂载 `deploy/grafana` provisioning；Portainer env 必须设置 `GRAFANA_DINGTALK_WEBHOOK_URL=https://oapi.dingtalk.com/robot/send?...`，并确认 datasource UID 为 `fe-radar-postgres`。
 - **auth**：`DINGTALK_ENABLED=true` 上钉钉 SSO 时，本地登录默认关闭；应急才设 `EMERGENCY_LOCAL_LOGIN=true`（Gate 2 #1）。
+- **钉钉群卡片内免登（H5）**：见下方 §6.1。
 - **quotes 信源**：adapter 上线后 admin 后台逐个 `enabled=true` 并验证（NFR-102 数值不过 LLM）。
 - **代理池**：T1 政府站需要，配 `proxy_list` 后 `PROXY_POOL_ENABLED=true`（详见 §7.1）。
+
+### 6.1 钉钉群卡片内免登（H5 企业应用）
+
+> 背景：`spec/dingtalk-inapp-sso`。用户从钉钉群 ActionCard 点日报/简报深链时，在钉钉客户端内自动免登，不再强制扫码。二维码登录仍保留作外部浏览器兜底。
+
+**钉钉开放平台（企业内部 H5 应用）**
+
+1. 将 FE-Radar 登记为**企业内部应用 / H5 微应用**（与扫码 OAuth 可共用同一 AppKey/AppSecret）。
+2. 配置 **应用首页** 为站点根（例如 `https://fe-radar.internal/`）或常用入口。
+3. **安全域名**必须包含 FE-Radar 实际访问域名（无协议、无路径，例如 `fe-radar.internal`）；否则 JSAPI `requestAuthCode` 会失败。
+4. 确认通讯录可见范围覆盖需要免登的员工（与扫码 SSO 一致）。
+5. 记录 **CorpId**（企业 ID），写入部署环境变量 `DINGTALK_CORP_ID`。
+
+**Portainer / stack 环境变量（web）**
+
+| 变量                                       | 说明                                                |
+| ------------------------------------------ | --------------------------------------------------- |
+| `DINGTALK_ENABLED=true`                    | 开启钉钉 SSO（扫码 + 内免登）                       |
+| `DINGTALK_APP_KEY` / `DINGTALK_APP_SECRET` | 企业内部应用凭据（仅服务端；勿写入卡片 URL 或前端） |
+| `DINGTALK_CORP_ID`                         | 企业 CorpId，免登页 JSAPI 必填                      |
+| `AUTH_URL` / `NEXTAUTH_URL`                | 与浏览器访问源一致（含 https）                      |
+| `EMERGENCY_LOCAL_LOGIN`                    | 生产默认不设；仅运维应急本地登录时 `=true`          |
+
+**行为摘要**
+
+- 无会话 + User-Agent 含 `DingTalk` → middleware 跳转 `/auth/dingtalk/auto?callbackUrl=<pathname+query>`。
+- 无会话 + 普通浏览器 → 仍跳 `/auth/login` 二维码流程。
+- `callbackUrl` 只接受本站相对路径；恶意绝对/`//` URL 回退 `/`。
+- 已停用账号（`users.disabled_at` 非空）扫码与免登均拒绝。
+
+**真机验收清单（上线前必做，代码不能替代）**
+
+1. 手机钉钉（Android / iOS）：未登录态点群卡片 `/daily?date=YYYY-MM-DD` → 免登后日期不丢。
+2. 手机钉钉：点 `/briefing/<id>` → 进入对应简报详情。
+3. 桌面钉钉（若生产使用）：同上深链免登成功。
+4. 外部 Chrome：未登录打开同一深链 → 进入扫码登录，不进免登页。
+5. 免登失败页：「重试免登」可再取新 code；「使用钉钉扫码登录」可回 `/auth/login`。
+6. 停用账号尝试免登/扫码均失败。
+7. 确认手机/桌面钉钉能解析 FE-Radar **内网** 地址（Wi-Fi / VPN / 零信任）；应用配置不能替代网络可达性。
+
+**排障（不打印 secret / code / token / unionid）**
+
+- JSAPI 失败：查安全域名、CorpId、是否在钉钉容器内打开。
+- 服务端 `accessToken` / `getuserinfo` / `user/get` HTTP 或 errcode：查 AppKey/Secret、应用权限与可见范围；日志只含 HTTP 状态或 errcode 数字。
+- 重定向循环：确认 `/auth/**` 未被 middleware 强制登录拦截。
 
 ---
 
