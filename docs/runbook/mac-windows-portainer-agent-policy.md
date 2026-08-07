@@ -1,6 +1,6 @@
 # Mac / Windows / Portainer — Agent 默认策略
 
-> 适用：本机 Mac 开发 + Windows 构建机 `diaomin@10.106.29.220` + Portainer `https://10.1.20.156:9443`（stack `fe-radar`）。  
+> 适用：本机 Mac 开发 + Windows 构建机 `diaomin@10.106.29.220` + Portainer `https://10.1.20.156:9443`（stack `fe-radar`）。
 > 目标：分工清楚、可复现、少误伤生产。
 
 ## 1. 三角色（不要混）
