@@ -12,8 +12,9 @@
 # ---------- deps：安装 monorepo 依赖 ----------
 ARG NODE_SLIM_IMAGE=docker.m.daocloud.io/library/node:22-slim
 ARG NPM_REGISTRY=https://registry.npmmirror.com
-ARG DEBIAN_MIRROR=https://mirrors.aliyun.com/debian
-ARG DEBIAN_SECURITY_MIRROR=https://mirrors.aliyun.com/debian-security
+# 默认 http，避免 runner 在未装 ca-certificates 时 apt https 验签失败
+ARG DEBIAN_MIRROR=http://mirrors.aliyun.com/debian
+ARG DEBIAN_SECURITY_MIRROR=http://mirrors.aliyun.com/debian-security
 # Playwright 浏览器走官方 CDN（cdn.playwright.dev，版本最全）；
 # npmmirror 镜像未同步 playwright 1.59 的 build v1217（404），故不用国内镜像源。
 # 如需切回 npmmirror：docker build --build-arg PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright
@@ -61,7 +62,27 @@ COPY apps/worker ./apps/worker
 
 RUN pnpm --filter @fe-radar/worker build
 
-# ---------- runner：精简运行期镜像（含 Playwright Chromium） ----------
+# ---------- playwright-browsers：只下浏览器二进制，BuildKit cache 跨构建复用 ----------
+# 与 runner 拆开的原因：
+#  - 旧写法在 runner 里 `playwright install --with-deps`，deps/node_modules 或 apt 层一变
+#    整段 RUN 重做 → 每次从 CDN 再拉 ~112MB chromium-headless-shell。
+#  - 本阶段：install 时 PLAYWRIGHT_BROWSERS_PATH 指向 cache mount；命中缓存则秒级跳过下载，
+#    再 cp 进镜像层 /ms-playwright。同一台构建机上只要 Playwright 大版本未变，就不再公网下载。
+#  - 仅当 pnpm-lock / playwright 版本变化导致本阶段失效且 cache 无对应 build 时才重新下载。
+FROM deps AS playwright-browsers
+ARG PLAYWRIGHT_DOWNLOAD_HOST
+ENV PLAYWRIGHT_DOWNLOAD_HOST=${PLAYWRIGHT_DOWNLOAD_HOST}
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
+WORKDIR /app
+# worker 仅 headless（fetchers/playwright.ts）；1.59 用 chromium-headless-shell，比完整 chromium 小。
+RUN --mount=type=cache,id=fe-radar-playwright-browsers,target=/pw-dl-cache,sharing=locked \
+    PLAYWRIGHT_BROWSERS_PATH=/pw-dl-cache \
+    ./apps/worker/node_modules/.bin/playwright install chromium-headless-shell && \
+    mkdir -p /ms-playwright && \
+    cp -a /pw-dl-cache/. /ms-playwright/ && \
+    test -x /ms-playwright/chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell
+
+# ---------- runner：精简运行期镜像（浏览器从上一阶段 COPY，OS 依赖单独装） ----------
 FROM ${NODE_SLIM_IMAGE} AS runner
 ENV TZ=Asia/Shanghai
 ENV NODE_ENV=production
@@ -80,14 +101,18 @@ WORKDIR /app
 
 RUN command -v pnpm >/dev/null || npm install -g pnpm@${PNPM_VERSION} --registry=${NPM_REGISTRY} --no-audit --no-fund
 
-# 复用 deps 阶段已安装好的 node_modules（含 playwright 包），随后安装浏览器系统依赖。
-# worker 仅用 headless=true（fetchers/playwright.ts），Playwright 1.59 该模式走 chromium-headless-shell；
-# worker 无 headed 场景，只装 headless-shell 即可（比完整 chromium 体积小）。
+# 复用 deps 的 node_modules（含 playwright npm 包）；浏览器二进制来自 playwright-browsers 缓存阶段。
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/worker/node_modules ./apps/worker/node_modules
 COPY apps/worker/package.json ./apps/worker/package.json
+COPY --from=playwright-browsers /ms-playwright /ms-playwright
 
-RUN apt-get update && \
+# OS 依赖 + postgresql-client；install-deps 只装系统库，不再下载浏览器。
+# apt 使用 BuildKit cache，避免每次全量重拉 deb。
+RUN --mount=type=cache,id=fe-radar-apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=fe-radar-apt-lists,target=/var/lib/apt,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean && \
+    apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates && \
     sed -i \
       -e "s#http://deb.debian.org/debian-security#${DEBIAN_SECURITY_MIRROR}#g" \
@@ -95,9 +120,8 @@ RUN apt-get update && \
       /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true && \
     apt-get update && \
     apt-get install -y --no-install-recommends postgresql-client && \
-    ./apps/worker/node_modules/.bin/playwright install --with-deps chromium-headless-shell && \
-    test -x /ms-playwright/chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell && \
-    rm -rf /var/lib/apt/lists/*
+    ./apps/worker/node_modules/.bin/playwright install-deps chromium-headless-shell && \
+    test -x /ms-playwright/chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell
 
 # 拷贝编译产物与 worker package.json（提供 `start` 脚本与运行期元信息）
 COPY --from=builder /app/apps/worker/dist ./apps/worker/dist
@@ -119,7 +143,6 @@ RUN sed -i 's/\r$//' /usr/local/bin/fe-entrypoint.sh && chmod 0755 /usr/local/bi
 RUN groupadd -g 1001 nodejs && \
     useradd -u 1001 -g nodejs -m worker && \
     mkdir -p /ms-playwright && chown -R worker:nodejs /ms-playwright
-
 USER worker
 
 WORKDIR /app/apps/worker

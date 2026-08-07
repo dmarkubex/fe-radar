@@ -30,8 +30,10 @@ NODE_SLIM_BASE_IMAGE="${NODE_SLIM_BASE_IMAGE:-docker.m.daocloud.io/library/node:
 ALPINE_IMAGE="${ALPINE_IMAGE:-docker.m.daocloud.io/library/alpine:3.22}"
 PGVECTOR_IMAGE="${PGVECTOR_IMAGE:-docker.m.daocloud.io/pgvector/pgvector:pg16}"
 NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmmirror.com}"
-DEBIAN_MIRROR="${DEBIAN_MIRROR:-https://mirrors.aliyun.com/debian}"
-DEBIAN_SECURITY_MIRROR="${DEBIAN_SECURITY_MIRROR:-https://mirrors.aliyun.com/debian-security}"
+# Debian 源默认 http：slim 装 ca-certificates 之前若用 https 国内镜，会 Certificate verification failed。
+# 与 Dockerfile.web ARG 默认一致；装好 CA 后 Dockerfile 内可再切镜像。
+DEBIAN_MIRROR="${DEBIAN_MIRROR:-http://mirrors.aliyun.com/debian}"
+DEBIAN_SECURITY_MIRROR="${DEBIAN_SECURITY_MIRROR:-http://mirrors.aliyun.com/debian-security}"
 ALPINE_MIRROR="${ALPINE_MIRROR:-https://mirrors.aliyun.com/alpine}"
 # PLAYWRIGHT_DOWNLOAD_HOST 默认必须与 deploy/Dockerfile.worker:20 逐字对齐：
 #   ARG PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.playwright.dev
@@ -60,6 +62,12 @@ echo "registry : $REGISTRY   push=$PUSH mirror=$MIRROR prepare=$PREPARE"
 echo "npm      : $NPM_REGISTRY"
 echo "debian   : $DEBIAN_MIRROR"
 echo "alpine   : $ALPINE_MIRROR"
+
+# Dockerfile.worker 的 Playwright 浏览器靠 BuildKit cache mount 跨构建复用
+# （id=fe-radar-playwright-browsers）。未开 BuildKit 时 cache mount 无效，会反复公网下载。
+export DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}"
+export COMPOSE_DOCKER_CLI_BUILD="${COMPOSE_DOCKER_CLI_BUILD:-1}"
+echo "buildkit : DOCKER_BUILDKIT=$DOCKER_BUILDKIT"
 
 if [ "$PREPARE" = "1" ]; then
   echo "==> pre-pull base images"
