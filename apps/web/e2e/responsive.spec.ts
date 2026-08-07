@@ -20,6 +20,7 @@ const ROUTES = [
   "/admin/users",
   "/admin/worker",
   "/admin/backlog",
+  "/admin/briefing/logs",
   "/admin/briefing/targets",
   "/auth/login"
 ] as const;
@@ -28,7 +29,7 @@ test.beforeEach(async ({ login }) => {
   await login("admin");
 });
 
-test("18 routes keep one main landmark and no horizontal overflow", async ({ page }) => {
+test("19 routes keep one main landmark and no horizontal overflow", async ({ page }) => {
   test.setTimeout(120_000);
   const item = await itemFixture();
   try {
@@ -59,11 +60,12 @@ test("18 routes keep one main landmark and no horizontal overflow", async ({ pag
         }
         if (route === `/items/${item.id}`) {
           await expect(page.getByRole("heading", { level: 1, name: item.title })).toBeVisible();
-        } else if (route === `/briefing/${briefing.id}`) {
+        } else if (route === "/briefing" || route === `/briefing/${briefing.id}`) {
           await expect(
             page.getByRole("heading", { level: 1, name: "远东·铜锂行情简报" })
           ).toBeVisible();
           await expect(page.getByText(`简报 · ${briefing.date}`, { exact: true })).toBeVisible();
+          await expect(page.getByRole("link", { name: "最新", exact: true })).toBeVisible();
         } else if (route === "/") {
           await assertMobileTimelineDateBar(page);
         } else if (route === "/alerts") {

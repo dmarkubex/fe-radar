@@ -48,6 +48,7 @@ const DATA_NAV = [
 const ADMIN_NAV = [
   { href: "/admin/sources", label: "信源 Sources", minRole: "editor" as UserRole },
   { href: "/admin/backlog", label: "队列 Backlog", minRole: "admin" as UserRole },
+  { href: "/admin/briefing/logs", label: "简报生成日志", minRole: "admin" as UserRole },
   { href: "/admin/briefing/targets", label: "合并日报推送", minRole: "admin" as UserRole },
   { href: "/admin/scoring-config", label: "评分配置 Scoring", minRole: "admin" as UserRole },
   { href: "/admin/worker", label: "运行监控 Monitor", minRole: "admin" as UserRole },
@@ -246,6 +247,7 @@ function getBreadcrumb(path?: string): string {
   if (path.startsWith("/search")) return "监测 / 搜索";
   if (path.startsWith("/admin/sources")) return "管理 / 信源";
   if (path.startsWith("/admin/backlog")) return "管理 / Backlog";
+  if (path.startsWith("/admin/briefing/logs")) return "管理 / 简报生成日志";
   if (path.startsWith("/admin/briefing/targets")) return "管理 / 简报推送";
   if (path.startsWith("/admin/scoring-config")) return "管理 / 评分配置";
   if (path.startsWith("/admin/worker")) return "管理 / 运行监控";

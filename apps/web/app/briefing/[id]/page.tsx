@@ -1,19 +1,15 @@
-import { and, eq, gte, inArray, lt } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, lte } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import {
-  briefingPushes,
-  briefingTargets,
   commodityBriefings,
   commodityQuotes,
   getDb,
 } from "@fe-radar/db";
 import { dayjs, APP_TIMEZONE } from "@fe-radar/shared";
-import { auth } from "@/auth";
-import { ChevronRight, AlertTriangle, CheckCircle, XCircle, Clock } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { BriefingLineChart } from "@/components/briefing/briefing-line-chart";
 import { DownloadButton } from "@/components/briefing/download-button";
-import { RegenerateButton } from "@/components/briefing/regenerate-button";
 import {
   BRIEFING_QUOTE_METRIC_KEYS,
   CU_CHANGE_METRIC,
@@ -60,12 +56,6 @@ const TREND_COLOR: Record<string, string> = {
   "偏弱": "text-market-down",
 };
 
-const PUSH_STATUS_META: Record<string, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
-  succeeded: { label: "成功", icon: CheckCircle },
-  failed:    { label: "失败", icon: XCircle },
-  pending:   { label: "待推送", icon: Clock },
-};
-
 const RETENTION_DAYS = 90;
 
 function isDocxExpired(dateStr: string): boolean {
@@ -100,21 +90,6 @@ export default async function BriefingDetailPage({
   // gen_status=failed → 404 with friendly message
   if (briefing.genStatus === "failed") notFound();
 
-  // Fetch push records
-  const pushRows = await db
-    .select({
-      id: briefingPushes.id,
-      targetId: briefingPushes.targetId,
-      targetName: briefingTargets.name,
-      pushStatus: briefingPushes.pushStatus,
-      attemptCount: briefingPushes.attemptCount,
-      errorDetail: briefingPushes.errorDetail,
-      pushedAt: briefingPushes.pushedAt,
-    })
-    .from(briefingPushes)
-    .leftJoin(briefingTargets, eq(briefingPushes.targetId, briefingTargets.id))
-    .where(eq(briefingPushes.briefingId, numId));
-
   // Anchor all quote windows to this briefing's calendar day (Asia/Shanghai),
   // not "today" — otherwise every historical detail page ends on the latest close.
   //
@@ -129,7 +104,7 @@ export default async function BriefingDetailPage({
   const dayEnd = dayStart.add(1, "day");
   const chartSince = dayStart.subtract(6, "day");
 
-  const [dayQuoteRows, cuQuotes, lcQuotes] = await Promise.all([
+  const [dayQuoteRows, cuQuotes, lcQuotes, dateRows] = await Promise.all([
     db
       .select({
         metricKey: commodityQuotes.metricKey,
@@ -165,21 +140,31 @@ export default async function BriefingDetailPage({
         )
       )
       .orderBy(commodityQuotes.observedAt),
+    db
+      .select({
+        id: commodityBriefings.id,
+        briefingDate: commodityBriefings.briefingDate,
+      })
+      .from(commodityBriefings)
+      .where(
+        and(
+          inArray(commodityBriefings.genStatus, ["succeeded", "degraded"]),
+          lte(commodityBriefings.briefingDate, briefingDateStr)
+        )
+      )
+      .orderBy(desc(commodityBriefings.briefingDate))
+      .limit(8),
   ]);
 
   const dayByKey = indexQuoteValues(dayQuoteRows);
   const cuDayQuotes = pickMetalDayQuotes(dayByKey, CU_MAIN_METRIC, CU_SPOT_METRIC, CU_CHANGE_METRIC);
   const lcDayQuotes = pickMetalDayQuotes(dayByKey, LC_MAIN_METRIC, LC_SPOT_METRIC, LC_CHANGE_METRIC);
 
-  const session = await auth();
-  const isAdmin = session?.user?.role === "admin";
-
   const payload = (briefing.payloadJson ?? {}) as BriefingPayload;
   const dateDisplay = dayjs(briefing.briefingDate).tz(APP_TIMEZONE).format("YYYY 年 M 月 D 日 dddd");
-  const generatedAt = briefing.generatedAt instanceof Date
-    ? dayjs(briefing.generatedAt).tz(APP_TIMEZONE).format("YYYY-MM-DD HH:mm")
-    : String(briefing.generatedAt);
   const expired = isDocxExpired(briefing.briefingDate);
+  const visibleDates = dateRows.slice(0, 7);
+  const earlier = dateRows[7];
 
   const cuSrNull =
     payload.cu?.outlook?.support == null || payload.cu?.outlook?.resistance == null;
@@ -197,15 +182,42 @@ export default async function BriefingDetailPage({
   }));
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-6 py-8 md:px-10">
-      {/* Breadcrumb */}
-      <nav className="mb-6 flex min-h-11 items-center gap-2 font-mono text-[11px] text-fg-soft">
-        <Link href="/briefing" className="inline-flex min-h-11 items-center transition-colors hover:text-accent">
-          每日简报
-        </Link>
-        <ChevronRight className="h-3 w-3" />
-        <span className="text-fg">{briefing.briefingDate}</span>
-      </nav>
+    <div className="bg-bg">
+      <div className="sticky top-[var(--shell-header-h)] z-10 flex items-center justify-between gap-4 border-b border-border bg-bg pad-fluid-x py-3.5">
+        <div className="font-mono text-[11px] uppercase tracking-[1px] text-fg-muted">监测 / 简报</div>
+        <nav aria-label="简报日期" className="flex flex-wrap justify-end gap-1.5">
+          {visibleDates.map((row) => (
+            <Link
+              key={row.id}
+              href={`/briefing/${row.id}`}
+              aria-current={row.id === briefing.id ? "date" : undefined}
+              className={`inline-flex min-h-10 items-center border px-3 py-1.5 font-mono text-[11px] sm:min-h-8 ${
+                row.id === briefing.id
+                  ? "border-fg bg-fg text-white"
+                  : "border-border bg-surface text-fg-muted hover:bg-bg-deep"
+              }`}
+            >
+              {dayjs(row.briefingDate).tz(APP_TIMEZONE).format("M/D")}
+            </Link>
+          ))}
+          {earlier && (
+            <Link
+              href={`/briefing/${earlier.id}`}
+              className="inline-flex min-h-10 items-center border border-border bg-surface px-3 py-1.5 font-mono text-[11px] text-fg-muted hover:bg-bg-deep sm:min-h-8"
+            >
+              更早
+            </Link>
+          )}
+          <Link
+            href="/briefing"
+            className="inline-flex min-h-10 items-center border border-border bg-surface px-3 py-1.5 font-mono text-[11px] text-fg-muted hover:bg-bg-deep sm:min-h-8"
+          >
+            最新
+          </Link>
+        </nav>
+      </div>
+
+      <div className="mx-auto w-full max-w-[1100px] px-6 py-8 md:px-10">
 
       {/* Title row */}
       <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
@@ -217,7 +229,7 @@ export default async function BriefingDetailPage({
             远东·铜锂行情简报
           </h1>
           <p className="text-sm text-fg-muted mt-1">
-            {dateDisplay} · 生成于 {generatedAt}
+            {dateDisplay}
             {briefing.genStatus === "degraded" && (
               <span className="ml-2 font-mono text-[10px] text-warn uppercase">降级生成</span>
             )}
@@ -228,11 +240,6 @@ export default async function BriefingDetailPage({
             briefingId={briefing.id}
             briefingDate={briefing.briefingDate}
             expired={expired}
-          />
-          <RegenerateButton
-            briefingId={briefing.id}
-            genStatus={briefing.genStatus}
-            isAdmin={isAdmin}
           />
         </div>
       </div>
@@ -299,53 +306,7 @@ export default async function BriefingDetailPage({
         </section>
       )}
 
-      {/* Push status */}
-      {pushRows.length > 0 && (
-        <section className="mb-6 rounded-[2px] border border-border bg-surface p-5">
-          <div className="font-mono text-[10px] uppercase tracking-[1.2px] text-fg-soft mb-3">
-            推送状态
-          </div>
-          <div className="flex flex-col divide-y divide-hairline">
-            {pushRows.map((p) => {
-              const meta = PUSH_STATUS_META[p.pushStatus] ?? PUSH_STATUS_META.pending!;
-              const Icon = meta.icon;
-              return (
-                <div key={p.id} className="flex items-center justify-between py-2.5">
-                  <div className="flex items-center gap-2">
-                    <Icon
-                      className={`h-3.5 w-3.5 flex-shrink-0 ${
-                        p.pushStatus === "succeeded"
-                          ? "text-ok"
-                          : p.pushStatus === "failed"
-                            ? "text-danger"
-                            : "text-fg-soft"
-                      }`}
-                    />
-                    <span className="text-[13px] text-fg">{p.targetName ?? "(已删除)"}</span>
-                    {p.attemptCount > 1 && (
-                      <span className="font-mono text-[10px] text-fg-soft">×{p.attemptCount}</span>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <span className={`font-mono text-[11px] ${
-                      p.pushStatus === "succeeded" ? "text-ok" : p.pushStatus === "failed" ? "text-danger" : "text-fg-soft"
-                    }`}>
-                      {meta.label}
-                    </span>
-                    {p.pushedAt && (
-                      <div className="font-mono text-[10px] text-fg-soft">
-                        {dayjs(p.pushedAt instanceof Date ? p.pushedAt : new Date(p.pushedAt))
-                          .tz(APP_TIMEZONE)
-                          .format("HH:mm")}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+      </div>
     </div>
   );
 }
