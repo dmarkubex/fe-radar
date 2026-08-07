@@ -48,7 +48,7 @@ export function encodeAlertCursor(row: AlertCursorRow): string | null {
     : null;
 }
 
-function baseAlertConditions(
+export function baseAlertConditions(
   query: Pick<AlertQuery, "type" | "level" | "source" | "cursor">,
   range: "24h" | "7d" | "all" = "24h"
 ) {
@@ -62,6 +62,16 @@ function baseAlertConditions(
         : null;
   return and(
     isNotNull(itemAnalysis.alertType),
+    // T-RR-02: alerts list/count must satisfy the existing industry/C1/C2 gate,
+    // even when alert_type is non-null, so legacy safety/policy noise from the
+    // old blanket exemption is hidden. own/legal/risk keep the existing
+    // exemption path because they're entity-driven (C1/C2 circle match still
+    // pulls them through).
+    or(
+      itemAnalysis.isIndustryRelated,
+      inArray(itemAnalysis.topCircle, ["C1", "C2"]),
+      inArray(itemAnalysis.alertType, ["own", "legal", "risk"])
+    ),
     isNull(itemAnalysis.alertDismissedAt),
     isNotNull(itemAnalysis.scoredAt),
     not(inArray(itemAnalysis.quotaState, [...BLOCKED_QUOTA_STATES])),

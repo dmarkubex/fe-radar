@@ -99,3 +99,7 @@ describe("alerts list-count range window consistency (mock)", () => {
     expect(list.items.length).toBe(countTotal);
   });
 });
+
+// T-RR-02 gate assertions live in alerts-query-gate.test.ts (separate file so
+// the drizzle-orm mock needed to introspect baseAlertConditions does not
+// interfere with the existing mock-mode tests here).

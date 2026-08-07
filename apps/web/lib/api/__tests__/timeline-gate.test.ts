@@ -188,13 +188,18 @@ describe("行业闸门 visibleItemConditions（通过 fetchTimeline 注入 db）
     expect(s).toContain("C2");
   });
 
-  it("⑤ 行业闸门 SQL 包含 alertType IS NOT NULL 豁免", async () => {
+  it("⑤ 行业闸门 SQL 仅 own/legal/risk 走 alertType 豁免（T-RR-02 收紧）", async () => {
     const db = makeQueryBuilder([]);
     await fetchTimeline({ db: db as never, filters: {} });
     const s = JSON.stringify(getWhereArg(db));
-    expect(s).toContain("IS NOT NULL");
+    // Exemption restricted from blanket IS NOT NULL to own/legal/risk only.
+    expect(s).toContain("own");
+    expect(s).toContain("legal");
+    expect(s).toContain("risk");
+    // Sanity: the legacy blanket IS NOT NULL exemption is gone.
+    expect(s).not.toMatch(/alertType\)?\s*IS NOT NULL/);
+    expect(s).not.toMatch(/alertType.*IN \('own','legal','risk','safety','policy'\)/);
   });
-
   it("⑥ fetchItemDetail 不受行业闸门限制（IS NOT FALSE 不在 where 中）", async () => {
     const db = makeQueryBuilder([]);
     const limitFn = vi.fn().mockResolvedValue([]);

@@ -4,6 +4,11 @@ import { detectPolicyEntities, type EntityDictionary } from "../lib/entities-dic
 
 const logger = createLogger({ service: "ner" });
 const ACCIDENT_EVENT_PATTERN = /事故|火灾|爆炸|停电|触电|死亡|坍塌|伤亡/;
+// Evidence-like policy span: standard number, document number, or a name
+// ending in a policy-document term. Generic words (AI / 创新 / 新能源) are
+// rejected so they cannot slip through as policy entities.
+const POLICY_EVIDENCE_PATTERN =
+  /(?:[A-Z]{1,3}\/?(?:T|B)?\s?\d{3,6}(?:-\d{2,4})?|[〔(]\s?\d{2,4}\S*\d{1,4}\s?[〕)]|[一-鿿]{2,30}(?:法|条例|办法|规定|通知|意见|规划|标准|政策))/;
 
 const schema = {
   type: "object",
@@ -47,6 +52,47 @@ async function callNerLlm(text: string, qwen: LlmClient, fallback: LlmClient): P
   }
 }
 
+/**
+ * Trust-boundary validator for LLM-extracted entities.
+ *
+ * - span (text) must be non-empty AND must literally occur in the input text —
+ *   blocks hallucinated entity names like "AI" / "创新" / "新能源" being accepted
+ *   as policy entities.
+ * - For `event_type`, only canonicalize to "事故" when the **extracted span**
+ *   itself contains an existing accident keyword (not when only a
+ *   hallucinated `canonicalName` does).
+ * - For `policy`, only retain spans that look like evidence: standard number,
+ *   document number, or name ending in a policy-document term. Generic words
+ *   such as "AI" / "创新" / "新能源" are dropped.
+ */
+export function validateLlmEntity(
+  hit: NerEntityResult["entities"][number],
+  text: string
+): NerEntityResult["entities"][number] | null {
+  const span = typeof hit.text === "string" ? hit.text.trim() : "";
+  if (span.length === 0) return null;
+  if (!text.includes(span)) return null;
+
+  if (hit.type === "event_type") {
+    // Only canonicalize to "事故" when the actual span contains an accident
+    // keyword. Drop otherwise (was previously passing through with raw
+    // canonicalName, causing false safety alerts).
+    if (ACCIDENT_EVENT_PATTERN.test(span)) {
+      return { ...hit, text: span, canonicalName: "事故" };
+    }
+    return null;
+  }
+
+  if (hit.type === "policy") {
+    // Drop generic policy labels like "AI" / "创新" / "新能源" that don't
+    // reference an actual standard, document number, or policy name.
+    if (POLICY_EVIDENCE_PATTERN.test(span)) return { ...hit, text: span };
+    return null;
+  }
+
+  return { ...hit, text: span };
+}
+
 export async function runNer(
   text: string,
   dictionary: EntityDictionary,
@@ -63,11 +109,8 @@ export async function runNer(
     text: hit.span,
     canonicalName: hit.canonicalName,
   }));
-  const llmHits = (await callNerLlm(text, qwen, fallback)).map((hit) => {
-    if (hit.type === "event_type" && ACCIDENT_EVENT_PATTERN.test(`${hit.canonicalName ?? ""}${hit.text}`)) {
-      return { ...hit, canonicalName: "事故" };
-    }
-    return hit;
-  });
+  const llmHits = (await callNerLlm(text, qwen, fallback))
+    .map((hit) => validateLlmEntity(hit, text))
+    .filter((hit): hit is NerEntityResult["entities"][number] => hit !== null);
   return { entities: [...dictHits, ...policyHits, ...llmHits] };
 }

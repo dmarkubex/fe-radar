@@ -74,7 +74,10 @@ describe("scoring and curator", () => {
     expect(computeAlert({
       source: { tier: "T2" },
       scores: { d1Policy: 0, d2Chain: 0, d3Market: 0, d4Tech: 0, d5Business: 72 },
-      entities: [{ id: 1, type: "event_type", canonicalName: "事故" }]
+      entities: [
+        { id: 1, type: "event_type", canonicalName: "事故" },
+        { id: 2, type: "company", canonicalName: "某电缆企业" }
+      ]
     }).alertType).toBe("safety");
   });
 

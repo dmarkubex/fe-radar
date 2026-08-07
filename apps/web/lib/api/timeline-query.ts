@@ -183,10 +183,14 @@ export function visibleItemConditions(
       ? eq(itemAnalysis.alertType, filters.alertType)
       : undefined,
     filters.curated ? eq(itemAnalysis.isCurated, true) : undefined,
+    // T-RR-02: the alertType IS NOT NULL exemption only applies to own/legal/risk
+    // (entity-driven branches in computeAlert). safety/policy remain subject to
+    // the existing industry / C1 / C2 gate to block NER noise from polluting
+    // the timeline via the old blanket exemption.
     includeNonIndustry
       ? undefined
-      : sql`(${itemAnalysis.isIndustryRelated} IS NOT FALSE OR ${itemAnalysis.topCircle} IN ('C1','C2') OR ${itemAnalysis.alertType} IS NOT NULL)`
-  ].filter(Boolean);
+      : sql`(${itemAnalysis.isIndustryRelated} IS NOT FALSE OR ${itemAnalysis.topCircle} IN ('C1','C2') OR ${itemAnalysis.alertType} IN ('own','legal','risk'))`
+   ].filter(Boolean);
 
   const parsedCursor = decodeCursor(cursor);
   if (parsedCursor) {

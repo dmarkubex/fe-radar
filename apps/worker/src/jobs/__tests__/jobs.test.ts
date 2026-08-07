@@ -31,9 +31,14 @@ describe("pipeline jobs", () => {
     expect(result.entities).toEqual(expect.arrayContaining([{ type: "region", text: "江苏" }]));
   });
 
-  it("normalizes a real accident NER variant before safety alert evaluation", async () => {
+  it("normalizes a real accident NER variant and retains safety with an industry subject (T-RR-02)", async () => {
     const qwen = { chatJson: vi.fn(async () => ({
-      value: { entities: [{ type: "event_type", text: "发生安全事故", canonicalName: "安全事故" }] },
+      value: {
+        entities: [
+          { type: "event_type", text: "发生安全事故", canonicalName: "安全事故" },
+          { type: "company", text: "某厂", canonicalName: "某厂" },
+        ]
+      },
       usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
       provider: "qwen"
     })) } as unknown as LlmClient;
@@ -47,9 +52,14 @@ describe("pipeline jobs", () => {
     })).toEqual({ alertType: "safety", alertLevel: "L1" });
   });
 
-  it("normalizes an electrocution death before safety alert evaluation", async () => {
+  it("normalizes an electrocution death and retains safety with an industry subject (T-RR-02)", async () => {
     const qwen = { chatJson: vi.fn(async () => ({
-      value: { entities: [{ type: "event_type", text: "工人触电死亡", canonicalName: "触电" }] },
+      value: {
+        entities: [
+          { type: "event_type", text: "工人触电死亡", canonicalName: "触电" },
+          { type: "company", text: "某厂", canonicalName: "某厂" },
+        ]
+      },
       usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
       provider: "qwen"
     })) } as unknown as LlmClient;

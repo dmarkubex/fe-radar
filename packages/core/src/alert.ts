@@ -16,6 +16,18 @@ export function alertLevelFromTier(tier: SourceTier): AlertLevel {
   return "L3";
 }
 
+/**
+ * T-RR-02: an event_type=事故 alert must be backed by at least one
+ * industry subject entity (company / product / project_type) — otherwise the
+ * NER-extracted "事故" is a noise hit with no industry subject, and would
+ * have slipped through via the alertType IS NOT NULL exemption.
+ */
+function hasIndustrySubject(entities: EntityHit[]): boolean {
+  return entities.some(
+    (e) => e.type === "company" || e.type === "product" || e.type === "project_type"
+  );
+}
+
 function hasAccidentEvent(entities: EntityHit[]): boolean {
   return entities.some(
     (e) => e.type === "event_type" && e.canonicalName === "事故"
@@ -59,7 +71,13 @@ export function computeAlert(input: AlertInput): AlertResult {
   // 2. 安全事故：event_type=事故 + D5 ≥ 70（design §11.1 / requirements §9.1）
   //    顺序必须在 policy 之前：同时命中事故+政策的条目应判 safety（更紧急）。
   //    2026-07-13 对抗评审 Finding #5：此前 policy 分支先于此求值导致顺序写反。
-  if (hasAccidentEvent(input.entities) && input.scores.d5Business >= 70) {
+  //    T-RR-02：再追加至少一个产业主体实体（company/product/project_type），纯
+  //    事件类型单独命中不足以触发（防 NER 误报 + alertType 豁免通道）。
+  if (
+    hasAccidentEvent(input.entities) &&
+    input.scores.d5Business >= 70 &&
+    hasIndustrySubject(input.entities)
+  ) {
     return { alertType: "safety", alertLevel: alertLevelFromTier(input.source.tier) };
   }
 
