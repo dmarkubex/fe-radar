@@ -1,0 +1,49 @@
+{
+  "name": "fe-radar",
+  "registry": "harborssl.fegroup.cn",
+  "namespace": "custom-project",
+  "platform": "linux/amd64",
+  "tag": "latest",
+  "portainer": {
+    "url": "https://10.1.20.156:9443",
+    "endpoint": "local",
+    "stack": "fe-radar",
+    "composeProject": "fe-radar"
+  },
+  "images": [
+    {
+      "name": "web",
+      "composeService": "web",
+      "repository": "fe-radar-web",
+      "context": ".",
+      "dockerfile": "deploy/Dockerfile.web"
+    },
+    {
+      "name": "worker",
+      "composeService": "worker",
+      "repository": "fe-radar-worker",
+      "context": ".",
+      "dockerfile": "deploy/Dockerfile.worker"
+    },
+    {
+      "name": "migrate",
+      "composeService": "migrate",
+      "repository": "fe-radar-migrate",
+      "context": ".",
+      "dockerfile": "deploy/Dockerfile.migrate"
+    },
+    {
+      "name": "backup",
+      "composeService": "backup",
+      "repository": "fe-radar-backup",
+      "context": ".",
+      "dockerfile": "deploy/Dockerfile.backup"
+    }
+  ],
+  "notes": [
+    "Credentials live only in ~/.codex/skills/harbor-portainer-stack-deploy/.env (mode 600).",
+    "Build/push is intended on the Windows build host; Mac can still query Portainer status.",
+    "migrate is a one-shot container; Exited (0) is success, not a hard failure.",
+    "Production stack currently runs as Portainer Compose stack (type=2), not Swarm services."
+  ]
+}
