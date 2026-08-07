@@ -113,20 +113,29 @@ export function hasDailyContent(sections: DailyReportSections | null | undefined
 }
 
 function buildDailyLines(sections: DailyReportSections): string[] {
-  const lines: string[] = ["### 产业日报", ""];
+  // DingTalk ActionCard markdown collapses single \n into spaces; use blank
+  // lines (paragraph breaks) so 政策/市场/技术/项目/公司 each render on their own block.
+  const lines: string[] = ["### 产业日报"];
   for (const key of DAILY_SECTION_ORDER) {
     const raw = sections[key];
     if (typeof raw !== "string" || raw.trim().length === 0) continue;
     const label = DAILY_SECTION_LABELS[key];
+    lines.push("");
     lines.push(`**${label}**：${truncateText(raw, DAILY_SECTION_MAX_CHARS)}`);
   }
   return lines;
 }
 
+function pushBriefingSnippet(lines: string[], line: string): void {
+  lines.push("");
+  lines.push(line);
+}
+
 function buildBriefingLines(
   briefing: NonNullable<BuildDailyPushCardInput["briefing"]>
 ): string[] {
-  const lines: string[] = ["### 铜锂行情简报", ""];
+  // Same DingTalk ActionCard rule: blank lines between blocks for readable layout.
+  const lines: string[] = ["### 铜锂行情简报"];
   const payload = briefing.payload ?? null;
   let wroteLanguage = false;
 
@@ -139,34 +148,34 @@ function buildBriefingLines(
     const advice = payload.procurement_advice;
 
     if (typeof cuTrend === "string" && cuTrend.trim()) {
-      lines.push(`铜：${truncateText(cuTrend, BRIEFING_SNIPPET_MAX_CHARS)}`);
+      pushBriefingSnippet(lines, `铜：${truncateText(cuTrend, BRIEFING_SNIPPET_MAX_CHARS)}`);
       wroteLanguage = true;
     } else if (typeof cuLogic === "string" && cuLogic.trim()) {
-      lines.push(`铜：${truncateText(cuLogic, BRIEFING_SNIPPET_MAX_CHARS)}`);
+      pushBriefingSnippet(lines, `铜：${truncateText(cuLogic, BRIEFING_SNIPPET_MAX_CHARS)}`);
       wroteLanguage = true;
     }
 
     if (typeof lcTrend === "string" && lcTrend.trim()) {
-      lines.push(`锂：${truncateText(lcTrend, BRIEFING_SNIPPET_MAX_CHARS)}`);
+      pushBriefingSnippet(lines, `锂：${truncateText(lcTrend, BRIEFING_SNIPPET_MAX_CHARS)}`);
       wroteLanguage = true;
     } else if (typeof lcLogic === "string" && lcLogic.trim()) {
-      lines.push(`锂：${truncateText(lcLogic, BRIEFING_SNIPPET_MAX_CHARS)}`);
+      pushBriefingSnippet(lines, `锂：${truncateText(lcLogic, BRIEFING_SNIPPET_MAX_CHARS)}`);
       wroteLanguage = true;
     }
 
     if (typeof macro === "string" && macro.trim()) {
-      lines.push(`宏观：${truncateText(macro, BRIEFING_SNIPPET_MAX_CHARS)}`);
+      pushBriefingSnippet(lines, `宏观：${truncateText(macro, BRIEFING_SNIPPET_MAX_CHARS)}`);
       wroteLanguage = true;
     }
     if (typeof advice === "string" && advice.trim()) {
-      lines.push(`采购建议：${truncateText(advice, BRIEFING_SNIPPET_MAX_CHARS)}`);
+      pushBriefingSnippet(lines, `采购建议：${truncateText(advice, BRIEFING_SNIPPET_MAX_CHARS)}`);
       wroteLanguage = true;
     }
   }
 
   if (!wroteLanguage) {
     const status = briefing.genStatus?.trim() || "unknown";
-    lines.push(`生成状态：${status}`);
+    pushBriefingSnippet(lines, `生成状态：${status}`);
   }
 
   return lines;

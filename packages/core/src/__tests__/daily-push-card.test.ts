@@ -84,6 +84,10 @@ describe("buildDailyPushCard — content combinations", () => {
     expect(card.text).toContain("技术");
     expect(card.text).toContain("项目");
     expect(card.text).toContain("公司");
+    // DingTalk ActionCard needs blank lines between sections (single \n collapses).
+    expect(card.text).toMatch(
+      /\*\*政策\*\*：[^\n]+\n\n\*\*市场\*\*：[^\n]+\n\n\*\*技术\*\*：[^\n]+\n\n\*\*项目\*\*：[^\n]+\n\n\*\*公司\*\*：/
+    );
     expect(card.btns).toHaveLength(1);
     expect(card.btns[0]).toEqual({
       title: "查看产业日报",
