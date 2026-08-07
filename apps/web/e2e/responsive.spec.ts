@@ -65,7 +65,7 @@ test("19 routes keep one main landmark and no horizontal overflow", async ({ pag
             page.getByRole("heading", { level: 1, name: "远东·铜锂行情简报" })
           ).toBeVisible();
           await expect(page.getByText(`简报 · ${briefing.date}`, { exact: true })).toBeVisible();
-          await expect(page.getByRole("link", { name: "最新", exact: true })).toBeVisible();
+          await expect(page.getByRole("navigation", { name: "每日简报日期" })).toBeVisible();
         } else if (route === "/") {
           await assertMobileTimelineDateBar(page);
         } else if (route === "/alerts") {
@@ -80,6 +80,22 @@ test("19 routes keep one main landmark and no horizontal overflow", async ({ pag
   } finally {
     await item.cleanup();
   }
+});
+
+test("daily date selection keeps its window and supports backward and forward paging", async ({ page }) => {
+  await page.goto("/daily?date=2026-08-05&end=2026-08-07");
+
+  await expect(page.getByRole("link", { name: "8/7", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "8/5", exact: true })).toHaveAttribute("aria-current", "date");
+
+  await page.getByRole("link", { name: "8/4", exact: true }).click();
+  await expect(page).toHaveURL(/date=2026-08-04&end=2026-08-07/);
+  await expect(page.getByRole("link", { name: "8/7", exact: true })).toBeVisible();
+
+  await page.getByRole("link", { name: "后退 7 天" }).click();
+  await expect(page).toHaveURL(/date=2026-07-31&end=2026-07-31/);
+  await page.getByRole("link", { name: "前进 7 天" }).click();
+  await expect(page).toHaveURL(/date=2026-08-07&end=2026-08-07/);
 });
 
 for (const total of [0, 5] as const) {

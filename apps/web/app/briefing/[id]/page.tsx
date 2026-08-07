@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, lt, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, lte } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import {
   commodityBriefings,
@@ -58,6 +58,15 @@ const TREND_COLOR: Record<string, string> = {
 
 const RETENTION_DAYS = 90;
 
+type PageSearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+function dateParam(value: string | string[] | undefined, fallback: string): string {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  return candidate && /^\d{4}-\d{2}-\d{2}$/.test(candidate) && dayjs(candidate).format("YYYY-MM-DD") === candidate
+    ? candidate
+    : fallback;
+}
+
 function isDocxExpired(dateStr: string): boolean {
   return dayjs(dateStr).tz(APP_TIMEZONE).isBefore(
     dayjs().tz(APP_TIMEZONE).subtract(RETENTION_DAYS, "day").startOf("day")
@@ -70,8 +79,10 @@ function isDocxExpired(dateStr: string): boolean {
 
 export default async function BriefingDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: PageSearchParams;
 }): Promise<React.JSX.Element> {
   const { id } = await params;
   const numId = Number(id);
@@ -100,11 +111,12 @@ export default async function BriefingDetailPage({
     typeof briefing.briefingDate === "string"
       ? briefing.briefingDate.slice(0, 10)
       : dayjs(briefing.briefingDate).tz(APP_TIMEZONE).format("YYYY-MM-DD");
+  const navigationEnd = dateParam((await searchParams).end, briefingDateStr);
   const dayStart = dayjs.tz(briefingDateStr, APP_TIMEZONE).startOf("day");
   const dayEnd = dayStart.add(1, "day");
   const chartSince = dayStart.subtract(6, "day");
 
-  const [dayQuoteRows, cuQuotes, lcQuotes, dateRows] = await Promise.all([
+  const [dayQuoteRows, cuQuotes, lcQuotes, dateRows, newerDateRows] = await Promise.all([
     db
       .select({
         metricKey: commodityQuotes.metricKey,
@@ -149,11 +161,25 @@ export default async function BriefingDetailPage({
       .where(
         and(
           inArray(commodityBriefings.genStatus, ["succeeded", "degraded"]),
-          lte(commodityBriefings.briefingDate, briefingDateStr)
+          lte(commodityBriefings.briefingDate, navigationEnd)
         )
       )
       .orderBy(desc(commodityBriefings.briefingDate))
       .limit(8),
+    db
+      .select({
+        id: commodityBriefings.id,
+        briefingDate: commodityBriefings.briefingDate,
+      })
+      .from(commodityBriefings)
+      .where(
+        and(
+          inArray(commodityBriefings.genStatus, ["succeeded", "degraded"]),
+          gt(commodityBriefings.briefingDate, navigationEnd)
+        )
+      )
+      .orderBy(asc(commodityBriefings.briefingDate))
+      .limit(7),
   ]);
 
   const dayByKey = indexQuoteValues(dayQuoteRows);
@@ -165,6 +191,7 @@ export default async function BriefingDetailPage({
   const expired = isDocxExpired(briefing.briefingDate);
   const visibleDates = dateRows.slice(0, 7);
   const earlier = dateRows[7];
+  const newer = newerDateRows[newerDateRows.length - 1];
 
   const cuSrNull =
     payload.cu?.outlook?.support == null || payload.cu?.outlook?.resistance == null;
@@ -183,15 +210,28 @@ export default async function BriefingDetailPage({
 
   return (
     <div className="bg-bg">
-      <div className="sticky top-[var(--shell-header-h)] z-10 flex items-center justify-between gap-4 border-b border-border bg-bg pad-fluid-x py-3.5">
-        <div className="font-mono text-[11px] uppercase tracking-[1px] text-fg-muted">监测 / 简报</div>
-        <nav aria-label="简报日期" className="flex flex-wrap justify-end gap-1.5">
+      <div className="sticky top-[var(--shell-header-h)] z-10 flex flex-wrap items-center justify-between gap-4 border-b border-border bg-bg pad-fluid-x py-3.5">
+        <div className="shrink-0 font-mono text-[11px] tracking-[1px] text-fg-muted">每日简报</div>
+        <nav aria-label="每日简报日期" className="flex flex-wrap justify-end gap-1.5">
+          {earlier ? (
+            <Link
+              href={`/briefing/${earlier.id}?end=${earlier.briefingDate}`}
+              aria-label="后退一组日期"
+              className="inline-flex min-h-10 items-center border border-border bg-surface px-3 py-1.5 font-mono text-[11px] text-fg-muted hover:bg-bg-deep active:scale-95 sm:min-h-8"
+            >
+              后退
+            </Link>
+          ) : (
+            <span aria-disabled="true" className="inline-flex min-h-10 cursor-not-allowed items-center border border-border bg-surface px-3 py-1.5 font-mono text-[11px] text-fg-muted opacity-40 sm:min-h-8">
+              后退
+            </span>
+          )}
           {visibleDates.map((row) => (
             <Link
               key={row.id}
-              href={`/briefing/${row.id}`}
+              href={`/briefing/${row.id}?end=${navigationEnd}`}
               aria-current={row.id === briefing.id ? "date" : undefined}
-              className={`inline-flex min-h-10 items-center border px-3 py-1.5 font-mono text-[11px] sm:min-h-8 ${
+              className={`inline-flex min-h-10 items-center border px-3 py-1.5 font-mono text-[11px] active:scale-95 sm:min-h-8 ${
                 row.id === briefing.id
                   ? "border-fg bg-fg text-white"
                   : "border-border bg-surface text-fg-muted hover:bg-bg-deep"
@@ -200,20 +240,19 @@ export default async function BriefingDetailPage({
               {dayjs(row.briefingDate).tz(APP_TIMEZONE).format("M/D")}
             </Link>
           ))}
-          {earlier && (
+          {newer ? (
             <Link
-              href={`/briefing/${earlier.id}`}
-              className="inline-flex min-h-10 items-center border border-border bg-surface px-3 py-1.5 font-mono text-[11px] text-fg-muted hover:bg-bg-deep sm:min-h-8"
+              href={`/briefing/${newer.id}?end=${newer.briefingDate}`}
+              aria-label="前进一组日期"
+              className="inline-flex min-h-10 items-center border border-border bg-surface px-3 py-1.5 font-mono text-[11px] text-fg-muted hover:bg-bg-deep active:scale-95 sm:min-h-8"
             >
-              更早
+              前进
             </Link>
+          ) : (
+            <span aria-disabled="true" className="inline-flex min-h-10 cursor-not-allowed items-center border border-border bg-surface px-3 py-1.5 font-mono text-[11px] text-fg-muted opacity-40 sm:min-h-8">
+              前进
+            </span>
           )}
-          <Link
-            href="/briefing"
-            className="inline-flex min-h-10 items-center border border-border bg-surface px-3 py-1.5 font-mono text-[11px] text-fg-muted hover:bg-bg-deep sm:min-h-8"
-          >
-            最新
-          </Link>
         </nav>
       </div>
 

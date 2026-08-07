@@ -14,6 +14,13 @@ function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function dateParam(value: string | string[] | undefined, fallback: string): string {
+  const candidate = first(value);
+  return candidate && /^\d{4}-\d{2}-\d{2}$/.test(candidate) && dayjs(candidate).format("YYYY-MM-DD") === candidate
+    ? candidate
+    : fallback;
+}
+
 // key 必须与 DAILY_REPORT_SCHEMA.sections 的 5 个字段一致（policy/market/tech/project/company）
 const DIMENSIONS = [
   { key: "policy", no: "01", title: "政策", sub: "POLICY" },
@@ -25,14 +32,20 @@ const DIMENSIONS = [
 
 export default async function DailyPage({ searchParams }: { searchParams: PageSearchParams }): Promise<React.JSX.Element> {
   const params = await searchParams;
-  const selectedDate = first(params.date) ?? dayjs().tz(APP_TIMEZONE).format("YYYY-MM-DD");
+  const today = dayjs().tz(APP_TIMEZONE).format("YYYY-MM-DD");
+  const selectedDate = dateParam(params.date, today);
+  const requestedWindowEnd = dateParam(params.end, selectedDate);
+  const windowEnd = requestedWindowEnd > today ? today : requestedWindowEnd;
   const [report] = isMockMode()
     ? [mockDailyReport(selectedDate)]
     : await getDb().select().from(dailyReports).where(eq(dailyReports.date, selectedDate)).limit(1);
 
   const selectedDay = dayjs(selectedDate).tz(APP_TIMEZONE);
-  const dates = Array.from({ length: 7 }, (_, i) => selectedDay.subtract(i, "day").format("YYYY-MM-DD"));
-  const earlierDate = selectedDay.subtract(7, "day").format("YYYY-MM-DD");
+  const windowEndDay = dayjs(windowEnd).tz(APP_TIMEZONE);
+  const dates = Array.from({ length: 7 }, (_, i) => windowEndDay.subtract(i, "day").format("YYYY-MM-DD"));
+  const previousWindowEnd = windowEndDay.subtract(7, "day").format("YYYY-MM-DD");
+  const nextCandidate = windowEndDay.add(7, "day").format("YYYY-MM-DD");
+  const nextWindowEnd = nextCandidate > today ? today : nextCandidate;
   const sections = report?.sections as DailySections | undefined;
   const hasSectionContent = Boolean(sections && DIMENSIONS.some((dim) => text(sections[dim.key], "")));
   const dateDisplay = selectedDay.format("YYYY 年 M 月 D 日 dddd");
@@ -40,21 +53,40 @@ export default async function DailyPage({ searchParams }: { searchParams: PageSe
 
   return (
     <div className="bg-bg">
-      <div className="sticky top-[var(--shell-header-h)] z-10 flex items-center justify-between gap-4 border-b border-border bg-bg pad-fluid-x py-3.5">
-        <div className="font-mono text-[11px] uppercase tracking-[1px] text-fg-muted">监测 / 日报</div>
-        <div className="flex flex-wrap gap-1.5">
+      <div className="sticky top-[var(--shell-header-h)] z-10 flex flex-wrap items-center justify-between gap-4 border-b border-border bg-bg pad-fluid-x py-3.5">
+        <div className="shrink-0 font-mono text-[11px] tracking-[1px] text-fg-muted">产业日报</div>
+        <nav aria-label="产业日报日期" className="flex flex-wrap justify-end gap-1.5">
+          <a
+            href={`/daily?date=${previousWindowEnd}&end=${previousWindowEnd}`}
+            aria-label="后退 7 天"
+            className="inline-flex min-h-10 items-center border border-border bg-surface px-3 py-1.5 font-mono text-[11px] text-fg-muted hover:bg-bg-deep active:scale-95 sm:min-h-8"
+          >
+            后退
+          </a>
           {dates.map((date) => (
-            <a key={date} href={`/daily?date=${date}`} className={`inline-flex min-h-10 items-center border px-3 py-1.5 font-mono text-[11px] sm:min-h-8 ${date === selectedDate ? "border-fg bg-fg text-white" : "border-border bg-surface text-fg-muted hover:bg-bg-deep"}`}>
+            <a
+              key={date}
+              href={`/daily?date=${date}&end=${windowEnd}`}
+              aria-current={date === selectedDate ? "date" : undefined}
+              className={`inline-flex min-h-10 items-center border px-3 py-1.5 font-mono text-[11px] active:scale-95 sm:min-h-8 ${date === selectedDate ? "border-fg bg-fg text-white" : "border-border bg-surface text-fg-muted hover:bg-bg-deep"}`}
+            >
               {dayjs(date).tz(APP_TIMEZONE).format("M/D")}
             </a>
           ))}
-          <a href={`/daily?date=${earlierDate}`} className="inline-flex min-h-10 items-center border border-border bg-surface px-3 py-1.5 font-mono text-[11px] text-fg-muted hover:bg-bg-deep sm:min-h-8">
-            更早
-          </a>
-          <a href="/daily" className="inline-flex min-h-10 items-center border border-border bg-surface px-3 py-1.5 font-mono text-[11px] text-fg-muted hover:bg-bg-deep sm:min-h-8">
-            今天
-          </a>
-        </div>
+          {windowEnd < today ? (
+            <a
+              href={`/daily?date=${nextWindowEnd}&end=${nextWindowEnd}`}
+              aria-label="前进 7 天"
+              className="inline-flex min-h-10 items-center border border-border bg-surface px-3 py-1.5 font-mono text-[11px] text-fg-muted hover:bg-bg-deep active:scale-95 sm:min-h-8"
+            >
+              前进
+            </a>
+          ) : (
+            <span aria-disabled="true" className="inline-flex min-h-10 cursor-not-allowed items-center border border-border bg-surface px-3 py-1.5 font-mono text-[11px] text-fg-muted opacity-40 sm:min-h-8">
+              前进
+            </span>
+          )}
+        </nav>
       </div>
 
       <div className="mx-auto max-w-[1120px] pad-fluid-x">
