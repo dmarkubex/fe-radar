@@ -37,6 +37,8 @@ describe("websearch client", () => {
     expect(body.TimeRange).toBe("OneWeek");
     const filter = body.Filter as { AuthInfoLevel: number };
     expect(filter.AuthInfoLevel).toBe(0);
+    expect(filter).toMatchObject({ NeedUrl: true });
+    expect(body.QueryControl).toEqual({ QueryRewrite: true });
   });
 
   it("passes through timeRange / count / authInfoLevel options", async () => {
@@ -47,14 +49,18 @@ describe("websearch client", () => {
       fetchImpl,
       timeRange: "OneDay",
       count: 5,
-      authInfoLevel: 2,
+      authInfoLevel: 1,
+      needUrl: false,
+      queryRewrite: false,
     });
 
     const body = JSON.parse(String(fetchImpl.mock.calls[0]![1].body)) as Record<string, unknown>;
     expect(body.TimeRange).toBe("OneDay");
     expect(body.Count).toBe(5);
     const filter = body.Filter as { AuthInfoLevel: number };
-    expect(filter.AuthInfoLevel).toBe(2);
+    expect(filter.AuthInfoLevel).toBe(1);
+    expect(filter).toMatchObject({ NeedUrl: false });
+    expect(body.QueryControl).toEqual({ QueryRewrite: false });
   });
 
   it("throws FETCH_CONFIG when API key is missing", async () => {
@@ -99,6 +105,18 @@ describe("websearch client", () => {
 
     const out = await websearchSearch("铜价格", { apiKey: "test-key", fetchImpl });
     expect(out).toEqual([]);
+  });
+
+  it("throws when Custom API returns an error in a HTTP 200 response", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        ResponseMetadata: { Error: { Code: "10406", Message: "FreeQuotaExhausted" } },
+        Result: null,
+      }), { status: 200, headers: { "content-type": "application/json" } })
+    );
+
+    await expect(websearchSearch("铜价格", { apiKey: "test-key", fetchImpl }))
+      .rejects.toMatchObject({ code: "FETCH_HTTP_ERROR" });
   });
 
   it("reads API key from WEBSEARCH_API_KEY_FILE when plain env is unset", () => {

@@ -12,10 +12,19 @@ export interface WebsearchClientOptions {
   fetchImpl?: typeof fetch;
   timeRange?: "OneDay" | "OneWeek" | "OneMonth" | "OneYear";
   count?: number;
-  authInfoLevel?: number;
+  authInfoLevel?: 0 | 1;
+  needUrl?: boolean;
+  queryRewrite?: boolean;
 }
 
 interface WebsearchResponse {
+  ResponseMetadata?: {
+    Error?: {
+      Code?: string;
+      CodeN?: number;
+      Message?: string;
+    };
+  };
   Result?: {
     WebResults?: WebsearchResult[];
   };
@@ -69,13 +78,22 @@ export async function websearchSearch(
   const fetchImpl = options.fetchImpl ?? fetch;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
+  const normalizedQuery = Array.from(query.trim()).slice(0, 100).join("");
+  if (!normalizedQuery) {
+    throw new SourceFetchError("FETCH_CONFIG", "websearch query is empty");
+  }
+
   const body: Record<string, unknown> = {
-    Query: query,
+    Query: normalizedQuery,
     SearchType: "web",
-    Count: options.count ?? 10,
+    Count: Math.min(50, Math.max(1, options.count ?? 10)),
     TimeRange: options.timeRange ?? "OneWeek",
     Filter: {
+      NeedUrl: options.needUrl ?? true,
       AuthInfoLevel: options.authInfoLevel ?? 0,
+    },
+    QueryControl: {
+      QueryRewrite: options.queryRewrite ?? true,
     },
   };
 
@@ -107,6 +125,15 @@ export async function websearchSearch(
   }
 
   const payload = (await response.json()) as WebsearchResponse;
+
+  if (payload.ResponseMetadata?.Error) {
+    const apiError = payload.ResponseMetadata.Error;
+    throw new SourceFetchError(
+      "FETCH_HTTP_ERROR",
+      `websearch API error ${apiError.Code ?? apiError.CodeN ?? "unknown"}`,
+      { code: apiError.Code ?? apiError.CodeN, message: apiError.Message }
+    );
+  }
 
   const results = payload.Result?.WebResults;
   if (!Array.isArray(results)) {

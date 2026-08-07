@@ -44,7 +44,7 @@ function mapWebsearchResultToStandardItem(result: WebsearchResult): StandardItem
   return {
     url,
     title,
-    content: result.Snippet?.trim() || result.Summary?.trim() || "",
+    content: result.Summary?.trim() || result.Snippet?.trim() || "",
     publishedAt: parsePublishedAt(result.PublishTime),
   };
 }
@@ -68,6 +68,8 @@ async function fetchWebsearch(ctx: FetchContext): Promise<StandardItem[]> {
       timeRange: config.timeRange,
       count: config.count,
       authInfoLevel: config.authInfoLevel,
+      needUrl: config.needUrl,
+      queryRewrite: config.queryRewrite,
     });
   } catch (error) {
     // P2-1: 保留可观测性 — 失败时打 warn 日志，再返回 []（websearch 有独立 job handler）

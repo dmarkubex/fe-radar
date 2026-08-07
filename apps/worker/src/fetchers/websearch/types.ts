@@ -4,7 +4,11 @@ export interface WebsearchSourceConfig {
   type: "websearch";
   timeRange?: "OneDay" | "OneWeek" | "OneMonth" | "OneYear";
   count?: number;
-  authInfoLevel?: number;
+  authInfoLevel?: 0 | 1;
+  needUrl?: boolean;
+  queryRewrite?: boolean;
+  queryTopics?: string[];
+  maxAliases?: number;
 }
 
 export interface WebsearchAdapter {

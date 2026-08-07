@@ -24,6 +24,7 @@ vi.mock("@fe-radar/db", () => ({
   listSources: mockListSources,
   items: { id: "items.id", sourceId: "items.source_id", url: "items.url", title: "items.title", content: "items.content", publishedAt: "items.published_at" },
   itemAnalysis: { itemId: "ia.item_id", quotaState: "ia.quota_state" },
+  entities: { id: "entities.id", aliases: "entities.aliases" },
 }));
 
 vi.mock("@fe-radar/core", async (importOriginal) => {
@@ -57,7 +58,7 @@ vi.mock("bullmq", () => ({
   },
 }));
 
-import { handleWebsearchJob } from "../websearch";
+import { buildWebsearchQuery, handleWebsearchJob } from "../websearch";
 
 /** Minimal db mock: insert(items).values().onConflictDoNothing().returning() + insert(itemAnalysis).values() */
 function makeDb() {
@@ -65,6 +66,13 @@ function makeDb() {
   const insertAnalysisValues = vi.fn().mockResolvedValue(undefined);
   const updateSet = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) });
   const dbBase = {
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([{ aliases: ["远东智慧能源股份有限公司", "远东"] }]),
+        }),
+      }),
+    }),
     insert: vi.fn((table: { id?: unknown }) => {
       if (table.id !== undefined) {
         itemInsertCall += 1;
@@ -98,6 +106,21 @@ const baseJob = {
   correlationId: "corr-1",
 } as const;
 
+describe("buildWebsearchQuery", () => {
+  it("uses one specific alias and major-event topics instead of a bare entity name", () => {
+    expect(buildWebsearchQuery(
+      "东方电缆",
+      ["东方", "宁波东方电缆"],
+      { queryTopics: ["中标", "事故处罚"], maxAliases: 1 },
+    )).toBe("东方电缆（又称宁波东方电缆）近期中标、事故处罚等重大动态");
+  });
+
+  it("caps the Custom API query at 100 characters", () => {
+    const query = buildWebsearchQuery("东方电缆", [], { queryTopics: ["重大动态".repeat(30)] });
+    expect(Array.from(query)).toHaveLength(100);
+  });
+});
+
 describe("handleWebsearchJob quota admission (T1, Finding #1)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -116,6 +139,11 @@ describe("handleWebsearchJob quota admission (T1, Finding #1)", () => {
 
     await handleWebsearchJob({ data: baseJob } as never);
 
+    expect(mockWebsearchAdapterFetch).toHaveBeenCalledWith(expect.objectContaining({
+      sourceConfig: expect.objectContaining({
+        query: expect.stringContaining("远东控股（又称远东智慧能源股份有限公司）近期中标"),
+      }),
+    }));
     expect(mockAdmitToScoring).toHaveBeenCalledWith(
       expect.objectContaining({ itemId: expect.any(Number), isPriority: false, businessDate: expect.any(String) }),
       expect.anything()

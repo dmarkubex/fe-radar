@@ -2,7 +2,7 @@ import { FlowProducer, type Job } from "bullmq";
 import { randomUUID } from "node:crypto";
 
 import { admitToScoring, detectPriorityFromText, rollbackAdmit, type RedisEvalLike } from "@fe-radar/core";
-import { getDb, items, itemAnalysis, listSources } from "@fe-radar/db";
+import { entities, getDb, items, itemAnalysis, listSources } from "@fe-radar/db";
 import { APP_TIMEZONE, createLogger, dayjs } from "@fe-radar/shared";
 import { and, eq } from "drizzle-orm";
 
@@ -14,6 +14,51 @@ import { websearchAdapter } from "../fetchers/websearch/adapter";
 import { loadOwnCompanyProfile } from "../handlers/context";
 
 const logger = createLogger({ service: "websearch" });
+
+const DEFAULT_QUERY_TOPICS = [
+  "中标",
+  "招标",
+  "订单",
+  "重大项目",
+  "扩产投产",
+  "事故处罚",
+  "诉讼",
+  "并购重组",
+  "业绩",
+];
+
+function stringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(
+    value
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean),
+  )];
+}
+
+/** Build one natural-language query; Custom API accepts one query capped at 100 characters. */
+export function buildWebsearchQuery(
+  entityName: string,
+  aliases: string[],
+  sourceConfig: Record<string, unknown>,
+): string {
+  const maxAliases = Number.isInteger(sourceConfig.maxAliases)
+    ? Math.min(3, Math.max(0, Number(sourceConfig.maxAliases)))
+    : 1;
+  const selectedAliases = [...new Set(aliases.map((alias) => alias.trim()))]
+    .filter((alias) => alias.length >= 3 && alias !== entityName)
+    .sort((left, right) => Array.from(right).length - Array.from(left).length)
+    .slice(0, maxAliases);
+  const topics = stringList(sourceConfig.queryTopics).slice(0, 12);
+  const subject = selectedAliases.length > 0
+    ? `${entityName}（又称${selectedAliases.join("、")}）`
+    : entityName;
+
+  return Array.from(
+    `${subject}近期${(topics.length > 0 ? topics : DEFAULT_QUERY_TOPICS).join("、")}等重大动态`,
+  ).slice(0, 100).join("");
+}
 
 /**
  * websearch job handler — 消费 fe-websearch 队列（NER 事件驱动，非定时源）。
@@ -38,10 +83,18 @@ export async function handleWebsearchJob(job: Job<WebsearchJob>): Promise<void> 
     return;
   }
 
+  const [entity] = await db
+    .select({ aliases: entities.aliases })
+    .from(entities)
+    .where(eq(entities.id, entityId))
+    .limit(1);
+  const sourceConfig = source.config as Record<string, unknown>;
+  const query = buildWebsearchQuery(entityName, entity?.aliases ?? [], sourceConfig);
+
   const ctx: FetchContext = {
     sourceName: source.name,
     useRealUa: false,
-    sourceConfig: { ...(source.config as Record<string, unknown>), query: entityName },
+    sourceConfig: { ...sourceConfig, query },
   };
 
   // adapter 契约：失败返回 [] 不抛异常（websearch 有独立 job handler）

@@ -65,6 +65,16 @@ describe("websearch adapter", () => {
     expect(out[0]!.content).toBe("摘要内容");
   });
 
+  it("prefers the more complete Summary over Snippet", async () => {
+    mockedWebsearchSearch.mockResolvedValueOnce([
+      { Title: "标题", Url: "https://example.com/a", Snippet: "短片段", Summary: "完整相关摘要" },
+    ]);
+
+    const out = await fetchWebsearch(buildCtx("铜"));
+
+    expect(out[0]!.content).toBe("完整相关摘要");
+  });
+
   it("falls back to now() when PublishTime is missing or invalid", async () => {
     const before = Date.now();
     mockedWebsearchSearch.mockResolvedValueOnce([
@@ -141,15 +151,17 @@ describe("websearch adapter", () => {
     mockedWebsearchSearch.mockResolvedValueOnce([]);
 
     await fetchWebsearch(
-      buildCtx("铜", { timeRange: "OneDay", count: 8, authInfoLevel: 3 })
+      buildCtx("铜", { timeRange: "OneDay", count: 8, authInfoLevel: 1, needUrl: true, queryRewrite: true })
     );
 
     const [, options] = mockedWebsearchSearch.mock.calls[0] as [
       string,
-      { timeRange?: string; count?: number; authInfoLevel?: number }
+      { timeRange?: string; count?: number; authInfoLevel?: number; needUrl?: boolean; queryRewrite?: boolean }
     ];
     expect(options.timeRange).toBe("OneDay");
     expect(options.count).toBe(8);
-    expect(options.authInfoLevel).toBe(3);
+    expect(options.authInfoLevel).toBe(1);
+    expect(options.needUrl).toBe(true);
+    expect(options.queryRewrite).toBe(true);
   });
 });
