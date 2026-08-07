@@ -1,6 +1,5 @@
-import { eq } from "drizzle-orm";
+import { and, eq, gte, inArray, lt } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import { and, gte } from "drizzle-orm";
 import {
   briefingPushes,
   briefingTargets,
@@ -15,6 +14,20 @@ import Link from "next/link";
 import { BriefingLineChart } from "@/components/briefing/briefing-line-chart";
 import { DownloadButton } from "@/components/briefing/download-button";
 import { RegenerateButton } from "@/components/briefing/regenerate-button";
+import {
+  BRIEFING_QUOTE_METRIC_KEYS,
+  CU_CHANGE_METRIC,
+  CU_MAIN_METRIC,
+  CU_SPOT_METRIC,
+  LC_CHANGE_METRIC,
+  LC_MAIN_METRIC,
+  LC_SPOT_METRIC,
+  formatChangePctDisplay,
+  formatPriceDisplay,
+  indexQuoteValues,
+  pickMetalDayQuotes,
+  type MetalDayQuotes,
+} from "@/lib/briefing-quote-display";
 
 export const dynamic = "force-dynamic";
 
@@ -102,21 +115,61 @@ export default async function BriefingDetailPage({
     .leftJoin(briefingTargets, eq(briefingPushes.targetId, briefingTargets.id))
     .where(eq(briefingPushes.briefingId, numId));
 
-  // Fetch 7-day quotes for CU and LC
-  const since = dayjs().tz(APP_TIMEZONE).subtract(7, "day").toDate();
+  // Anchor all quote windows to this briefing's calendar day (Asia/Shanghai),
+  // not "today" — otherwise every historical detail page ends on the latest close.
+  //
+  // commodity_briefings.briefing_date is a Postgres `date` column; Drizzle maps it
+  // to string (typically "YYYY-MM-DD"), not Date. Keep the string branch first —
+  // do not "fix" by treating the column as Date-only.
+  const briefingDateStr =
+    typeof briefing.briefingDate === "string"
+      ? briefing.briefingDate.slice(0, 10)
+      : dayjs(briefing.briefingDate).tz(APP_TIMEZONE).format("YYYY-MM-DD");
+  const dayStart = dayjs.tz(briefingDateStr, APP_TIMEZONE).startOf("day");
+  const dayEnd = dayStart.add(1, "day");
+  const chartSince = dayStart.subtract(6, "day");
 
-  const [cuQuotes, lcQuotes] = await Promise.all([
+  const [dayQuoteRows, cuQuotes, lcQuotes] = await Promise.all([
+    db
+      .select({
+        metricKey: commodityQuotes.metricKey,
+        value: commodityQuotes.value,
+      })
+      .from(commodityQuotes)
+      .where(
+        and(
+          inArray(commodityQuotes.metricKey, [...BRIEFING_QUOTE_METRIC_KEYS]),
+          gte(commodityQuotes.observedAt, dayStart.toDate()),
+          lt(commodityQuotes.observedAt, dayEnd.toDate())
+        )
+      ),
     db
       .select({ observedAt: commodityQuotes.observedAt, value: commodityQuotes.value })
       .from(commodityQuotes)
-      .where(and(eq(commodityQuotes.metricKey, "cu_main_close"), gte(commodityQuotes.observedAt, since)))
+      .where(
+        and(
+          eq(commodityQuotes.metricKey, CU_MAIN_METRIC),
+          gte(commodityQuotes.observedAt, chartSince.toDate()),
+          lt(commodityQuotes.observedAt, dayEnd.toDate())
+        )
+      )
       .orderBy(commodityQuotes.observedAt),
     db
       .select({ observedAt: commodityQuotes.observedAt, value: commodityQuotes.value })
       .from(commodityQuotes)
-      .where(and(eq(commodityQuotes.metricKey, "lc_main_close"), gte(commodityQuotes.observedAt, since)))
+      .where(
+        and(
+          eq(commodityQuotes.metricKey, LC_MAIN_METRIC),
+          gte(commodityQuotes.observedAt, chartSince.toDate()),
+          lt(commodityQuotes.observedAt, dayEnd.toDate())
+        )
+      )
       .orderBy(commodityQuotes.observedAt),
   ]);
+
+  const dayByKey = indexQuoteValues(dayQuoteRows);
+  const cuDayQuotes = pickMetalDayQuotes(dayByKey, CU_MAIN_METRIC, CU_SPOT_METRIC, CU_CHANGE_METRIC);
+  const lcDayQuotes = pickMetalDayQuotes(dayByKey, LC_MAIN_METRIC, LC_SPOT_METRIC, LC_CHANGE_METRIC);
 
   const session = await auth();
   const isAdmin = session?.user?.role === "admin";
@@ -136,11 +189,11 @@ export default async function BriefingDetailPage({
   // Serialize dates for client components
   const cuChartData = cuQuotes.map((r) => ({
     observedAt: r.observedAt instanceof Date ? r.observedAt.toISOString() : String(r.observedAt),
-    value: r.value,
+    value: r.value != null ? String(r.value) : null,
   }));
   const lcChartData = lcQuotes.map((r) => ({
     observedAt: r.observedAt instanceof Date ? r.observedAt.toISOString() : String(r.observedAt),
-    value: r.value,
+    value: r.value != null ? String(r.value) : null,
   }));
 
   return (
@@ -188,9 +241,10 @@ export default async function BriefingDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* CU card */}
         <MetalCard
-          label="沪铜主力"
+          label="铜"
           abbr="CU"
           payload={payload.cu}
+          dayQuotes={cuDayQuotes}
           chartData={cuChartData}
           chartUnit="元/吨"
           srNull={cuSrNull}
@@ -198,9 +252,10 @@ export default async function BriefingDetailPage({
 
         {/* LC card */}
         <MetalCard
-          label="碳酸锂主力"
+          label="碳酸锂"
           abbr="LC"
           payload={payload.lc}
+          dayQuotes={lcDayQuotes}
           chartData={lcChartData}
           chartUnit="元/吨"
           srNull={lcSrNull}
@@ -303,15 +358,25 @@ interface MetalCardProps {
   label: string;
   abbr: string;
   payload: MetalPayload | undefined;
+  dayQuotes: MetalDayQuotes;
   chartData: { observedAt: string; value: string | null }[];
   chartUnit: string;
   srNull: boolean;
 }
 
-function MetalCard({ label, abbr, payload, chartData, chartUnit, srNull }: MetalCardProps): React.JSX.Element {
+function MetalCard({
+  label,
+  abbr,
+  payload,
+  dayQuotes,
+  chartData,
+  chartUnit,
+  srNull,
+}: MetalCardProps): React.JSX.Element {
   const trend = payload?.outlook?.trend;
   const support = payload?.outlook?.support;
   const resistance = payload?.outlook?.resistance;
+  const changeLabel = formatChangePctDisplay(dayQuotes.changePct);
 
   return (
     <div className="rounded-[2px] border border-border bg-surface p-5 flex flex-col gap-4">
@@ -327,8 +392,49 @@ function MetalCard({ label, abbr, payload, chartData, chartUnit, srNull }: Metal
         )}
       </div>
 
-      {/* 7-day chart */}
-      <BriefingLineChart data={chartData} label="7 日折线" unit={chartUnit} />
+      {/* Same-day main + spot from commodity_quotes (not LLM text) */}
+      <div className="grid grid-cols-1 gap-2 shell:grid-cols-2">
+        <div className="rounded-[2px] border border-border bg-bg-deep px-3 py-2.5">
+          <div className="font-mono text-[9px] uppercase tracking-[0.8px] text-fg-soft mb-1">
+            主力收盘
+          </div>
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span className="font-mono text-[18px] font-semibold tabular-nums text-fg">
+              {formatPriceDisplay(dayQuotes.mainClose)}
+            </span>
+            {dayQuotes.mainClose != null && (
+              <span className="font-mono text-[10px] text-fg-soft">{chartUnit}</span>
+            )}
+            {changeLabel && (
+              <span
+                className={`font-mono text-[11px] tabular-nums ${
+                  dayQuotes.changePct != null && dayQuotes.changePct >= 0
+                    ? "text-market-up"
+                    : "text-market-down"
+                }`}
+              >
+                {changeLabel}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="rounded-[2px] border border-border bg-bg-deep px-3 py-2.5">
+          <div className="font-mono text-[9px] uppercase tracking-[0.8px] text-fg-soft mb-1">
+            SMM 现货
+          </div>
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span className="font-mono text-[18px] font-semibold tabular-nums text-fg">
+              {formatPriceDisplay(dayQuotes.spot)}
+            </span>
+            {dayQuotes.spot != null && (
+              <span className="font-mono text-[10px] text-fg-soft">{chartUnit}</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Chart: main contract only, window ends on briefing date */}
+      <BriefingLineChart data={chartData} label="近 7 日 · 主力" unit={chartUnit} />
 
       {/* Logic summary */}
       {payload?.logic_summary && (
@@ -356,7 +462,7 @@ function MetalCard({ label, abbr, payload, chartData, chartUnit, srNull }: Metal
         <div className="flex items-start gap-1.5 text-[11px] text-fg-soft font-mono">
           <AlertTriangle className="h-3 w-3 flex-shrink-0 mt-0.5 text-warn" />
           <span>
-            近期数据样本不足，支撑/压力位计算已降级（design §6.5）
+            近 20 个交易日样本不足 10 条，支撑/压力位未计算（design §6.5）。样本达标后新生成的简报会显示数值。
           </span>
         </div>
       )}
