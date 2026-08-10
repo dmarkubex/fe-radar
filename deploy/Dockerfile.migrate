@@ -37,8 +37,13 @@ COPY packages/llm/package.json packages/llm/package.json
 COPY packages/core/package.json packages/core/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
+# T4 缺口修复：re2（T4 引入，仅 apps/worker 需要）编译需要 make/g++，本镜像没有该
+# 工具链。之前的无过滤 install 会把 apps/worker 的完整依赖图（含 re2）一起装进来，
+# 预编译下载失败后 fallback node-gyp rebuild 必炸。用 --filter 只装 @fe-radar/db
+# 及其依赖（同 Dockerfile.web 的 B-2 手法），另加 --filter=. 保留根 package.json 的
+# tsx（迁移/seed 脚本运行时依赖，只在根声明，db 包自身未声明，纯 db 过滤会漏装）。
 RUN pnpm config set registry ${NPM_REGISTRY} && \
-    pnpm install --frozen-lockfile --child-concurrency=1
+    pnpm install --frozen-lockfile --child-concurrency=1 --filter=@fe-radar/db... --filter=.
 
 # db 包源码（migrations/*.sql + scripts/*.ts）
 COPY packages ./packages
