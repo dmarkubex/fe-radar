@@ -236,7 +236,17 @@ export async function fetchTextWithPolicy(
     );
   }
 
-  let proxy = proxyPool.acquire();
+  // T15b: FETCH_INTERNAL_ALLOWLIST 内 hostname（如 rsshub:1200）必须直连，禁止塞进外部代理池。
+  // 外部代理无法解析 Docker 内网 hostname，会导致内部信源在 PROXY_POOL_ENABLED 下持续断供。
+  // 与 SSRF allowlist 豁免是两条独立逻辑；此处只控制代理选择，proxy 在本函数内恒为 undefined。
+  let skipProxyForInternal = false;
+  try {
+    skipProxyForInternal = isInternalAllowlisted(new URL(url).hostname);
+  } catch {
+    // 非法 URL：assertPublicFetchUrl 已在守卫开启时拒绝；此处保守走原有代理逻辑。
+  }
+
+  let proxy = skipProxyForInternal ? undefined : proxyPool.acquire();
   let lastError: unknown;
   const fetchImpl = async (
     input: string,
@@ -302,7 +312,7 @@ export async function fetchTextWithPolicy(
       );
       if (response.status === 403 || response.status === 429) {
         proxyPool.release(proxy, false);
-        proxy = proxyPool.acquire({ retry: true });
+        proxy = skipProxyForInternal ? undefined : proxyPool.acquire({ retry: true });
         lastError = new SourceFetchError(
           `FETCH_${response.status}`,
           `Fetch rejected with ${response.status}`,
@@ -335,7 +345,7 @@ export async function fetchTextWithPolicy(
         throw error;
       }
       proxyPool.release(proxy, false);
-      proxy = proxyPool.acquire({ retry: true });
+      proxy = skipProxyForInternal ? undefined : proxyPool.acquire({ retry: true });
       lastError = error;
     }
   }

@@ -113,9 +113,9 @@ export function ScheduleForm({ targetCount }: ScheduleFormProps): React.JSX.Elem
   return (
     <section className="panel-surface" data-testid="daily-push-schedule-form">
       <div className="border-b border-hairline px-6 py-4">
-        <h3 className="font-display text-base font-semibold text-fg">合并日报定时发送</h3>
+        <h3 className="font-display text-base font-semibold text-fg">日报定时发送（两张独立卡片）</h3>
         <p className="mt-1 font-mono text-[11px] text-fg-soft">
-          时区固定 Asia/Shanghai · 一张 ActionCard 合并产业日报与铜锂简报 · 配置存数据库
+          时区固定 Asia/Shanghai · 产业日报与铜锂日报各一张 ActionCard、各自独立发送时间 · 配置存数据库
         </p>
       </div>
 

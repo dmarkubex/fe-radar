@@ -551,4 +551,90 @@ describe("rsshubExtractAdapter", () => {
       expect(results[0]!.value).toBe(expected);
     }
   });
+
+  // ── B-1: RE2 编译移出 item 循环（内存不回收修复）──
+
+  /**
+   * 结构性证明：无效规则在 compileRegexRules 阶段编译一次 → warn 一次。
+   * 旧代码逐 item 编译 → 100 item × 1 无效规则 = 100 次 warn。
+   */
+  it("B-1: invalid regex rule warns only once across 100 items", async () => {
+    loggerWarn.mockClear();
+
+    // Build a feed with 100 items — none match any rule.
+    const items = Array.from(
+      { length: 100 },
+      (_, i) =>
+        `<item><title>item-${i}</title><description>no price here</description><pubDate>Tue, 20 May 2026 15:30:00 +0800</pubDate></item>`
+    ).join("");
+    const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>Test</title>${items}</channel></rss>`;
+    mockFetchText.mockResolvedValueOnce(xml);
+
+    await rsshubExtractAdapter.fetch({
+      sourceName: "warn-once",
+      sourceConfig: {
+        endpoint: "/feed",
+        regex_rules: [
+          // RE2 does not support lookahead → compile fails → should warn ONCE
+          { pattern: "(?=price)(\\d+)", metric_key: "evil", group: 1 },
+          { pattern: "(\\d+)\\s*元/吨", metric_key: "safe", group: 1 },
+        ],
+      },
+    });
+
+    // The bad rule's warn must fire exactly once, not 100 times.
+    const badRuleWarns = loggerWarn.mock.calls.filter((c) => {
+      const first = c[0];
+      return (
+        typeof first === "object" &&
+        first !== null &&
+        "pattern" in first &&
+        first.pattern === "(?=price)(\\d+)"
+      );
+    });
+    expect(badRuleWarns.length).toBe(1);
+  });
+
+  /**
+   * 性能回归保护：5000 item × 20 rule 全不匹配的场景。
+   * 旧代码在此场景逐 item 编译 RE2（100 000 次 new RE2），实测 870 ms 且
+   * 原生内存不回落。编译移出循环后应远低于此。
+   *
+   * 阈值 2 000 ms 给 CI 慢机器留 ~10× 余量；旧代码仅 RE2 构造就 870 ms，
+   * 加上 cheerio + RSS 解析轻松超过 2 000 ms，回归时此断言会 fail。
+   */
+  it("B-1: 5000 items × 20 rules no-match completes well under regression threshold", async () => {
+    // 20 distinct rules, none will match the item text.
+    const rules = Array.from({ length: 20 }, (_, i) => ({
+      pattern: `NEVER_MATCHES_RULE_${i}_XYZQQQ`,
+      metric_key: `rule_${i}`,
+      group: 1,
+    }));
+
+    // 5000 items with minimal text (keeps cheerio overhead low so the test
+    // actually isolates regex behaviour, not XML/HTML parsing).
+    const items = Array.from(
+      { length: 5000 },
+      (_, i) =>
+        `<item><title>${i}</title><description>x</description><pubDate>Tue, 20 May 2026 15:30:00 +0800</pubDate></item>`
+    ).join("");
+    const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>Perf</title>${items}</channel></rss>`;
+    mockFetchText.mockResolvedValueOnce(xml);
+
+    const t0 = performance.now();
+    const results = await rsshubExtractAdapter.fetch({
+      sourceName: "perf-5k",
+      sourceConfig: { endpoint: "/feed", regex_rules: rules },
+    });
+    const elapsedMs = performance.now() - t0;
+
+    // No match → single null sample
+    expect(results).toHaveLength(1);
+    expect(results[0]!.value).toBeNull();
+
+    // Regression guard: old per-item compilation added ~870 ms of RE2
+    // construction on top of base overhead.  2 000 ms threshold gives generous
+    // CI headroom while still failing if someone reverts the fix.
+    expect(elapsedMs, `5000×20 no-match took ${elapsedMs.toFixed(0)}ms`).toBeLessThan(2000);
+  });
 });

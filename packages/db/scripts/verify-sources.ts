@@ -7,6 +7,7 @@
 import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import type { Browser } from "playwright";
 
 import { createDbClient } from "../src/client";
 import {
@@ -116,6 +117,15 @@ export async function checkPlaywright(
   const waitFor = config?.waitFor as string | undefined;
   // T-SEC-03: 校验声明式 itemSelector（旧 extractor 字段已废弃）。
   const itemSelector = config?.itemSelector as string | undefined;
+  // B-5 / A-6 收尾：CI 门禁必须与 worker 运行时同口径——不只数 itemSelector 命中数，
+  // 还要按 titleSelector/linkSelector（worker 默认 "a"）校验每条 title/link 是否有效。
+  const titleSelector = (config?.titleSelector as string | undefined) ?? "a";
+  const linkSelector = (config?.linkSelector as string | undefined) ?? "a";
+  // V-2: CI gate must use the same limit truncation as the worker runtime
+  // (playwright.ts:218). Without this, CI sees all DOM matches while the worker
+  // only scans the first N — a site redesign with drifted selectors in the first
+  // N nodes passes CI but fails at runtime.
+  const limit = Math.min(Math.max((config?.limit as number | undefined) ?? 20, 1), 50);
 
   if (!waitFor || !itemSelector) {
     return {
@@ -131,33 +141,22 @@ export async function checkPlaywright(
     return urlCheck;
   }
 
-  let browser:
-    | {
-        newPage: () => Promise<{
-          goto: (
-            u: string,
-            o: { timeout: number; waitUntil: string }
-          ) => Promise<void>;
-          waitForSelector: (s: string, o: { timeout: number }) => Promise<void>;
-          $$eval: (
-            s: string,
-            fn: (els: Element[]) => number
-          ) => Promise<number>;
-          close: () => Promise<void>;
-        }>;
-        close: () => Promise<void>;
-      }
-    | undefined;
+  // Real Playwright Browser (declared in package.json devDependencies). page.url() is
+  // MIRROR of apps/worker PageLike.url() — post-navigation document URL after redirects.
+  let browser: Browser | undefined;
   try {
-    // @ts-expect-error -- playwright is a workspace-level dep (apps/worker), not declared in @fe-radar/db
     const pw = await import("playwright");
     browser = await pw.chromium.launch({ headless: true });
-    const page = await browser!.newPage();
+    const page = await browser.newPage();
     await page.goto(targetUrl, {
       timeout: TIMEOUT_MS,
       waitUntil: "domcontentloaded"
     });
+    // MIRROR T15a / playwright.ts: capture real landing URL after redirects.
+    // Empty href is resolved by the browser against this document URL, not targetUrl.
+    const finalUrl = page.url();
 
+    // waitFor: page readiness only. Must not be used as the extraction success metric.
     try {
       await page.waitForSelector(waitFor, {
         timeout: PLAYWRIGHT_SELECTOR_TIMEOUT_MS
@@ -170,13 +169,49 @@ export async function checkPlaywright(
       return { ok: false, error: `selector timeout for '${waitFor}': ${msg}` };
     }
 
-    const itemCount = await page
-      .$$eval(waitFor, (els: Element[]) => els.length)
-      .catch(() => 0);
-    if (itemCount === 0) {
+    // itemSelector: runtime extraction selector — CI gate must use the same field the worker
+    // uses (A-6: waitFor coarse match + itemSelector miss was dual-green silent outage).
+    // B-5: must also validate content (title/link), not just count matches — a site redesign
+    // leaves itemSelector hitting but title/link sub-selectors drifted → all-empty items.
+    const extraction = await page
+      .$$eval(
+        itemSelector,
+        (els: Element[], { titleSelector, linkSelector, listUrl, limit }) => {
+          const items = els.slice(0, limit).map((node) => {
+            const titleEl = node.matches(titleSelector) ? node : node.querySelector(titleSelector);
+            const linkEl = node.matches(linkSelector) ? node : node.querySelector(linkSelector);
+            const title = (titleEl?.textContent ?? "").trim();
+            const href = (linkEl as HTMLAnchorElement | null)?.href ?? "";
+            let ok = title.length > 0 && href.trim().length > 0;
+            if (ok) {
+              // Empty/absent href resolves back to the list page URL itself (new URL("", listUrl)).
+              // listUrl here is finalUrl (post-redirect), not the pre-nav targetUrl — T15c / T15a.
+              // Normalize both sides — new URL adds a trailing slash that a bare listUrl lacks.
+              try {
+                const listUrlNorm = new URL(listUrl).toString();
+                if (new URL(href, listUrl).toString() === listUrlNorm) ok = false;
+              } catch {
+                ok = false;
+              }
+            }
+            return ok;
+          });
+          return { matched: items.length, valid: items.filter(Boolean).length };
+        },
+        { titleSelector, linkSelector, listUrl: finalUrl, limit }
+      )
+      .catch(() => ({ matched: 0, valid: 0 }));
+
+    if (extraction.matched === 0) {
       return {
         ok: false,
-        error: `selector '${waitFor}' matched 0 items on page`
+        error: `itemSelector '${itemSelector}' matched 0 items on page (waitFor='${waitFor}' was ready)`
+      };
+    }
+    if (extraction.valid === 0) {
+      return {
+        ok: false,
+        error: `itemSelector '${itemSelector}' matched ${extraction.matched} item(s) but all had empty title or link (titleSelector='${titleSelector}', linkSelector='${linkSelector}', waitFor='${waitFor}' was ready)`
       };
     }
 

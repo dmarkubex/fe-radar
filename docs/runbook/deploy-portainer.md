@@ -156,6 +156,32 @@ docker service update --force fe-radar_worker
 docker service update --force fe-radar_scheduler
 ```
 
+### 4.1 应用 0061 后：手动执行分支 B 清理脚本（B-3 fix）
+
+> **背景（B-3）**：0061 迁移的分支 A（清钉钉绑定 viewer 的 password_hash）是自动迁移，
+> 但分支 B（禁用未绑钉钉的 viewer 账号）已从迁移中移除——SQL 无法区分"仍是原始泄漏口令"
+> 与"admin 合法轮换后的强口令"（bcrypt 随机盐），直接按状态禁用会锁死合法账号。
+> 分支 B 改为应用层脚本 `packages/db/scripts/purge-legacy-viewer-branch-b.ts`，
+> 用 `bcrypt.compare` 验证口令内容后再决定是否禁用。
+
+**步骤（应用 0061 迁移后执行一次）**：
+
+```bash
+docker run --rm --network fe-radar_internal \
+  -e DATABASE_URL='postgres://fe_radar:CHANGE_ME_DBPW@postgres:5432/fe_radar' \
+  harborssl.fegroup.cn/custom-project/fe-radar-migrate:latest \
+  pnpm --filter @fe-radar/db tsx scripts/purge-legacy-viewer-branch-b.ts
+```
+
+**review 输出**：
+
+- `disabled user id=...` → 口令确实是泄漏默认值，已禁用 + token_version+1
+- `SKIP user id=... — password does not match leaked default` → 口令已被合法轮换，**脚本未禁用**；
+  运维需逐个人工确认该账号是否需要保留（它是没绑钉钉的纯本地账号，口令不是泄漏值）
+
+> 若无 SKIP 行且 disabled=0 → 说明没有候选行（0059 已处理或新装无遗留），可安全跳过。
+> 脚本幂等：已禁用行不在候选集（`disabled_at IS NULL` 过滤），可安全重跑。
+
 ---
 
 ## 5. 触发并观测 fetch 真连网验证
@@ -250,9 +276,26 @@ docker exec <postgres容器> psql -U fe_radar -d fe_radar -c \
   验收输出必须包含 `briefing-docx-retention`，否则不要启用 v1.1 简报。
 - **Grafana**：生产 stack 通过 Swarm configs 挂载 `deploy/grafana` provisioning；Portainer env 必须设置 `GRAFANA_DINGTALK_WEBHOOK_URL=https://oapi.dingtalk.com/robot/send?...`，并确认 datasource UID 为 `fe-radar-postgres`。
 - **auth**：`DINGTALK_ENABLED=true` 上钉钉 SSO 时，本地登录默认关闭；应急才设 `EMERGENCY_LOCAL_LOGIN=true`（Gate 2 #1）。
+- **AUTH_URL / NEXTAUTH_URL**：填浏览器实际访问 origin（内网可 `http://…`）。**不要**把 `AUTH_URL` 设成空字符串 `""` 占位——历史 `??` 会把空串当有效值并遮蔽 `NEXTAUTH_URL`，导致 web 启动校验失败、容器重启循环。应用现取「第一个 trim 后非空」；仍建议 Portainer 里删掉无用的空 `AUTH_URL`，只保留一个正确 origin。
+- **登录限速 / `TRUST_PROXY_HEADERS`（A-4）**：见下方 §6.0。
 - **钉钉群卡片内免登（H5）**：见下方 §6.1。
 - **quotes 信源**：adapter 上线后 admin 后台逐个 `enabled=true` 并验证（NFR-102 数值不过 LLM）。
 - **代理池**：T1 政府站需要，配 `proxy_list` 后 `PROXY_POOL_ENABLED=true`（详见 §7.1）。
+
+### 6.0 登录限速 IP 维度与 `TRUST_PROXY_HEADERS`
+
+> 背景（A-4）：本地凭据登录有 username + 可选 IP 双计数器。Auth.js `authorize()` 收到的是标准 Web `Request`，**没有 peer IP**；Next.js 15 的 `NextRequest` 也已移除 `.ip`。因此在 authorize 内无法拿到真实对端地址。
+
+| 部署形态                                                                                             | 推荐配置                                                                                               | IP 维度                                                          |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| 当前 Swarm：`published:8080` 直发 web，**无**会重写 XFF 的可信反代                                   | **不设** `TRUST_PROXY_HEADERS`（或 `false`）                                                           | **不可用**（仅 username ≤5 次/窗生效）。这是预期，不是静默失效。 |
+| 前置 Nginx / CDN / 零信任网关，且该层会正确追加 `X-Forwarded-For`（如 `$proxy_add_x_forwarded_for`） | web 环境显式 `TRUST_PROXY_HEADERS=true`；可选 `TRUSTED_PROXY_HOPS`（默认 `1` = 取 XFF 右数第 hops 项） | 启用：与 username 任一达上限即锁                                 |
+
+**启用前检查**
+
+1. 反代必须**覆盖/追加**客户端不可伪造的右侧跳；不要在无清洗的入口上开 `TRUST_PROXY_HEADERS`（客户端可伪造左侧 XFF 绕过或误伤）。
+2. 开启后用失败登录日志 / Redis 键 `login:fail:ip:*` 确认 IP 维在计数。
+3. **不要**在代码里假装 `request.ip` 可用——那是已删除的死路径（X-1 教训）。
 
 ### 6.1 钉钉群卡片内免登（H5 企业应用）
 
@@ -268,13 +311,15 @@ docker exec <postgres容器> psql -U fe_radar -d fe_radar -c \
 
 **Portainer / stack 环境变量（web）**
 
-| 变量                                       | 说明                                                |
-| ------------------------------------------ | --------------------------------------------------- |
-| `DINGTALK_ENABLED=true`                    | 开启钉钉 SSO（扫码 + 内免登）                       |
-| `DINGTALK_APP_KEY` / `DINGTALK_APP_SECRET` | 企业内部应用凭据（仅服务端；勿写入卡片 URL 或前端） |
-| `DINGTALK_CORP_ID`                         | 企业 CorpId，免登页 JSAPI 必填                      |
-| `AUTH_URL` / `NEXTAUTH_URL`                | 与浏览器访问源一致（含 https）                      |
-| `EMERGENCY_LOCAL_LOGIN`                    | 生产默认不设；仅运维应急本地登录时 `=true`          |
+| 变量                                       | 说明                                                                                     |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `DINGTALK_ENABLED=true`                    | 开启钉钉 SSO（扫码 + 内免登）                                                            |
+| `DINGTALK_APP_KEY` / `DINGTALK_APP_SECRET` | 企业内部应用凭据（仅服务端；勿写入卡片 URL 或前端）                                      |
+| `DINGTALK_CORP_ID`                         | 企业 CorpId，免登页 JSAPI 必填                                                           |
+| `AUTH_URL` / `NEXTAUTH_URL`                | 与浏览器访问源一致（含 https）；**勿留空串** `AUTH_URL=""`（会干扰启动；应用取首个非空） |
+| `EMERGENCY_LOCAL_LOGIN`                    | 生产默认不设；仅运维应急本地登录时 `=true`                                               |
+| `TRUST_PROXY_HEADERS`                      | 默认关闭。仅当前置可信反代会重写 XFF 时设 `true` 以启用登录 IP 限速（§6.0）              |
+| `TRUSTED_PROXY_HOPS`                       | 可选，默认 `1`；与 `TRUST_PROXY_HEADERS=true` 联用                                       |
 
 **行为摘要**
 

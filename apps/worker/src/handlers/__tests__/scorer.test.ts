@@ -1,14 +1,44 @@
+/**
+ * A-12: 本文件对 withScrubber **不使用 identity mock**。
+ * mockRunScorer 会真正调用传入的 client.chatJson({ user })，从而驱动真实
+ * ScrubbedLlmClient；断言最终 payload 里原始代号子串不出现（覆盖任意字段泄漏）。
+ */
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { withScrubber } from "@fe-radar/llm";
+import type * as FeRadarLlm from "@fe-radar/llm";
+import type * as FeRadarCore from "@fe-radar/core";
 
-const { mockGetDb, mockRunScorer, mockWithScrubber, mockComputeD3Market, mockListLatestFinancialsByMetric, mockPassesIndustryGate, mockLoadProjectCodes } = vi.hoisted(() => ({
-  mockGetDb: vi.fn(),
-  mockRunScorer: vi.fn(),
-  mockWithScrubber: vi.fn((client: unknown) => client),
-  mockComputeD3Market: vi.fn(),
-  mockListLatestFinancialsByMetric: vi.fn().mockResolvedValue([]),
-  mockPassesIndustryGate: vi.fn().mockResolvedValue(true),
-  mockLoadProjectCodes: vi.fn(),
-}));
+const {
+  mockGetDb,
+  mockRunScorer,
+  mockComputeD3Market,
+  mockListLatestFinancialsByMetric,
+  mockPassesIndustryGate,
+  mockLoadProjectCodes,
+  fakeDeepSeek,
+  capturedUsers,
+} = vi.hoisted(() => {
+  const capturedUsers: string[] = [];
+  const fakeDeepSeek = {
+    chatJson: vi.fn(async (req: { user: string }) => {
+      capturedUsers.push(req.user);
+      return { value: {}, usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } };
+    }),
+    embedding: vi.fn(async () => {
+      throw new Error("embedding not used in scorer");
+    }),
+  };
+  return {
+    mockGetDb: vi.fn(),
+    mockRunScorer: vi.fn(),
+    mockComputeD3Market: vi.fn(),
+    mockListLatestFinancialsByMetric: vi.fn().mockResolvedValue([]),
+    mockPassesIndustryGate: vi.fn().mockResolvedValue(true),
+    mockLoadProjectCodes: vi.fn(),
+    fakeDeepSeek,
+    capturedUsers,
+  };
+});
 
 vi.mock("@fe-radar/db", () => ({
   getDb: mockGetDb,
@@ -28,17 +58,30 @@ vi.mock("@fe-radar/db", () => ({
   listLatestFinancialsByMetric: mockListLatestFinancialsByMetric,
 }));
 
-vi.mock("@fe-radar/core", () => ({
-  computeD3Market: mockComputeD3Market,
-}));
+// partial mock：保留 scrubText 等真实导出，供真实 withScrubber 使用（A-12）
+vi.mock("@fe-radar/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof FeRadarCore>();
+  return {
+    ...actual,
+    computeD3Market: mockComputeD3Market,
+  };
+});
 
-vi.mock("@fe-radar/llm", () => ({ withScrubber: mockWithScrubber }));
+// 不 mock withScrubber — 使用真实中间件
+vi.mock("@fe-radar/llm", async (importOriginal) => {
+  const actual = await importOriginal<typeof FeRadarLlm>();
+  return {
+    ...actual,
+    withScrubber: actual.withScrubber,
+  };
+});
+
 vi.mock("drizzle-orm", () => ({ eq: vi.fn((a: unknown, b: unknown) => ({ a, b })) }));
 vi.mock("../../jobs/scorer", () => ({ runScorer: mockRunScorer }));
 vi.mock("../pipeline-gate", () => ({ passesIndustryGate: mockPassesIndustryGate }));
 vi.mock("../context", () => ({
   logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() },
-  handlerContext: { deepSeek: { id: "deepSeek" } },
+  handlerContext: { deepSeek: fakeDeepSeek },
   loadProjectCodes: mockLoadProjectCodes,
 }));
 
@@ -75,13 +118,27 @@ const fullScore = {
   category: "政策与标准" as const,
 };
 
+/** 生产路径：handler 把 withScrubber(client) 传给 runScorer；mock 必须真正调 client.chatJson 才测到 scrubber。 */
+function wireRunScorerThroughClient() {
+  mockRunScorer.mockImplementation(async (text: string, client: { chatJson: (r: unknown) => Promise<unknown> }) => {
+    await client.chatJson({
+      system: "scoring",
+      user: text,
+      schemaName: "scoring",
+      schema: { type: "object" },
+    });
+    return fullScore;
+  });
+}
+
 describe("handleScorerJob", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockWithScrubber.mockImplementation((client: unknown) => client);
+    capturedUsers.length = 0;
     mockListLatestFinancialsByMetric.mockResolvedValue([]);
     mockPassesIndustryGate.mockResolvedValue(true);
     mockLoadProjectCodes.mockResolvedValue(["内部代号A"]);
+    wireRunScorerThroughClient();
   });
 
   it("normal path: persists all five-dimension scores returned by runScorer", async () => {
@@ -89,7 +146,6 @@ describe("handleScorerJob", () => {
       [{ title: "标题", content: "正文" }],
       [],
     ]);
-    mockRunScorer.mockResolvedValue(fullScore);
 
     await handleScorerJob({ data: { itemId: 11 } as never });
 
@@ -103,7 +159,6 @@ describe("handleScorerJob", () => {
       [{ title: "仅标题", content: null }],
       [],
     ]);
-    mockRunScorer.mockResolvedValue(fullScore);
 
     await handleScorerJob({ data: { itemId: 12 } as never });
 
@@ -140,24 +195,39 @@ describe("handleScorerJob", () => {
     expect(db.update).not.toHaveBeenCalled();
   });
 
-  // T-SEC-09: 项目代号字典必须按 job 即时加载（不再用 bootstrap 启动快照）。
-  it("loads project codes per job and injects them into withScrubber context", async () => {
-    // scorer 每个 job 两次 select（items + itemEntities join），makeDb 按序消费。
+  it("loads project codes per job (dict still loaded for scrubber context)", async () => {
     makeDb([
       [{ title: "标题", content: "正文" }],
       [],
       [{ title: "标题", content: "正文" }],
       [],
     ]);
-    mockRunScorer.mockResolvedValue(fullScore);
 
     await handleScorerJob({ data: { itemId: 31 } as never });
     await handleScorerJob({ data: { itemId: 32 } as never });
 
     expect(mockLoadProjectCodes).toHaveBeenCalledTimes(2);
-    expect(mockWithScrubber).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ projectCodes: ["内部代号A"] }),
-    );
+  });
+
+  // A-12 核心：真实 withScrubber，断言最终 LLM payload 不含原始代号
+  it("A-12: real withScrubber redacts project codes in final chatJson user payload", async () => {
+    const CODE = "远东内部代号XYZ-SEC";
+    mockLoadProjectCodes.mockResolvedValue([CODE]);
+    makeDb([
+      [{ title: `标题含${CODE}`, content: `正文也有${CODE}片段` }],
+      [],
+    ]);
+
+    await handleScorerJob({ data: { itemId: 99 } as never });
+
+    expect(capturedUsers.length).toBe(1);
+    const payload = capturedUsers[0]!;
+    // 原始代号子串不得出现在最终 payload（覆盖任意字段泄漏，不靠「函数被调用」）
+    expect(payload).not.toContain(CODE);
+    expect(payload).toContain("[REDACTED:PROJECT_CODE:");
+    // 对照：withScrubber 本体可用
+    expect(typeof withScrubber).toBe("function");
+    // 内层 client 确实被调用（不是 mock identity 空转）
+    expect(fakeDeepSeek.chatJson).toHaveBeenCalledTimes(1);
   });
 });

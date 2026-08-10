@@ -396,8 +396,9 @@ describe("verify-sources", () => {
       const mockBrowser = {
         newPage: vi.fn().mockResolvedValue({
           goto: vi.fn().mockResolvedValue(undefined),
+          url: () => "https://example.com/news",
           waitForSelector: vi.fn().mockResolvedValue(undefined),
-          $$eval: vi.fn().mockResolvedValue(5)
+          $$eval: vi.fn().mockResolvedValue({ matched: 5, valid: 5 })
         }),
         close: vi.fn().mockResolvedValue(undefined)
       };
@@ -426,8 +427,9 @@ describe("verify-sources", () => {
 
       const mockPage = {
         goto: vi.fn().mockResolvedValue(undefined),
+        url: () => "https://example.com",
         waitForSelector: vi.fn().mockResolvedValue(undefined),
-        $$eval: vi.fn().mockResolvedValue(0)
+        $$eval: vi.fn().mockResolvedValue({ matched: 0, valid: 0 })
       };
       const mockBrowser = {
         newPage: vi.fn().mockResolvedValue(mockPage),
@@ -440,6 +442,59 @@ describe("verify-sources", () => {
       const result = await checkPlaywright(source);
       expect(result.ok).toBe(false);
       expect(result.error).toContain("0 items");
+      expect(result.error).toContain("itemSelector");
+
+      vi.doUnmock("playwright");
+    });
+
+    // A-6 core: waitFor (coarse readiness) can hit while itemSelector (runtime extract) misses.
+    // Gate must fail on itemSelector, not pass because waitFor counted > 0.
+    it("fails when waitFor is ready but itemSelector matches 0 items", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+      const source = makeSource({
+        name: "pw-waitfor-ok-itemsel-miss",
+        url: "https://example.com",
+        fetcherType: "playwright",
+        config: {
+          waitFor: ".news-list",
+          itemSelector: ".article-item-drifted"
+        }
+      });
+
+      const mockPage = {
+        goto: vi.fn().mockResolvedValue(undefined),
+        url: () => "https://example.com",
+        waitForSelector: vi.fn().mockResolvedValue(undefined),
+        $$eval: vi.fn().mockImplementation(async (selector: string) => {
+          // If the gate still counted waitFor, this would incorrectly return > 0.
+          if (selector === ".news-list") return { matched: 12, valid: 12 };
+          if (selector === ".article-item-drifted") return { matched: 0, valid: 0 };
+          return { matched: 0, valid: 0 };
+        })
+      };
+      const mockBrowser = {
+        newPage: vi.fn().mockResolvedValue(mockPage),
+        close: vi.fn().mockResolvedValue(undefined)
+      };
+      const mockChromium = { launch: vi.fn().mockResolvedValue(mockBrowser) };
+
+      vi.doMock("playwright", () => ({ chromium: mockChromium }));
+
+      const result = await checkPlaywright(source);
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain("itemSelector");
+      expect(result.error).toContain(".article-item-drifted");
+      expect(result.error).toContain("0 items");
+      // Count must use itemSelector, not waitFor.
+      expect(mockPage.$$eval).toHaveBeenCalledWith(
+        ".article-item-drifted",
+        expect.any(Function),
+        expect.anything()
+      );
+      expect(mockPage.waitForSelector).toHaveBeenCalledWith(
+        ".news-list",
+        expect.anything()
+      );
 
       vi.doUnmock("playwright");
     });
@@ -455,12 +510,13 @@ describe("verify-sources", () => {
 
       const mockPage = {
         goto: vi.fn().mockResolvedValue(undefined),
+        url: () => "https://example.com",
         waitForSelector: vi
           .fn()
           .mockRejectedValue(
             new Error("waiting for selector '.slow-selector' timed out")
           ),
-        $$eval: vi.fn().mockResolvedValue(0)
+        $$eval: vi.fn().mockResolvedValue({ matched: 0, valid: 0 })
       };
       const mockBrowser = {
         newPage: vi.fn().mockResolvedValue(mockPage),
@@ -488,8 +544,9 @@ describe("verify-sources", () => {
 
       const mockPage = {
         goto: vi.fn().mockResolvedValue(undefined),
+        url: () => "https://example.com",
         waitForSelector: vi.fn().mockResolvedValue(undefined),
-        $$eval: vi.fn().mockResolvedValue(10)
+        $$eval: vi.fn().mockResolvedValue({ matched: 10, valid: 10 })
       };
       const mockBrowser = {
         newPage: vi.fn().mockResolvedValue(mockPage),
@@ -504,6 +561,203 @@ describe("verify-sources", () => {
       expect(result.status).toBe(200);
 
       vi.doUnmock("playwright");
+    });
+
+    // B-5 / A-6 收尾：CI 门禁与 worker 运行时同口径——itemSelector 命中但内容全空（站点改版）
+    // 时门禁必须失败，不能只数命中数而放行。
+    it("fails when itemSelector matches items but all have empty title/link", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+      const source = makeSource({
+        name: "pw-matched-empty-content",
+        url: "https://example.com",
+        fetcherType: "playwright",
+        config: { waitFor: ".news-list", itemSelector: "a" }
+      });
+
+      const mockPage = {
+        goto: vi.fn().mockResolvedValue(undefined),
+        url: () => "https://example.com",
+        waitForSelector: vi.fn().mockResolvedValue(undefined),
+        // itemSelector matched 5 elements, but every title/link is empty (sub-selectors drifted).
+        $$eval: vi.fn().mockResolvedValue({ matched: 5, valid: 0 })
+      };
+      const mockBrowser = {
+        newPage: vi.fn().mockResolvedValue(mockPage),
+        close: vi.fn().mockResolvedValue(undefined)
+      };
+      const mockChromium = { launch: vi.fn().mockResolvedValue(mockBrowser) };
+
+      vi.doMock("playwright", () => ({ chromium: mockChromium }));
+
+      const result = await checkPlaywright(source);
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain("matched 5 item(s)");
+      expect(result.error).toContain("empty title or link");
+
+      vi.doUnmock("playwright");
+    });
+
+    // V-2: CI gate must use the same limit truncation as the worker runtime
+    // (playwright.ts:218 els.slice(0, limit)). Without it, CI examines ALL matching
+    // nodes while the worker only scans the first N — a site redesign with drifted
+    // selectors in the first N nodes passes CI but fails at runtime (dual-green).
+    it("V-2: fails when first N nodes within limit are invalid even if later nodes are valid", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+      const source = makeSource({
+        name: "pw-limit-truncation",
+        url: "https://example.com",
+        fetcherType: "playwright",
+        config: { waitFor: ".news-list", itemSelector: ".item", limit: 20 }
+      });
+
+      // 40 fake DOM nodes: first 20 invalid (empty title/href), last 20 valid.
+      // Without the limit fix, CI examines all 40 → finds 20 valid → false green.
+      // With the fix, CI only examines first 20 → all invalid → correctly fails.
+      const fakeNodes = Array.from({ length: 40 }, (_, i) => {
+        if (i < 20) {
+          return {
+            matches: () => false,
+            querySelector: () => ({ textContent: "", href: "" }),
+          };
+        }
+        return {
+          matches: () => false,
+          querySelector: () => ({
+            textContent: `Article ${i}`,
+            href: `https://example.com/a/${i}`,
+          }),
+        };
+      });
+
+      const mockPage = {
+        goto: vi.fn().mockResolvedValue(undefined),
+        url: () => "https://example.com",
+        waitForSelector: vi.fn().mockResolvedValue(undefined),
+        // Execute the real callback with fake nodes — simulates browser-side $$eval
+        $$eval: vi.fn().mockImplementation(async (
+          _selector: string,
+          fn: (els: Element[], arg: { titleSelector: string; linkSelector: string; listUrl: string; limit: number }) => { matched: number; valid: number },
+          arg: { titleSelector: string; linkSelector: string; listUrl: string; limit: number }
+        ) => {
+          return fn(fakeNodes as unknown as Element[], arg);
+        }),
+      };
+      const mockBrowser = {
+        newPage: vi.fn().mockResolvedValue(mockPage),
+        close: vi.fn().mockResolvedValue(undefined)
+      };
+      const mockChromium = { launch: vi.fn().mockResolvedValue(mockBrowser) };
+
+      vi.doMock("playwright", () => ({ chromium: mockChromium }));
+
+      const result = await checkPlaywright(source);
+
+      // With the fix: CI only sees first 20 nodes (all invalid) → must fail.
+      // Without the fix: CI would see all 40 nodes → finds 20 valid → would pass (the bug).
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain("empty title or link");
+      // matched should be 20 (the limit), not 40 (the total DOM match count)
+      expect(result.error).toContain("matched 20 item(s)");
+
+      vi.doUnmock("playwright");
+    });
+
+    // T15c 缺陷 2（镜像 T15a）：重定向后空 href 被浏览器解析为 finalUrl；
+    // 若 listUrl 仍用 targetUrl（重定向前）则回退判定不触发，垃圾条目放行。
+    it("T15c: fails empty-href items resolved to redirected finalUrl (not pre-nav targetUrl)", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+      const targetUrl = "https://x.com/start";
+      const finalUrl = "https://x.com/final/";
+      const source = makeSource({
+        name: "pw-redirect-empty-href",
+        url: targetUrl,
+        fetcherType: "playwright",
+        config: {
+          listUrl: targetUrl,
+          waitFor: "body",
+          itemSelector: "article"
+        }
+      });
+
+      // Browser .href getter on empty/absent href → current document URL = finalUrl.
+      const fakeNodes = [
+        {
+          matches: () => false,
+          querySelector: () => ({
+            textContent: "Garbage (empty href after redirect)",
+            href: finalUrl
+          })
+        }
+      ];
+
+      const mockPage = {
+        goto: vi.fn().mockResolvedValue(undefined),
+        url: () => finalUrl,
+        waitForSelector: vi.fn().mockResolvedValue(undefined),
+        $$eval: vi.fn().mockImplementation(
+          async (
+            _selector: string,
+            fn: (
+              els: Element[],
+              arg: {
+                titleSelector: string;
+                linkSelector: string;
+                listUrl: string;
+                limit: number;
+              }
+            ) => { matched: number; valid: number },
+            arg: {
+              titleSelector: string;
+              linkSelector: string;
+              listUrl: string;
+              limit: number;
+            }
+          ) => fn(fakeNodes as unknown as Element[], arg)
+        )
+      };
+      const mockBrowser = {
+        newPage: vi.fn().mockResolvedValue(mockPage),
+        close: vi.fn().mockResolvedValue(undefined)
+      };
+      const mockChromium = { launch: vi.fn().mockResolvedValue(mockBrowser) };
+
+      vi.doMock("playwright", () => ({ chromium: mockChromium }));
+
+      const result = await checkPlaywright(source);
+
+      // Fix: finalUrl baseline → matched>0 but valid=0 → ok:false
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain("matched 1 item(s)");
+      expect(result.error).toContain("empty title or link");
+      // $$eval must receive post-nav finalUrl, not pre-nav targetUrl
+      expect(mockPage.$$eval).toHaveBeenCalledWith(
+        "article",
+        expect.any(Function),
+        expect.objectContaining({ listUrl: finalUrl })
+      );
+
+      vi.doUnmock("playwright");
+    });
+
+    // Pure unit 回代：旧逻辑 (targetUrl 基准) vs 新逻辑 (finalUrl 基准) 在同一输入上的结果。
+    it("T15c regression: old targetUrl baseline keeps redirect empty-href junk; finalUrl filters it", () => {
+      const targetUrl = "https://x.com/start";
+      const finalUrl = "https://x.com/final/";
+      // Browser-resolved empty href equals the post-redirect document URL.
+      const itemHref = finalUrl;
+
+      // --- 修复前（bug）：listUrl = targetUrl ---
+      const oldListUrlNorm = new URL(targetUrl).toString();
+      const oldResolved = new URL(itemHref, targetUrl).toString();
+      const oldValid = oldResolved !== oldListUrlNorm; // true → 垃圾条目被当 valid
+
+      // --- 修复后：listUrl = finalUrl ---
+      const newListUrlNorm = new URL(finalUrl).toString();
+      const newResolved = new URL(itemHref, finalUrl).toString();
+      const newValid = newResolved !== newListUrlNorm; // false → 正确过滤
+
+      expect(oldValid).toBe(true); // pre-fix: matched=1, valid=1 → would pass gate (bug)
+      expect(newValid).toBe(false); // post-fix: matched=1, valid=0 → ok:false
     });
   });
 

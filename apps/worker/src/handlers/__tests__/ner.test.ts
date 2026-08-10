@@ -1,9 +1,14 @@
+/**
+ * A-12: withScrubber 使用真实中间件。A-12 专用用例通过 mockRunNer 调 client.chatJson
+ * 捕获最终 user payload，断言原始代号已被替换。
+ */
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import type * as FeRadarLlm from "@fe-radar/llm";
+import type * as FeRadarCore from "@fe-radar/core";
 
 const {
   mockGetDb,
   mockRunNer,
-  mockWithScrubber,
   mockLoadEntityDictionary,
   mockLoadProjectCodes,
   mockAdmitWebSearch,
@@ -14,6 +19,8 @@ const {
   mockRedis,
   mockLogger,
   mockPassesIndustryGate,
+  fakeQwen,
+  capturedUsers,
 } = vi.hoisted(() => {
   const mockQueueAdd = vi.fn().mockResolvedValue(undefined);
   const mockQueueClose = vi.fn().mockResolvedValue(undefined);
@@ -23,10 +30,19 @@ const {
     quit: vi.fn().mockResolvedValue(undefined),
   };
   const mockLogger = { warn: vi.fn(), info: vi.fn(), error: vi.fn() };
+  const capturedUsers: string[] = [];
+  const fakeQwen = {
+    chatJson: vi.fn(async (req: { user: string }) => {
+      capturedUsers.push(req.user);
+      return { value: { entities: [] }, usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } };
+    }),
+    embedding: vi.fn(async () => {
+      throw new Error("embedding not used");
+    }),
+  };
   return {
     mockGetDb: vi.fn(),
     mockRunNer: vi.fn(),
-    mockWithScrubber: vi.fn((client: unknown) => client),
     mockLoadEntityDictionary: vi.fn(),
     mockLoadProjectCodes: vi.fn(),
     mockAdmitWebSearch: vi.fn().mockResolvedValue({ state: "admitted" }),
@@ -37,6 +53,8 @@ const {
     mockRedis,
     mockLogger,
     mockPassesIndustryGate: vi.fn().mockResolvedValue(true),
+    fakeQwen,
+    capturedUsers,
   };
 });
 
@@ -54,8 +72,16 @@ vi.mock("@fe-radar/db", () => ({
   },
 }));
 
-vi.mock("@fe-radar/llm", () => ({ withScrubber: mockWithScrubber }));
-vi.mock("@fe-radar/core", () => ({ admitWebSearch: mockAdmitWebSearch }));
+// 真实 withScrubber（A-12）
+vi.mock("@fe-radar/llm", async (importOriginal) => {
+  const actual = await importOriginal<typeof FeRadarLlm>();
+  return { ...actual, withScrubber: actual.withScrubber };
+});
+// partial mock：保留 scrubText，供真实 withScrubber 使用（A-12）
+vi.mock("@fe-radar/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof FeRadarCore>();
+  return { ...actual, admitWebSearch: mockAdmitWebSearch };
+});
 vi.mock("drizzle-orm", () => ({
   eq: vi.fn((a: unknown, b: unknown) => ({ a, b })),
   and: vi.fn((...args: unknown[]) => ({ and: args })),
@@ -71,7 +97,7 @@ vi.mock("../../jobs/ner", () => ({ runNer: mockRunNer }));
 vi.mock("../pipeline-gate", () => ({ passesIndustryGate: mockPassesIndustryGate }));
 vi.mock("../context", () => ({
   logger: mockLogger,
-  handlerContext: { qwen: { id: "qwen" }, deepSeek: { id: "deepseek" } },
+  handlerContext: { qwen: fakeQwen, deepSeek: fakeQwen },
   loadEntityDictionary: mockLoadEntityDictionary,
   loadProjectCodes: mockLoadProjectCodes,
 }));
@@ -187,24 +213,52 @@ describe("resolveEntityId dynamic entities", () => {
 describe("handleNerJob", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockWithScrubber.mockImplementation((client: unknown) => client);
+    capturedUsers.length = 0;
     mockLoadEntityDictionary.mockResolvedValue({ match: () => [] });
     mockLoadProjectCodes.mockResolvedValue(["内部代号A"]);
     mockPassesIndustryGate.mockResolvedValue(true);
+    mockRunNer.mockResolvedValue({ entities: [] });
   });
 
   // T-SEC-09: 项目代号字典必须按 job 即时加载（不再用 bootstrap 启动快照）。
-  it("loads project codes per job and injects them into withScrubber context", async () => {
+  it("loads project codes per job", async () => {
     makeDb([{ title: "远东电缆", content: "中标" }]);
     mockRunNer.mockResolvedValue({ entities: [] });
 
     await handleNerJob({ data: { itemId: 300 } as never });
 
     expect(mockLoadProjectCodes).toHaveBeenCalledTimes(1);
-    expect(mockWithScrubber).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ projectCodes: ["内部代号A"] }),
+  });
+
+  // A-12: 真实 withScrubber — 最终 LLM payload 不得含原始代号
+  it("A-12: real withScrubber redacts project codes in final chatJson user payload", async () => {
+    const CODE = "NER内部代号SECRET-7";
+    mockLoadProjectCodes.mockResolvedValue([CODE]);
+    makeDb([{ title: `标题${CODE}`, content: "中标" }]);
+    mockRunNer.mockImplementation(
+      async (
+        text: string,
+        _dict: unknown,
+        qwen: { chatJson: (r: unknown) => Promise<unknown> },
+        _fallback: unknown,
+      ) => {
+        await qwen.chatJson({
+          system: "ner",
+          user: text,
+          schemaName: "ner",
+          schema: { type: "object" },
+        });
+        return { entities: [] };
+      },
     );
+
+    await handleNerJob({ data: { itemId: 301 } as never });
+
+    expect(capturedUsers.length).toBe(1);
+    const payload = capturedUsers[0]!;
+    expect(payload).not.toContain(CODE);
+    expect(payload).toContain("[REDACTED:PROJECT_CODE:");
+    expect(fakeQwen.chatJson).toHaveBeenCalledTimes(1);
   });
 
   it("normal path: links entity when canonicalName resolves to an existing entity row", async () => {
@@ -358,7 +412,7 @@ describe("handleNerJob", () => {
 describe("handleNerJob — websearch trigger (T-ARK-17)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockWithScrubber.mockImplementation((client: unknown) => client);
+    capturedUsers.length = 0;
     mockLoadEntityDictionary.mockResolvedValue({ match: () => [] });
     mockRunNer.mockResolvedValue({ entities: [] });
     mockAdmitWebSearch.mockResolvedValue({ state: "admitted" });

@@ -41,6 +41,18 @@ interface RegexRule {
   key?: string;
   multiplier?: number;
 }
+/**
+ * A regex rule compiled once per fetch (RE2 instance reused across all items).
+ * B-1: previously RE2 was re-compiled inside the item loop for every item × rule,
+ * leaking native memory that JS GC cannot reclaim (5000 item×20 rule → RSS
+ * 131 MB, never released).
+ */
+interface CompiledRule {
+  metricKey: string;
+  re: RE2;
+  group: number;
+  multiplier: number;
+}
 
 const rssParser = new Parser();
 
@@ -66,17 +78,21 @@ function stripAndTruncate(html: string): string {
 }
 
 /**
- * Try each regex_rule in order against the given text.
- * Returns the first match or null.
+ * Compile all regex_rules ONCE before iterating feed items.
+ * Invalid / unsupported patterns (lookahead, backrefs, …) and over-length
+ * patterns are warned and skipped HERE — each at most once per fetch — not
+ * repeatedly inside the item loop.
  *
- * T4: 每条规则用 RE2 编译+exec。RE2 是线性时间引擎，不回溯，故历史上能
- * 锁死 Node RegExp 的 pattern（如 `((a+)){2,}$`）在 RE2 下要么飞快返回要么
- * 因不支持的语法构造失败。构造失败 → warn 并跳过该条，不中断整批规则。
+ * B-1: moves `new RE2(…)` out of the per-item loop so native RE2 memory is
+ * allocated exactly once per rule per fetch.  Previously 5 000 items × 20 rules
+ * = 100 000 RE2 constructions leaked ~75 MB of native memory the JS GC cannot
+ * reclaim.
+ *
+ * T4: RE2 is a linear-time engine (no backtracking) — patterns that could lock
+ * the event loop under Node RegExp return instantly or fail at compile time.
  */
-function applyRegexRules(
-  text: string,
-  rules: RegexRule[]
-): { metricKey: string; value: number } | null {
+function compileRegexRules(rules: RegexRule[]): CompiledRule[] {
+  const compiled: CompiledRule[] = [];
   for (const rule of rules) {
     const metricKey =
       rule.metric_key ?? rule.metricKey ?? rule.key ?? "unknown";
@@ -90,34 +106,48 @@ function applyRegexRules(
     }
 
     try {
-      // RE2 constructor throws on unsupported syntax (lookahead/lookbehind/backrefs)
-      // and on invalid regex syntax. Do not let one bad rule abort quotes-fetch.
-      const re = new RE2(rule.pattern, "i");
-      const match = re.exec(text);
-      if (!match) continue;
-
-      const groupIndex = rule.group ?? 1;
-      const raw = match[groupIndex];
-      if (raw === undefined) continue;
-
-      const num = parseFloat(raw.replace(/,/g, ""));
-      if (isNaN(num)) continue;
-
-      const multiplier = rule.unit_multiplier ?? rule.multiplier ?? 1;
-      return { metricKey, value: num * multiplier };
+      compiled.push({
+        metricKey,
+        re: new RE2(rule.pattern, "i"),
+        group: rule.group ?? 1,
+        multiplier: rule.unit_multiplier ?? rule.multiplier ?? 1,
+      });
     } catch (err) {
-      // Compile failure (unsupported syntax) or unexpected exec error:
-      // skip this rule, keep processing remaining rules.
       logger.warn(
         {
           pattern: rule.pattern,
           metric_key: metricKey,
           err: err instanceof Error ? err.message : String(err),
         },
-        "skipping regex rule: RE2 compile/exec failed (unsupported or invalid pattern)"
+        "skipping regex rule: RE2 compile failed (unsupported or invalid pattern)"
       );
-      continue;
     }
+  }
+  return compiled;
+}
+
+/**
+ * Try each **pre-compiled** rule in order against the given text.
+ * Returns the first match or null.
+ *
+ * B-1: receives CompiledRule[] (RE2 instances compiled once in compileRegexRules).
+ * No `new RE2(…)` here — the item loop allocates zero native memory.
+ */
+function applyRegexRules(
+  text: string,
+  rules: CompiledRule[]
+): { metricKey: string; value: number } | null {
+  for (const rule of rules) {
+    const match = rule.re.exec(text);
+    if (!match) continue;
+
+    const raw = match[rule.group];
+    if (raw === undefined) continue;
+
+    const num = parseFloat(raw.replace(/,/g, ""));
+    if (isNaN(num)) continue;
+
+    return { metricKey: rule.metricKey, value: num * rule.multiplier };
   }
   return null;
 }
@@ -209,9 +239,13 @@ export const rsshubExtractAdapter: QuotesAdapter = {
         ];
       }
 
+      // B-1: compile regex rules ONCE before iterating items — RE2 native memory
+      // is allocated per-rule, not per-item×rule.  Bad rules warn once here.
+      const compiledRules = compileRegexRules(regexRules);
+
       for (const item of feed.items) {
         const plainText = itemPlainText(item);
-        const matched = applyRegexRules(plainText, regexRules);
+        const matched = applyRegexRules(plainText, compiledRules);
         if (matched) {
           return [
             {

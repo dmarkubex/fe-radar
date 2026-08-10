@@ -33,14 +33,19 @@ service 自己持有，长期服务改用 bucket/operation scoped service accoun
 ### 0. 用 root 预先创建两个 bucket（worker 无 CreateBucket 权限）
 
 ```bash
-mc mb local/fe-radar-briefings
-mc mb local/fe-radar-backups
-# 确保无匿名访问（与收权目的矛盾）
+# --ignore-existing：桶已存在时不报错、退出码 0（生产重跑 / set -e 安全）
+mc mb --ignore-existing local/fe-radar-briefings
+mc mb --ignore-existing local/fe-radar-backups
+# 确保无匿名访问（与收权目的矛盾；set 本身幂等）
 mc anonymous set none local/fe-radar-briefings
 mc anonymous set none local/fe-radar-backups
 ```
 
 ### 1. 用 root 创建三个 scoped service account
+
+> **重跑注意**：`mc admin user add` 在用户已存在时会非零退出（无官方 ignore 旗标）。
+> 中途失败后从头再来时，先 `mc admin user info local <ACCESS_KEY>` 查是否已存在：
+> 已存在则**跳过 add**（若需换密用 `mc admin user svcacct` / 轮换 secret，勿盲目重 add）。
 
 ```bash
 # web 只读账号（下载简报 docx）
@@ -57,6 +62,11 @@ mc admin user add local fe-radar-backup <生成强随机密码>
 
 ⚠️ **必须先 create 再 attach**——policy 不存在时 `attach` 直接失败。
 把下方三份 JSON 存成本地文件，然后：
+
+> **重跑注意**：`mc admin policy create` 在同名 policy 已存在时通常非零退出。
+> 重跑时先 `mc admin policy info local <POLICY_NAME>`：已存在且内容正确则跳过 create；
+> 若 JSON 有改动，需先 `mc admin policy remove local <POLICY_NAME>` 再 create
+> （remove 前确认无生产流量依赖该 policy，或先 attach 新名再切）。
 
 ```bash
 mc admin policy create local fe-radar-briefings-readonly /tmp/web-ro.json
@@ -160,6 +170,10 @@ mc admin policy info local fe-radar-briefings-readonly
 ```
 
 ### 3. attach policy 到用户
+
+> **重跑注意**：`mc admin policy attach` 在用户**已绑定**该 policy 时也会非零退出
+> （mc 社区 issue #4863；无官方 ignore 旗标）。重跑前用 `mc admin user info` 看
+> 已绑定 policy 列表：已正确绑定则跳过 attach。
 
 ```bash
 mc admin policy attach local fe-radar-briefings-readonly --user fe-radar-web-ro

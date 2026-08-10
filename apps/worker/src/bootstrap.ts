@@ -5,13 +5,13 @@ import { getDb } from "@fe-radar/db";
 import { createQwenClient, createDeepSeekClient, createKimiClient } from "@fe-radar/llm";
 
 import type { BriefingGenJob, BriefingPushJob, FetchSourceJob, PipelineJob, QuotesFetchJob, WebsearchJob } from "./queues";
-import { createRedisConnection, createWebsearchQueue, FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, DAILY_REPORT_SCHEDULE_CRON, DAILY_REPORT_SCHEDULE_TZ, DEFAULT_JOB_OPTIONS, QUEUE_QUOTES_FETCH, QUEUE_BRIEFING_GEN, BRIEFING_GEN_SCHEDULE_CRON, BRIEFING_GEN_SCHEDULE_TZ, QUEUE_BRIEFING_PUSH } from "./queues";
+import { createRedisConnection, createWebsearchQueue, FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, DAILY_REPORT_SCHEDULE_CRON, DAILY_REPORT_SCHEDULE_TZ, DEFAULT_JOB_OPTIONS, QUEUE_QUOTES_FETCH, QUEUE_BRIEFING_GEN, BRIEFING_GEN_SCHEDULE_CRON, BRIEFING_GEN_SCHEDULE_TZ, QUEUE_BRIEFING_PUSH, getBriefingRepushId, isDailyRepushJob, isMinuteTickJob } from "./queues";
 import { enqueueEnabledQuotesSources, scheduleQuotesFetchCron, scheduleBriefingPushCron, FETCH_CONCURRENCY } from "./scheduler";
 import { runCleanup, CLEANUP_SCHEDULE_CRON, CLEANUP_SCHEDULE_TZ } from "./jobs/cleanup";
 import { runQuotesFetch } from "./jobs/quotes-fetch";
 import { runBriefingGen as runBriefingGenJob } from "./jobs/briefing-gen";
 import { runBriefingPush, runScheduledBriefingPush } from "./jobs/briefing-push";
-import { runScheduledDailyPush } from "./jobs/daily-push";
+import { runManualDailyPush, runScheduledDailyPush } from "./jobs/daily-push";
 
 import { logger, handlerContext, loadProjectCodes } from "./handlers/context";
 import { handleFetchJob } from "./handlers/fetch";
@@ -252,27 +252,45 @@ export async function startWorker(): Promise<WorkerRuntime> {
   const briefingPushWorker = new Worker<BriefingPushJob>(
     QUEUE_BRIEFING_PUSH,
     async (job) => {
-      if (job.data.briefingId === 0) {
-        // Minute tick drives two independent gates (0060): 产业日报 at send_time,
-        // 铜锂日报 at briefing_send_time. Separate try/catch so one failing gate
-        // cannot starve the other for the rest of the day.
+      // Explicit discriminant (T17a): minute-tick | daily-repush | briefing-repush.
+      // Legacy { briefingId: 0 } still treated as minute-tick for scheduler compat.
+      if (isMinuteTickJob(job.data)) {
+        // Spec §5: sample wall clock once per tick; pass the same value to both gates.
+        const now = new Date();
         try {
-          const result = await runScheduledDailyPush();
+          const result = await runScheduledDailyPush({ now });
           logger.info(result, "daily-push tick completed");
         } catch (err) {
           logger.error({ err }, "daily-push tick failed");
         }
         try {
-          const result = await runScheduledBriefingPush();
+          // Same `now` sampled above — do not re-sample (T17b).
+          const result = await runScheduledBriefingPush({ now });
           logger.info(result, "briefing-push tick completed");
         } catch (err) {
           logger.error({ err }, "briefing-push tick failed");
         }
         return;
       }
-      // Positive id: manual briefing-only repush (v1.1 ops entry retained)
-      logger.info({ jobId: job.id, briefingId: job.data.briefingId }, "processing briefing-push job");
-      const result = await runBriefingPush(job.data.briefingId);
+
+      if (isDailyRepushJob(job.data)) {
+        logger.info(
+          { jobId: job.id, reportDate: job.data.reportDate, trigger: job.data.trigger },
+          "processing daily-repush job"
+        );
+        const result = await runManualDailyPush(job.data.reportDate);
+        logger.info(result, "daily-repush completed");
+        return;
+      }
+
+      const briefingId = getBriefingRepushId(job.data);
+      if (briefingId == null) {
+        logger.error({ jobId: job.id, data: job.data }, "briefing-push: unknown job payload");
+        return;
+      }
+      // Manual briefing-only repush — explicit mode so CAS reclaim is allowed (T17b).
+      logger.info({ jobId: job.id, briefingId, trigger: "manual" }, "processing briefing-push job");
+      const result = await runBriefingPush(briefingId, { mode: "manual" });
       logger.info(result, "briefing-push completed");
     },
     { connection, concurrency: 1 },

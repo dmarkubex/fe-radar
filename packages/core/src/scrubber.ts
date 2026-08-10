@@ -41,7 +41,11 @@ export function scrubText(input: string, context: ScrubContext = {}): ScrubResul
     cleaned = replaceMatches(cleaned, pattern.type, pattern.regex, found);
   }
 
-  for (const code of context.projectCodes ?? []) {
+  // Longest codes first so short codes that are substrings of longer ones
+  // (e.g. "ZX" vs "ZX-2026") cannot fragment a match and leave residue.
+  // Sort a copy — never mutate the caller's projectCodes array.
+  const projectCodes = [...(context.projectCodes ?? [])].sort((a, b) => b.length - a.length);
+  for (const code of projectCodes) {
     if (code.trim().length === 0) continue;
     cleaned = replaceMatches(cleaned, "PROJECT_CODE", new RegExp(escapeRegExp(code), "g"), found);
   }

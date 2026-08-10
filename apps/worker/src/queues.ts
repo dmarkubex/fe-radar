@@ -126,8 +126,45 @@ export const BRIEFING_PUSH_SCHEDULE_CRON = "0 * * * * *";
 export const BRIEFING_PUSH_LEGACY_CRON = "0 5 16 * * 1-5";
 export const BRIEFING_PUSH_SCHEDULE_TZ = "Asia/Shanghai";
 
-export interface BriefingPushJob {
-  briefingId: number;
+/**
+ * Push-queue payload discriminant union (T17a).
+ * Shared queue; explicit `kind` separates minute tick / briefing repush / daily repush.
+ * Legacy shapes (`{ briefingId: 0 }` tick, positive briefingId repush) remain accepted until
+ * scheduler + briefing repush route are updated in follow-up tasks.
+ */
+export type BriefingPushJob =
+  | { kind: "minute-tick" }
+  | { kind: "briefing-repush"; briefingId: number; trigger: "manual"; briefingDate?: string }
+  | { kind: "daily-repush"; reportDate: string; trigger: "manual" }
+  /** @deprecated legacy tick (`briefingId===0`) or briefing repush still enqueued by scheduler/web */
+  | { briefingId: number; briefingDate?: string; trigger?: "manual" };
+
+export function isMinuteTickJob(
+  data: BriefingPushJob
+): data is { kind: "minute-tick" } | { briefingId: 0 } {
+  if ("kind" in data && data.kind != null) {
+    return data.kind === "minute-tick";
+  }
+  return "briefingId" in data && data.briefingId === 0;
+}
+
+export function isDailyRepushJob(
+  data: BriefingPushJob
+): data is { kind: "daily-repush"; reportDate: string; trigger: "manual" } {
+  return "kind" in data && data.kind === "daily-repush";
+}
+
+export function getBriefingRepushId(data: BriefingPushJob): number | null {
+  if ("kind" in data && data.kind === "briefing-repush") {
+    return data.briefingId;
+  }
+  if ("kind" in data && data.kind != null) {
+    return null;
+  }
+  if ("briefingId" in data && data.briefingId > 0) {
+    return data.briefingId;
+  }
+  return null;
 }
 
 export function createBriefingPushQueue(connection = createRedisConnection()): Queue<BriefingPushJob> {

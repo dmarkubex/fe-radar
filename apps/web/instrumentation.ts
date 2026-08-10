@@ -28,6 +28,22 @@ export type AuthOriginPolicy = {
 };
 
 /**
+ * A-7: 取 AUTH_URL / NEXTAUTH_URL 中第一个 trim 后非空的值。
+ * `??` 只在 null/undefined 时回退，空字符串 `""` 会遮蔽有效的 NEXTAUTH_URL
+ * （Portainer 遗留 AUTH_URL="" 时导致启动校验误抛、容器重启循环）。
+ * 与 auth.ts 内联同语义保持一致。
+ */
+export function resolveConfiguredAuthUrl(
+  authUrl: string | undefined = process.env.AUTH_URL,
+  nextAuthUrl: string | undefined = process.env.NEXTAUTH_URL
+): string {
+  for (const v of [authUrl, nextAuthUrl]) {
+    if (typeof v === "string" && v.trim() !== "") return v.trim();
+  }
+  return "";
+}
+
+/**
  * 纯函数：从 AUTH_URL / NEXTAUTH_URL 推导 cookie secure 策略。
  * 与 apps/web/auth.ts 的推导对齐：仅 https:// 前缀才 secure。
  */
@@ -54,14 +70,14 @@ function isAbsoluteHttpUrl(value: string): boolean {
 export async function register(): Promise<void> {
   // 仅生产环境校验；开发跳过。不依赖 NEXT_PHASE（该变量运行时从不等于 phase-production-server）。
   if (process.env.NODE_ENV === "production") {
-    const authUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "";
-    if (!authUrl.trim()) {
+    const authUrl = resolveConfiguredAuthUrl();
+    if (!authUrl) {
       throw new Error(
         "生产环境 AUTH_URL/NEXTAUTH_URL 不能为空。请在 Portainer 环境变量填实际访问 origin（内网可 http://…，外网必须 https://…）。"
       );
     }
 
-    if (!isAbsoluteHttpUrl(authUrl.trim())) {
+    if (!isAbsoluteHttpUrl(authUrl)) {
       throw new Error(
         "生产环境 AUTH_URL/NEXTAUTH_URL 必须是合法的 http/https 绝对 URL（例如 http://10.1.20.156:3013 或 https://radar.example.com）。"
       );

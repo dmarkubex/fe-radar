@@ -288,6 +288,45 @@ describe("fetchTextWithPolicy dispatcher", () => {
       vi.stubEnv("SSRF_GUARD_ENABLED", "false");
     }
   });
+
+  // T15b: FETCH_INTERNAL_ALLOWLIST 命中的内部 hostname（如 rsshub:1200）不得走外部代理池。
+  // 外部代理无法解析 Docker 内网 hostname → 内部信源在 PROXY_POOL_ENABLED 下持续断供。
+  it("skips proxy pool for FETCH_INTERNAL_ALLOWLIST hostnames even when acquire would return a proxy", async () => {
+    mocks.acquire.mockReturnValue({
+      id: "proxy-1",
+      server: "http://proxy.example:8080",
+      disabled: false,
+      failCount: 0
+    });
+
+    const restore = setInternalAllowlistForTests("rsshub");
+    try {
+      mockFetch.mockResolvedValueOnce(textResponse("ok"));
+      await fetchTextWithPolicy("http://rsshub:1200/smm/copper", {
+        timeoutMs: 1000
+      });
+
+      // 不得 acquire 外部代理；dispatcher 必须是直连 Agent（非 ProxyAgent）。
+      expect(mocks.acquire).not.toHaveBeenCalled();
+      expect(mockProxyAgent).not.toHaveBeenCalled();
+      expect(mockAgent).toHaveBeenCalledTimes(1);
+      const init = mockFetch.mock.calls[0]?.[1] as CapturedFetchInit;
+      expect(init.dispatcher).toMatchObject({ kind: "agent" });
+      const agentOptions = mockAgent.mock.calls[0]?.[0] as {
+        connect?: { lookup?: unknown };
+      };
+      // 直连路径仍挂 SSRF lookup 复验；allowlist 豁免在 lookup 内（见既有用例）。
+      expect(typeof agentOptions.connect?.lookup).toBe("function");
+      expect(mockAssertRobotsAllowed).toHaveBeenCalledWith(
+        "http://rsshub:1200/smm/copper",
+        "test-agent",
+        expect.any(Function),
+        "direct"
+      );
+    } finally {
+      restore();
+    }
+  });
 });
 
 describe("fetchTextWithPolicy init support", () => {

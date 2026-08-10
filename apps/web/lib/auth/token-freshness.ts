@@ -139,14 +139,25 @@ function normalizeRole(role: unknown): UserRole | undefined {
 }
 
 /**
- * Admin Server Component / layout 闸门（S3a 缺陷 A）。
- * 从 cookie 解 JWT（含 tokenVersion），要求 admin 角色，并查库校验新鲜度。
+ * Admin Server Component / layout 闸门（S3a 缺陷 A / A-5）。
+ * 从 cookie 解 JWT（含 tokenVersion），按路径要求 admin 或 editor，并查库校验新鲜度。
+ * 角色映射唯一权威：`requiredAdminPageRole`（middleware.ts），经 `x-pathname` 对齐。
  * 必须在 Node runtime 调用（查库）；不要放进 Edge middleware。
+ *
+ * @param pathname 可选；缺省读 middleware 注入的 `x-pathname`（layout 可不传）。
  */
-export async function gateAdminPage(): Promise<AdminPageGateResult> {
-  const { cookies } = await import("next/headers");
+export async function gateAdminPage(pathname?: string): Promise<AdminPageGateResult> {
+  const { cookies, headers } = await import("next/headers");
   const { getToken } = await import("next-auth/jwt");
   const { hasRole } = await import("@/lib/auth/rbac");
+  // 与 middleware 共用权威定义，禁止在 layout/本函数再写一份路径清单。
+  const { requiredAdminPageRole } = await import("../../middleware");
+
+  const path =
+    pathname ??
+    (await headers()).get("x-pathname") ??
+    "/admin";
+  const requiredRole = requiredAdminPageRole(path);
 
   const cookieStore = await cookies();
   const cookieHeader = cookieStore
@@ -174,7 +185,7 @@ export async function gateAdminPage(): Promise<AdminPageGateResult> {
   }
 
   const role = normalizeRole(token.role);
-  if (!hasRole(role, "admin")) {
+  if (!hasRole(role, requiredRole)) {
     return { ok: false, kind: "forbidden" };
   }
 

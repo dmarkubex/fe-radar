@@ -23,6 +23,7 @@
     "postgres": "^3.4.7"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.8"
+    "drizzle-kit": "^0.31.8",
+    "playwright": "^1.59.1"
   }
 }

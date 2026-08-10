@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { register, resolveAuthOriginPolicy } from "../instrumentation";
+import { register, resolveAuthOriginPolicy, resolveConfiguredAuthUrl } from "../instrumentation";
 
 describe("resolveAuthOriginPolicy", () => {
   it("https origin → useSecureCookie true", () => {
@@ -12,6 +12,28 @@ describe("resolveAuthOriginPolicy", () => {
     const p = resolveAuthOriginPolicy("http://10.1.20.156:3013");
     expect(p.useSecureCookie).toBe(false);
     expect(p.httpOrigin).toBe(true);
+  });
+});
+
+describe("resolveConfiguredAuthUrl (A-7)", () => {
+  it("AUTH_URL 空串 + 有效 NEXTAUTH_URL → 取后者", () => {
+    expect(resolveConfiguredAuthUrl("", "http://10.1.20.156:3013")).toBe(
+      "http://10.1.20.156:3013"
+    );
+    expect(resolveConfiguredAuthUrl("   ", "http://10.1.20.156:3013")).toBe(
+      "http://10.1.20.156:3013"
+    );
+  });
+
+  it("AUTH_URL 非空优先", () => {
+    expect(resolveConfiguredAuthUrl("https://a.example", "http://b.example")).toBe(
+      "https://a.example"
+    );
+  });
+
+  it("两者皆空 → 空串", () => {
+    expect(resolveConfiguredAuthUrl("", "")).toBe("");
+    expect(resolveConfiguredAuthUrl(undefined, undefined)).toBe("");
   });
 });
 
@@ -92,5 +114,20 @@ describe("instrumentation register (S5 方案 a / S6 去掉 NEXT_PHASE)", () => 
     delete process.env.NEXT_PHASE;
 
     await expect(register()).resolves.toBeUndefined();
+  });
+
+  // A-7：空 AUTH_URL 不得遮蔽有效 NEXTAUTH_URL（修复前 ?? 会把 "" 当有效值 → 抛「不能为空」）
+  it("A-7: 生产 + AUTH_URL=\"\" + 有效 NEXTAUTH_URL → 不抛错，取后者", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("AUTH_URL", "");
+    vi.stubEnv("NEXTAUTH_URL", "http://10.1.20.156:3013");
+    delete process.env.AUTH_COOKIE_SECURE;
+    delete process.env.NEXT_PHASE;
+
+    await expect(register()).resolves.toBeUndefined();
+    expect(resolveConfiguredAuthUrl("", "http://10.1.20.156:3013")).toBe(
+      "http://10.1.20.156:3013"
+    );
+    expect(process.env.AUTH_COOKIE_SECURE).toBe("false");
   });
 });

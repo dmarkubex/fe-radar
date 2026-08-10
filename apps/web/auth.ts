@@ -24,7 +24,16 @@ const credentialsSchema = z.object({
   password: z.string().min(1)
 });
 
-const authUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "";
+// A-7: 空字符串 AUTH_URL 不得遮蔽有效 NEXTAUTH_URL（?? 只跳过 null/undefined）。
+// 与 instrumentation.resolveConfiguredAuthUrl 同语义：取第一个 trim 后非空。
+function resolveConfiguredAuthUrl(): string {
+  for (const v of [process.env.AUTH_URL, process.env.NEXTAUTH_URL]) {
+    if (typeof v === "string" && v.trim() !== "") return v.trim();
+  }
+  return "";
+}
+
+const authUrl = resolveConfiguredAuthUrl();
 const useSecureCookie = authUrl ? authUrl.startsWith("https://") : process.env.NODE_ENV === "production";
 
 // T-SEC-16 (复核): 生产 HTTPS origin 断言已移到 instrumentation.ts register（启动钩子），
@@ -57,14 +66,14 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         }
 
         // S2: bcrypt 前原子预占（读→超限拒→否则 INCR）。失败保留预占；成功 DECR 回滚。
-        // IP：仅 TRUST_PROXY_HEADERS=true 时信 XFF；默认用 peer，取不到则跳过 IP 维度（无 "unknown"）。
-        // Redis 不可达 fail-open。
+        // A-4（方案 b）：Auth.js authorize 收到标准 Web Request，无 peer IP；
+        // Next.js 15 NextRequest 亦已移除 .ip。当前 Swarm 直发无可信反代重写 XFF，
+        // TRUST_PROXY_HEADERS 默认关闭 → IP 维度不可用，仅 username 限速生效。
+        // 启用 IP 维度：前置会重写 XFF 的可信代理后设 TRUST_PROXY_HEADERS=true
+        // （见 docs/runbook/deploy-portainer.md § 登录限速 / TRUST_PROXY_HEADERS）。
+        // Redis 不可达 fail-open。不要再读 request.ip（永远 undefined，属死代码伪装）。
         const xff = request?.headers?.get?.("x-forwarded-for") ?? null;
-        const peer =
-          typeof (request as { ip?: string } | undefined)?.ip === "string"
-            ? (request as { ip?: string }).ip
-            : null;
-        const ip = resolveLoginClientIp(xff, peer);
+        const ip = resolveLoginClientIp(xff, null);
         if (!(await admitLogin(parsed.data.username, ip))) {
           return null;
         }

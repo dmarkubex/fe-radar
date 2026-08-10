@@ -45,7 +45,12 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
   const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
   try {
     const queue = new Queue("fe-briefing-push", { connection });
-    await queue.add("repush", { briefingId: numId, briefingDate: briefing.briefingDate });
+    await queue.add("repush", {
+      kind: "briefing-repush",
+      briefingId: numId,
+      briefingDate: briefing.briefingDate,
+      trigger: "manual" as const,
+    });
   } finally {
     await connection.quit();
   }

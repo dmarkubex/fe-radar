@@ -45,10 +45,24 @@ vi.mock("next-auth/jwt", () => ({
 }));
 
 const mockCookiesGetAll = vi.hoisted(() => vi.fn(() => [] as Array<{ name: string; value: string }>));
+const mockHeadersGet = vi.hoisted(() => vi.fn((_name: string): string | null => null));
 vi.mock("next/headers", () => ({
   cookies: async () => ({
     getAll: () => mockCookiesGetAll()
+  }),
+  headers: async () => ({
+    get: (name: string) => mockHeadersGet(name)
   })
+}));
+
+const mockRedirect = vi.hoisted(() =>
+  vi.fn((url: string) => {
+    const err = new Error(`NEXT_REDIRECT:${url}`);
+    throw err;
+  })
+);
+vi.mock("next/navigation", () => ({
+  redirect: (url: string) => mockRedirect(url)
 }));
 
 const mockFetchTimeline = vi.hoisted(() => vi.fn());
@@ -61,6 +75,8 @@ import {
   requireFreshViewer,
   verifyTokenFreshness
 } from "@/lib/auth/token-freshness";
+import { requiredAdminPageRole } from "../../../middleware";
+import AdminGroupLayout from "../../../app/(admin)/layout";
 
 function row(role: string, tokenVersion: number, disabled = false) {
   return [{ disabledAt: disabled ? new Date() : null, role, tokenVersion }];
@@ -209,10 +225,25 @@ describe("requireFreshViewer (S3a 只读/反馈 API)", () => {
   });
 });
 
-describe("gateAdminPage (S3a admin layout)", () => {
+describe("requiredAdminPageRole (A-5 单一权威)", () => {
+  it("entities/sources → editor，其余 admin 页 → admin", () => {
+    expect(requiredAdminPageRole("/admin/sources")).toBe("editor");
+    expect(requiredAdminPageRole("/admin/sources/")).toBe("editor");
+    expect(requiredAdminPageRole("/admin/entities")).toBe("editor");
+    expect(requiredAdminPageRole("/admin/entities/foo")).toBe("editor");
+    expect(requiredAdminPageRole("/admin")).toBe("admin");
+    expect(requiredAdminPageRole("/admin/users")).toBe("admin");
+    expect(requiredAdminPageRole("/admin/dashboard")).toBe("admin");
+    expect(requiredAdminPageRole("/admin/scoring-config")).toBe("admin");
+  });
+});
+
+describe("gateAdminPage (S3a admin layout / A-5)", () => {
   beforeEach(() => {
     dbRows.current = [];
     mockGetToken.mockReset();
+    mockHeadersGet.mockReset();
+    mockHeadersGet.mockImplementation(() => null);
     mockCookiesGetAll.mockReturnValue([{ name: "fe-radar.session-token", value: "x" }]);
   });
 
@@ -220,7 +251,7 @@ describe("gateAdminPage (S3a admin layout)", () => {
     mockGetToken.mockResolvedValue({ sub: "1", role: "admin", tokenVersion: 3 });
     dbRows.current = row("admin", 3, true);
 
-    const gate = await gateAdminPage();
+    const gate = await gateAdminPage("/admin/users");
     expect(gate.ok).toBe(false);
     if (!gate.ok) {
       expect(gate.kind).toBe("revoked");
@@ -232,7 +263,7 @@ describe("gateAdminPage (S3a admin layout)", () => {
     mockGetToken.mockResolvedValue({ sub: "1", role: "admin", tokenVersion: 1 });
     dbRows.current = row("admin", 9);
 
-    const gate = await gateAdminPage();
+    const gate = await gateAdminPage("/admin/users");
     expect(gate.ok).toBe(false);
     if (!gate.ok) {
       expect(gate.kind).toBe("revoked");
@@ -244,13 +275,13 @@ describe("gateAdminPage (S3a admin layout)", () => {
     mockGetToken.mockResolvedValue({ sub: "1", role: "admin", tokenVersion: 3 });
     dbRows.current = row("admin", 3);
 
-    const gate = await gateAdminPage();
+    const gate = await gateAdminPage("/admin/users");
     expect(gate).toEqual({ ok: true });
   });
 
   it("无 token → unauthenticated（layout redirect 登录）", async () => {
     mockGetToken.mockResolvedValue(null);
-    const gate = await gateAdminPage();
+    const gate = await gateAdminPage("/admin");
     expect(gate.ok).toBe(false);
     if (!gate.ok) expect(gate.kind).toBe("unauthenticated");
   });
@@ -259,8 +290,153 @@ describe("gateAdminPage (S3a admin layout)", () => {
     mockGetToken.mockResolvedValue({ sub: "2", role: "viewer", tokenVersion: 1 });
     dbRows.current = row("viewer", 1);
 
-    const gate = await gateAdminPage();
+    const gate = await gateAdminPage("/admin/users");
     expect(gate.ok).toBe(false);
     if (!gate.ok) expect(gate.kind).toBe("forbidden");
+  });
+
+  // A-5：修复前 editor 在任意 admin 页均被 hasRole(..., "admin") 403。
+  it("A-5: 在职 editor 可进 /admin/sources 与 /admin/entities", async () => {
+    mockGetToken.mockResolvedValue({ sub: "3", role: "editor", tokenVersion: 2 });
+    dbRows.current = row("editor", 2);
+
+    await expect(gateAdminPage("/admin/sources")).resolves.toEqual({ ok: true });
+    await expect(gateAdminPage("/admin/entities")).resolves.toEqual({ ok: true });
+    await expect(gateAdminPage("/admin/entities/nested")).resolves.toEqual({ ok: true });
+  });
+
+  it("A-5: 在职 editor 不能进其余 admin 页", async () => {
+    mockGetToken.mockResolvedValue({ sub: "3", role: "editor", tokenVersion: 2 });
+    dbRows.current = row("editor", 2);
+
+    for (const path of ["/admin", "/admin/users", "/admin/dashboard", "/admin/scoring-config", "/admin/worker"]) {
+      const gate = await gateAdminPage(path);
+      expect(gate.ok).toBe(false);
+      if (!gate.ok) expect(gate.kind).toBe("forbidden");
+    }
+  });
+
+  it("A-5: 读 x-pathname 头（与 middleware 注入对齐）", async () => {
+    mockGetToken.mockResolvedValue({ sub: "3", role: "editor", tokenVersion: 2 });
+    dbRows.current = row("editor", 2);
+    mockHeadersGet.mockImplementation((name: string) =>
+      name === "x-pathname" ? "/admin/sources" : null
+    );
+
+    await expect(gateAdminPage()).resolves.toEqual({ ok: true });
+
+    mockHeadersGet.mockImplementation((name: string) =>
+      name === "x-pathname" ? "/admin/users" : null
+    );
+    const denied = await gateAdminPage();
+    expect(denied.ok).toBe(false);
+    if (!denied.ok) expect(denied.kind).toBe("forbidden");
+  });
+});
+
+/**
+ * A-5 / A-11：直接测 AdminGroupLayout。
+ * 若删掉 layout 内的 gateAdminPage() 调用，本套件必须变红（children 会无条件渲染）。
+ */
+describe("AdminGroupLayout (A-5 直接测 layout)", () => {
+  beforeEach(() => {
+    dbRows.current = [];
+    mockGetToken.mockReset();
+    mockRedirect.mockClear();
+    mockHeadersGet.mockReset();
+    mockHeadersGet.mockImplementation(() => null);
+    mockCookiesGetAll.mockReturnValue([{ name: "fe-radar.session-token", value: "x" }]);
+  });
+
+  function isForbiddenElement(node: unknown): boolean {
+    if (!node || typeof node !== "object") return false;
+    const el = node as { props?: { children?: unknown; role?: string } };
+    if (el.props?.role === "main") {
+      const kids = el.props.children;
+      const flat = Array.isArray(kids) ? kids : [kids];
+      return flat.some(
+        (c) =>
+          c &&
+          typeof c === "object" &&
+          "props" in c &&
+          typeof (c as { props?: { children?: unknown } }).props?.children === "string" &&
+          String((c as { props: { children: string } }).props.children).includes("403")
+      );
+    }
+    return false;
+  }
+
+  function rendersChildren(node: unknown, marker: string): boolean {
+    if (node === marker) return true;
+    if (!node || typeof node !== "object") return false;
+    const el = node as { props?: { children?: unknown } };
+    const kids = el.props?.children;
+    if (kids === marker) return true;
+    if (Array.isArray(kids)) return kids.some((k) => rendersChildren(k, marker));
+    if (kids && typeof kids === "object") return rendersChildren(kids, marker);
+    return false;
+  }
+
+  it("在职 editor 能进 /admin/sources（渲染 children）", async () => {
+    mockGetToken.mockResolvedValue({ sub: "3", role: "editor", tokenVersion: 2 });
+    dbRows.current = row("editor", 2);
+    mockHeadersGet.mockImplementation((name: string) =>
+      name === "x-pathname" ? "/admin/sources" : null
+    );
+
+    const marker = "editor-sources-ok";
+    const tree = await AdminGroupLayout({ children: marker });
+    expect(rendersChildren(tree, marker)).toBe(true);
+    expect(isForbiddenElement(tree)).toBe(false);
+    expect(mockRedirect).not.toHaveBeenCalled();
+  });
+
+  it("在职 editor 能进 /admin/entities（渲染 children）", async () => {
+    mockGetToken.mockResolvedValue({ sub: "3", role: "editor", tokenVersion: 2 });
+    dbRows.current = row("editor", 2);
+    mockHeadersGet.mockImplementation((name: string) =>
+      name === "x-pathname" ? "/admin/entities" : null
+    );
+
+    const marker = "editor-entities-ok";
+    const tree = await AdminGroupLayout({ children: marker });
+    expect(rendersChildren(tree, marker)).toBe(true);
+    expect(mockRedirect).not.toHaveBeenCalled();
+  });
+
+  it("在职 editor 不能进 /admin/users（403，不渲染 children）", async () => {
+    mockGetToken.mockResolvedValue({ sub: "3", role: "editor", tokenVersion: 2 });
+    dbRows.current = row("editor", 2);
+    mockHeadersGet.mockImplementation((name: string) =>
+      name === "x-pathname" ? "/admin/users" : null
+    );
+
+    const marker = "should-not-render";
+    const tree = await AdminGroupLayout({ children: marker });
+    expect(rendersChildren(tree, marker)).toBe(false);
+    expect(isForbiddenElement(tree)).toBe(true);
+    expect(mockRedirect).not.toHaveBeenCalled();
+  });
+
+  it("停用 admin 仍被拒（redirect 登录，保护不回归）", async () => {
+    mockGetToken.mockResolvedValue({ sub: "1", role: "admin", tokenVersion: 3 });
+    dbRows.current = row("admin", 3, true);
+    mockHeadersGet.mockImplementation((name: string) =>
+      name === "x-pathname" ? "/admin/users" : null
+    );
+
+    await expect(AdminGroupLayout({ children: "nope" })).rejects.toThrow(/NEXT_REDIRECT/);
+    expect(mockRedirect).toHaveBeenCalledWith("/auth/login?callbackUrl=/admin");
+  });
+
+  it("tokenVersion 过期的 admin 仍被拒（redirect 登录）", async () => {
+    mockGetToken.mockResolvedValue({ sub: "1", role: "admin", tokenVersion: 1 });
+    dbRows.current = row("admin", 9);
+    mockHeadersGet.mockImplementation((name: string) =>
+      name === "x-pathname" ? "/admin/dashboard" : null
+    );
+
+    await expect(AdminGroupLayout({ children: "nope" })).rejects.toThrow(/NEXT_REDIRECT/);
+    expect(mockRedirect).toHaveBeenCalledWith("/auth/login?callbackUrl=/admin");
   });
 });

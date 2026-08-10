@@ -1,11 +1,19 @@
 /**
- * T-SEC-08 / S2: 本地凭据登录失败计数 / 锁定。
+ * T-SEC-08 / S2 / A-4: 本地凭据登录失败计数 / 锁定。
  *
  * - 双独立计数器（username / 可选 IP），任一达上限即锁。
  * - bcrypt 前原子预占（LOGIN_ADMIT_LUA：读→超限拒→否则 INCR）；失败保留预占；
  *   成功 rollbackLoginAdmit 双 DECR（禁止 DEL，以免清掉同 IP 其他 username 计数）。
- * - IP 维度：仅 TRUST_PROXY_HEADERS=true 时信任 X-Forwarded-For；默认关闭。
- *   关闭时用 peer 地址；取不到则跳过 IP 维度（username 仍生效），绝不回退 "unknown"。
+ * - **IP 维度（A-4 方案 b）**：
+ *   - 仅 `TRUST_PROXY_HEADERS=true` 时信任 X-Forwarded-For 并启用 IP 限速。
+ *   - Auth.js `authorize()` 入参是标准 Web `Request`，**没有 peer IP**；
+ *     Next.js 15 的 `NextRequest` 也已移除 `.ip`。在 authorize 内读 peer 永远为 null。
+ *   - 当前部署（Swarm published port 直发、无重写 XFF 的可信反代）→ 默认关闭
+ *     TRUST_PROXY_HEADERS → **IP 维度不可用**（仅 username 限速）。不是 bug 伪装：
+ *     代码路径明确在 trust 关闭且无 peer 时返回 null 并跳过 IP 键。
+ *   - 启用条件：前置 Nginx/CDN 等会正确追加/重写 XFF 的可信代理后，显式设
+ *     `TRUST_PROXY_HEADERS=true`（可选 `TRUSTED_PROXY_HOPS`，默认 1）。
+ *   - 绝不回退共享 `"unknown"` 键。
  * - fail-open：Redis 不可达时放行（避免 Redis 故障锁死全员）。
  */
 import IORedis from "ioredis";
@@ -31,16 +39,24 @@ function getClient(): RedisEvalLike | null {
   }
   const url = process.env.REDIS_URL ?? "redis://localhost:6379";
   try {
-    client = new IORedis(url, {
+    const inst = new IORedis(url, {
       connectTimeout: 3000,
       retryStrategy: () => null,
       maxRetriesPerRequest: 1,
       lazyConnect: true
     });
-    client.on("error", (err) => {
+    inst.on("error", (err) => {
       webLogger.warn({ err }, "login-rate-limit redis error");
     });
-    return client as unknown as RedisEvalLike;
+    // 连接关闭（Redis 重启 / 网络中断；retryStrategy 不重连）后清空模块级引用，
+    // 下次 getClient() 会新建一个全新连接，而不是无限复用这个已 end 的死实例。
+    // 这样 fail-open 只在真正故障期间生效；Redis 恢复后下一次请求即重建连接、限速自动恢复。
+    // retryStrategy 仍返回 null（不自动重连），避免 Redis 长期不可达时不断重试拖慢请求。
+    inst.on("end", () => {
+      if (client === inst) client = null;
+    });
+    client = inst;
+    return inst as unknown as RedisEvalLike;
   } catch {
     return null;
   }
@@ -71,8 +87,9 @@ export function trustedClientIp(xForwardedFor: string | null | undefined): strin
 
 /**
  * 解析登录限速用的客户端 IP。
- * - TRUST_PROXY_HEADERS=true：优先 XFF（右侧可信跳），否则 peer；都没有 → null（跳过 IP 维度）。
- * - 默认关闭：忽略 XFF（防伪造），仅用 peer；取不到 → null。绝不写共享 "unknown" 键。
+ * - TRUST_PROXY_HEADERS=true：优先 XFF（右侧可信跳），否则可选 peer；都没有 → null（跳过 IP 维度）。
+ * - 默认关闭：忽略 XFF（防伪造）。Auth.js 路径应传 peer=null（A-4：Web Request 无 peer）。
+ *   若调用方有真实 peer（非 authorize 路径）可传入；取不到 → null。绝不写共享 "unknown" 键。
  */
 export function resolveLoginClientIp(
   xForwardedFor: string | null | undefined,
@@ -84,7 +101,7 @@ export function resolveLoginClientIp(
   if (isTrustProxyHeaders()) {
     return trustedClientIp(xForwardedFor) ?? safePeer;
   }
-  // 默认不信任 XFF
+  // 默认不信任 XFF；无 peer 时 IP 维度关闭（当前登录路径常态）
   return safePeer;
 }
 

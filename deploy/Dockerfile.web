@@ -31,8 +31,12 @@ COPY packages/core/package.json packages/core/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
 # corepack 按 package.json 的 packageManager 字段锁定 pnpm 版本
+# B-2: --filter=@fe-radar/web... 只安装 web 及其 workspace 依赖（core/db/shared），
+# 不安装 apps/worker 的依赖图 → re2（worker 专属，预编译下载失败会 fallback
+# node-gyp rebuild，而本镜像无 python3/make/g++）不会被拉入 web 镜像。
+# 保留所有 COPY package.json：pnpm 需读取完整 workspace 清单才能解析依赖图。
 RUN pnpm config set registry ${NPM_REGISTRY} && \
-    pnpm install --frozen-lockfile --child-concurrency=1
+    pnpm install --frozen-lockfile --child-concurrency=1 --filter=@fe-radar/web...
 
 # ---------- builder：编译 Next.js ----------
 FROM ${NODE_WEB_IMAGE} AS builder

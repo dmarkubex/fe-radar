@@ -1,7 +1,7 @@
 import { createLogger, SourceFetchError } from "@fe-radar/shared";
 import { assertPublicFetchUrl } from "@fe-radar/core";
 import { acquireUserAgent } from "../lib/ua-pool";
-import { proxyPool } from "../lib/proxy-pool";
+import { proxyPool, type ProxyEndpoint } from "../lib/proxy-pool";
 import { assertRobotsAllowed } from "../lib/robots";
 import type { FetchContext, PlaywrightSourceConfig, StandardItem } from "./types";
 
@@ -14,16 +14,6 @@ interface ExtractedItem {
   publishedAt?: string;
 }
 
-interface BrowserContextLike {
-  newPage(): Promise<PageLike>;
-  close(): Promise<void>;
-}
-
-interface BrowserLike {
-  newContext(options: { userAgent: string; proxy?: { server: string } }): Promise<BrowserContextLike>;
-  close(): Promise<void>;
-}
-
 export interface RouteLike {
   abort(): Promise<void>;
   continue(): Promise<void>;
@@ -33,38 +23,120 @@ export interface RequestLike {
   url(): string;
 }
 
+/** Context-level route surface (Playwright BrowserContext.route). */
+export interface BrowserContextLike {
+  newPage(): Promise<PageLike>;
+  close(): Promise<void>;
+  /**
+   * Installs a route handler for every page in this context, including future
+   * popups from window.open(). Prefer this over Page.route for SSRF guards.
+   */
+  route(url: string, handler: (route: RouteLike, request: RequestLike) => Promise<void>): Promise<unknown>;
+}
+
+interface BrowserLike {
+  newContext(options: { userAgent: string; proxy?: { server: string } }): Promise<BrowserContextLike>;
+  close(): Promise<void>;
+}
+
 export interface PageLike {
   goto(url: string, options: { waitUntil: "domcontentloaded"; timeout: number }): Promise<unknown>;
   waitForSelector(selector: string, options: { timeout: number }): Promise<unknown>;
   $$eval<T, U>(selector: string, fn: (nodes: Element[], arg: U) => T, arg: U): Promise<T>;
-  route(url: string, handler: (route: RouteLike, request: RequestLike) => Promise<void>): Promise<unknown>;
+  /** Optional page-level route (tests / legacy); production SSRF guard uses context.route. */
+  route?(url: string, handler: (route: RouteLike, request: RequestLike) => Promise<void>): Promise<unknown>;
   /** 当前主框架 URL；goto 后用于复验最终落点（Chromium 内部消化 30x，route 拦不到）。 */
   url(): string;
   close(): Promise<void>;
 }
 
+/** Actual identity bound to a pooled BrowserContext (may differ from the request). */
+export interface PooledBrowserContext {
+  context: BrowserContextLike;
+  userAgent: string;
+  proxy?: ProxyEndpoint;
+}
+
+interface PoolSlot {
+  browser: BrowserLike;
+  context: BrowserContextLike;
+  userAgent: string;
+  proxy?: ProxyEndpoint;
+}
+
 const MAX_CONTEXTS = 2;
 
 export class BrowserContextPool {
-  private slots: { browser: BrowserLike; context: BrowserContextLike }[] = [];
+  private slots: PoolSlot[] = [];
   private cursor = 0;
 
   public constructor(private readonly browserFactory: () => Promise<BrowserLike>) {}
 
-  public async acquire(userAgent: string, proxy?: { server: string }): Promise<BrowserContextLike> {
+  /**
+   * Acquire a browser context. When the pool has capacity, creates a new context
+   * bound to the requested userAgent/proxy. When full, round-robins an existing
+   * slot and returns **that slot's bound identity** (not the requested one).
+   *
+   * T16: when full, skip slots whose bound proxy is `disabled === true`. Prefer the
+   * RR-selected slot if healthy; otherwise any other healthy slot. If every slot's
+   * proxy is disabled, rebuild the RR slot in place with the requested identity
+   * (close old context, newContext on the same browser, reinstall SSRF guard).
+   *
+   * Callers must use the returned userAgent for robots checks and the returned
+   * proxy for proxyPool.release scoring — never the pre-acquire request values.
+   */
+  public async acquire(userAgent: string, proxy?: ProxyEndpoint): Promise<PooledBrowserContext> {
     if (this.slots.length < MAX_CONTEXTS) {
       const browser = await this.browserFactory();
-      const context = await browser.newContext({ userAgent, proxy });
-      this.slots.push({ browser, context });
-      return context;
+      const context = await browser.newContext({
+        userAgent,
+        proxy: proxy?.server ? { server: proxy.server } : undefined
+      });
+      // SSRF subresource guard once per context creation — covers main page + future
+      // popups (window.open). Do NOT re-install on pool reuse (duplicate handlers).
+      if (process.env.SSRF_GUARD_ENABLED !== "false") {
+        await installSubresourceGuard(context);
+      }
+      this.slots.push({ browser, context, userAgent, proxy });
+      return { context, userAgent, proxy };
     }
 
-    const slot = this.slots[this.cursor % this.slots.length];
+    const startIdx = this.cursor % this.slots.length;
     this.cursor += 1;
-    if (!slot) {
+
+    // Prefer RR-selected, then remaining slots; skip proxies marked disabled by proxyPool.
+    for (let offset = 0; offset < this.slots.length; offset += 1) {
+      const slot = this.slots[(startIdx + offset) % this.slots.length];
+      if (!slot) {
+        continue;
+      }
+      if (slot.proxy?.disabled !== true) {
+        return { context: slot.context, userAgent: slot.userAgent, proxy: slot.proxy };
+      }
+    }
+
+    // All slots bind disabled proxies — rebuild the RR-selected slot with this request.
+    const rebuildSlot = this.slots[startIdx] ?? this.slots[0];
+    if (!rebuildSlot) {
       throw new SourceFetchError("FETCH_PLAYWRIGHT_POOL", "Browser context pool is empty");
     }
-    return slot.context;
+    try {
+      await rebuildSlot.context.close();
+    } catch {
+      // Best-effort close; still replace context so we leave the disabled proxy behind.
+    }
+    const context = await rebuildSlot.browser.newContext({
+      userAgent,
+      proxy: proxy?.server ? { server: proxy.server } : undefined
+    });
+    // New context has no route handlers — must reinstall SSRF guard (T15a invariant).
+    if (process.env.SSRF_GUARD_ENABLED !== "false") {
+      await installSubresourceGuard(context);
+    }
+    rebuildSlot.context = context;
+    rebuildSlot.userAgent = userAgent;
+    rebuildSlot.proxy = proxy;
+    return { context, userAgent, proxy };
   }
 
   public async close(): Promise<void> {
@@ -98,18 +170,22 @@ export async function fetchPlaywright(
       throw new SourceFetchError("FETCH_SSRF_BLOCKED", `Playwright listUrl blocked by SSRF guard: ${guard.reason}`, { url: config.listUrl, reason: guard.reason });
     }
   }
-  const userAgent = acquireUserAgent(context.useRealUa);
-  await assertRobotsAllowed(config.listUrl, userAgent, robotsFetch ?? fetch);
-  const proxy = proxyPool.acquire();
-  const browserContext = await pool.acquire(userAgent, proxy?.server ? { server: proxy.server } : undefined);
-  const page = await browserContext.newPage();
 
-  if (process.env.SSRF_GUARD_ENABLED !== "false") {
-    await installSubresourceGuard(page);
-  }
+  // Requested identity is a hint for new slots only. After pool.acquire, use the
+  // **actual** bound identity for robots + proxy scoring (pool reuse may differ).
+  const requestedUserAgent = acquireUserAgent(context.useRealUa);
+  const requestedProxy = proxyPool.acquire();
+  const pooled = await pool.acquire(requestedUserAgent, requestedProxy);
+  const { context: browserContext, userAgent, proxy } = pooled;
+
+  await assertRobotsAllowed(config.listUrl, userAgent, robotsFetch ?? fetch);
+  const page = await browserContext.newPage();
 
   try {
     await page.goto(config.listUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
+    // Always capture post-navigation URL (redirect landing). Used for SSRF recheck
+    // and for extractItems list-page fallback detection — not gated on SSRF switch.
+    const finalUrl = page.url();
     // S5 / C2: Chromium 网络栈内部消化 30x，page.route 对重定向产生的主框架新请求不触发
     //（playwright#3993）。goto 返回后对最终落点重跑守卫；不符即抛，禁止 $$eval 抽取内网页。
     //
@@ -118,7 +194,6 @@ export async function fetchPlaywright(
     //（TTL=0 先公网后内网）仍可能让浏览器实际连上内网而 page.url() 仍显示公网 hostname。
     // 真正闭环需要出口 ACL 或受控代理（强制所有出站经可审计的 HTTP 代理）。
     if (process.env.SSRF_GUARD_ENABLED !== "false") {
-      const finalUrl = page.url();
       const finalGuard = await assertPublicFetchUrl(finalUrl);
       if (!finalGuard.allowed) {
         throw new SourceFetchError(
@@ -129,11 +204,11 @@ export async function fetchPlaywright(
       }
     }
     await page.waitForSelector(config.waitFor, { timeout: 30000 });
-    const extracted = await extractItems(page, config);
+    const extracted = await extractItems(page, config, finalUrl);
     proxyPool.release(proxy, true);
     return extracted.map((item) => ({
       title: item.title.trim(),
-      url: new URL(item.url, config.listUrl).toString(),
+      url: new URL(item.url, finalUrl).toString(),
       content: (item.content ?? item.title).trim(),
       publishedAt: item.publishedAt ? new Date(item.publishedAt) : new Date()
     }));
@@ -149,9 +224,12 @@ export async function fetchPlaywright(
 const SUBRESOURCE_GUARD_TTL_MS = 60 * 1000;
 
 /**
- * T-SEC-12: 子资源守卫。listUrl 的前置校验只覆盖导航入口；页面 302 跳转、加载的
- * script / img / XHR 都可能触达内网 / metadata。page.route 全通配拦截每个请求跑
- * assertPublicFetchUrl，拒绝即 abort（只断该子请求，不 fail 整个页面）。
+ * T-SEC-12 / T15a: 子资源守卫挂在 **BrowserContext.route**，覆盖该 context 下所有
+ * 页面（含 window.open 产生的弹窗）。page.route 只保护装它的那一个 Page，弹窗是
+ * 全新 Page 对象，会完全绕过 page 级守卫。
+ *
+ * 只在 context **创建时**调用一次（见 BrowserContextPool.acquire）；池复用不得重复
+ * install，否则同一请求会命中多个 handler。
  *
  * 缓存策略（评审 residual 修正）：**只缓存 deny，不缓存 allow**。正缓存 allowed=true
  * 会被 TTL=0 的 DNS rebinding 利用（先解析公网缓存放行、后换内网 IP 直接命中缓存）；
@@ -162,10 +240,10 @@ const SUBRESOURCE_GUARD_TTL_MS = 60 * 1000;
  * 残余（与 goto 后 final-URL 复验相同）：Chromium 自解析 DNS，应用层 route 守卫
  * 按 URL hostname 判定，无法钉住实际连接 IP；DNS rebinding 需出口 ACL 闭环。
  */
-async function installSubresourceGuard(page: PageLike): Promise<void> {
+async function installSubresourceGuard(context: BrowserContextLike): Promise<void> {
   const denyCache = new Map<string, number>(); // hostname → expiresAt
 
-  await page.route("**/*", async (route, request) => {
+  await context.route("**/*", async (route, request) => {
     const url = request.url();
     let parsed: URL;
     try {
@@ -210,14 +288,23 @@ async function installSubresourceGuard(page: PageLike): Promise<void> {
  *
  * 浏览器侧函数体是常量：对 itemSelector 选中的节点，按 titleSelector/linkSelector 取文本与 href，
  * 截断到 limit。选择器字符串本身作为数据传给 $$eval，浏览器仅作 DOM 查询，不会执行它们。
+ *
+ * @param finalUrl post-navigation document URL (after redirects). Used as the base for
+ *   resolving item URLs and for "href fell back to list page" validity checks. Must not
+ *   use config.listUrl here — empty href is resolved by the browser against the *current*
+ *   document URL, which is finalUrl after a 30x, not the original listUrl.
  */
-async function extractItems(page: PageLike, config: PlaywrightSourceConfig): Promise<ExtractedItem[]> {
+async function extractItems(
+  page: PageLike,
+  config: PlaywrightSourceConfig,
+  finalUrl: string
+): Promise<ExtractedItem[]> {
   const itemSelector = config.itemSelector;
   const titleSelector = config.titleSelector ?? "a";
   const linkSelector = config.linkSelector ?? "a";
   const limit = Math.min(Math.max(config.limit ?? 20, 1), 50);
 
-  return page.$$eval<ExtractedItem[], { titleSelector: string; linkSelector: string; limit: number }>(
+  const extracted = await page.$$eval<ExtractedItem[], { titleSelector: string; linkSelector: string; limit: number }>(
     itemSelector,
     (nodes, { titleSelector, linkSelector, limit }) =>
       nodes.slice(0, limit).map((node) => {
@@ -229,4 +316,48 @@ async function extractItems(page: PageLike, config: PlaywrightSourceConfig): Pro
       }),
     { titleSelector, linkSelector, limit }
   );
+
+  // Align with html.ts FETCH_HTML_EMPTY: zero itemSelector matches must fail the source,
+  // not return [] (which handlers mark as success → silent permanent outage).
+  if (extracted.length === 0) {
+    throw new SourceFetchError(
+      "FETCH_PLAYWRIGHT_EMPTY",
+      "Playwright itemSelector matched no elements",
+      { itemSelector, matched: 0, valid: 0 }
+    );
+  }
+
+  // B-5 / A-6 收尾：itemSelector 命中但站点改版后 title/link 子选择器失配 → 每条标题为空
+  // 或 href 回退成列表页 URL 本身。extracted.length > 0 不触发上面的零匹配错误，但产出
+  // 全是垃圾/重复条目，fetch.ts 仍记为成功（静默断供变体）。
+  // 按内容有效性过滤；全无效同样抛 FETCH_PLAYWRIGHT_EMPTY（复用同一错误码，detail 区分原因）。
+  // 归一化 **finalUrl**（重定向后真实落点）：浏览器对空 href 解析成当前文档地址，不是
+  // config.listUrl。用 listUrl 做基准时，302 后空 href 条目会漏过滤（T15a 缺陷 2）。
+  let listUrlNormalized: string;
+  try {
+    listUrlNormalized = new URL(finalUrl).toString();
+  } catch {
+    listUrlNormalized = finalUrl;
+  }
+  const valid = extracted.filter((item) => {
+    if (item.title.trim().length === 0) return false;
+    if (item.url.trim().length === 0) return false;
+    try {
+      const resolved = new URL(item.url, finalUrl).toString();
+      // 空 href 回退成列表页（最终落点）URL 本身（站点改版后 linkSelector 失配的典型信号）。
+      if (resolved === listUrlNormalized) return false;
+    } catch {
+      return false;
+    }
+    return true;
+  });
+
+  if (valid.length === 0) {
+    throw new SourceFetchError(
+      "FETCH_PLAYWRIGHT_EMPTY",
+      `Playwright itemSelector matched ${extracted.length} element(s) but all had empty title or link`,
+      { itemSelector, matched: extracted.length, valid: 0 }
+    );
+  }
+  return valid;
 }

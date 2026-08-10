@@ -21,6 +21,7 @@ vi.mock("../pipeline-gate", () => ({ passesIndustryGate: mockPassesIndustryGate 
 vi.mock("../context", () => ({
   logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() },
   handlerContext: { qwen: { id: "qwen" } },
+  // loadProjectCodes 仍可能被其他模块引用；embedder 已不再调用
   loadProjectCodes: mockLoadProjectCodes,
 }));
 
@@ -100,18 +101,19 @@ describe("handleEmbedderJob", () => {
     expect(db.update).not.toHaveBeenCalled();
   });
 
-  // T-SEC-09: 项目代号字典必须按 job 即时加载（不再用 bootstrap 启动快照）。
-  it("loads project codes per job and injects them into withScrubber context", async () => {
+  // A-12 / embedder 附带：本地 Qwen 不注入 projectCodes（防 embedding 漂移）。
+  it("withScrubber is called WITHOUT projectCodes (local Qwen; no code redaction on embed)", async () => {
     makeDb([{ title: "标题", summaryZh: "摘要" }]);
     mockRunEmbedder.mockResolvedValue([0.5]);
 
     await handleEmbedderJob({ data: { itemId: 25 } as never });
-    await handleEmbedderJob({ data: { itemId: 26 } as never });
 
-    expect(mockLoadProjectCodes).toHaveBeenCalledTimes(2);
-    expect(mockWithScrubber).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ projectCodes: ["内部代号A"] }),
-    );
+    expect(mockLoadProjectCodes).not.toHaveBeenCalled();
+    expect(mockWithScrubber).toHaveBeenCalledTimes(1);
+    // 仅 client 一参；不得注入 projectCodes 上下文
+    expect(mockWithScrubber).toHaveBeenCalledWith(expect.anything());
+    const call = mockWithScrubber.mock.calls[0] as unknown[] | undefined;
+    expect(call).toBeDefined();
+    expect(call!.length).toBe(1);
   });
 });

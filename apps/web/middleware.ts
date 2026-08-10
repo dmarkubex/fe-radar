@@ -10,6 +10,21 @@ import {
 // 见 apps/web/lib/api/authz.ts 的 requireFreshRole。
 
 import type { NextRequest } from "next/server";
+import type { UserRole } from "@fe-radar/shared";
+
+/**
+ * A-5 权威定义：admin **页面**路径 → 最低角色。
+ * middleware 与 `(admin)/layout` → `gateAdminPage` 必须共用本函数，禁止第二份清单。
+ * （仅对 `/admin/**` 有意义；API 角色仍由下方 isEditorPath / isAdminPath 决定。）
+ */
+export const EDITOR_ADMIN_PAGE_PREFIXES = ["/admin/entities", "/admin/sources"] as const;
+
+export function requiredAdminPageRole(pathname: string): Extract<UserRole, "admin" | "editor"> {
+  const isEditorAdminPage = EDITOR_ADMIN_PAGE_PREFIXES.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  );
+  return isEditorAdminPage ? "editor" : "admin";
+}
 
 export default async function middleware(request: NextRequest): Promise<NextResponse> {
   const pathname = request.nextUrl.pathname;
@@ -18,9 +33,6 @@ export default async function middleware(request: NextRequest): Promise<NextResp
   // Matcher still includes auth paths so x-pathname can be injected for layouts.
   const isAuthPath = pathname === "/auth" || pathname.startsWith("/auth/");
 
-  const isEditorAdminPage = ["/admin/entities", "/admin/sources"].some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`)
-  );
   const isAdminPath =
     pathname.startsWith("/api/admin") ||
     pathname.startsWith("/api/dashboard") ||
@@ -74,8 +86,14 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     }
 
     const role = token.role;
-    const requiredRole =
-      isEditorAdminPage || isEditorPath ? "editor" : isAdminPath ? "admin" : "viewer";
+    // admin 页面角色：与 gateAdminPage 共用 requiredAdminPageRole（单一权威）
+    const requiredRole: UserRole = isEditorPath
+      ? "editor"
+      : isAdminPage
+        ? requiredAdminPageRole(pathname)
+        : isAdminPath
+          ? "admin"
+          : "viewer";
     if (!hasRole(role === "admin" || role === "editor" || role === "viewer" ? role : undefined, requiredRole)) {
       if (isAdminPage || isTimelinePage) {
         return new NextResponse(
