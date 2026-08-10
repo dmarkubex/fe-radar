@@ -21,6 +21,8 @@ export interface InAppAuthUser {
   name: string;
   email: string;
   role: UserRole;
+  /** T-SEC-06 / S3b: 与本地登录一致，写入 JWT 以便撤权时比对 users.token_version。 */
+  tokenVersion: number;
 }
 
 interface AppTokenCache {
@@ -206,7 +208,9 @@ export async function resolveDingtalkInAppUser(code: string): Promise<InAppAuthU
     id: String(merged.id),
     name: merged.name,
     email: `${merged.id}@dingtalk-inapp.fe-radar.local`,
-    role: merged.role
+    role: merged.role,
+    // S3b: 内免登此前漏写 tokenVersion，导致 JWT 无版本 claim + 校验侧缺 claim 放行 = 永久绕过撤权。
+    tokenVersion: merged.tokenVersion
   };
 }
 

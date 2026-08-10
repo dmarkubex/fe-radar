@@ -1,12 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-const { mockGetDb, mockRunScorer, mockWithScrubber, mockComputeD3Market, mockListLatestFinancialsByMetric, mockPassesIndustryGate } = vi.hoisted(() => ({
+const { mockGetDb, mockRunScorer, mockWithScrubber, mockComputeD3Market, mockListLatestFinancialsByMetric, mockPassesIndustryGate, mockLoadProjectCodes } = vi.hoisted(() => ({
   mockGetDb: vi.fn(),
   mockRunScorer: vi.fn(),
   mockWithScrubber: vi.fn((client: unknown) => client),
   mockComputeD3Market: vi.fn(),
   mockListLatestFinancialsByMetric: vi.fn().mockResolvedValue([]),
   mockPassesIndustryGate: vi.fn().mockResolvedValue(true),
+  mockLoadProjectCodes: vi.fn(),
 }));
 
 vi.mock("@fe-radar/db", () => ({
@@ -38,6 +39,7 @@ vi.mock("../pipeline-gate", () => ({ passesIndustryGate: mockPassesIndustryGate 
 vi.mock("../context", () => ({
   logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() },
   handlerContext: { deepSeek: { id: "deepSeek" } },
+  loadProjectCodes: mockLoadProjectCodes,
 }));
 
 function makeDb(selectRows: unknown[][]) {
@@ -79,6 +81,7 @@ describe("handleScorerJob", () => {
     mockWithScrubber.mockImplementation((client: unknown) => client);
     mockListLatestFinancialsByMetric.mockResolvedValue([]);
     mockPassesIndustryGate.mockResolvedValue(true);
+    mockLoadProjectCodes.mockResolvedValue(["内部代号A"]);
   });
 
   it("normal path: persists all five-dimension scores returned by runScorer", async () => {
@@ -135,5 +138,26 @@ describe("handleScorerJob", () => {
 
     await expect(handleScorerJob({ data: { itemId: 13 } as never })).rejects.toThrow("deepseek down");
     expect(db.update).not.toHaveBeenCalled();
+  });
+
+  // T-SEC-09: 项目代号字典必须按 job 即时加载（不再用 bootstrap 启动快照）。
+  it("loads project codes per job and injects them into withScrubber context", async () => {
+    // scorer 每个 job 两次 select（items + itemEntities join），makeDb 按序消费。
+    makeDb([
+      [{ title: "标题", content: "正文" }],
+      [],
+      [{ title: "标题", content: "正文" }],
+      [],
+    ]);
+    mockRunScorer.mockResolvedValue(fullScore);
+
+    await handleScorerJob({ data: { itemId: 31 } as never });
+    await handleScorerJob({ data: { itemId: 32 } as never });
+
+    expect(mockLoadProjectCodes).toHaveBeenCalledTimes(2);
+    expect(mockWithScrubber).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ projectCodes: ["内部代号A"] }),
+    );
   });
 });

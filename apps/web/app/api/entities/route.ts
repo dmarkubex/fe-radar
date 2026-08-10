@@ -1,12 +1,12 @@
 import { desc } from "drizzle-orm";
 import { entities, getDb } from "@fe-radar/db";
-import { requireRequestRole } from "@/lib/api/authz";
+import { requireFreshRole } from "@/lib/api/authz";
 import { entityBodySchema, validationError } from "@/lib/api/entities-schema";
 
 import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest): Promise<Response> {
-  const authError = await requireRequestRole(request, "editor");
+  const authError = await requireFreshRole(request, "editor");
   if (authError) return authError;
 
   const rows = await getDb().select().from(entities).orderBy(desc(entities.id));
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
-  const authError = await requireRequestRole(request, "editor");
+  const authError = await requireFreshRole(request, "editor");
   if (authError) return authError;
 
   const parsed = entityBodySchema.safeParse(await request.json());

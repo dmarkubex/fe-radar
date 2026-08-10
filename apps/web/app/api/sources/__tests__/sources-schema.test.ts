@@ -58,7 +58,7 @@ describe("sources api schema", () => {
         type: "playwright",
         listUrl: "https://example.com/news",
         waitFor: "body",
-        extractor: "() => []",
+        itemSelector: "a",
         verificationBlocked: true,
         verificationBlockedReason: "robots.txt explicitly disallows target path"
       }
@@ -153,6 +153,140 @@ describe("sources api schema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  // T-SEC-10: 编辑员提交的报价正则在 Worker 同步执行，拒绝灾难性回溯构造。
+  it("rejects ReDoS-prone regex patterns (nested unbounded quantifiers) but accepts normal numeric patterns", () => {
+    const base = {
+      name: "redos",
+      url: "http://rsshub:1200/smm/news/cu",
+      fetcherType: "quotes",
+      tier: "T2",
+      config: {
+        type: "quotes",
+        adapter: "rsshub-extract",
+        metric_keys: ["cu_spot_smm"],
+        endpoint: "/smm/news/cu",
+        retry: { max: 2, backoffMs: 1000 }
+      }
+    };
+
+    // 正常数值模式应通过。
+    expect(createSourceSchema.safeParse({
+      ...base,
+      config: { ...base.config, regex_rules: [{ pattern: "(?:现货|报价)[^\\d]*(\\d+(?:\\.\\d+)?)", metric_key: "cu_spot_smm", group: 1 }] }
+    }).success).toBe(true);
+
+    // 灾难性嵌套量词 (a+)+ 应拒绝。
+    expect(createSourceSchema.safeParse({
+      ...base,
+      config: { ...base.config, regex_rules: [{ pattern: "(\\d+)+", metric_key: "cu_spot_smm" }] }
+    }).success).toBe(false);
+    expect(createSourceSchema.safeParse({
+      ...base,
+      config: { ...base.config, regex_rules: [{ pattern: "(a*)*", metric_key: "cu_spot_smm" }] }
+    }).success).toBe(false);
+
+    // S8: 组内无界量词 + 组外有界重复 (a+){2,} 同样指数回溯，必须拒绝。
+    expect(createSourceSchema.safeParse({
+      ...base,
+      config: { ...base.config, regex_rules: [{ pattern: "(a+){2,}", metric_key: "cu_spot_smm" }] }
+    }).success).toBe(false);
+    expect(createSourceSchema.safeParse({
+      ...base,
+      config: { ...base.config, regex_rules: [{ pattern: "(a+){25}", metric_key: "cu_spot_smm" }] }
+    }).success).toBe(false);
+    // 正常数值模式 ([0-9.]+)\s*元/吨 不受影响。
+    expect(createSourceSchema.safeParse({
+      ...base,
+      config: { ...base.config, regex_rules: [{ pattern: "([0-9.]+)\\s*元/吨", metric_key: "cu_spot_smm" }] }
+    }).success).toBe(true);
+
+    // 语法错拒绝。
+    expect(createSourceSchema.safeParse({
+      ...base,
+      config: { ...base.config, regex_rules: [{ pattern: "(\\d", metric_key: "cu_spot_smm" }] }
+    }).success).toBe(false);
+
+    // 复核 F10 / HIGH-6: 重叠交替 ^(a|aa)+$ 必须拒绝（静态 lint 补的家族）。
+    // 注意：不在此跑执行探针（HIGH-6：探针会挂死事件循环）。
+    expect(createSourceSchema.safeParse({
+      ...base,
+      config: { ...base.config, regex_rules: [{ pattern: "^(a|aa)+$", metric_key: "cu_spot_smm" }] }
+    }).success).toBe(false);
+  });
+
+  // S8-fix (C-1): 相邻同基无界量词家族（无括号）—— a+a+a+a+ / [0-9]+[0-9]+ 等。
+  // 修复前 ^a+a+a+a+a+a+a+a+a+a+$ 会通过（无检测器命中）；修复后必须拒绝。
+  it("S8-fix: rejects adjacent same-base unbounded quantifiers, allows real business regex", () => {
+    const base = {
+      name: "redos-fix",
+      url: "http://rsshub:1200/smm/news/cu",
+      fetcherType: "quotes",
+      tier: "T2",
+      config: {
+        type: "quotes",
+        adapter: "rsshub-extract",
+        metric_keys: ["cu_spot_smm"],
+        endpoint: "/smm/news/cu",
+        retry: { max: 2, backoffMs: 1000 }
+      }
+    };
+
+    // 拒绝组：全部必须被 isSafeRegex 拒绝。
+    const mustReject = [
+      "^a+a+a+a+a+a+a+a+a+a+$",   // 修复前通过 ← C-1 核心 gap
+      "a+a+a+b",
+      "(a+){2,}",                    // 已有检测器覆盖，不得回退
+      "(a+){25}",
+      "(x+x+)+y",
+      "(a|aa)+$",
+      "[0-9]+[0-9]+[0-9]+x",
+    ];
+    for (const pattern of mustReject) {
+      expect(createSourceSchema.safeParse({
+        ...base,
+        config: { ...base.config, regex_rules: [{ pattern, metric_key: "cu_spot_smm" }] }
+      }).success).toBe(false);
+    }
+
+    // 放行组：真实业务正则（0009_commodity_seed.sql），含 3 个无界量词也不误伤。
+    const mustAllow = [
+      "([0-9.]+)\\s*元/吨",
+      "价格[:：]\\s*([\\d,]+)",
+      "LME铜\\s*([0-9]+\\.?[0-9]*)",
+      "收盘价\\s*(\\d{4,6})",
+    ];
+    for (const pattern of mustAllow) {
+      expect(createSourceSchema.safeParse({
+        ...base,
+        config: { ...base.config, regex_rules: [{ pattern, metric_key: "cu_spot_smm" }] }
+      }).success).toBe(true);
+    }
+  });
+
+  // S8 (C-2): 生产 seed 0022/0023 的 html 信源 date:"" 必须通过校验。
+  // worker html.ts 显式支持 date:"" 回退抓取时间；schema 此前 min(1) 锁死 8 个源无法保存。
+  it("accepts real bjx seed config from migration 0022 with empty date selector", () => {
+    const result = createSourceSchema.safeParse({
+      name: "北极星电力网",
+      url: "https://www.bjx.com.cn/",
+      fetcherType: "html",
+      tier: "T2",
+      category: "媒体-垂直",
+      config: {
+        type: "html",
+        listUrl: "https://www.bjx.com.cn/",
+        useRealUa: true,
+        selectors: {
+          item: ".cc-ul-dot li a[href*=\"news.bjx.com.cn/html\"]",
+          title: "a",
+          link: "a",
+          date: ""
+        }
+      }
+    });
+    expect(result.success).toBe(true);
   });
 
   it("accepts SMM HQ quotes config with item selectors and aliases", () => {

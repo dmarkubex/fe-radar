@@ -17,6 +17,13 @@ vi.mock("@fe-radar/llm", async (importOriginal) => {
   };
 });
 
+// S4 / T-SEC-09: loadProjectCodes is fail-closed when never loaded + DB fails.
+// Job tests mock a deterministic codes list so scrubber path is exercised without real DB.
+// Do not set DATABASE_URL or weaken production fail-closed.
+vi.mock("../../handlers/context", () => ({
+  loadProjectCodes: vi.fn().mockResolvedValue(["ZX-01"]),
+}));
+
 function mockSelectChain(resolvedValue: unknown) {
   const chain: Record<string, ReturnType<typeof vi.fn>> = {};
   chain.from = vi.fn().mockReturnValue(chain);

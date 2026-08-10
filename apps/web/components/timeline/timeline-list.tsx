@@ -13,12 +13,10 @@ import { groupTimeline } from "@/components/timeline/timeline-grouping";
 import type { TimelineResult } from "@/lib/api/timeline-query";
 
 export function TimelineList({
-  canCreatePrediction = false,
   endpoint,
   initialData,
   variant = "list"
 }: {
-  canCreatePrediction?: boolean;
   endpoint: string;
   initialData: TimelineResult;
   variant?: "list" | "timeline";
@@ -27,7 +25,6 @@ export function TimelineList({
   return (
     <QueryClientProvider client={queryClient}>
       <TimelineListInner
-        canCreatePrediction={canCreatePrediction}
         endpoint={endpoint}
         initialData={initialData}
         variant={variant}
@@ -37,12 +34,10 @@ export function TimelineList({
 }
 
 function TimelineListInner({
-  canCreatePrediction,
   endpoint,
   initialData,
   variant
 }: {
-  canCreatePrediction: boolean;
   endpoint: string;
   initialData: TimelineResult;
   variant: "list" | "timeline";
@@ -154,7 +149,6 @@ function TimelineListInner({
       ) : null}
 
       <ItemDetailDialog
-        canCreatePrediction={canCreatePrediction}
         itemId={activeItemId}
         onClose={() => setActiveItemId(null)}
       />

@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb, dailyPushConfig, dailyPushes } from "@fe-radar/db";
-import { getRequestUser, unauthorized, forbidden } from "@/lib/api/authz";
+import { getRequestUser, unauthorized, forbidden, requireFreshRole } from "@/lib/api/authz";
 import { scheduleConfigSchema, validationError } from "@/lib/api/briefing-schema";
 
 import type { NextRequest } from "next/server";
@@ -9,6 +9,8 @@ const CONFIG_ID = 1;
 const RECENT_PUSH_LIMIT = 10;
 
 export async function GET(request: NextRequest): Promise<Response> {
+  const freshError = await requireFreshRole(request, "admin");
+  if (freshError) return freshError;
   const user = await getRequestUser(request);
   if (!user.role) return unauthorized();
   if (user.role !== "admin") return forbidden();
@@ -49,6 +51,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       id: config.id,
       enabled: config.enabled,
       sendTime: config.sendTime,
+      briefingSendTime: config.briefingSendTime,
       scheduleMode: config.scheduleMode,
       baseUrl: config.baseUrl,
       updatedBy: config.updatedBy,
@@ -60,6 +63,8 @@ export async function GET(request: NextRequest): Promise<Response> {
 }
 
 export async function PUT(request: NextRequest): Promise<Response> {
+  const freshError = await requireFreshRole(request, "admin");
+  if (freshError) return freshError;
   const user = await getRequestUser(request);
   if (!user.role) return unauthorized();
   if (user.role !== "admin") return forbidden();
@@ -75,6 +80,10 @@ export async function PUT(request: NextRequest): Promise<Response> {
     .set({
       enabled: parsed.data.enabled,
       sendTime: parsed.data.sendTime,
+      // Absent (old client) => leave the stored value alone, never blank it.
+      ...(parsed.data.briefingSendTime
+        ? { briefingSendTime: parsed.data.briefingSendTime }
+        : {}),
       scheduleMode: parsed.data.scheduleMode,
       baseUrl: parsed.data.baseUrl,
       updatedBy: user.id ?? null,
@@ -95,6 +104,7 @@ export async function PUT(request: NextRequest): Promise<Response> {
       id: updated.id,
       enabled: updated.enabled,
       sendTime: updated.sendTime,
+      briefingSendTime: updated.briefingSendTime,
       scheduleMode: updated.scheduleMode,
       baseUrl: updated.baseUrl,
       updatedBy: updated.updatedBy,

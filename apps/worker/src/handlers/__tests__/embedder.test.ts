@@ -1,10 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-const { mockGetDb, mockRunEmbedder, mockWithScrubber, mockPassesIndustryGate } = vi.hoisted(() => ({
+const { mockGetDb, mockRunEmbedder, mockWithScrubber, mockPassesIndustryGate, mockLoadProjectCodes } = vi.hoisted(() => ({
   mockGetDb: vi.fn(),
   mockRunEmbedder: vi.fn(),
   mockWithScrubber: vi.fn((client: unknown) => client),
   mockPassesIndustryGate: vi.fn().mockResolvedValue(true),
+  mockLoadProjectCodes: vi.fn(),
 }));
 
 vi.mock("@fe-radar/db", () => ({
@@ -17,7 +18,11 @@ vi.mock("@fe-radar/llm", () => ({ withScrubber: mockWithScrubber }));
 vi.mock("drizzle-orm", () => ({ eq: vi.fn((a: unknown, b: unknown) => ({ a, b })) }));
 vi.mock("../../jobs/embedder", () => ({ runEmbedder: mockRunEmbedder }));
 vi.mock("../pipeline-gate", () => ({ passesIndustryGate: mockPassesIndustryGate }));
-vi.mock("../context", () => ({ logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() }, handlerContext: { qwen: { id: "qwen" } } }));
+vi.mock("../context", () => ({
+  logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() },
+  handlerContext: { qwen: { id: "qwen" } },
+  loadProjectCodes: mockLoadProjectCodes,
+}));
 
 function makeDb(selectRows: unknown[]) {
   const updateWhere = vi.fn().mockResolvedValue(undefined);
@@ -45,6 +50,7 @@ describe("handleEmbedderJob", () => {
     vi.clearAllMocks();
     mockWithScrubber.mockImplementation((client: unknown) => client);
     mockPassesIndustryGate.mockResolvedValue(true);
+    mockLoadProjectCodes.mockResolvedValue(["内部代号A"]);
   });
 
   it("normal path: persists JSON-serialized embedding when runEmbedder returns a vector", async () => {
@@ -92,5 +98,20 @@ describe("handleEmbedderJob", () => {
     expect(mockRunEmbedder).not.toHaveBeenCalled();
     expect(db.select).not.toHaveBeenCalled();
     expect(db.update).not.toHaveBeenCalled();
+  });
+
+  // T-SEC-09: 项目代号字典必须按 job 即时加载（不再用 bootstrap 启动快照）。
+  it("loads project codes per job and injects them into withScrubber context", async () => {
+    makeDb([{ title: "标题", summaryZh: "摘要" }]);
+    mockRunEmbedder.mockResolvedValue([0.5]);
+
+    await handleEmbedderJob({ data: { itemId: 25 } as never });
+    await handleEmbedderJob({ data: { itemId: 26 } as never });
+
+    expect(mockLoadProjectCodes).toHaveBeenCalledTimes(2);
+    expect(mockWithScrubber).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ projectCodes: ["内部代号A"] }),
+    );
   });
 });

@@ -35,7 +35,11 @@ export const DEFAULT_SOURCE_CONFIGS: Record<FetcherType, unknown> = {
     type: "playwright",
     listUrl: "https://example.com/news",
     waitFor: ".news-list",
-    extractor: "() => []",
+    // T-SEC-03 (复核 HIGH-7): 声明式选择器取代旧 extractor 字符串（new Function RCE）。
+    itemSelector: ".news-list li a",
+    titleSelector: "a",
+    linkSelector: "a",
+    limit: 20,
     useRealUa: true
   },
   // Default must NOT use smm-hq + cu_main_close/lc_main_close — that fingerprint is how

@@ -1,5 +1,5 @@
 import { getDb, scoringConfig } from "@fe-radar/db";
-import { getRequestUser } from "@/lib/api/authz";
+import { getRequestUser, requireFreshRole } from "@/lib/api/authz";
 import { scoringConfigSchema, validationError } from "@/lib/api/scoring-config-schema";
 import { isMockMode } from "@/lib/mock-mode";
 import { mockScoringConfig } from "@/lib/mock-data";
@@ -14,7 +14,10 @@ const KEY_MAP = {
   thresholds: "thresholds"
 } as const;
 
-export async function GET(): Promise<Response> {
+export async function GET(request: NextRequest): Promise<Response> {
+  const authError = await requireFreshRole(request, "admin");
+  if (authError) return authError;
+
   if (isMockMode()) {
     return Response.json(mockScoringConfig);
   }
@@ -29,6 +32,8 @@ export async function GET(): Promise<Response> {
 }
 
 export async function PUT(request: NextRequest): Promise<Response> {
+  const authError = await requireFreshRole(request, "admin");
+  if (authError) return authError;
   const user = await getRequestUser(request);
   const parsed = scoringConfigSchema.safeParse(await request.json());
   if (!parsed.success) {

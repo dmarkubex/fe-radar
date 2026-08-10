@@ -36,7 +36,11 @@ export interface PlaywrightSourceConfig {
   type: "playwright";
   listUrl: string;
   waitFor: string;
-  extractor: string;
+  /** T-SEC-03: 声明式 CSS 选择器取代编辑员可执行 extractor 字符串（new Function RCE）。 */
+  itemSelector: string;
+  titleSelector?: string;
+  linkSelector?: string;
+  limit?: number;
 }
 
 export interface AnnouncementSourceConfig {

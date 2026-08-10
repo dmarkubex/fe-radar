@@ -38,6 +38,7 @@
     "onlyBuiltDependencies": [
       "esbuild",
       "msgpackr-extract",
+      "re2",
       "sharp",
       "unrs-resolver"
     ]

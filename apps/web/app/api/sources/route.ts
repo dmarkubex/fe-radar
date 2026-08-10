@@ -1,5 +1,5 @@
 import { createSource, getDb, listSources } from "@fe-radar/db";
-import { requireRequestRole } from "@/lib/api/authz";
+import { requireFreshRole } from "@/lib/api/authz";
 import { createSourceSchema, validationError } from "@/lib/api/sources-schema";
 import { isMockMode } from "@/lib/mock-mode";
 import { mockSources } from "@/lib/mock-data";
@@ -8,7 +8,7 @@ import { mockReadonlyResponse } from "@/lib/api/mock-readonly";
 import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest): Promise<Response> {
-  const authError = await requireRequestRole(request, "editor");
+  const authError = await requireFreshRole(request, "editor");
   if (authError) return authError;
 
   if (isMockMode()) {
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
-  const authError = await requireRequestRole(request, "editor");
+  const authError = await requireFreshRole(request, "editor");
   if (authError) return authError;
 
   const parsed = createSourceSchema.safeParse(await request.json());

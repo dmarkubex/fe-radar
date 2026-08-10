@@ -129,14 +129,17 @@ export const briefingTemplateFields = pgTable("briefing_template_fields", {
 
 // ---------------------------------------------------------------------------
 // daily_push_config
-// 钉钉合并日报推送调度单例（id 固定为 1）
+// 钉钉日报推送调度单例（id 固定为 1）
 // enabled 默认 false：迁移/部署本身不得自动发消息
+// send_time = 产业日报；briefing_send_time = 铜锂日报（0060 拆分，两者独立成卡）
+// enabled 是两者共用的总开关。
 // ---------------------------------------------------------------------------
 export const dailyPushConfig = pgTable("daily_push_config", {
   // No DB DEFAULT on id (0055); singleton row is seeded with explicit id=1.
-  id:           integer("id").primaryKey(),
-  enabled:      boolean("enabled").notNull().default(false),
-  sendTime:     text("send_time").notNull().default("16:15"),
+  id:               integer("id").primaryKey(),
+  enabled:          boolean("enabled").notNull().default(false),
+  sendTime:         text("send_time").notNull().default("16:15"),
+  briefingSendTime: text("briefing_send_time").notNull().default("17:00"),
   scheduleMode: text("schedule_mode").notNull().default("business_days"),
   baseUrl:      text("base_url").notNull().default("http://fe-radar.internal"),
   updatedBy:    bigint("updated_by", { mode: "number" }).references(() => users.id),
@@ -144,6 +147,7 @@ export const dailyPushConfig = pgTable("daily_push_config", {
 }, (table) => ({
   singletonCheck:    check("daily_push_config_singleton_check", sql`${table.id} = 1`),
   sendTimeCheck:     check("daily_push_config_send_time_check", sql`${table.sendTime} ~ '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'`),
+  briefingSendTimeCheck: check("daily_push_config_briefing_send_time_check", sql`${table.briefingSendTime} ~ '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'`),
   scheduleModeCheck: check("daily_push_config_schedule_mode_check", sql`${table.scheduleMode} IN ('daily','business_days')`)
 }));
 

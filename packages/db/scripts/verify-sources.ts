@@ -114,12 +114,13 @@ export async function checkPlaywright(
 ): Promise<Pick<VerifyResult, "ok" | "status" | "error">> {
   const config = source.config as Record<string, unknown> | null;
   const waitFor = config?.waitFor as string | undefined;
-  const extractor = config?.extractor as string | undefined;
+  // T-SEC-03: 校验声明式 itemSelector（旧 extractor 字段已废弃）。
+  const itemSelector = config?.itemSelector as string | undefined;
 
-  if (!waitFor || !extractor) {
+  if (!waitFor || !itemSelector) {
     return {
       ok: false,
-      error: `Playwright config missing waitFor or extractor (waitFor=${String(waitFor)}, extractor=${String(extractor)})`
+      error: `Playwright config missing waitFor or itemSelector (waitFor=${String(waitFor)}, itemSelector=${String(itemSelector)})`
     };
   }
 

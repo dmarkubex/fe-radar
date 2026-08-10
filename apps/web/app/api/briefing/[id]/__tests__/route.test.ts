@@ -3,10 +3,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UserRole } from "@fe-radar/shared";
 import type { NextRequest } from "next/server";
 
-const { mockGetDb, mockGetRequestUser, queryResults } = vi.hoisted(() => ({
+// S3b: requireFreshViewer → real verifyTokenFreshness needs a users row.
+// Keep briefing/push queryResults separate from the freshness PK lookup.
+const { mockGetDb, mockGetRequestUser, queryResults, freshnessRow } = vi.hoisted(() => ({
   mockGetDb: vi.fn(),
   mockGetRequestUser: vi.fn(),
-  queryResults: [] as unknown[][]
+  queryResults: [] as unknown[][],
+  freshnessRow: {
+    current: {
+      disabledAt: null as Date | null,
+      role: "viewer",
+      tokenVersion: 1
+    }
+  }
 }));
 
 vi.mock("drizzle-orm", () => ({
@@ -15,6 +24,12 @@ vi.mock("drizzle-orm", () => ({
 
 vi.mock("@fe-radar/db", () => ({
   getDb: mockGetDb,
+  users: {
+    id: "users.id",
+    role: "users.role",
+    disabledAt: "users.disabledAt",
+    tokenVersion: "users.tokenVersion"
+  },
   commodityBriefings: { id: "briefingId" },
   briefingPushes: {
     id: "pushId",
@@ -69,8 +84,19 @@ function createQuery(rows: unknown[]): MockQuery {
   return query;
 }
 
+function isUsersTable(table: unknown): boolean {
+  return (
+    typeof table === "object" &&
+    table !== null &&
+    "tokenVersion" in table &&
+    (table as { tokenVersion?: string }).tokenVersion === "users.tokenVersion"
+  );
+}
+
 function setRole(role: UserRole): void {
-  mockGetRequestUser.mockResolvedValue({ id: 1, role });
+  // Active in-session user (S3b: tokenVersion required for requireFreshViewer).
+  mockGetRequestUser.mockResolvedValue({ id: 1, role, tokenVersion: 1 });
+  freshnessRow.current = { disabledAt: null, role, tokenVersion: 1 };
 }
 
 async function getDetail() {
@@ -89,11 +115,20 @@ beforeEach(() => {
   vi.clearAllMocks();
   queryResults.length = 0;
   mockGetDb.mockReturnValue({
-    select: vi.fn(() => {
-      const rows = queryResults.shift();
-      if (!rows) throw new Error("missing mocked query result");
-      return createQuery(rows);
-    })
+    select: vi.fn(() => ({
+      from: (table: unknown) => {
+        if (isUsersTable(table)) {
+          return {
+            where: () => ({
+              limit: async () => [freshnessRow.current]
+            })
+          };
+        }
+        const rows = queryResults.shift();
+        if (!rows) throw new Error("missing mocked query result");
+        return createQuery(rows);
+      }
+    }))
   });
 });
 

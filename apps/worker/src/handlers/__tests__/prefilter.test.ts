@@ -4,10 +4,11 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 // Hoisted mocks — vi.hoisted() runs before module resolution
 // ---------------------------------------------------------------------------
 
-const { mockGetDb, mockRunPrefilter, mockWithScrubber } = vi.hoisted(() => ({
+const { mockGetDb, mockRunPrefilter, mockWithScrubber, mockLoadProjectCodes } = vi.hoisted(() => ({
   mockGetDb: vi.fn(),
   mockRunPrefilter: vi.fn(),
   mockWithScrubber: vi.fn((client: unknown) => client),
+  mockLoadProjectCodes: vi.fn(),
 }));
 
 vi.mock("@fe-radar/db", () => ({
@@ -38,6 +39,7 @@ vi.mock("../../jobs/prefilter", () => ({
 vi.mock("../context", () => ({
   logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() },
   handlerContext: { qwen: { id: "qwen" }, deepSeek: { id: "deepSeek" } },
+  loadProjectCodes: mockLoadProjectCodes,
 }));
 
 // ---------------------------------------------------------------------------
@@ -69,6 +71,7 @@ describe("handlePrefilterJob", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockWithScrubber.mockImplementation((client: unknown) => client);
+    mockLoadProjectCodes.mockResolvedValue(["内部代号A"]);
   });
 
   it("normal path: writes isIndustryRelated=true when runPrefilter returns true", async () => {
@@ -123,5 +126,21 @@ describe("handlePrefilterJob", () => {
 
     expect(mockRunPrefilter).not.toHaveBeenCalled();
     expect(db.update).not.toHaveBeenCalled();
+  });
+
+  // T-SEC-09: 项目代号字典必须按 job 即时加载（不再用 bootstrap 启动快照），
+  // admin 新增代号后最迟一个缓存周期生效，无需重启 worker。
+  it("loads project codes per job and injects them into withScrubber context", async () => {
+    makeDb([{ title: "电网投资", content: "正文" }]);
+    mockRunPrefilter.mockResolvedValue({ isIndustryRelated: true, reason: "电力" });
+
+    await handlePrefilterJob({ data: { itemId: 1 } as never });
+    await handlePrefilterJob({ data: { itemId: 2 } as never });
+
+    expect(mockLoadProjectCodes).toHaveBeenCalledTimes(2);
+    expect(mockWithScrubber).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ projectCodes: ["内部代号A"] }),
+    );
   });
 });

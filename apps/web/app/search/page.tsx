@@ -1,9 +1,7 @@
 import { SearchBox } from "@/components/search/search-box";
 import { FilterBar } from "@/components/timeline/filter-bar";
 import { TimelineList } from "@/components/timeline/timeline-list";
-import { auth } from "@/auth";
 import { fetchTimeline } from "@/lib/api/timeline-query";
-import { hasRole } from "@/lib/auth/rbac";
 import { PageFrame } from "@/components/layout/page-frame";
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -26,8 +24,6 @@ export default async function SearchPage({ searchParams }: { searchParams: PageS
     eventType: first(params.eventType)
   };
   const initialData = q ? await fetchTimeline({ search: q, filters }) : { items: [], nextCursor: null };
-  const session = await auth();
-  const canCreatePrediction = hasRole(session?.user?.role, "editor");
   const query = new URLSearchParams();
   query.set("q", q);
   for (const key of ["category", "circle", "tier", "alertType", "eventType"] as const) {
@@ -45,7 +41,6 @@ export default async function SearchPage({ searchParams }: { searchParams: PageS
       <FilterBar />
       {q ? (
         <TimelineList
-          canCreatePrediction={canCreatePrediction}
           endpoint={endpoint}
           initialData={initialData}
         />

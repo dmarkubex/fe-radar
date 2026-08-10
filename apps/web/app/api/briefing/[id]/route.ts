@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb, commodityBriefings, briefingPushes, briefingTargets } from "@fe-radar/db";
 import { getRequestUser } from "@/lib/api/authz";
+import { requireFreshViewer } from "@/lib/auth/token-freshness";
 
 import type { NextRequest } from "next/server";
 
@@ -9,6 +10,9 @@ interface RouteContext {
 }
 
 export async function GET(request: NextRequest, context: RouteContext): Promise<Response> {
+  const freshError = await requireFreshViewer(request);
+  if (freshError) return freshError;
+
   const user = await getRequestUser(request);
   if (!user.role) {
     return Response.json({ error: { code: "UNAUTHORIZED", message: "请先登录" } }, { status: 401 });

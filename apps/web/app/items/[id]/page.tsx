@@ -1,7 +1,5 @@
 import { notFound } from "next/navigation";
-import { auth } from "@/auth";
 import { fetchItemDetail } from "@/lib/api/timeline-query";
-import { hasRole } from "@/lib/auth/rbac";
 import {
   formatAppTime,
   scoreLabel,
@@ -13,7 +11,6 @@ import {
   alertTypeLabel
 } from "@/components/shared/alert-strip";
 import { FeedbackButtons } from "@/components/timeline/feedback-buttons";
-import { MirofishPredictionButton } from "@/components/timeline/mirofish-prediction-button";
 import {
   ExternalLink,
   ChevronRight,
@@ -60,8 +57,6 @@ export default async function ItemDetailPage({
   if (!item) {
     notFound();
   }
-  const session = await auth();
-  const canCreatePrediction = hasRole(session?.user?.role, "editor");
   const displayUrl = safeExternalUrl(item.displayUrl);
 
   return (
@@ -214,12 +209,6 @@ export default async function ItemDetailPage({
                 </p>
               </div>
             )}
-
-            {canCreatePrediction ? (
-              <div className="mb-8">
-                <MirofishPredictionButton itemId={item.id} />
-              </div>
-            ) : null}
 
             {/* Feedback */}
             <div className="mb-8">

@@ -8,10 +8,7 @@
  */
 
 import { SourceFetchError } from "@fe-radar/shared";
-import { fetch as undiciFetch, ProxyAgent } from "undici";
-import { proxyPool } from "../../lib/proxy-pool";
-import { assertRobotsAllowed } from "../../lib/robots";
-import { acquireUserAgent } from "../../lib/ua-pool";
+import { fetchTextWithPolicy } from "../http";
 import type { AnnouncementSourceConfig, FetchContext, StandardItem } from "../types";
 import type { AnnouncementAdapter } from "./types";
 import { isRateLimitFetchError } from "./rate-limit";
@@ -22,6 +19,12 @@ const DEFAULT_PAGE_SIZE = 30;
 const DEFAULT_BEGIN_PAGE = 0;
 const DEFAULT_LOOKBACK_DAYS = 7;
 const SSE_REFERER = "http://www.sse.com.cn/disclosure/bulletin/company/";
+// T-SEC-07: JSONP 响应在解析前必须有字节上限（共享 fetchTextWithPolicy 强制执行）。
+// 默认 2MB（pageSize≤30 的公告列表正常远小于 1MB），可经 SSE_MAX_RESPONSE_BYTES 覆盖。
+const SSE_MAX_RESPONSE_BYTES = (() => {
+  const v = Number(process.env.SSE_MAX_RESPONSE_BYTES ?? 2 * 1024 * 1024);
+  return Number.isFinite(v) && v > 0 ? v : 2 * 1024 * 1024;
+})();
 // Keep in sync with apps/web/lib/api/sources-schema.ts announcementConfigValid (sse branch).
 // apps/web and apps/worker must not import each other, so the allowlist rules are duplicated on purpose.
 // Constraints (all must hold): protocol http: or https: (NOT https-only — DEFAULT_ENDPOINT and seed
@@ -49,12 +52,6 @@ export interface SseApiResponse {
   success?: string | boolean;
   error?: string;
   pageHelp?: SsePageHelp;
-}
-
-interface FetchTextOptions {
-  timeoutMs: number;
-  useRealUa?: boolean;
-  fetchImpl?: typeof undiciFetch;
 }
 
 function formatShanghaiDate(date: Date): string {
@@ -248,56 +245,6 @@ export function mapSseResponseToStandardItems(response: SseApiResponse): Standar
     .filter((item): item is StandardItem => item !== null);
 }
 
-async function fetchTextWithPolicy(url: string, options: FetchTextOptions): Promise<string | null> {
-  const userAgent = acquireUserAgent(options.useRealUa);
-  const fetchImpl = options.fetchImpl ?? undiciFetch;
-  await assertRobotsAllowed(url, userAgent, fetchImpl as unknown as typeof fetch);
-
-  let proxy = proxyPool.acquire();
-  let lastError: unknown;
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const response = await fetchImpl(url, {
-        headers: {
-          "user-agent": userAgent,
-          referer: SSE_REFERER,
-        },
-        signal: AbortSignal.timeout(options.timeoutMs),
-        dispatcher: proxy?.server ? new ProxyAgent(proxy.server) : undefined,
-      });
-
-      if (response.status === 403 || response.status === 429) {
-        proxyPool.release(proxy, false);
-        proxy = proxyPool.acquire({ retry: true });
-        lastError = new SourceFetchError(`FETCH_${response.status}`, `SSE request rejected with ${response.status}`, {
-          url,
-        });
-        continue;
-      }
-
-      if (!response.ok) {
-        throw new SourceFetchError("FETCH_HTTP_ERROR", `SSE request failed with ${response.status}`, { url });
-      }
-
-      proxyPool.release(proxy, true);
-      return response.text();
-    } catch (error) {
-      proxyPool.release(proxy, false);
-      proxy = proxyPool.acquire({ retry: true });
-      lastError = error;
-    }
-  }
-
-  if (lastError instanceof SourceFetchError) {
-    if (isRateLimitFetchError(lastError)) {
-      return null;
-    }
-    throw lastError;
-  }
-  throw new SourceFetchError("FETCH_TIMEOUT", "SSE request failed after retries", { url, cause: lastError });
-}
-
 export const sseAdapter: AnnouncementAdapter = {
   name: "sse",
 
@@ -308,13 +255,24 @@ export const sseAdapter: AnnouncementAdapter = {
         ? validateSseEndpoint(config.endpoint.trim())
         : buildSseQueryUrl(config);
 
-    const body = await fetchTextWithPolicy(endpoint, {
-      timeoutMs: 8000,
-      useRealUa: ctx.useRealUa ?? true,
-    });
-    if (body === null) {
-      return [];
+    // T-SEC-12: 走共享 fetchTextWithPolicy（fetchers/http.ts）——SSRF 守卫 + redirect manual
+    // 逐跳复验 + 字节上限 + UA 轮换 / robots / 代理池，不再保留本地简化实现。
+    // 403/429 耗尽策略层重试后降级为空结果，避免 BullMQ job 级重试风暴（isRateLimitFetchError）。
+    let body: string;
+    try {
+      body = await fetchTextWithPolicy(endpoint, {
+        timeoutMs: 8000,
+        useRealUa: ctx.useRealUa ?? true,
+        maxResponseBytes: SSE_MAX_RESPONSE_BYTES,
+        init: { headers: { referer: SSE_REFERER } },
+      });
+    } catch (error) {
+      if (isRateLimitFetchError(error)) {
+        return [];
+      }
+      throw error;
     }
+
     const parsed = parseSseJsonp(body);
     if (!parsed) {
       throw new SourceFetchError("FETCH_PARSE_ERROR", "SSE JSONP response cannot be parsed", { endpoint });

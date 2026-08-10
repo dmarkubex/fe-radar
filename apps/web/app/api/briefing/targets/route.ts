@@ -1,6 +1,6 @@
 import { isNull } from "drizzle-orm";
 import { getDb, briefingTargets } from "@fe-radar/db";
-import { getRequestUser, unauthorized, forbidden } from "@/lib/api/authz";
+import { getRequestUser, unauthorized, forbidden, requireFreshRole } from "@/lib/api/authz";
 import {
   createTargetSchema,
   toPublicTarget,
@@ -10,6 +10,9 @@ import {
 import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest): Promise<Response> {
+  // T-SEC-06 (复核 HIGH-3): targets 是 admin 路径。
+  const freshError = await requireFreshRole(request, "admin");
+  if (freshError) return freshError;
   const user = await getRequestUser(request);
   if (!user.role) return unauthorized();
   if (user.role !== "admin") return forbidden();
@@ -25,6 +28,8 @@ export async function GET(request: NextRequest): Promise<Response> {
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
+  const freshError = await requireFreshRole(request, "admin");
+  if (freshError) return freshError;
   const user = await getRequestUser(request);
   if (!user.role) return unauthorized();
   if (user.role !== "admin") return forbidden();

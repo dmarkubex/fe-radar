@@ -40,7 +40,7 @@ const SOURCES: AuditSource[] = [
   { name: "北极星太阳能光伏网", tier: "T2", enabled: true, config: { type: "html", listUrl: "https://www.bjx.com.cn/", selectors: { item: '.cc-ul-dot li a[href*="guangfu.bjx.com.cn"]', title: "a", link: "a", date: "" } } },
   { name: "北极星风力发电网", tier: "T2", enabled: true, config: { type: "html", listUrl: "https://fd.bjx.com.cn/", selectors: { item: ".cc-ul-dot li", title: "a", link: "a", date: "" } } },
   { name: "北极星售电网", tier: "T2", enabled: true, config: { type: "html", listUrl: "https://shoudian.bjx.com.cn/", selectors: { item: ".cc-ul-dot li", title: "a", link: "a", date: "" } } },
-  { name: "北极星智能电网在线", tier: "T2", enabled: false, note: "0011 SSL 失败", config: { type: "playwright", listUrl: "https://smartgrid.bjx.com.cn/", waitFor: "body", extractor: "() => []" } },
+  { name: "北极星智能电网在线", tier: "T2", enabled: false, note: "0011 SSL 失败", config: { type: "playwright", listUrl: "https://smartgrid.bjx.com.cn/", waitFor: "body", itemSelector: "a" } },
   { name: "电缆网 cableabc", tier: "T2", enabled: false, note: "0004 TLS 失败", config: { type: "html", listUrl: "https://www.cableabc.com/news/", selectors: { item: "li", title: "a", link: "a", date: "span" } } },
   { name: "中国电力新闻网", tier: "T2", enabled: true, config: { type: "html", listUrl: "http://www.cpnn.com.cn/", selectors: { item: "ul.infoList > li", title: "a", link: "a", date: "span" } } },
   { name: "中国能源报", tier: "T2", enabled: false, note: "0023 禁用：paper.people.com.cn 403", config: { type: "html", listUrl: "https://paper.people.com.cn/zgnyb/", selectors: { item: "a", title: "a", link: "a", date: "span" } } },
@@ -48,8 +48,8 @@ const SOURCES: AuditSource[] = [
   { name: "储能网 escn", tier: "T2", enabled: true, config: { type: "html", listUrl: "https://www.escn.com.cn/", useRealUa: true, selectors: { item: ".xinwenConBox a", title: "a", link: "a", date: "" } } },
   { name: "高工储能", tier: "T2", enabled: true, config: { type: "html", listUrl: "https://www.estv.com.cn/", useRealUa: true, selectors: { item: ".Es_New_1_m_li", title: "a", link: "a", date: "span" } } },
   { name: "国际能源网", tier: "T2", enabled: true, config: { type: "html", listUrl: "https://www.in-en.com/news/", selectors: { item: "ul.infoList > li", title: ".listTxt h5 a", link: "a", date: "span" } } },
-  { name: "电缆头条", tier: "T2", enabled: false, note: "0023 禁用：robots /weixin", config: { type: "playwright", listUrl: "https://weixin.sogou.com/weixin?type=1&query=%E7%94%B5%E7%BC%86%E5%A4%B4%E6%9D%A1", waitFor: "body", extractor: "() => Array.from(document.querySelectorAll('a')).slice(0,10).map(a => ({ title: a.textContent.trim(), url: a.href }))" } },
-  { name: "储能头条", tier: "T2", enabled: false, note: "0023 禁用：robots /weixin", config: { type: "playwright", listUrl: "https://weixin.sogou.com/weixin?type=1&query=%E5%82%A8%E8%83%BD%E5%A4%B4%E6%9D%A1", waitFor: "body", extractor: "() => Array.from(document.querySelectorAll('a')).slice(0,10).map(a => ({ title: a.textContent.trim(), url: a.href }))" } },
+  { name: "电缆头条", tier: "T2", enabled: false, note: "0023 禁用：robots /weixin", config: { type: "playwright", listUrl: "https://weixin.sogou.com/weixin?type=1&query=%E7%94%B5%E7%BC%86%E5%A4%B4%E6%9D%A1", waitFor: "body", itemSelector: "a", limit: 10 } },
+  { name: "储能头条", tier: "T2", enabled: false, note: "0023 禁用：robots /weixin", config: { type: "playwright", listUrl: "https://weixin.sogou.com/weixin?type=1&query=%E5%82%A8%E8%83%BD%E5%A4%B4%E6%9D%A1", waitFor: "body", itemSelector: "a", limit: 10 } },
   { name: "中国电网 china-power", tier: "T2", enabled: false, note: "0023 禁用：域名 404", config: { type: "html", listUrl: "http://www.china-power.com.cn/", selectors: { item: "li", title: "a", link: "a", date: "span" } } },
   // T3
   { name: "财联社 能源", tier: "T3", enabled: true, config: { type: "html", listUrl: "https://www.cls.cn/subject/1066", selectors: { item: "a", title: "a", link: "a", date: "span" } } },
@@ -58,8 +58,8 @@ const SOURCES: AuditSource[] = [
   { name: "36氪 新能源", tier: "T3", enabled: true, note: "0015 需内网 RSSHub", config: { type: "rss", url: "http://rsshub:1200/36kr/information/web_news" } },
   { name: "凤凰财经 能源", tier: "T3", enabled: true, config: { type: "html", listUrl: "https://finance.ifeng.com/", selectors: { item: "a", title: "a", link: "a", date: "span" } } },
   { name: "钛媒体 新能源", tier: "T3", enabled: true, config: { type: "html", listUrl: "https://www.tmtpost.com/nictation", useRealUa: true, selectors: { item: 'a[href*="/nictation/"]', title: "a", link: "a", date: "" } } },
-  { name: "雪球 行业讨论", tier: "T3", enabled: false, note: "0023 禁用：robots /k", config: { type: "playwright", listUrl: "https://xueqiu.com/k?q=%E7%94%B5%E7%BC%86", waitFor: "body", extractor: "() => Array.from(document.querySelectorAll('a')).slice(0,10).map(a => ({ title: a.textContent.trim(), url: a.href }))" } },
-  { name: "知乎 电力话题", tier: "T3", enabled: false, config: { type: "playwright", listUrl: "https://www.zhihu.com/topic/19577810", waitFor: "body", extractor: "() => []" } },
+  { name: "雪球 行业讨论", tier: "T3", enabled: false, note: "0023 禁用：robots /k", config: { type: "playwright", listUrl: "https://xueqiu.com/k?q=%E7%94%B5%E7%BC%86", waitFor: "body", itemSelector: "a", limit: 10 } },
+  { name: "知乎 电力话题", tier: "T3", enabled: false, config: { type: "playwright", listUrl: "https://www.zhihu.com/topic/19577810", waitFor: "body", itemSelector: "a" } },
   { name: "网易财经 能源", tier: "T3", enabled: true, config: { type: "html", listUrl: "https://money.163.com/", useRealUa: true, selectors: { item: ".channel_news li", title: ".news_title a", link: "a", date: ".news_time" } } },
 ];
 

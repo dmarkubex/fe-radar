@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
 import { getDb, commodityBriefings } from "@fe-radar/db";
-import { getRequestUser } from "@/lib/api/authz";
+import { getRequestUser, requireFreshRole } from "@/lib/api/authz";
 import { hasRole } from "@/lib/auth/rbac";
 import { validationError } from "@/lib/api/briefing-schema";
 import { regenerateSchema } from "@/lib/api/briefing-schema";
@@ -14,6 +14,9 @@ interface RouteContext {
 }
 
 export async function POST(request: NextRequest, context: RouteContext): Promise<Response> {
+  // T-SEC-06 (复核 HIGH-3): regenerate 是 editor 高权限动作（重跑简报生成），查 DB 校验 token 新鲜度。
+  const freshError = await requireFreshRole(request, "editor");
+  if (freshError) return freshError;
   const user = await getRequestUser(request);
   if (!user.role) {
     return Response.json({ error: { code: "UNAUTHORIZED", message: "请先登录" } }, { status: 401 });

@@ -10,11 +10,18 @@ const RSS_FETCH_TIMEOUT_MS = (() => {
   return Number.isFinite(v) && v > 0 ? v : 15000;
 })();
 
+// T-SEC-07: RSS 响应在缓冲和解析前必须有字节上限。恶意 / 被劫持 feed 可发超大响应
+// 耗尽 worker 内存；timeout 不提供确定的字节上限。默认 2MB（RSS feed 正常 <1MB）。
+const RSS_MAX_RESPONSE_BYTES = (() => {
+  const v = Number(process.env.RSS_MAX_RESPONSE_BYTES ?? 2 * 1024 * 1024);
+  return Number.isFinite(v) && v > 0 ? v : 2 * 1024 * 1024;
+})();
+
 const parser = new Parser();
 
 export async function fetchRss(config: RssSourceConfig, context: FetchContext, fetchImpl?: typeof fetch): Promise<StandardItem[]> {
   try {
-    const xml = await fetchTextWithPolicy(config.url, { timeoutMs: RSS_FETCH_TIMEOUT_MS, useRealUa: context.useRealUa, fetchImpl });
+    const xml = await fetchTextWithPolicy(config.url, { timeoutMs: RSS_FETCH_TIMEOUT_MS, useRealUa: context.useRealUa, maxResponseBytes: RSS_MAX_RESPONSE_BYTES, fetchImpl });
     const feed = await parser.parseString(xml);
     return feed.items.map((item) => {
       const title = item.title?.trim();

@@ -15,7 +15,8 @@ vi.mock("@fe-radar/db", () => ({
 }));
 vi.mock("@/lib/mock-mode", () => ({ isMockMode: mockIsMockMode }));
 vi.mock("@/lib/mock-data", () => ({ mockSources: [{ id: 99, name: "MOCK", urlLocked: false }] }));
-vi.mock("@/lib/api/authz", () => ({ requireRequestRole: mockRequireRequestRole }));
+// T-SEC-06: route 改用 requireFreshRole；复用既有 mock（语义同为角色门槛）。
+vi.mock("@/lib/api/authz", () => ({ requireFreshRole: mockRequireRequestRole }));
 
 import { GET } from "../route";
 

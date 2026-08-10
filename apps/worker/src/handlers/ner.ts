@@ -8,7 +8,7 @@ import type { PipelineJob, WebsearchJob } from "../queues";
 import { createRedisConnection, createWebsearchQueue } from "../queues";
 import { runNer } from "../jobs/ner";
 
-import { logger, handlerContext, loadEntityDictionary } from "./context";
+import { logger, handlerContext, loadEntityDictionary, loadProjectCodes } from "./context";
 import { passesIndustryGate } from "./pipeline-gate";
 
 /** C1 > C2 > C3 > null — used when alias fallback hits multiple entities. */
@@ -131,11 +131,14 @@ export async function handleNerJob(job: { data: PipelineJob }): Promise<void> {
 
   const text = `${row.title}\n${row.content ?? ""}`;
   const dict = await loadEntityDictionary();
+  // T-SEC-09: 项目代号字典按 job 即时加载（5min 缓存命中便宜），admin 新增代号无需重启 worker。
+  const projectCodes = await loadProjectCodes();
+  const scrubCtx = { projectCodes };
   const result = await runNer(
     text,
     dict,
-    withScrubber(handlerContext.qwen),
-    withScrubber(handlerContext.deepSeek),
+    withScrubber(handlerContext.qwen, scrubCtx),
+    withScrubber(handlerContext.deepSeek, scrubCtx),
   );
 
   for (const entity of result.entities) {

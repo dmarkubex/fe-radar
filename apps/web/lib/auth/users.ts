@@ -11,6 +11,8 @@ export interface AuthUser {
   name: string;
   role: UserRole;
   passwordHash: string;
+  /** T-SEC-06: JWT 撤权版本号，登录时写入 token，特权请求校验与 DB 当前值一致。 */
+  tokenVersion: number;
   disabledAt?: Date | null;
 }
 
@@ -41,6 +43,7 @@ export async function findUserByUsername(username: string): Promise<AuthUser | n
       name: username === "admin" ? "Mock 管理员" : "Mock 访客",
       role: username === "admin" ? "admin" : "viewer",
       passwordHash: await getMockPasswordHash(username),
+      tokenVersion: 0,
       disabledAt: null
     };
   }
@@ -55,6 +58,7 @@ export async function findUserByUsername(username: string): Promise<AuthUser | n
     name: user.name,
     role: user.role as UserRole,
     passwordHash: user.passwordHash,
+    tokenVersion: user.tokenVersion,
     disabledAt: user.disabledAt
   };
 }

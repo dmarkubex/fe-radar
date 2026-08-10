@@ -239,20 +239,54 @@ describe("dingtalk-inapp-provider", () => {
         id: 42,
         name: "李四",
         role: "viewer",
-        dingtalkId: "union-9"
+        dingtalkId: "union-9",
+        tokenVersion: 5
       });
 
       await expect(resolveDingtalkInAppUser("one-time-code")).resolves.toEqual({
         id: "42",
         name: "李四",
         email: "42@dingtalk-inapp.fe-radar.local",
-        role: "viewer"
+        role: "viewer",
+        tokenVersion: 5
       });
 
       expect(mergeOrCreateUser).toHaveBeenCalledWith({
         unionid: "union-9",
         name: "李四",
         dept: null
+      });
+    });
+
+    // S3b: 内免登必须带 tokenVersion（等于 merge 返回 / 库中当前值），否则 JWT 无 claim 永久绕过撤权。
+    it("S3b: 返回的用户对象含 tokenVersion，且等于 mergeOrCreateUser 库中当前值", async () => {
+      globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/oauth2/accessToken")) {
+          return jsonResponse({ accessToken: "app-tok", expireIn: 7200 });
+        }
+        if (url.includes("getuserinfo")) {
+          return jsonResponse({ errcode: 0, result: { userid: "uid-1" } });
+        }
+        return jsonResponse({ errcode: 0, result: { unionid: "union-1", name: "王五" } });
+      }) as typeof fetch;
+
+      const dbTokenVersion = 12;
+      mergeOrCreateUser.mockResolvedValue({
+        id: 7,
+        name: "王五",
+        role: "admin",
+        dingtalkId: "union-1",
+        tokenVersion: dbTokenVersion
+      });
+
+      const user = await resolveDingtalkInAppUser("code-s3b");
+      expect(user.tokenVersion).toBe(dbTokenVersion);
+      expect(user).toMatchObject({
+        id: "7",
+        name: "王五",
+        role: "admin",
+        tokenVersion: 12
       });
     });
 

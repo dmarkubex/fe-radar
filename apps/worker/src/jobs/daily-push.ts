@@ -1,9 +1,10 @@
 /**
- * Scheduled unified daily push — T-DUP-02
+ * Scheduled 产业日报 push — T-DUP-02, split from 铜锂日报 in migration 0060.
  *
- * Minute tick (briefingId=0 sentinel) reads daily_push_config and, when the
- * configured HH:mm hits, sends one merged ActionCard per active briefing_target.
- * Manual positive briefingId jobs stay on runBriefingPush (briefing-only repush).
+ * Minute tick (briefingId=0 sentinel) reads daily_push_config.send_time and, once
+ * that HH:mm has passed, sends one 产业日报 ActionCard per active briefing_target.
+ * 铜锂日报 rides its own gate at briefing_send_time (runScheduledBriefingPush);
+ * manual positive briefingId jobs stay on runBriefingPush (briefing-only repush).
  *
  * Gate-B: claim row with INSERT pending + ON CONFLICT DO NOTHING RETURNING before
  * any webhook call; only the worker that receives a row may send.
@@ -16,12 +17,11 @@ import {
   dailyPushConfig,
   dailyPushes,
   dailyReports,
-  commodityBriefings,
   briefingTargets,
   briefingHolidays,
 } from "@fe-radar/db";
 import { buildDailyPushCard, hasDailyContent, isBusinessDay } from "@fe-radar/core";
-import type { BriefingCardPayload, DailyReportSections } from "@fe-radar/core";
+import type { DailyReportSections } from "@fe-radar/core";
 import { APP_TIMEZONE, createLogger, dayjs } from "@fe-radar/shared";
 import { sendActionCard } from "../lib/dingtalk-bot";
 
@@ -151,10 +151,15 @@ export async function runScheduledDailyPush(
     return emptyResult({ skipped: true, reason: "disabled", reportDate });
   }
 
-  if (cfg.sendTime !== currentHm) {
+  // ponytail: `>=`, not `==` — daily-gen shares the 08:00 cron and finishes a few
+  // seconds late, so an exact-minute gate misses every single day. Later ticks
+  // retry until content lands; the dailyPushes (report_date, target_id) unique
+  // claim below keeps it to one send per day. Both sides are zero-padded HH:mm
+  // (zod HH_MM + daily_push_config_send_time_check), so string compare is ordered.
+  if (currentHm < cfg.sendTime) {
     logger.info(
       { reportDate, sendTime: cfg.sendTime, currentHm },
-      "daily-push skipped: time mismatch"
+      "daily-push skipped: before send_time"
     );
     return emptyResult({ skipped: true, reason: "time_mismatch", reportDate });
   }
@@ -176,29 +181,13 @@ export async function runScheduledDailyPush(
     .where(eq(dailyReports.date, reportDate))
     .limit(1);
 
-  const [briefingRow] = await db
-    .select({
-      id: commodityBriefings.id,
-      genStatus: commodityBriefings.genStatus,
-      payloadJson: commodityBriefings.payloadJson,
-    })
-    .from(commodityBriefings)
-    .where(eq(commodityBriefings.briefingDate, reportDate))
-    .limit(1);
-
   // Gate-B minor: empty `{}` is NOT daily present — require a non-empty section body.
   const dailyPresent = hasDailyContent(
     dailyRow?.sections as DailyReportSections | null | undefined
   );
-  const briefingPushable =
-    briefingRow != null &&
-    (briefingRow.genStatus === "succeeded" || briefingRow.genStatus === "degraded");
 
-  if (!dailyPresent && !briefingPushable) {
-    logger.info(
-      { reportDate, dailyPresent, briefingPresent: Boolean(briefingRow) },
-      "daily-push skipped: no content"
-    );
+  if (!dailyPresent) {
+    logger.info({ reportDate, dailyPresent }, "daily-push skipped: no content");
     return emptyResult({ skipped: true, reason: "no_content", reportDate });
   }
 
@@ -222,16 +211,9 @@ export async function runScheduledDailyPush(
     card = buildDailyPushCard({
       reportDate,
       baseUrl: cfg.baseUrl,
-      dailySections: dailyPresent
-        ? (dailyRow!.sections as DailyReportSections)
-        : null,
-      briefing: briefingPushable
-        ? {
-            id: briefingRow!.id,
-            genStatus: briefingRow!.genStatus,
-            payload: briefingRow!.payloadJson as BriefingCardPayload,
-          }
-        : null,
+      dailySections: dailyRow!.sections as DailyReportSections,
+      // 铜锂日报自 0060 起独立成卡、独立时间（runScheduledBriefingPush），不再并进这张。
+      briefing: null,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -240,13 +222,7 @@ export async function runScheduledDailyPush(
   }
 
   logger.info(
-    {
-      reportDate,
-      targetCount: targets.length,
-      dailyPresent,
-      briefingPresent: briefingPushable,
-      briefingId: briefingPushable ? briefingRow!.id : null,
-    },
+    { reportDate, targetCount: targets.length, dailyPresent },
     "daily-push: starting push"
   );
 
@@ -265,9 +241,9 @@ export async function runScheduledDailyPush(
           .values({
             reportDate,
             targetId: target.id,
-            briefingId: briefingPushable ? briefingRow!.id : null,
+            briefingId: null,
             dailyReportPresent: dailyPresent,
-            briefingPresent: briefingPushable,
+            briefingPresent: false,
             pushStatus: "pending",
             attemptCount: 0,
             errorDetail: null,
@@ -329,9 +305,9 @@ export async function runScheduledDailyPush(
         await db
           .update(dailyPushes)
           .set({
-            briefingId: briefingPushable ? briefingRow!.id : null,
+            briefingId: null,
             dailyReportPresent: dailyPresent,
-            briefingPresent: briefingPushable,
+            briefingPresent: false,
             pushStatus,
             attemptCount: result.attempts,
             errorDetail: result.error ?? null,

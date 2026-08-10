@@ -4,5 +4,6 @@ packages:
 allowBuilds:
   esbuild: true
   msgpackr-extract: true
+  re2: true
   sharp: true
   unrs-resolver: true

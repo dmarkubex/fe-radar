@@ -24,12 +24,28 @@ ENV TZ=Asia/Shanghai
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 ARG NPM_REGISTRY
+ARG DEBIAN_MIRROR
+ARG DEBIAN_SECURITY_MIRROR
 ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
 ENV npm_config_registry=${NPM_REGISTRY}
 ARG PNPM_VERSION=11.0.9
 WORKDIR /app
 
 RUN command -v pnpm >/dev/null || npm install -g pnpm@${PNPM_VERSION} --registry=${NPM_REGISTRY} --no-audit --no-fund
+
+# T4 / re2 原生模块编译链（仅 deps 阶段，不进 runner）：
+# - python3: node-gyp 驱动脚本
+# - make / g++: 编译 re2 C++ 绑定（当 GitHub 预编译 artifact 不可用时 fallback）
+# re2 的 install 脚本会先尝试下载 prebuilt，失败再 node-gyp rebuild。
+# 编译产物 .node 随 node_modules COPY 到 runner，runner 不需要本工具链。
+# 先换源再 apt：该 RUN 内的安装即走 DEBIAN_MIRROR（默认 http，无 CA 也可）
+RUN sed -i \
+      -e "s#http://deb.debian.org/debian-security#${DEBIAN_SECURITY_MIRROR}#g" \
+      -e "s#http://deb.debian.org/debian#${DEBIAN_MIRROR}#g" \
+      /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates python3 make g++ && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/web/package.json apps/web/package.json
@@ -39,6 +55,8 @@ COPY packages/llm/package.json packages/llm/package.json
 COPY packages/core/package.json packages/core/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
+# re2 在 root package.json onlyBuiltDependencies + pnpm-workspace allowBuilds 中已放行，
+# 否则 pnpm 11 会静默跳过 install 脚本 → 运行期找不到 re2.node。
 RUN pnpm config set registry ${NPM_REGISTRY} && \
     pnpm install --frozen-lockfile --child-concurrency=1
 
@@ -54,6 +72,8 @@ WORKDIR /app
 
 RUN command -v pnpm >/dev/null || npm install -g pnpm@${PNPM_VERSION} --registry=${NPM_REGISTRY} --no-audit --no-fund
 
+# 复用 deps 已装好的 node_modules（含 re2 原生 .node）；builder 只跑 tsc，
+# 不再二次编译原生模块，故此处不重复装 python3/make/g++。
 COPY --from=deps /app ./
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json tsconfig.json ./
@@ -109,17 +129,16 @@ COPY --from=playwright-browsers /ms-playwright /ms-playwright
 
 # OS 依赖 + postgresql-client；install-deps 只装系统库，不再下载浏览器。
 # apt 使用 BuildKit cache，避免每次全量重拉 deb。
+# 先换源再 apt：ca-certificates / postgresql-client / playwright OS deps 均走镜像。
 RUN --mount=type=cache,id=fe-radar-apt-cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,id=fe-radar-apt-lists,target=/var/lib/apt,sharing=locked \
     rm -f /etc/apt/apt.conf.d/docker-clean && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates && \
     sed -i \
       -e "s#http://deb.debian.org/debian-security#${DEBIAN_SECURITY_MIRROR}#g" \
       -e "s#http://deb.debian.org/debian#${DEBIAN_MIRROR}#g" \
       /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true && \
     apt-get update && \
-    apt-get install -y --no-install-recommends postgresql-client && \
+    apt-get install -y --no-install-recommends ca-certificates postgresql-client && \
     ./apps/worker/node_modules/.bin/playwright install-deps chromium-headless-shell && \
     test -x /ms-playwright/chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell
 

@@ -1,6 +1,6 @@
-import { and, count, eq, isNull, ne } from "drizzle-orm";
+import { and, count, eq, isNull, ne, sql } from "drizzle-orm";
 import { auditLogs, getDb, mergeConflicts, users } from "@fe-radar/db";
-import { getRequestUser } from "@/lib/api/authz";
+import { getRequestUser, requireFreshRole } from "@/lib/api/authz";
 import { mergeConflictActionSchema, updateUserSchema, validationError } from "@/lib/api/users-schema";
 
 import type { NextRequest } from "next/server";
@@ -10,6 +10,9 @@ interface RouteContext {
 }
 
 export async function PUT(request: NextRequest, context: RouteContext): Promise<Response> {
+  // T-SEC-06 (复核 HIGH-3): 改角色/禁用是 admin 高权限动作，查 DB 校验 token 新鲜度。
+  const freshError = await requireFreshRole(request, "admin");
+  if (freshError) return freshError;
   const { id } = await context.params;
   const userId = Number(id);
   const actor = await getRequestUser(request);
@@ -48,10 +51,22 @@ export async function PUT(request: NextRequest, context: RouteContext): Promise<
     .update(users)
     .set({
       role: parsed.data.role,
+      // T-SEC-06: 改角色/禁用都递增 token_version，让旧 JWT 在下一次特权请求被拒。
+      tokenVersion: sql`${users.tokenVersion} + 1`,
       disabledAt: parsed.data.disabled === undefined ? undefined : parsed.data.disabled ? new Date() : null
     })
     .where(eq(users.id, userId))
-    .returning();
+    .returning({
+      id: users.id,
+      username: users.username,
+      dingtalkId: users.dingtalkId,
+      name: users.name,
+      dept: users.dept,
+      role: users.role,
+      disabledAt: users.disabledAt,
+      tokenVersion: users.tokenVersion,
+      createdAt: users.createdAt
+    });
 
   if (!updated) {
     return Response.json({ error: { code: "NOT_FOUND", message: "用户不存在" } }, { status: 404 });
@@ -63,10 +78,14 @@ export async function PUT(request: NextRequest, context: RouteContext): Promise<
     targetUserId: userId,
     meta: parsed.data
   });
+  // T-SEC-11: 仅返回公共字段，绝不序列化 passwordHash（旧代码用裸 .returning() 会泄露 bcrypt verifier）。
   return Response.json(updated);
 }
 
 export async function POST(request: NextRequest, context: RouteContext): Promise<Response> {
+  // T-SEC-06 (复核 HIGH-3): 合并冲突确认是 admin 高权限动作。
+  const freshError = await requireFreshRole(request, "admin");
+  if (freshError) return freshError;
   const { id } = await context.params;
   const conflictId = Number(id);
   const actor = await getRequestUser(request);
@@ -100,7 +119,7 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
         mergedFromUserId: targetUserId
       })
       .where(eq(users.dingtalkId, conflict.unionid));
-    await tx.update(users).set({ dingtalkId: conflict.unionid, mergedAt, mergedFromUserId: targetUserId }).where(eq(users.id, targetUserId));
+    await tx.update(users).set({ dingtalkId: conflict.unionid, mergedAt, mergedFromUserId: targetUserId, tokenVersion: sql`${users.tokenVersion} + 1` }).where(eq(users.id, targetUserId));
     const [updatedConflict] = await tx.update(mergeConflicts).set({ status: "confirmed", resolvedBy: actor.id, resolvedAt: new Date() }).where(eq(mergeConflicts.id, conflictId)).returning();
     await tx.insert(auditLogs).values({ action: "merge_conflict_confirm", actorUserId: actor.id, targetUserId, meta: { conflictId, unionid: conflict.unionid } });
     return updatedConflict;

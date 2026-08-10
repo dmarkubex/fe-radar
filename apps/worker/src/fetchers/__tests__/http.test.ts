@@ -1,6 +1,8 @@
 import type * as Shared from "@fe-radar/shared";
 import type * as Undici from "undici";
+import type { LookupFunction } from "node:net";
 import { fetch as undiciFetch, Agent, ProxyAgent } from "undici";
+import { setInternalAllowlistForTests } from "@fe-radar/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { proxyPool } from "../../lib/proxy-pool";
 import { assertRobotsAllowed } from "../../lib/robots";
@@ -21,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   proxyAgent: vi.fn(function MockProxyAgent(options?: unknown) {
     return { kind: "proxy-agent", options };
   }),
+  dnsLookup: vi.fn(),
   acquire: vi.fn<() => MockProxyEndpoint | undefined>(() => undefined),
   release: vi.fn(),
   warn: vi.fn()
@@ -33,6 +36,17 @@ vi.mock("undici", async (importOriginal) => {
     fetch: mocks.fetch,
     Agent: mocks.agent,
     ProxyAgent: mocks.proxyAgent
+  };
+});
+
+// T-SEC-12: 连接时 lookup 复验直接调 node:dns；测试注入假解析结果。
+// 注意 url-guard 的 dns.promises.lookup 在本文件不会触发（守卫默认 env 关闭，
+// SSRF 用例均为 IP 字面量无需 DNS）。
+vi.mock("node:dns", () => {
+  const lookup = (...args: unknown[]) => mocks.dnsLookup(...args);
+  return {
+    default: { lookup },
+    lookup
   };
 });
 
@@ -96,9 +110,12 @@ describe("fetchTextWithPolicy dispatcher", () => {
       source: "电缆网 cableabc"
     });
 
-    expect(mockAgent).toHaveBeenCalledWith({
-      connect: { rejectUnauthorized: false }
-    });
+    const agentOptions = mockAgent.mock.calls[0]?.[0] as {
+      connect: { rejectUnauthorized?: boolean; lookup?: unknown };
+    };
+    expect(agentOptions.connect.rejectUnauthorized).toBe(false);
+    // T-SEC-12: 非代理路径一律挂连接时 lookup 复验（DNS rebinding TOCTOU 防线）。
+    expect(typeof agentOptions.connect.lookup).toBe("function");
     expect(mockProxyAgent).not.toHaveBeenCalled();
     expect(init.dispatcher).toMatchObject({ kind: "agent" });
     expect(mocks.warn).toHaveBeenCalledWith(
@@ -154,12 +171,19 @@ describe("fetchTextWithPolicy dispatcher", () => {
     expect(mocks.warn).not.toHaveBeenCalled();
   });
 
-  it("keeps the baseline strict TLS dispatcher path without proxy", async () => {
+  it("pins a connection-time lookup guard on the baseline dispatcher without proxy", async () => {
     const init = await fetchOk();
 
-    expect(mockAgent).not.toHaveBeenCalled();
+    // T-SEC-12: 默认路径不再是 undefined dispatcher（undici 全局 Agent），而是显式 Agent
+    // 挂连接时 lookup 复验，堵「fetch 前解析合法 / 建连时换成内网 IP」的 TOCTOU 窗口。
+    expect(mockAgent).toHaveBeenCalledTimes(1);
+    const agentOptions = mockAgent.mock.calls[0]?.[0] as {
+      connect: { lookup?: unknown; rejectUnauthorized?: boolean };
+    };
+    expect(typeof agentOptions.connect.lookup).toBe("function");
+    expect(agentOptions.connect.rejectUnauthorized).toBeUndefined();
     expect(mockProxyAgent).not.toHaveBeenCalled();
-    expect(init.dispatcher).toBeUndefined();
+    expect(init.dispatcher).toMatchObject({ kind: "agent" });
     expect(mocks.warn).not.toHaveBeenCalled();
     expect(mockAssertRobotsAllowed).toHaveBeenCalledWith(
       "https://example.com/news",
@@ -167,6 +191,73 @@ describe("fetchTextWithPolicy dispatcher", () => {
       expect.any(Function),
       "direct"
     );
+  });
+
+  // T-SEC-12: fetch 前守卫通过（或关闭）但建连时解析到内网 —— lookup 复验必须拒绝连接。
+  it("rejects the connection when connection-time DNS resolves to a private address", async () => {
+    const init = await fetchOk();
+    const agentOptions = mockAgent.mock.calls[0]?.[0] as {
+      connect: { lookup: LookupFunction };
+    };
+    const lookup = agentOptions.connect.lookup;
+
+    mocks.dnsLookup.mockImplementation(
+      (_hostname: string, _options: unknown, callback: (err: Error | null, records: unknown) => void) =>
+        callback(null, [{ address: "10.0.0.5", family: 4 }])
+    );
+
+    const outcome = await new Promise<{ err: (Error & { code?: string }) | null }>((resolve) => {
+      lookup("rebinding.example", { all: true }, (err) => resolve({ err }));
+    });
+    expect(outcome.err).toBeInstanceOf(Error);
+    expect(outcome.err?.code).toBe("FETCH_SSRF_BLOCKED");
+    expect(init.dispatcher).toBeDefined();
+  });
+
+  it("passes the connection when connection-time DNS resolves to public addresses only", async () => {
+    await fetchOk();
+    const agentOptions = mockAgent.mock.calls[0]?.[0] as {
+      connect: { lookup: LookupFunction };
+    };
+    const records = [{ address: "93.184.216.34", family: 4 }];
+    mocks.dnsLookup.mockImplementation(
+      (_hostname: string, _options: unknown, callback: (err: Error | null, records: unknown) => void) =>
+        callback(null, records)
+    );
+
+    const outcome = await new Promise<{ err: Error | null; addresses: unknown }>((resolve) => {
+      agentOptions.connect.lookup("example.com", { all: true }, (err, addresses) =>
+        resolve({ err, addresses })
+      );
+    });
+    expect(outcome.err).toBeNull();
+    expect(outcome.addresses).toEqual(records);
+  });
+
+  it("exempts FETCH_INTERNAL_ALLOWLIST hostnames from the connection-time lookup guard", async () => {
+    await fetchOk();
+    const agentOptions = mockAgent.mock.calls[0]?.[0] as {
+      connect: { lookup: LookupFunction };
+    };
+    const records = [{ address: "172.18.0.5", family: 4 }];
+    mocks.dnsLookup.mockImplementation(
+      (_hostname: string, _options: unknown, callback: (err: Error | null, records: unknown) => void) =>
+        callback(null, records)
+    );
+
+    // 内部服务（如 rsshub:1200）解析到私网 IP 属正常，与 assertPublicFetchUrl 的 allowlist 分支同一豁免。
+    const restore = setInternalAllowlistForTests("rsshub");
+    try {
+      const outcome = await new Promise<{ err: Error | null; addresses: unknown }>((resolve) => {
+        agentOptions.connect.lookup("rsshub", { all: true }, (err, addresses) =>
+          resolve({ err, addresses })
+        );
+      });
+      expect(outcome.err).toBeNull();
+      expect(outcome.addresses).toEqual(records);
+    } finally {
+      restore();
+    }
   });
 
   it("rejects a response that exceeds the configured byte limit", async () => {
@@ -179,6 +270,23 @@ describe("fetchTextWithPolicy dispatcher", () => {
       })
     ).rejects.toMatchObject({ code: "FETCH_RESPONSE_TOO_LARGE" });
     expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  // T-SEC-12: SSRF 守卫在 robots / fetch 之前拦截内网 / metadata 目的地（literal IP 无需 DNS）。
+  // vitest.config 默认 SSRF_GUARD_ENABLED=false；本用例显式开启以验证守卫逻辑。
+  it("blocks SSRF targets (metadata IP / loopback) before any network call", async () => {
+    vi.stubEnv("SSRF_GUARD_ENABLED", "true");
+    try {
+      await expect(
+        fetchTextWithPolicy("http://169.254.169.254/latest/meta-data/", { timeoutMs: 1000 })
+      ).rejects.toMatchObject({ code: "FETCH_SSRF_BLOCKED" });
+      await expect(
+        fetchTextWithPolicy("http://127.0.0.1:5432/", { timeoutMs: 1000 })
+      ).rejects.toMatchObject({ code: "FETCH_SSRF_BLOCKED" });
+      expect(mockFetch).not.toHaveBeenCalled();
+    } finally {
+      vi.stubEnv("SSRF_GUARD_ENABLED", "false");
+    }
   });
 });
 

@@ -1,10 +1,16 @@
 import { eq } from "drizzle-orm";
 import { dailyReports, getDb } from "@fe-radar/db";
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
+import { requireFreshViewer } from "@/lib/auth/token-freshness";
 import { isMockMode } from "@/lib/mock-mode";
 import { mockDailyReport } from "@/lib/mock-data";
 
-export async function GET(request: Request): Promise<Response> {
+import type { NextRequest } from "next/server";
+
+export async function GET(request: NextRequest): Promise<Response> {
+  const freshError = await requireFreshViewer(request);
+  if (freshError) return freshError;
+
   const { searchParams } = new URL(request.url);
   const date = searchParams.get("date") ?? dayjs().tz(APP_TIMEZONE).format("YYYY-MM-DD");
   if (isMockMode()) {

@@ -8,6 +8,7 @@ import {
 } from "@fe-radar/db";
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
 import { getRequestUser } from "@/lib/api/authz";
+import { requireFreshViewer } from "@/lib/auth/token-freshness";
 
 import type { NextRequest } from "next/server";
 
@@ -87,6 +88,9 @@ function buildDiagnosticMessage(
  * observed_at ASC (oldest first, for chart rendering).
  */
 export async function GET(request: NextRequest): Promise<Response> {
+  const freshError = await requireFreshViewer(request);
+  if (freshError) return freshError;
+
   const user = await getRequestUser(request);
   if (!user.role) {
     return Response.json(

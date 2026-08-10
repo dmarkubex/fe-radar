@@ -41,6 +41,7 @@ import { APP_TIMEZONE, createLogger, dayjs } from "@fe-radar/shared";
 import { renderBriefing } from "../lib/briefing-render";
 import { BRIEFING_TEMPLATE_VERSION } from "../lib/briefing-constants";
 import { createRedisConnection, QUEUE_QUOTES_FETCH } from "../queues";
+import { loadProjectCodes } from "../handlers/context";
 
 const logger = createLogger({ service: "briefing-gen" });
 
@@ -370,7 +371,9 @@ export async function runBriefingGen(
   // ── Step 3: LLM 7-segment generation ──────────────────────
   let llmOutput: BriefingOutput;
   try {
-    const result = await llmRunBriefingGen(briefingInput);
+    // T-SEC-09: 注入项目代号字典。
+    const projectCodes = await loadProjectCodes();
+    const result = await llmRunBriefingGen(briefingInput, projectCodes);
     llmOutput = result.value;
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);

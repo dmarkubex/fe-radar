@@ -35,6 +35,7 @@ vi.mock("@fe-radar/db", () => ({
   briefingTargets: { id: "id", name: "name", webhookUrl: "webhook_url", signSecret: "sign_secret", enabled: "enabled", disabledAt: "disabled_at" },
   briefingPushes: { id: "id", briefingId: "briefing_id", targetId: "target_id", pushStatus: "push_status", attemptCount: "attempt_count", errorDetail: "error_detail", pushedAt: "pushed_at" },
   briefingHolidays: { holidayDate: "holiday_date" },
+  dailyPushConfig: { id: "id", enabled: "enabled", briefingSendTime: "briefing_send_time", baseUrl: "base_url" },
 }));
 
 // ---------------------------------------------------------------------------
@@ -57,23 +58,29 @@ vi.mock("@fe-radar/core", () => ({
 // ---------------------------------------------------------------------------
 // Mock @fe-radar/shared
 // ---------------------------------------------------------------------------
-vi.mock("@fe-radar/shared", () => ({
-  createLogger: () => ({
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  }),
-}));
+vi.mock("@fe-radar/shared", async (importOriginal) => {
+  const mod = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...mod,
+    createLogger: () => ({
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    }),
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Mock dingtalk-bot
 // ---------------------------------------------------------------------------
 let sendActionCardImpl: () => Promise<void> = async () => undefined;
 const capturedSendActionCardCalls: Array<{ webhookUrl: string; signSecret: string }> = [];
+const capturedCardOpts: Array<{ btns?: Array<{ actionURL: string }> }> = [];
 
 vi.mock("../../lib/dingtalk-bot", () => ({
-  sendActionCard: vi.fn(async (webhookUrl: string, signSecret: string, _opts: unknown) => {
+  sendActionCard: vi.fn(async (webhookUrl: string, signSecret: string, opts: unknown) => {
     capturedSendActionCardCalls.push({ webhookUrl, signSecret });
+    capturedCardOpts.push(opts as { btns?: Array<{ actionURL: string }> });
     return sendActionCardImpl();
   }),
 }));
@@ -90,7 +97,7 @@ vi.mock("p-limit", () => ({
 // ---------------------------------------------------------------------------
 // Import system under test AFTER mocks
 // ---------------------------------------------------------------------------
-import { runBriefingPush } from "../briefing-push";
+import { runBriefingPush, runScheduledBriefingPush } from "../briefing-push";
 
 // ---------------------------------------------------------------------------
 // Helper: configure mockSelect to serve calls in sequence
@@ -103,6 +110,7 @@ function setupSelectSequence(results: unknown[]) {
 beforeEach(() => {
   vi.clearAllMocks();
   capturedSendActionCardCalls.length = 0;
+  capturedCardOpts.length = 0;
   sendActionCardImpl = async () => undefined;
   businessDay = true;
 
@@ -256,5 +264,88 @@ describe("briefing-push job", () => {
     expect(result.failed).toBe(0);
     expect(mockInsert).not.toHaveBeenCalled();
     expect(capturedSendActionCardCalls).toHaveLength(0);
+  });
+});
+
+describe("runBriefingPush baseUrl resolution", () => {
+  const briefing = { id: 42, briefingDate: "2026-08-03", payloadJson: {} };
+  const target = { id: 10, name: "群", webhookUrl: "https://hook/x", signSecret: null };
+
+  it("manual repush (no baseUrl arg) uses daily_push_config.base_url", async () => {
+    setupSelectSequence([
+      [],                                    // holidaySet
+      [briefing],                            // load briefing
+      [target],                              // load targets
+      [{ baseUrl: "http://10.1.20.156:3013" }], // daily_push_config
+      [],                                    // no existing push
+    ]);
+
+    await runBriefingPush(42);
+
+    expect(capturedCardOpts[0]?.btns?.[0]?.actionURL).toBe(
+      "http://10.1.20.156:3013/briefing/42"
+    );
+  });
+
+  it("falls back to the env default when the config row is missing", async () => {
+    setupSelectSequence([
+      [],
+      [briefing],
+      [target],
+      [],  // no config row
+      [],
+    ]);
+
+    await runBriefingPush(42);
+
+    // stack 89 sets neither INTRANET_URL nor NEXT_PUBLIC_APP_URL — this is the
+    // dead link the config lookup above exists to avoid.
+    expect(capturedCardOpts[0]?.btns?.[0]?.actionURL).toBe(
+      "http://fe-radar.internal/briefing/42"
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 0060: 铜锂日报 rides its own gate at briefing_send_time
+// ---------------------------------------------------------------------------
+describe("runScheduledBriefingPush", () => {
+  const enabledConfig = { enabled: true, briefingSendTime: "17:00", baseUrl: "http://radar.internal" };
+  /** Monday 2026-08-03 16:59 Asia/Shanghai */
+  const BEFORE = new Date("2026-08-03T08:59:00.000Z");
+  /** Monday 2026-08-03 17:05 Asia/Shanghai — gen at 16:00 has long finished */
+  const AFTER = new Date("2026-08-03T09:05:00.000Z");
+
+  it("skips before briefing_send_time", async () => {
+    setupSelectSequence([[enabledConfig]]);
+    const result = await runScheduledBriefingPush({ now: BEFORE });
+    expect(result.skipped).toBe(true);
+    expect(result.reason).toBe("before_send_time");
+    expect(capturedSendActionCardCalls).toHaveLength(0);
+  });
+
+  it("skips when the shared enabled switch is off", async () => {
+    setupSelectSequence([[{ ...enabledConfig, enabled: false }]]);
+    const result = await runScheduledBriefingPush({ now: AFTER });
+    expect(result.skipped).toBe(true);
+    expect(result.reason).toBe("disabled");
+    expect(capturedSendActionCardCalls).toHaveLength(0);
+  });
+
+  it("pushes today's briefing once the time has passed, using config baseUrl", async () => {
+    const briefing = { id: 42, briefingDate: "2026-08-03", payloadJson: { cu: { outlook: { trend: "偏多" } } } };
+    setupSelectSequence([
+      [enabledConfig],
+      [{ id: 42, genStatus: "succeeded" }], // scheduleLatestBriefingPush
+      [],                                    // holidaySet
+      [briefing],                            // load briefing
+      [{ id: 7, name: "群", webhookUrl: "https://hook/x", signSecret: null }],
+      [],                                    // no existing push
+    ]);
+    const result = await runScheduledBriefingPush({ now: AFTER });
+    expect(result.skipped).toBe(false);
+    expect(result.briefingId).toBe(42);
+    expect(capturedSendActionCardCalls).toHaveLength(1);
+    expect(capturedCardOpts[0]?.btns?.[0]?.actionURL).toBe("http://radar.internal/briefing/42");
   });
 });

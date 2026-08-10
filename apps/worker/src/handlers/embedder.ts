@@ -5,7 +5,7 @@ import { withScrubber } from "@fe-radar/llm";
 import type { PipelineJob } from "../queues";
 import { runEmbedder } from "../jobs/embedder";
 
-import { logger, handlerContext } from "./context";
+import { logger, handlerContext, loadProjectCodes } from "./context";
 import { passesIndustryGate } from "./pipeline-gate";
 
 export async function handleEmbedderJob(job: { data: PipelineJob }): Promise<void> {
@@ -24,7 +24,9 @@ export async function handleEmbedderJob(job: { data: PipelineJob }): Promise<voi
 
   if (!row) return;
 
-  const embedding = await runEmbedder(row.title, row.summaryZh ?? row.title, withScrubber(handlerContext.qwen));
+  // T-SEC-09: 项目代号字典按 job 即时加载（5min 缓存命中便宜），admin 新增代号无需重启 worker。
+  const projectCodes = await loadProjectCodes();
+  const embedding = await runEmbedder(row.title, row.summaryZh ?? row.title, withScrubber(handlerContext.qwen, { projectCodes }));
   if (embedding) {
     await db.update(itemAnalysis).set({ embedding: JSON.stringify(embedding) as unknown as number[] }).where(eq(itemAnalysis.itemId, itemId));
   }

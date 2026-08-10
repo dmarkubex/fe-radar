@@ -2,6 +2,7 @@ import { and, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
 import { dailyReports, getDb, itemAnalysis, items, sources } from "@fe-radar/db";
 import { APP_TIMEZONE, dayjs, LlmError } from "@fe-radar/shared";
 import { assertKimiContext, DAILY_REPORT_SCHEMA, DAILY_REPORT_SYSTEM_PROMPT, withScrubber } from "@fe-radar/llm";
+import { loadProjectCodes } from "../handlers/context";
 
 import type { DbClient } from "@fe-radar/db";
 import type { DailyReportResult, LlmClient } from "@fe-radar/llm";
@@ -59,7 +60,9 @@ export async function runDailyGen(kimi: LlmClient, options: { db?: DbClient; now
 
   const user = buildDailyReportInput(inputItems);
   assertKimiContext(user);
-  const client = withScrubber(kimi, { blockThreshold: 3 });
+  // T-SEC-09: 注入项目代号字典（job 内即时加载，缓存命中便宜）。
+  const projectCodes = await loadProjectCodes();
+  const client = withScrubber(kimi, { blockThreshold: 3, projectCodes });
   const result = await client.chatJson<DailyReportResult>({
     system: DAILY_REPORT_SYSTEM_PROMPT,
     user,

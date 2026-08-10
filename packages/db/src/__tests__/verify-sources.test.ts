@@ -348,23 +348,23 @@ describe("verify-sources", () => {
         name: "bad-pw-no-wait",
         url: "https://example.com",
         fetcherType: "playwright",
-        config: { extractor: "() => []" }
+        config: { itemSelector: "a" }
       });
       const result = await checkPlaywright(source);
       expect(result.ok).toBe(false);
       expect(result.error).toContain("missing waitFor");
     });
 
-    it("fails when extractor is missing", async () => {
+    it("fails when itemSelector is missing", async () => {
       const source = makeSource({
-        name: "bad-pw-no-ext",
+        name: "bad-pw-no-sel",
         url: "https://example.com",
         fetcherType: "playwright",
         config: { waitFor: "body" }
       });
       const result = await checkPlaywright(source);
       expect(result.ok).toBe(false);
-      expect(result.error).toContain("missing waitFor or extractor");
+      expect(result.error).toContain("missing waitFor or itemSelector");
     });
 
     it("fails when URL is unreachable (non-2xx)", async () => {
@@ -373,7 +373,7 @@ describe("verify-sources", () => {
         name: "pw-403",
         url: "https://example.com",
         fetcherType: "playwright",
-        config: { waitFor: ".news-list", extractor: "() => []" }
+        config: { waitFor: ".news-list", itemSelector: "a" }
       });
       const result = await checkPlaywright(source);
       expect(result.ok).toBe(false);
@@ -389,7 +389,7 @@ describe("verify-sources", () => {
         config: {
           listUrl: "https://example.com/news",
           waitFor: ".news-list",
-          extractor: "() => []"
+          itemSelector: "a"
         }
       });
 
@@ -421,7 +421,7 @@ describe("verify-sources", () => {
         name: "pw-zero-items",
         url: "https://example.com",
         fetcherType: "playwright",
-        config: { waitFor: ".nonexistent", extractor: "() => []" }
+        config: { waitFor: ".nonexistent", itemSelector: "a" }
       });
 
       const mockPage = {
@@ -450,7 +450,7 @@ describe("verify-sources", () => {
         name: "pw-selector-timeout",
         url: "https://example.com",
         fetcherType: "playwright",
-        config: { waitFor: ".slow-selector", extractor: "() => []" }
+        config: { waitFor: ".slow-selector", itemSelector: "a" }
       });
 
       const mockPage = {
@@ -483,7 +483,7 @@ describe("verify-sources", () => {
         name: "pw-ok",
         url: "https://example.com",
         fetcherType: "playwright",
-        config: { waitFor: ".news-list", extractor: "() => []" }
+        config: { waitFor: ".news-list", itemSelector: "a" }
       });
 
       const mockPage = {
@@ -636,7 +636,7 @@ describe("verify-sources", () => {
           type: "playwright",
           listUrl: "https://news.bjx.com.cn/",
           waitFor: ".news-list",
-          extractor: "() => []"
+          itemSelector: "a"
         }
       });
       expect(after0011.fetcherType).toBe("playwright");

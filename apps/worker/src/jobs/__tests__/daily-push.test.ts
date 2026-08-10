@@ -140,17 +140,12 @@ const sections = {
   company: "公司摘要",
 };
 
-const briefingPayload = {
-  cu: { outlook: { trend: "偏多" } },
-  lc: { outlook: { trend: "偏空" } },
-  macro_summary: "宏观",
-  procurement_advice: "刚需",
-};
-
 /** Monday 2026-08-03 16:15 Asia/Shanghai = 08:15 UTC */
 const HIT_NOW = new Date("2026-08-03T08:15:00.000Z");
-/** Monday 2026-08-03 16:14 Asia/Shanghai */
+/** Monday 2026-08-03 16:14 Asia/Shanghai — before send_time */
 const MISS_NOW = new Date("2026-08-03T08:14:00.000Z");
+/** Monday 2026-08-03 16:18 Asia/Shanghai — after send_time, content arrived late */
+const LATE_NOW = new Date("2026-08-03T08:18:00.000Z");
 /** Saturday 2026-08-08 16:15 Asia/Shanghai */
 const WEEKEND_NOW = new Date("2026-08-08T08:15:00.000Z");
 
@@ -199,6 +194,19 @@ describe("runScheduledDailyPush", () => {
     expect(sendCalls).toHaveLength(0);
   });
 
+  it("still pushes on a later tick when content lands after send_time", async () => {
+    setupSelectSequence([
+      [enabledConfig],
+      [], // holidays
+      [{ date: "2026-08-03", sections }],
+      [{ id: 1, name: "群A", webhookUrl: "https://hook/a", signSecret: "s" }],
+    ]);
+    const result = await runScheduledDailyPush({ now: LATE_NOW, sleepFn: async () => undefined });
+    expect(result.skipped).toBe(false);
+    expect(result.succeeded).toBe(1);
+    expect(sendCalls).toHaveLength(1);
+  });
+
   it("skips on weekend/holiday when schedule_mode=business_days", async () => {
     businessDay = false;
     setupSelectSequence([
@@ -216,7 +224,6 @@ describe("runScheduledDailyPush", () => {
       [enabledConfig],
       [], // holidays
       [{ date: "2026-08-03", sections }],
-      [{ id: 9, genStatus: "succeeded", payloadJson: briefingPayload }],
       [], // targets
     ]);
     const result = await runScheduledDailyPush({ now: HIT_NOW, sleepFn: async () => undefined });
@@ -225,12 +232,11 @@ describe("runScheduledDailyPush", () => {
     expect(sendCalls).toHaveLength(0);
   });
 
-  it("skips when neither daily nor pushable briefing exists", async () => {
+  it("skips when no daily report exists", async () => {
     setupSelectSequence([
       [enabledConfig],
       [], // holidays
       [], // daily
-      [{ id: 3, genStatus: "failed", payloadJson: {} }], // not pushable
     ]);
     const result = await runScheduledDailyPush({ now: HIT_NOW, sleepFn: async () => undefined });
     expect(result.skipped).toBe(true);
@@ -243,7 +249,6 @@ describe("runScheduledDailyPush", () => {
       [enabledConfig],
       [],
       [{ date: "2026-08-03", sections: {} }],
-      [], // no briefing
     ]);
     const result = await runScheduledDailyPush({ now: HIT_NOW, sleepFn: async () => undefined });
     expect(result.skipped).toBe(true);
@@ -256,7 +261,6 @@ describe("runScheduledDailyPush", () => {
       [enabledConfig],
       [], // holidays
       [{ date: "2026-08-03", sections }],
-      [], // briefing missing
       [{ id: 1, name: "群A", webhookUrl: "https://hook/a", signSecret: "s" }],
     ]);
     const result = await runScheduledDailyPush({ now: HIT_NOW, sleepFn: async () => undefined });
@@ -268,37 +272,8 @@ describe("runScheduledDailyPush", () => {
     expect(capturedCards[0]?.title).toContain("日报");
     expect(capturedCards[0]?.btns).toHaveLength(1);
     expect((capturedCards[0]?.btns[0] as { title: string }).title).toBe("查看产业日报");
-  });
-
-  it("sends briefing-only card", async () => {
-    setupSelectSequence([
-      [enabledConfig],
-      [],
-      [], // no daily
-      [{ id: 11, genStatus: "degraded", payloadJson: briefingPayload }],
-      [{ id: 2, name: "群B", webhookUrl: "https://hook/b", signSecret: null }],
-    ]);
-    const result = await runScheduledDailyPush({ now: HIT_NOW, sleepFn: async () => undefined });
-    expect(result.skipped).toBe(false);
-    expect(result.succeeded).toBe(1);
-    expect(capturedCards[0]?.title).toContain("铜锂");
-    expect(capturedCards[0]?.btns).toHaveLength(1);
-    expect((capturedCards[0]?.btns[0] as { actionURL: string }).actionURL).toContain("/briefing/11");
-  });
-
-  it("sends merged card when both present", async () => {
-    setupSelectSequence([
-      [enabledConfig],
-      [],
-      [{ date: "2026-08-03", sections }],
-      [{ id: 5, genStatus: "succeeded", payloadJson: briefingPayload }],
-      [{ id: 3, name: "群C", webhookUrl: "https://hook/c", signSecret: "sec" }],
-    ]);
-    const result = await runScheduledDailyPush({ now: HIT_NOW, sleepFn: async () => undefined });
-    expect(result.skipped).toBe(false);
-    expect(result.succeeded).toBe(1);
-    expect(capturedCards[0]?.title).toContain("合并日报");
-    expect(capturedCards[0]?.btns).toHaveLength(2);
+    // 0060: 铜锂日报 is its own card at its own time, never merged into this one.
+    expect(capturedCards[0]?.text).not.toContain("铜锂");
   });
 
   it("is idempotent: failed claim + existing succeeded skips send", async () => {
@@ -307,7 +282,6 @@ describe("runScheduledDailyPush", () => {
       [enabledConfig],
       [],
       [{ date: "2026-08-03", sections }],
-      [],
       [{ id: 4, name: "群D", webhookUrl: "https://hook/d", signSecret: null }],
       [{ pushStatus: "succeeded" }], // existing row after failed claim
     ]);
@@ -328,7 +302,6 @@ describe("runScheduledDailyPush", () => {
       [enabledConfig],
       [],
       [{ date: "2026-08-03", sections }],
-      [],
       [
         { id: 10, name: "winner", webhookUrl: "https://hook/win", signSecret: null },
         { id: 11, name: "loser", webhookUrl: "https://hook/lose", signSecret: null },
@@ -351,7 +324,6 @@ describe("runScheduledDailyPush", () => {
       [enabledConfig],
       [],
       [{ date: "2026-08-03", sections }],
-      [],
       [
         { id: 10, name: "fail", webhookUrl: "https://hook/fail", signSecret: null },
         { id: 11, name: "ok", webhookUrl: "https://hook/ok", signSecret: null },

@@ -91,3 +91,70 @@ describe("mergeOrCreateUser disabled gate (FR-05a)", () => {
     expect(err).toBeInstanceOf(Error);
   });
 });
+
+describe("mergeOrCreateUser privileged-inheritance guard (T-SEC-01)", () => {
+  // 单候选 editor/admin 不再 auto_merge —— 写 conflict + 建 viewer，让 admin 在合并冲突页确认。
+  function makeTx(candidate: { id: number; name: string; role: string; dept: string | null }) {
+    const conflictRow = { id: 99, unionid: "u-priv", candidateIds: [candidate.id] };
+    const createdViewer = {
+      id: 50, name: candidate.name, role: "viewer", dept: candidate.dept,
+      dingtalkId: "u-priv", disabledAt: null
+    };
+    let selectCount = 0;
+    let insertCount = 0;
+    return {
+      select: () => ({
+        from: () => ({
+          where: () => {
+            selectCount += 1;
+            // 1st select: unionid match → []（链 .limit）；2nd select: candidates → [candidate]
+            const result = selectCount === 2 ? [candidate] : [];
+            // 既是 awaitable（candidates 路径）又有 .limit()（unionid 路径）。
+            return {
+              limit: async () => result,
+              then: (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve)
+            };
+          }
+        })
+      }),
+      insert: () => ({
+        // 1st insert: mergeConflicts; 2nd insert: audit log; 3rd insert: new viewer
+        values: () => {
+          insertCount += 1;
+          let result: unknown[] = [{}];
+          if (insertCount === 1) result = [conflictRow];
+          if (insertCount === 3) result = [createdViewer];
+          return {
+            returning: async () => result,
+            // audit 路径 await .values()：返回 result（不报错即可）
+            then: (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve)
+          };
+        }
+      }),
+      update: () => ({ set: () => ({ where: () => ({ returning: async () => [{}] }) }) })
+    };
+  }
+
+  it("does NOT auto-merge a single editor candidate (creates conflict + viewer)", async () => {
+    const tx = makeTx({ id: 7, name: "张三", role: "editor", dept: "采购" });
+    const db = {
+      transaction: async <T>(fn: (inner: typeof tx) => Promise<T>): Promise<T> => fn(tx)
+    } as unknown as DbClient;
+
+    const result = await mergeOrCreateUser({ unionid: "u-priv", name: "张三", dept: "采购" }, db);
+    expect(result.role).toBe("viewer"); // 不继承 editor
+    expect(result.id).toBe(50); // 新建 viewer，不是候选 7
+    expect(result.conflictId).toBe(99); // 写了冲突待 admin 确认
+  });
+
+  it("does NOT auto-merge a single admin candidate (creates conflict + viewer)", async () => {
+    const tx = makeTx({ id: 8, name: "李四", role: "admin", dept: "产业情报" });
+    const db = {
+      transaction: async <T>(fn: (inner: typeof tx) => Promise<T>): Promise<T> => fn(tx)
+    } as unknown as DbClient;
+
+    const result = await mergeOrCreateUser({ unionid: "u-priv", name: "李四", dept: "产业情报" }, db);
+    expect(result.role).toBe("viewer");
+    expect(result.conflictId).toBe(99);
+  });
+});

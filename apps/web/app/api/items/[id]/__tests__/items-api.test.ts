@@ -26,24 +26,23 @@ type DetailSourceRow = Record<string, unknown> & {
 };
 
 const users = vi.hoisted(() => ({
-  current: {} as User
+  current: {} as User & { tokenVersion?: number }
 }));
 
 const dbState = vi.hoisted(() => ({
   existingItems: new Set<number>(),
   feedbacks: new Map<string, FeedbackRow>(),
-  nextFeedbackId: 1
+  nextFeedbackId: 1,
+  /** S3a: users row for requireFreshViewer → verifyTokenFreshness PK lookup */
+  freshnessUser: null as null | {
+    disabledAt: Date | null;
+    role: string;
+    tokenVersion: number;
+  }
 }));
 
 const getDbMock = vi.hoisted(() => vi.fn());
 const fetchItemDetailMock = vi.hoisted(() => vi.fn());
-const mirofishMock = vi.hoisted(() => {
-  class ConfigError extends Error {}
-  return {
-    ConfigError,
-    createProject: vi.fn()
-  };
-});
 
 vi.mock("drizzle-orm", () => ({
   and: vi.fn((...conditions: Array<QueryPredicate | undefined>) => ({
@@ -70,6 +69,9 @@ vi.mock("@/lib/api/authz", () => ({
   canIncludeBlocked: (role: User["role"], includeBlocked: boolean) =>
     includeBlocked && role === "admin",
   getRequestUser: vi.fn(async () => users.current),
+  // T-SEC-06 (复核 HIGH-3): 特权路由现在调 requireFreshRole。
+  // 这些用例测角色强制，不测 token 撤权；freshness 视为通过（角色不符仍由 hasRole 拦）。
+  requireFreshRole: vi.fn(async (_req: unknown, _role: unknown) => null),
   notFound: () =>
     Response.json(
       { error: { code: "NOT_FOUND", message: "条目不存在或不可访问" } },
@@ -84,11 +86,6 @@ vi.mock("@/lib/api/authz", () => ({
 
 vi.mock("@/lib/api/timeline-query", () => ({
   fetchItemDetail: fetchItemDetailMock
-}));
-
-vi.mock("@/lib/api/mirofish", () => ({
-  MirofishConfigError: mirofishMock.ConfigError,
-  createMirofishProjectFromItem: mirofishMock.createProject
 }));
 
 vi.mock("@/lib/logger", () => ({
@@ -143,6 +140,13 @@ vi.mock("@fe-radar/db", () => ({
   feedbacks: {
     itemId: "feedbacks.itemId",
     userId: "feedbacks.userId"
+  },
+  // S3a: verifyTokenFreshness PK lookup (users.id === "id" distinguishes from items)
+  users: {
+    id: "id",
+    role: "role",
+    disabledAt: "disabledAt",
+    tokenVersion: "tokenVersion"
   },
   getDb: getDbMock,
   itemAnalysis: {
@@ -204,17 +208,42 @@ function params(id: string) {
   return { params: Promise.resolve({ id }) };
 }
 
+/** Active session + matching DB row for requireFreshViewer (S3b needs tokenVersion). */
+function actAs(
+  user: Required<Pick<User, "id" | "role">> & { tokenVersion?: number }
+): void {
+  const tokenVersion = user.tokenVersion ?? 1;
+  users.current = { id: user.id, role: user.role, tokenVersion };
+  dbState.freshnessUser = {
+    disabledAt: null,
+    role: user.role,
+    tokenVersion
+  };
+}
+
 function createFakeDb() {
   return {
     select: () => ({
-      from: () => ({
-        where: (condition: { value: number }) => ({
-          limit: async () =>
-            dbState.existingItems.has(condition.value)
-              ? [{ id: condition.value }]
-              : []
-        })
-      })
+      from: (table?: { id?: string }) => {
+        // S3a: verifyTokenFreshness selects from users (id column symbol is "id")
+        const isUsersTable =
+          table &&
+          typeof table === "object" &&
+          "id" in table &&
+          table.id === "id";
+        return {
+          where: (condition: { value: number }) => ({
+            limit: async () => {
+              if (isUsersTable) {
+                return dbState.freshnessUser ? [dbState.freshnessUser] : [];
+              }
+              return dbState.existingItems.has(condition.value)
+                ? [{ id: condition.value }]
+                : [];
+            }
+          })
+        };
+      }
     }),
     insert: () => ({
       values: (value: Omit<FeedbackRow, "id">) => ({
@@ -406,15 +435,16 @@ describe("/api/items/[id]", () => {
     dbState.existingItems = new Set([42]);
     dbState.feedbacks = new Map();
     dbState.nextFeedbackId = 1;
+    dbState.freshnessUser = null;
+    getDbMock.mockClear();
     getDbMock.mockReturnValue(createFakeDb());
     fetchItemDetailMock.mockReset();
-    mirofishMock.createProject.mockReset();
   });
 
   describe("GET detail", () => {
     it("returns 404 when the item detail query finds no visible row", async () => {
       const { GET } = await import("../route");
-      users.current = { id: 1, role: "viewer" };
+      actAs({ id: 1, role: "viewer" });
       fetchItemDetailMock.mockResolvedValue(null);
 
       const response = await GET(
@@ -475,7 +505,7 @@ describe("/api/items/[id]", () => {
 
     it("allows only admins to request blocked item visibility", async () => {
       const { GET } = await import("../route");
-      users.current = { id: 1, role: "admin" };
+      actAs({ id: 1, role: "admin" });
       fetchItemDetailMock.mockResolvedValue({
         id: 42,
         title: "blocked detail"
@@ -496,7 +526,7 @@ describe("/api/items/[id]", () => {
 
     it("ignores includeBlocked for non-admin users", async () => {
       const { GET } = await import("../route");
-      users.current = { id: 1, role: "editor" };
+      actAs({ id: 1, role: "editor" });
       fetchItemDetailMock.mockResolvedValue(null);
 
       const response = await GET(
@@ -511,64 +541,6 @@ describe("/api/items/[id]", () => {
     });
   });
 
-  describe("POST mirofish", () => {
-    it("requires editor role or above", async () => {
-      const { POST } = await import("../mirofish/route");
-      users.current = { id: 7, role: "viewer" };
-
-      const response = await POST(
-        makeNextRequest("https://radar.test/api/items/42/mirofish"),
-        params("42")
-      );
-
-      expect(response.status).toBe(403);
-      expect(fetchItemDetailMock).not.toHaveBeenCalled();
-      expect(mirofishMock.createProject).not.toHaveBeenCalled();
-    });
-
-    it("creates a MiroFish project from item detail", async () => {
-      const { POST } = await import("../mirofish/route");
-      users.current = { id: 7, role: "editor" };
-      const item = { id: 42, title: "detail" };
-      fetchItemDetailMock.mockResolvedValue(item);
-      mirofishMock.createProject.mockResolvedValue({
-        projectId: "proj_123",
-        projectUrl: "http://mirofish.local/process/proj_123"
-      });
-
-      const response = await POST(
-        makeNextRequest("https://radar.test/api/items/42/mirofish"),
-        params("42")
-      );
-      const payload = await response.json();
-
-      expect(response.status).toBe(201);
-      expect(fetchItemDetailMock).toHaveBeenCalledWith(42, { includeBlocked: false });
-      expect(mirofishMock.createProject).toHaveBeenCalledWith(item, null);
-      expect(payload).toEqual({
-        itemId: 42,
-        projectId: "proj_123",
-        projectUrl: "http://mirofish.local/process/proj_123"
-      });
-    });
-
-    it("reports missing MiroFish config as 503", async () => {
-      const { POST } = await import("../mirofish/route");
-      users.current = { id: 7, role: "editor" };
-      fetchItemDetailMock.mockResolvedValue({ id: 42, title: "detail" });
-      mirofishMock.createProject.mockRejectedValue(new mirofishMock.ConfigError("missing config"));
-
-      const response = await POST(
-        makeNextRequest("https://radar.test/api/items/42/mirofish"),
-        params("42")
-      );
-      const payload = await response.json();
-
-      expect(response.status).toBe(503);
-      expect(payload.error.code).toBe("MIROFISH_NOT_CONFIGURED");
-    });
-  });
-
   describe("POST feedback", () => {
     it("requires an authenticated user", async () => {
       const { POST } = await import("../feedback/route");
@@ -580,7 +552,9 @@ describe("/api/items/[id]", () => {
       );
 
       expect(response.status).toBe(401);
+      // No session → requireFreshViewer skips DB; no feedback write path either.
       expect(getDbMock).not.toHaveBeenCalled();
+      expect(dbState.feedbacks.size).toBe(0);
     });
 
     it.each([
@@ -591,7 +565,7 @@ describe("/api/items/[id]", () => {
       }
     ])("rejects $name", async ({ body }) => {
       const { POST } = await import("../feedback/route");
-      users.current = { id: 7, role: "viewer" };
+      actAs({ id: 7, role: "viewer" });
 
       const response = await POST(
         jsonRequest("https://radar.test/api/items/42/feedback", body),
@@ -601,12 +575,15 @@ describe("/api/items/[id]", () => {
 
       expect(response.status).toBe(400);
       expect(payload.error.code).toBe("VALIDATION_ERROR");
-      expect(getDbMock).not.toHaveBeenCalled();
+      // S3b: requireFreshViewer may call getDb for token freshness before validation;
+      // assert no feedback was written rather than "getDb never called".
+      expect(dbState.feedbacks.size).toBe(0);
     });
 
     it("returns 404 when the item does not exist", async () => {
       const { POST } = await import("../feedback/route");
-      users.current = { id: 7, role: "viewer" };
+      actAs({ id: 7, role: "viewer" });
+      fetchItemDetailMock.mockResolvedValue(null);
 
       const response = await POST(
         jsonRequest("https://radar.test/api/items/404/feedback", { vote: 1 }),
@@ -617,9 +594,27 @@ describe("/api/items/[id]", () => {
       expect(dbState.feedbacks.size).toBe(0);
     });
 
+    // T-SEC-14: item exists in DB but is timeline-invisible (quota-blocked / unscored / scrubbed)
+    // → fetchItemDetail returns null → same 404 as nonexistent, no feedback written.
+    it("returns 404 (no feedback written) when the item exists but is invisible", async () => {
+      const { POST } = await import("../feedback/route");
+      actAs({ id: 7, role: "viewer" });
+      fetchItemDetailMock.mockResolvedValue(null);
+
+      const response = await POST(
+        jsonRequest("https://radar.test/api/items/42/feedback", { vote: 1 }),
+        params("42")
+      );
+
+      expect(response.status).toBe(404);
+      expect(dbState.feedbacks.size).toBe(0);
+    });
+
     it("updates an existing feedback row for the same item and user", async () => {
       const { POST } = await import("../feedback/route");
-      users.current = { id: 7, role: "viewer" };
+      actAs({ id: 7, role: "viewer" });
+      // T-SEC-14: feedback route now resolves visibility via fetchItemDetail.
+      fetchItemDetailMock.mockResolvedValue({ id: 42, title: "visible item" });
 
       const first = await POST(
         jsonRequest("https://radar.test/api/items/42/feedback", {
@@ -651,8 +646,10 @@ describe("/api/items/[id]", () => {
 
     it("keeps feedback scoped by user", async () => {
       const { POST } = await import("../feedback/route");
+      // T-SEC-14: item visible for both viewers in this test.
+      fetchItemDetailMock.mockResolvedValue({ id: 42, title: "visible item" });
 
-      users.current = { id: 7, role: "viewer" };
+      actAs({ id: 7, role: "viewer" });
       await POST(
         jsonRequest("https://radar.test/api/items/42/feedback", {
           vote: 1,
@@ -660,7 +657,7 @@ describe("/api/items/[id]", () => {
         }),
         params("42")
       );
-      users.current = { id: 8, role: "viewer" };
+      actAs({ id: 8, role: "viewer" });
       const response = await POST(
         jsonRequest("https://radar.test/api/items/42/feedback", {
           vote: -1,
@@ -674,6 +671,69 @@ describe("/api/items/[id]", () => {
         { id: 1, itemId: 42, userId: 7, vote: 1, reason: "alice" },
         { id: 2, itemId: 42, userId: 8, vote: -1, reason: "bob" }
       ]);
+    });
+
+    // S3a 缺陷 B：停用账号后 feedback 写接口同样查库拒绝
+    it("rejects POST feedback when the account is disabled (token freshness)", async () => {
+      const { POST } = await import("../feedback/route");
+      users.current = { id: 7, role: "viewer", tokenVersion: 3 };
+      dbState.freshnessUser = {
+        disabledAt: new Date("2026-08-10T10:00:00+08:00"),
+        role: "viewer",
+        tokenVersion: 3
+      };
+      fetchItemDetailMock.mockResolvedValue({ id: 42, title: "visible item" });
+
+      const response = await POST(
+        jsonRequest("https://radar.test/api/items/42/feedback", { vote: 1 }),
+        params("42")
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(body.error.code).toBe("SESSION_REVOKED");
+      expect(dbState.feedbacks.size).toBe(0);
+      expect(fetchItemDetailMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects POST feedback when token_version is stale", async () => {
+      const { POST } = await import("../feedback/route");
+      users.current = { id: 7, role: "viewer", tokenVersion: 1 };
+      dbState.freshnessUser = {
+        disabledAt: null,
+        role: "viewer",
+        tokenVersion: 4
+      };
+
+      const response = await POST(
+        jsonRequest("https://radar.test/api/items/42/feedback", { vote: -1 }),
+        params("42")
+      );
+
+      expect(response.status).toBe(401);
+      expect(dbState.feedbacks.size).toBe(0);
+    });
+
+    it("allows POST feedback for an active account with matching tokenVersion", async () => {
+      const { POST } = await import("../feedback/route");
+      users.current = { id: 7, role: "viewer", tokenVersion: 3 };
+      dbState.freshnessUser = {
+        disabledAt: null,
+        role: "viewer",
+        tokenVersion: 3
+      };
+      fetchItemDetailMock.mockResolvedValue({ id: 42, title: "visible item" });
+
+      const response = await POST(
+        jsonRequest("https://radar.test/api/items/42/feedback", {
+          vote: 1,
+          reason: "ok"
+        }),
+        params("42")
+      );
+
+      expect(response.status).toBe(200);
+      expect(dbState.feedbacks.size).toBe(1);
     });
   });
 });

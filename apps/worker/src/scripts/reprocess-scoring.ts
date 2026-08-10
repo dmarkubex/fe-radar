@@ -17,7 +17,7 @@ import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { Redis } from "ioredis";
 
 import { handleCuratorJob } from "../handlers/curator";
-import { handlerContext } from "../handlers/context";
+import { handlerContext, loadProjectCodes } from "../handlers/context";
 import { handlePrefilterJob } from "../handlers/prefilter";
 import { handleScorerJob } from "../handlers/scorer";
 import { createRedisConnection } from "../queues";
@@ -324,6 +324,8 @@ async function applyRun(args: ReprocessArgs): Promise<void> {
 
   handlerContext.qwen = createQwenClient();
   handlerContext.deepSeek = createDeepSeekClient();
+  // 复核 F7: reprocess 路径此前未初始化 projectCodes，导致项目代号脱敏失效。
+  handlerContext.projectCodes = await loadProjectCodes();
   const redis = createRedisConnection();
   let lock: ReprocessLock | undefined;
   let admitted = 0;

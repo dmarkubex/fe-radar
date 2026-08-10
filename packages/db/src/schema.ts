@@ -158,6 +158,9 @@ export const users = pgTable("users", {
   mergedAt: timestamp("merged_at", { withTimezone: true }),
   mergedFromUserId: bigint("merged_from_user_id", { mode: "number" }).references((): AnyPgColumn => users.id),
   disabledAt: timestamp("disabled_at", { withTimezone: true }),
+  // T-SEC-06: JWT 撤权版本号。禁用/降权/改密码/合并时递增；特权请求校验 token 内
+  // tokenVersion 与 DB 当前值一致，不符即 401。默认 0，登录时写入当前值。
+  tokenVersion: integer("token_version").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 }, (table) => ({
   credentialsCheck: check("users_credentials_check", sql`(${table.username} IS NOT NULL AND ${table.passwordHash} IS NOT NULL) OR ${table.dingtalkId} IS NOT NULL`),
@@ -178,6 +181,18 @@ export const mergeConflicts = pgTable("merge_conflicts", {
 }, (table) => ({
   statusCheck: check("merge_conflicts_status_check", sql`${table.status} IN ('pending', 'confirmed', 'rejected')`),
   statusIdx: index("merge_conflicts_status_idx").on(table.status, table.createdAt)
+}));
+
+// T-SEC-09: 项目代号权威字典 — scrubber PROJECT_CODE 脱敏的数据源。
+// admin 后台维护；loader 5min 缓存。disabled_at 软删保留审计。
+export const projectCodes = pgTable("project_codes", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  code: text("code").notNull().unique(),
+  note: text("note"),
+  disabledAt: timestamp("disabled_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => ({
+  activeIdx: index("project_codes_active_idx").on(table.code).where(sql`${table.disabledAt} IS NULL`)
 }));
 
 export const auditLogs = pgTable("audit_logs", {

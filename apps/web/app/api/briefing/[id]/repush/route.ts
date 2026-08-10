@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
 import { getDb, commodityBriefings } from "@fe-radar/db";
-import { getRequestUser } from "@/lib/api/authz";
+import { getRequestUser, requireFreshRole } from "@/lib/api/authz";
 import { hasRole } from "@/lib/auth/rbac";
 
 import type { NextRequest } from "next/server";
@@ -12,6 +12,9 @@ interface RouteContext {
 }
 
 export async function POST(request: NextRequest, context: RouteContext): Promise<Response> {
+  // T-SEC-06 (复核 HIGH-3): repush 是 admin 高权限动作（触发钉钉推送），查 DB 校验 token 新鲜度。
+  const freshError = await requireFreshRole(request, "admin");
+  if (freshError) return freshError;
   const user = await getRequestUser(request);
   if (!user.role) {
     return Response.json({ error: { code: "UNAUTHORIZED", message: "请先登录" } }, { status: 401 });

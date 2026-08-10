@@ -10,10 +10,10 @@ import { enqueueEnabledQuotesSources, scheduleQuotesFetchCron, scheduleBriefingP
 import { runCleanup, CLEANUP_SCHEDULE_CRON, CLEANUP_SCHEDULE_TZ } from "./jobs/cleanup";
 import { runQuotesFetch } from "./jobs/quotes-fetch";
 import { runBriefingGen as runBriefingGenJob } from "./jobs/briefing-gen";
-import { runBriefingPush } from "./jobs/briefing-push";
+import { runBriefingPush, runScheduledBriefingPush } from "./jobs/briefing-push";
 import { runScheduledDailyPush } from "./jobs/daily-push";
 
-import { logger, handlerContext } from "./handlers/context";
+import { logger, handlerContext, loadProjectCodes } from "./handlers/context";
 import { handleFetchJob } from "./handlers/fetch";
 import { handlePrefilterJob } from "./handlers/prefilter";
 import { handleNerJob } from "./handlers/ner";
@@ -81,6 +81,15 @@ export async function startWorker(): Promise<WorkerRuntime> {
   handlerContext.qwen = createQwenClient();
   handlerContext.deepSeek = createDeepSeekClient();
   handlerContext.kimi = createKimiClient();
+  // T-SEC-09: 启动时预载项目代号字典（预热 loadProjectCodes 的 5min 缓存），
+  // 防内部代号泄露给公网 LLM。pipeline handler 处理每个 job 时会重新调 loadProjectCodes()
+  // 取缓存值，admin 新增代号最迟 5min 后生效，无需重启 worker。
+  try {
+    handlerContext.projectCodes = await loadProjectCodes();
+  } catch (err) {
+    logger.warn({ err }, "loadProjectCodes failed at boot; handlers will retry per job via loadProjectCodes()");
+    handlerContext.projectCodes = [];
+  }
 
   logger.info("initializing workers...");
 
@@ -244,9 +253,21 @@ export async function startWorker(): Promise<WorkerRuntime> {
     QUEUE_BRIEFING_PUSH,
     async (job) => {
       if (job.data.briefingId === 0) {
-        // Minute tick: DB schedule for merged daily push (T-DUP-02)
-        const result = await runScheduledDailyPush();
-        logger.info(result, "daily-push tick completed");
+        // Minute tick drives two independent gates (0060): 产业日报 at send_time,
+        // 铜锂日报 at briefing_send_time. Separate try/catch so one failing gate
+        // cannot starve the other for the rest of the day.
+        try {
+          const result = await runScheduledDailyPush();
+          logger.info(result, "daily-push tick completed");
+        } catch (err) {
+          logger.error({ err }, "daily-push tick failed");
+        }
+        try {
+          const result = await runScheduledBriefingPush();
+          logger.info(result, "briefing-push tick completed");
+        } catch (err) {
+          logger.error({ err }, "briefing-push tick failed");
+        }
         return;
       }
       // Positive id: manual briefing-only repush (v1.1 ops entry retained)

@@ -39,10 +39,12 @@ vi.mock("../../lib/briefing-render", () => ({
 
 // Shared spies so tests can assert briefing-push enqueue. Declared via
 // vi.hoisted so they exist before the hoisted vi.mock factory runs.
-const { pushQueueAdd, pushQueueClose, pushConnQuit } = vi.hoisted(() => ({
+const { pushQueueAdd, pushQueueClose, pushConnQuit, mockLoadProjectCodes } = vi.hoisted(() => ({
   pushQueueAdd: vi.fn().mockResolvedValue(undefined),
   pushQueueClose: vi.fn().mockResolvedValue(undefined),
   pushConnQuit: vi.fn().mockResolvedValue(undefined),
+  // S4 fail-closed: tests mock loadProjectCodes so job logic is not polluted by DB/env.
+  mockLoadProjectCodes: vi.fn().mockResolvedValue(["ZX-01"]),
 }));
 
 vi.mock("../../queues", () => ({
@@ -54,6 +56,12 @@ vi.mock("../../queues", () => ({
     add: pushQueueAdd,
     close: pushQueueClose,
   }),
+}));
+
+// S4 / T-SEC-09: loadProjectCodes is fail-closed when never loaded + DB fails.
+// Job tests must mock it — do not set DATABASE_URL or weaken production fail-closed.
+vi.mock("../../handlers/context", () => ({
+  loadProjectCodes: (...args: unknown[]) => mockLoadProjectCodes(...args),
 }));
 
 // ─────────────────────────────────────────────────────────────
@@ -135,6 +143,10 @@ describe("briefing-gen", () => {
       docxPath: "fe-radar-briefings/briefings/2026/05/briefing-20260520.docx",
       minioKey: "briefings/2026/05/briefing-20260520.docx",
     });
+
+    // Default: project codes dictionary available (isolates job logic from real DB)
+    mockLoadProjectCodes.mockReset();
+    mockLoadProjectCodes.mockResolvedValue(["ZX-01"]);
   });
 
   // ── Drift guard (Antigravity #3): coverage keys must match seed metric_keys ──
@@ -533,5 +545,31 @@ describe("briefing-gen", () => {
     expect(llmRunBriefingGenFn).not.toHaveBeenCalled();
     // No insert should have been attempted
     expect(insertFn).not.toHaveBeenCalled();
+  });
+
+  // ── S4 / T-SEC-09: loadProjectCodes fail-closed must block public LLM at job layer ──
+  // Pins "dictionary unavailable → do not call public LLM". If someone reverts
+  // loadProjectCodes to fail-open, this test must turn red.
+  it("does not call public LLM when loadProjectCodes throws (S4 / T-SEC-09 fail-closed)", async () => {
+    mockLoadProjectCodes.mockRejectedValueOnce(
+      new Error("loadProjectCodes failed with no prior snapshot; blocking public LLM calls"),
+    );
+
+    const db = buildDb();
+    const mockQueue = {
+      getJobCounts: vi.fn().mockResolvedValue({ waiting: 0, active: 0, delayed: 0 }),
+    };
+
+    const result = await runBriefingGen({
+      db: db as never,
+      now: new Date("2026-05-20T08:00:00Z"),
+      quotesFetchQueueOverride: mockQueue,
+      retryDelayMs: 0,
+    });
+
+    expect(result.status).toBe("failed");
+    expect(result.genError).toMatch(/loadProjectCodes failed with no prior snapshot|blocking public LLM/i);
+    // Public LLM path must not run when project-codes dictionary is unavailable.
+    expect(llmRunBriefingGenFn).not.toHaveBeenCalled();
   });
 });

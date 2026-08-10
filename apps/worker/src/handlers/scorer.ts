@@ -7,7 +7,7 @@ import { CIRCLE_RANK, computeD3Market, D3_METRIC_KEYS, type EntityFinancialSnaps
 import type { PipelineJob } from "../queues";
 import { runScorer } from "../jobs/scorer";
 
-import { logger, handlerContext } from "./context";
+import { logger, handlerContext, loadProjectCodes } from "./context";
 import { passesIndustryGate } from "./pipeline-gate";
 
 export async function handleScorerJob(job: { data: PipelineJob }): Promise<void> {
@@ -25,7 +25,9 @@ export async function handleScorerJob(job: { data: PipelineJob }): Promise<void>
   if (!row) return;
 
   const text = `${row.title}\n${row.content ?? ""}`;
-  const result = await runScorer(text, withScrubber(handlerContext.deepSeek));
+  // T-SEC-09: 项目代号字典按 job 即时加载（5min 缓存命中便宜），admin 新增代号无需重启 worker。
+  const projectCodes = await loadProjectCodes();
+  const result = await runScorer(text, withScrubber(handlerContext.deepSeek, { projectCodes }));
 
   // T-ARK-09: d3Market 代码计算 — 仅当 computeD3Market 返回非 null 时覆盖 LLM 的 d3Market；
   // 返回 null 则保留 LLM 的 d3Market（向后兼容，不拉低 qualityScore）

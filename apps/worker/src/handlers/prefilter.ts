@@ -5,7 +5,7 @@ import { withScrubber } from "@fe-radar/llm";
 import type { PipelineJob } from "../queues";
 import { runPrefilter } from "../jobs/prefilter";
 
-import { logger, handlerContext } from "./context";
+import { logger, handlerContext, loadProjectCodes } from "./context";
 
 export async function handlePrefilterJob(job: { data: PipelineJob }): Promise<void> {
   const db = getDb();
@@ -22,10 +22,13 @@ export async function handlePrefilterJob(job: { data: PipelineJob }): Promise<vo
     return;
   }
 
+  // T-SEC-09: 项目代号字典按 job 即时加载（5min 缓存命中便宜），admin 新增代号无需重启 worker。
+  const projectCodes = await loadProjectCodes();
+  const scrubCtx = { projectCodes };
   const result = await runPrefilter(
     { title: row.title, content: row.content ?? row.title },
-    withScrubber(handlerContext.qwen),
-    withScrubber(handlerContext.deepSeek),
+    withScrubber(handlerContext.qwen, scrubCtx),
+    withScrubber(handlerContext.deepSeek, scrubCtx),
   );
 
   const isIndustryRelated = result.isIndustryRelated === true

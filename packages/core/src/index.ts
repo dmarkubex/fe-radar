@@ -10,3 +10,4 @@ export * from "./quota";
 export * from "./scoring";
 export * from "./scrubber";
 export * from "./types";
+export * from "./url-guard";

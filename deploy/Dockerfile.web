@@ -73,18 +73,16 @@ ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
 ENV npm_config_registry=${NPM_REGISTRY}
 ARG PNPM_VERSION=11.0.9
 
-# 先用镜像默认 http 源装 ca-certificates，再切国内镜像。
-# 若先 sed 成 https://mirrors.aliyun.com 再 apt，slim 里尚无 CA → Certificate verification failed。
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates && \
-    sed -i \
+# 先换源再 apt：默认 DEBIAN_MIRROR 为 http://，slim 无 CA 也可拉包。
+# 若 build-arg 传 https:// 且镜像尚无 ca-certificates，apt 会 Certificate verification failed。
+RUN sed -i \
       -e "s#http://deb.debian.org/debian-security#${DEBIAN_SECURITY_MIRROR}#g" \
       -e "s#https://deb.debian.org/debian-security#${DEBIAN_SECURITY_MIRROR}#g" \
       -e "s#http://deb.debian.org/debian#${DEBIAN_MIRROR}#g" \
       -e "s#https://deb.debian.org/debian#${DEBIAN_MIRROR}#g" \
       /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true && \
     apt-get update && \
-    apt-get install -y --no-install-recommends postgresql-client && \
+    apt-get install -y --no-install-recommends ca-certificates postgresql-client && \
     rm -rf /var/lib/apt/lists/* && \
     (command -v pnpm >/dev/null || npm install -g pnpm@${PNPM_VERSION} --registry=${NPM_REGISTRY} --no-audit --no-fund) && \
     groupadd -g 1001 nodejs && \

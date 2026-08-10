@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { auditLogs, getDb, mergeConflicts, users } from "@fe-radar/db";
 
 import type { DbClient } from "@fe-radar/db";
@@ -15,6 +15,8 @@ export interface MergeUserResult {
   name: string;
   role: UserRole;
   dingtalkId: string;
+  /** 复核 F8: 钉钉登录也需要 tokenVersion 写入 JWT，否则撤权对钉钉会话无效。 */
+  tokenVersion: number;
   conflictId?: number;
 }
 
@@ -26,6 +28,11 @@ export class UserDisabledError extends Error {
     super("User account is disabled");
     this.name = "UserDisabledError";
   }
+}
+
+/** T-SEC-01: editor/admin 是特权账号 —— 姓名+部门碰撞不足以证明所有权，必须 admin 确认。 */
+function isPrivileged(role: string | null): boolean {
+  return role === "editor" || role === "admin";
 }
 
 export function decideMergeAction(existingByUnionid: boolean, candidateCount: number): MergeDecision {
@@ -58,7 +65,11 @@ export async function mergeOrCreateUser(input: MergeInput, db: DbClient = getDb(
       .from(users)
       .where(and(eq(users.name, input.name), deptCondition, isNull(users.dingtalkId), isNull(users.disabledAt)));
 
-    const decision = decideMergeAction(false, candidates.length);
+    // T-SEC-01: 唯一候选若为 editor/admin，姓名+部门碰撞不足以证明该钉钉用户拥有该特权
+    // 账号 —— 不自动合并，按 conflict_new_user 处理（写冲突 + 建 viewer），让 admin 在
+    // 合并冲突页确认。viewer 候选仍可 auto_merge（不回归）。
+    const hasPrivilegedCandidate = candidates.some((c) => isPrivileged(c.role));
+    const decision = hasPrivilegedCandidate ? "conflict_new_user" : decideMergeAction(false, candidates.length);
     if (decision === "auto_merge") {
       const target = candidates[0];
       if (!target) {
@@ -69,7 +80,9 @@ export async function mergeOrCreateUser(input: MergeInput, db: DbClient = getDb(
         .set({
           dingtalkId: input.unionid,
           mergedAt: new Date(),
-          mergedFromUserId: target.id
+          mergedFromUserId: target.id,
+          // T-SEC-06: 合并绑定递增 token_version，让该账号此前可能的本地登录会话失效。
+          tokenVersion: sql`${users.tokenVersion} + 1`
         })
         .where(eq(users.id, target.id))
         .returning();
@@ -131,6 +144,7 @@ function toResult(user: typeof users.$inferSelect, unionid: string): MergeUserRe
     id: user.id,
     name: user.name,
     role: user.role as UserRole,
-    dingtalkId: user.dingtalkId ?? unionid
+    dingtalkId: user.dingtalkId ?? unionid,
+    tokenVersion: user.tokenVersion
   };
 }

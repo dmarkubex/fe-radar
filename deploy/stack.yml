@@ -2,30 +2,41 @@ version: "3.9"
 
 services:
   web:
-    image: harborssl.fegroup.cn/custom-project/fe-radar-web:latest
+    image: harborssl.fegroup.cn/custom-project/fe-radar-web:${IMAGE_TAG:?在 Portainer 环境变量填不可变版本号或 digest（禁止 latest）}
     environment:
       NODE_ENV: production
       TZ: Asia/Shanghai
       DATABASE_URL: postgres://fe_radar:${DB_PASSWORD}@postgres:5432/fe_radar
       REDIS_URL: redis://redis:6379
-      NEXTAUTH_URL: http://fe-radar.internal
+      # S2 / 登录限速 IP 维度：
+      # TRUST_PROXY_HEADERS — 仅当前面有会重写 X-Forwarded-For 的可信代理
+      # （如 Nginx `$proxy_add_x_forwarded_for`）时设为 "true"，才启用 IP 维度登录限速并解析 XFF。
+      # 当前部署：Swarm ingress 直发 published:8080，无重写 XFF 的可信代理层 → 保持默认关闭
+      # （不设或 "false"）。关闭时仅用 peer 地址；取不到则跳过 IP 维度（username 限速仍生效），
+      # 绝不回退共享 "unknown" 键（防伪造 XFF 绕过 / 故意无 XFF 锁死全员）。
+      # 若日后前置 Nginx/CDN 并正确追加 XFF，再显式设 TRUST_PROXY_HEADERS=true，
+      # 可选 TRUSTED_PROXY_HOPS（默认 1 = 单层代理，取 XFF 右数第 hops 项）。
+      # TRUST_PROXY_HEADERS: "false"
+      # T-SEC-16: 生产必须显式提供真实 origin（外网切换前为 https://...）。
+      # auth.ts 启动时断言生产环境 origin 非空且为 https 才开 Secure cookie；
+      # 去掉硬编码 http 默认，强制部署方在 Portainer 环境变量里填。
+      NEXTAUTH_URL: ${NEXTAUTH_URL:?在 Portainer stack 环境变量填实际访问 origin（外网切换前为 https://...）}
       NEXTAUTH_SECRET_FILE: /run/secrets/nextauth_secret
-      MIROFISH_API_BASE_URL: ${MIROFISH_API_BASE_URL:-http://mirofish:5001}
-      MIROFISH_WEB_BASE_URL: ${MIROFISH_WEB_BASE_URL:?set MIROFISH_WEB_BASE_URL in Portainer stack environment}
-      MIROFISH_REQUEST_TIMEOUT_MS: ${MIROFISH_REQUEST_TIMEOUT_MS:-300000}
       REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users,public.commodity_briefings,public.commodity_quotes,public.briefing_targets,public.briefing_template_fields,public.daily_push_config,public.daily_pushes
       DB_WAIT_TIMEOUT_SECONDS: "180"
       BRIEFING_MINIO_BUCKET: fe-radar-briefings
       MINIO_ENDPOINT: minio
       MINIO_PORT: "9000"
       MINIO_USE_SSL: "false"
-      MINIO_ACCESS_KEY_FILE: /run/secrets/minio_root_user
-      MINIO_SECRET_KEY_FILE: /run/secrets/minio_root_password
+      # T-SEC-17 (复核 F3): web 只需读 fe-radar-briefings bucket，改用 scoped 只读 service account，
+      # 不再挂 root 凭据。scoped 账号按 docs/runbook/minio-least-privilege.md 预建后填入 Portainer。
+      MINIO_ACCESS_KEY_FILE: /run/secrets/minio_web_access_key
+      MINIO_SECRET_KEY_FILE: /run/secrets/minio_web_secret_key
     secrets:
       - nextauth_secret
       - db_password
-      - minio_root_user
-      - minio_root_password
+      - minio_web_access_key
+      - minio_web_secret_key
     networks:
       - internal # 连 postgres/redis/minio
       - edge # 对外发布端口（internal 网络 internal:true，无法承载 ingress）
@@ -40,41 +51,8 @@ services:
       restart_policy:
         condition: on-failure
 
-  mirofish:
-    image: harborssl.fegroup.cn/custom-project/mirofish:latest
-    environment:
-      TZ: Asia/Shanghai
-      NODE_ENV: production
-      FLASK_DEBUG: "false"
-      FLASK_HOST: 0.0.0.0
-      FLASK_PORT: "5001"
-      LLM_API_KEY: ${MIROFISH_LLM_API_KEY:?set MIROFISH_LLM_API_KEY in Portainer stack environment}
-      LLM_BASE_URL: ${MIROFISH_LLM_BASE_URL:?set MIROFISH_LLM_BASE_URL in Portainer stack environment}
-      LLM_MODEL_NAME: ${MIROFISH_LLM_MODEL_NAME:-qwen-plus}
-      ZEP_API_KEY: ${MIROFISH_ZEP_API_KEY:?set MIROFISH_ZEP_API_KEY in Portainer stack environment}
-      SECRET_KEY: ${MIROFISH_SECRET_KEY:?set MIROFISH_SECRET_KEY in Portainer stack environment}
-      VITE_API_BASE_URL: ${MIROFISH_PUBLIC_API_BASE_URL:?set MIROFISH_PUBLIC_API_BASE_URL in Portainer stack environment}
-    volumes:
-      - mirofish_uploads:/app/backend/uploads
-    networks:
-      - internal
-      - edge
-    ports:
-      - target: 3000
-        published: ${MIROFISH_WEB_PORT:-3001}
-        protocol: tcp
-        mode: ingress
-      - target: 5001
-        published: ${MIROFISH_API_PORT:-5001}
-        protocol: tcp
-        mode: ingress
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-
   worker:
-    image: harborssl.fegroup.cn/custom-project/fe-radar-worker:latest
+    image: harborssl.fegroup.cn/custom-project/fe-radar-worker:${IMAGE_TAG:?在 Portainer 环境变量填不可变版本号或 digest（禁止 latest）}
     # 入口用镜像默认 CMD（dist/apps/worker/src/main.js）；不要覆盖成 dist/main.js（不存在）
     environment:
       NODE_ENV: production
@@ -98,14 +76,20 @@ services:
       WEBSEARCH_API_URL: https://open.feedcoopapi.com/search_api/web_search
       WEBSEARCH_API_KEY_FILE: /run/secrets/websearch_api_key
       RSSHUB_BASE_URL: http://rsshub:1200
+      # T-SEC-12 (复核 HIGH-5): SSRF 守卫默认拒绝内网/非标端口；容器内部抓取目标必须加入
+      # allowlist，否则守卫上线即把 rsshub:1200 按 PORT_BLOCKED 拒掉（quotes-fetch + 财经源全灭）。
+      # 最小权限：worker 唯一经抓取层访问的内部 HTTP 服务是 RSSHub；minio 走 S3 SDK、
+      # redis/postgres 走各自协议，均不经过 url-guard，不得加入本名单（加入即放弃端口+IP 双检查）。
+      FETCH_INTERNAL_ALLOWLIST: rsshub
       BRIEFING_TEMPLATE_PATH: /app/design/templates/briefing.docx
       BRIEFING_MINIO_BUCKET: fe-radar-briefings
       # 合并日报钉钉推送调度见 DB daily_push_config（默认 enabled=false）；worker 每分钟 tick 读库
       MINIO_ENDPOINT: minio
       MINIO_PORT: "9000"
       MINIO_USE_SSL: "false"
-      MINIO_ACCESS_KEY_FILE: /run/secrets/minio_root_user
-      MINIO_SECRET_KEY_FILE: /run/secrets/minio_root_password
+      # T-SEC-17 (复核 F3): worker 只需读写 fe-radar-briefings bucket，改用 scoped service account。
+      MINIO_ACCESS_KEY_FILE: /run/secrets/minio_worker_access_key
+      MINIO_SECRET_KEY_FILE: /run/secrets/minio_worker_secret_key
     secrets:
       - db_password
       - deepseek_api_key
@@ -114,8 +98,8 @@ services:
       - datapro_agent_plan_key
       - websearch_api_key
       - proxy_list
-      - minio_root_user
-      - minio_root_password
+      - minio_worker_access_key
+      - minio_worker_secret_key
     networks:
       - internal
     deploy:
@@ -124,7 +108,7 @@ services:
         condition: on-failure
 
   scheduler:
-    image: harborssl.fegroup.cn/custom-project/fe-radar-worker:latest
+    image: harborssl.fegroup.cn/custom-project/fe-radar-worker:${IMAGE_TAG:?在 Portainer 环境变量填不可变版本号或 digest（禁止 latest）}
     command: ["node", "dist/apps/worker/src/scheduler-main.js"]
     environment:
       NODE_ENV: production
@@ -195,19 +179,20 @@ services:
         condition: on-failure
 
   backup:
-    image: harborssl.fegroup.cn/custom-project/fe-radar-backup:latest
+    image: harborssl.fegroup.cn/custom-project/fe-radar-backup:${IMAGE_TAG:?在 Portainer 环境变量填不可变版本号或 digest（禁止 latest）}
     environment:
       TZ: Asia/Shanghai
       DATABASE_URL: postgres://fe_radar:${DB_PASSWORD}@postgres:5432/fe_radar
       MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY_FILE: /run/secrets/minio_root_user
-      MINIO_SECRET_KEY_FILE: /run/secrets/minio_root_password
+      # T-SEC-17 (复核 F3): backup 只需读写 fe-radar-backups bucket，改用 scoped service account。
+      MINIO_ACCESS_KEY_FILE: /run/secrets/minio_backup_access_key
+      MINIO_SECRET_KEY_FILE: /run/secrets/minio_backup_secret_key
       MINIO_BUCKET: fe-radar-backups
       RETENTION_DAYS: "7"
     secrets:
       - db_password
-      - minio_root_user
-      - minio_root_password
+      - minio_backup_access_key
+      - minio_backup_secret_key
     networks:
       - internal
     deploy:
@@ -286,7 +271,6 @@ volumes:
   redis_data:
   minio_data:
   grafana_data:
-  mirofish_uploads:
 
 secrets:
   db_password:
@@ -302,6 +286,20 @@ secrets:
   minio_root_user:
     external: true
   minio_root_password:
+    external: true
+  # T-SEC-17 (复核 F3): bucket/operation scoped service accounts（按 minio-least-privilege.md 预建）。
+  # root 仅 MinIO service 自己持有；web/worker/backup 改用 scoped 账号。
+  minio_web_access_key:
+    external: true
+  minio_web_secret_key:
+    external: true
+  minio_worker_access_key:
+    external: true
+  minio_worker_secret_key:
+    external: true
+  minio_backup_access_key:
+    external: true
+  minio_backup_secret_key:
     external: true
   proxy_list:
     external: true

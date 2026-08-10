@@ -5,6 +5,7 @@ const {
   mockRunNer,
   mockWithScrubber,
   mockLoadEntityDictionary,
+  mockLoadProjectCodes,
   mockAdmitWebSearch,
   mockCreateRedisConnection,
   mockCreateWebsearchQueue,
@@ -27,6 +28,7 @@ const {
     mockRunNer: vi.fn(),
     mockWithScrubber: vi.fn((client: unknown) => client),
     mockLoadEntityDictionary: vi.fn(),
+    mockLoadProjectCodes: vi.fn(),
     mockAdmitWebSearch: vi.fn().mockResolvedValue({ state: "admitted" }),
     mockCreateRedisConnection: vi.fn(() => mockRedis),
     mockCreateWebsearchQueue: vi.fn(() => ({ add: mockQueueAdd, close: mockQueueClose })),
@@ -71,6 +73,7 @@ vi.mock("../context", () => ({
   logger: mockLogger,
   handlerContext: { qwen: { id: "qwen" }, deepSeek: { id: "deepseek" } },
   loadEntityDictionary: mockLoadEntityDictionary,
+  loadProjectCodes: mockLoadProjectCodes,
 }));
 vi.mock("../../queues", () => ({
   createRedisConnection: mockCreateRedisConnection,
@@ -186,7 +189,22 @@ describe("handleNerJob", () => {
     vi.clearAllMocks();
     mockWithScrubber.mockImplementation((client: unknown) => client);
     mockLoadEntityDictionary.mockResolvedValue({ match: () => [] });
+    mockLoadProjectCodes.mockResolvedValue(["内部代号A"]);
     mockPassesIndustryGate.mockResolvedValue(true);
+  });
+
+  // T-SEC-09: 项目代号字典必须按 job 即时加载（不再用 bootstrap 启动快照）。
+  it("loads project codes per job and injects them into withScrubber context", async () => {
+    makeDb([{ title: "远东电缆", content: "中标" }]);
+    mockRunNer.mockResolvedValue({ entities: [] });
+
+    await handleNerJob({ data: { itemId: 300 } as never });
+
+    expect(mockLoadProjectCodes).toHaveBeenCalledTimes(1);
+    expect(mockWithScrubber).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ projectCodes: ["内部代号A"] }),
+    );
   });
 
   it("normal path: links entity when canonicalName resolves to an existing entity row", async () => {

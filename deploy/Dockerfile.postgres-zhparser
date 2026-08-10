@@ -1,24 +1,22 @@
 ARG PGVECTOR_IMAGE=docker.m.daocloud.io/pgvector/pgvector:pg16
 FROM ${PGVECTOR_IMAGE}
 
-ARG DEBIAN_MIRROR=https://mirrors.aliyun.com/debian
-ARG DEBIAN_SECURITY_MIRROR=https://mirrors.aliyun.com/debian-security
+# 与 worker/web 一致用 http:// 默认：base 缺 ca-certificates 时也可先 sed 再 apt。
+# 若 build-arg 传 https:// 且尚未装 CA，apt 会 Certificate verification failed。
+ARG DEBIAN_MIRROR=http://mirrors.aliyun.com/debian
+ARG DEBIAN_SECURITY_MIRROR=http://mirrors.aliyun.com/debian-security
 
 # zhparser 在 PGDG / Debian 源里没有预编译 deb 包，必须源码编译。
 # 依赖链：postgresql-server-dev-16（提供 pg_config + PGXS）→ SCWS（中文分词库）→ zhparser
-# 注意：base image 缺 ca-certificates，必须先装再切 HTTPS 镜像源。
+# 先换源再 apt：ca-certificates + 编译依赖均走 DEBIAN_MIRROR，避免内网拉 deb.debian.org 极慢。
 RUN set -eux; \
-    # 0) 先用原始 HTTP 源装 ca-certificates（否则后续 HTTPS 全部握手失败）
-    apt-get update; \
-    apt-get install -y --no-install-recommends ca-certificates; \
-    \
-    # 1) 切换国内镜像源（ca-certificates 已就位）
     sed -i \
       -e "s#http://deb.debian.org/debian-security#${DEBIAN_SECURITY_MIRROR}#g" \
       -e "s#http://deb.debian.org/debian#${DEBIAN_MIRROR}#g" \
       /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
+        ca-certificates \
         postgresql-server-dev-16 \
         build-essential \
         wget bzip2 git; \

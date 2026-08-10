@@ -18,9 +18,11 @@
 
 import * as cheerio from "cheerio";
 import Parser from "rss-parser";
+import RE2 from "re2";
 import { fetchTextWithPolicy } from "../http";
 import type { FetchContext } from "../types";
 import type { QuotesAdapter, QuoteSample } from "./types";
+import { createLogger } from "@fe-radar/shared";
 
 /**
  * A single regex rule from sources.config.regex_rules.
@@ -42,6 +44,14 @@ interface RegexRule {
 
 const rssParser = new Parser();
 
+const logger = createLogger({ service: "rsshub-extract" });
+
+// T4 / A-1: 用 RE2（线性时间引擎，不做回溯）替代 Node RegExp，从架构上消除
+// 灾难性回溯 ReDoS。编辑员可配 pattern 曾能锁死 worker 事件循环 66s；静态检测器
+// 连续三轮被绕过。RE2 不支持的语法（前后瞻/反向引用）在构造时抛错 → 跳过该规则。
+// 与 schema 对齐的长度上限仍保留，防止异常超长 pattern 占用编译内存。
+const REGEX_PATTERN_MAX_LEN = 200;
+
 /**
  * Strip all HTML tags from input string and truncate to ≤2000 Unicode code points.
  * Uses cheerio's text extraction (already a dep; no new packages).
@@ -58,14 +68,31 @@ function stripAndTruncate(html: string): string {
 /**
  * Try each regex_rule in order against the given text.
  * Returns the first match or null.
+ *
+ * T4: 每条规则用 RE2 编译+exec。RE2 是线性时间引擎，不回溯，故历史上能
+ * 锁死 Node RegExp 的 pattern（如 `((a+)){2,}$`）在 RE2 下要么飞快返回要么
+ * 因不支持的语法构造失败。构造失败 → warn 并跳过该条，不中断整批规则。
  */
 function applyRegexRules(
   text: string,
   rules: RegexRule[]
 ): { metricKey: string; value: number } | null {
   for (const rule of rules) {
+    const metricKey =
+      rule.metric_key ?? rule.metricKey ?? rule.key ?? "unknown";
+
+    if (rule.pattern.length > REGEX_PATTERN_MAX_LEN) {
+      logger.warn(
+        { pattern: rule.pattern, metric_key: metricKey },
+        "skipping regex rule: pattern exceeds max length"
+      );
+      continue;
+    }
+
     try {
-      const re = new RegExp(rule.pattern, "i");
+      // RE2 constructor throws on unsupported syntax (lookahead/lookbehind/backrefs)
+      // and on invalid regex syntax. Do not let one bad rule abort quotes-fetch.
+      const re = new RE2(rule.pattern, "i");
       const match = re.exec(text);
       if (!match) continue;
 
@@ -76,11 +103,19 @@ function applyRegexRules(
       const num = parseFloat(raw.replace(/,/g, ""));
       if (isNaN(num)) continue;
 
-      const metricKey = rule.metric_key ?? rule.metricKey ?? rule.key ?? "unknown";
       const multiplier = rule.unit_multiplier ?? rule.multiplier ?? 1;
       return { metricKey, value: num * multiplier };
-    } catch {
-      // Malformed regex — skip rule
+    } catch (err) {
+      // Compile failure (unsupported syntax) or unexpected exec error:
+      // skip this rule, keep processing remaining rules.
+      logger.warn(
+        {
+          pattern: rule.pattern,
+          metric_key: metricKey,
+          err: err instanceof Error ? err.message : String(err),
+        },
+        "skipping regex rule: RE2 compile/exec failed (unsupported or invalid pattern)"
+      );
       continue;
     }
   }
@@ -119,7 +154,8 @@ export const rsshubExtractAdapter: QuotesAdapter = {
   async fetch(ctx: FetchContext): Promise<QuoteSample[]> {
     const config = ctx.sourceConfig ?? {};
     const endpoint = config["endpoint"] as string | undefined;
-    const regexRules = (config["regex_rules"] as RegexRule[] | undefined) ?? [];
+    // T-SEC-10: 运行时纵深防御 —— 限制 rule 数量（schema 侧已限 20，这里兜底防绕过）。
+    const regexRules = ((config["regex_rules"] as RegexRule[] | undefined) ?? []).slice(0, 20);
 
     if (!endpoint) {
       // Cannot proceed without an endpoint; return [] per contract
@@ -132,6 +168,8 @@ export const rsshubExtractAdapter: QuotesAdapter = {
       const xml = await fetchTextWithPolicy(fullUrl, {
         timeoutMs: 8000,
         useRealUa: false, // RSSHub is internal; no UA rotation needed
+        // T-SEC-07: quotes feed 更小，1MB 上限足够且能阻断超大响应耗尽内存。
+        maxResponseBytes: 1024 * 1024,
       });
 
       const feed = await rssParser.parseString(xml);

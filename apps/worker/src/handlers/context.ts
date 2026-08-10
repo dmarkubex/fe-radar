@@ -1,7 +1,7 @@
 import pino from "pino";
 
-import { getDb, entities, scoringConfig } from "@fe-radar/db";
-import { and, eq } from "drizzle-orm";
+import { getDb, entities, projectCodes, scoringConfig } from "@fe-radar/db";
+import { and, eq, isNull } from "drizzle-orm";
 import type { LlmClient } from "@fe-radar/llm";
 import type { ScoringConfig as CoreScoringConfig, OwnCompanyProfile } from "@fe-radar/core";
 import { ownCompanyProfileFromNames, DEFAULT_OWN_COMPANY_PROFILE } from "@fe-radar/core";
@@ -20,6 +20,8 @@ export interface HandlerContext {
   deepSeek: LlmClient;
   kimi: LlmClient;
   playwrightPool?: BrowserContextPool;
+  /** T-SEC-09: 项目代号字典，注入 withScrubber 防内部代号泄露给公网 LLM。 */
+  projectCodes: string[];
 }
 
 export const handlerContext: HandlerContext = {
@@ -27,6 +29,7 @@ export const handlerContext: HandlerContext = {
   deepSeek: undefined as unknown as LlmClient,
   kimi: undefined as unknown as LlmClient,
   playwrightPool: undefined,
+  projectCodes: []
 };
 
 // Dev/test-only fallbacks. Production MUST source scoring config from the DB
@@ -160,4 +163,61 @@ export async function loadOwnCompanyProfile(): Promise<OwnCompanyProfile> {
 /** 仅供测试清缓存使用（生产路径无需调用）。 */
 export function __clearOwnCompanyProfileCacheForTests(): void {
   ownCompanyProfileCache = null;
+}
+
+/**
+ * T-SEC-09 / S4: 加载项目代号字典（project_codes 表，disabled_at IS NULL）。
+ * 注入 withScrubber context.projectCodes，让 scrubber 在公网 LLM 调用前把**真实代号**
+ * 替换为 [REDACTED:PROJECT_CODE:…]（方向：出网脱敏，不是还原）。
+ * 5min 内存缓存（同 loadOwnCompanyProfile 模式）：project_codes 表低频变更。
+ *
+ * 三种状态（S4 缺陷 B：禁止「从未初始化」与「合法空字典」混为一谈）：
+ *   1) 从未成功加载过（cache === null）且本次 DB 失败 → **fail-closed** 抛错，阻断公网 LLM
+ *   2) 曾成功加载、本次 DB 抖动 → 沿用上次快照（可为空数组；保留既有 fail-open-on-jitter）
+ *   3) 加载成功且表空（admin 未配代号）→ 放行，返回 []（合法状态）
+ *
+ * 区分手段：快照对象存在（含 codes:[]） vs 快照为 null；不能只看数组是否为空。
+ */
+const PROJECT_CODES_TTL_MS = 5 * 60 * 1000;
+let projectCodesCache: { codes: string[]; expiresAt: number } | null = null;
+
+export async function loadProjectCodes(): Promise<string[]> {
+  const now = Date.now();
+  if (projectCodesCache && projectCodesCache.expiresAt > now) {
+    return projectCodesCache.codes;
+  }
+
+  try {
+    const db = getDb();
+    const rows = await db.select({ code: projectCodes.code })
+      .from(projectCodes)
+      .where(isNull(projectCodes.disabledAt));
+
+    const codes = rows.map((r) => r.code).filter((c) => c.trim().length > 0);
+    // 成功即写快照——即使 codes 为空，也标记「已初始化」，与 never-loaded 区分。
+    projectCodesCache = { codes, expiresAt: now + PROJECT_CODES_TTL_MS };
+    return codes;
+  } catch (err) {
+    if (projectCodesCache !== null) {
+      // 有过成功快照：DB 抖动沿用上次结果（可为空），避免一次抖动清空字典导致代号外发。
+      logger.warn(
+        { err, hasSnapshot: true, snapshotSize: projectCodesCache.codes.length },
+        "loadProjectCodes failed; keeping last successful snapshot"
+      );
+      return projectCodesCache.codes;
+    }
+    // 从未成功加载：fail-closed，阻断公网 LLM（daily-gen / briefing-gen / pipeline scrub 路径会失败而非静默放行）。
+    logger.error(
+      { err, hasSnapshot: false },
+      "loadProjectCodes failed with no prior snapshot; blocking public LLM calls"
+    );
+    throw err instanceof Error
+      ? err
+      : new Error("PROJECT_CODES_NOT_INITIALIZED: project_codes dictionary never successfully loaded");
+  }
+}
+
+/** 仅供测试清缓存使用。 */
+export function __clearProjectCodesCacheForTests(): void {
+  projectCodesCache = null;
 }

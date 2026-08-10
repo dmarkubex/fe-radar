@@ -32,7 +32,8 @@ vi.mock("@fe-radar/db", () => ({
   softDeleteSource: vi.fn(),
   updateSource: mockUpdateSource
 }));
-vi.mock("@/lib/api/authz", () => ({ requireRequestRole: mockRequireRequestRole }));
+// T-SEC-06: route 改用 requireFreshRole；复用既有 mock（语义同为角色门槛）。
+vi.mock("@/lib/api/authz", () => ({ requireFreshRole: mockRequireRequestRole }));
 vi.mock("@/lib/mock-mode", () => ({ isMockMode: vi.fn(() => false) }));
 vi.mock("@/lib/api/mock-readonly", () => ({ mockReadonlyResponse: vi.fn() }));
 

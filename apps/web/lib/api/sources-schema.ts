@@ -26,8 +26,160 @@ const quotesRetrySchema = z.object({
   backoffMs: z.number().int().min(0)
 });
 
+// T-SEC-10: 检测灾难性回溯构造（嵌套量词、重叠量词），在保存时拒绝编辑员提交的 ReDoS 模式。
+// 不是完整沙箱（Node 同步正则无法真中断），但能拦住已知病态家族 + pattern 长度上限。
+const REGEX_PATTERN_MAX_LEN = 200;
+const REGEX_RULES_MAX_COUNT = 20;
+
+/**
+ * 拒绝已知会导致指数/多项式回溯的正则构造：
+ * - 嵌套无界量词：`(X+)+`、`(X*)*`、`(X+){2,}` —— 组本身被 +、* 或 {n,} 重复，且组内含无界量词。
+ *   组后被任意量词（`+`/`*`/`{n,m}`）重复都会触发指数/多项式回溯，故 `)` 后跟
+ *   `[+*]` **或** `{` 一律拒（最经典的 ReDoS 家族），避免误杀 `(\d+(?:\.\d+)?)` 这类正常数值模式。
+ * - 紧邻的同字符双量词：`++`、`**`（非占有式语境）。
+ * 检测器是线性的，不会自找麻烦；它不是完整沙箱（Node 同步正则无法真中断），
+ * 但能在保存时拦住最常见的灾难性构造，配合 input 截断做纵深防御。
+ */
+const NESTED_UNBOUNDED_QUANTIFIER = /\([^()]*[+*][^()]*\)\s*(?:[+*]|\{)/;
+const ADJACENT_DOUBLE_QUANTIFIER = /[+*]\s*[+*](?!\+)/;
+/**
+ * 复核 F10 / HIGH-6: 重叠交替（^(a|aa)+$）是静态 lint 仍会漏的家族。补一条：组内含
+ * 重复字符的交替 + 组外量词。仍不完整（正则安全性不可仅靠语法判），但 rsshub-extract
+ * 侧已对输入截断到 2000 字符 + rule 数量上限做纵深防御。
+ *
+ * 注意：**不用执行探针** —— Node 同步正则不可中断，compiled.test(adversarial) 会直接
+ * 挂死 Next.js 事件循环（复核 HIGH-6 实测），比它要防的 worker ReDoS 更严重。
+ */
+const OVERLAPPING_ALTERNATION_QUANTIFIED = /\([^()]*\|[^()]*\)\s*[+*]/;
+/**
+ * S8-fix (C-1): 「相邻同基无界量词」家族 —— 无界量词（+ / * / {n,}）作用于可匹配
+ * 同一字符的相邻 token（无括号分组隔开），如 a+a+a+a+ / [0-9]+[0-9]+ / \d+\d+。
+ * 对 "aaaa!" 退化为 O(n^k) 多项式/指数级，worker 单事件循环可被无限期占死。
+ *
+ * 只分析「顶层」（括号外 depth=0）；组内嵌套量词由 NESTED_UNBOUNDED_QUANTIFIER 负责。
+ * 组 (...) 作为不透明屏障，不与其前后 token 比较基重叠（避免 (b+) 两侧误判相邻）。
+ * 已知限制：不检测跨类型基重叠（如 \d+[0-9]+）；两者都极不常见，且输入截断 + rule
+ * 数量上限做纵深防御。
+ */
+function hasAdjacentSameBaseQuantifiers(pattern: string): boolean {
+  interface Token { base: string; unbounded: boolean }
+  const tokens: Token[] = [];
+  let i = 0;
+  let depth = 0;
+
+  /** Read optional quantifier at current position; advance i; return whether unbounded. */
+  function readQuantifier(): boolean {
+    if (i >= pattern.length) return false;
+    const c = pattern[i]!;
+    if (c === "+" || c === "*") { i++; return true; }
+    if (c === "?") { i++; return false; }
+    if (c === "{") {
+      const close = pattern.indexOf("}", i);
+      if (close !== -1 && /^\d+,$/.test(pattern.slice(i + 1, close))) {
+        i = close + 1;
+        return true;
+      }
+      if (close !== -1) { i = close + 1; return false; }
+    }
+    return false;
+  }
+
+  while (i < pattern.length) {
+    const c = pattern[i]!;
+
+    // Escape sequence \X — always consumes two chars; track depth-aware.
+    if (c === "\\") {
+      const base = pattern.slice(i, Math.min(i + 2, pattern.length));
+      i += base.length;
+      if (depth === 0) tokens.push({ base, unbounded: readQuantifier() });
+      continue;
+    }
+
+    // Character class [...] — always jump to closing ].
+    if (c === "[") {
+      let j = i + 1;
+      if (pattern[j] === "]") j++; // leading ] is literal
+      while (j < pattern.length && pattern[j] !== "]") {
+        if (pattern[j] === "\\") j += 2;
+        else j++;
+      }
+      const base = j < pattern.length ? pattern.slice(i, j + 1) : pattern.slice(i);
+      i = j < pattern.length ? j + 1 : pattern.length;
+      if (depth === 0) tokens.push({ base, unbounded: readQuantifier() });
+      continue;
+    }
+
+    // Group open (
+    if (c === "(") {
+      depth++;
+      i++;
+      // Skip non-capturing / lookahead prefixes: (?: (?= (?! (?<= (?<!
+      if (pattern[i] === "?") {
+        i++;
+        if (pattern[i] === "<") {
+          i++;
+          if (pattern[i] === "=" || pattern[i] === "!") i++;
+        } else if (pattern[i] && /[=:!]/.test(pattern[i]!)) {
+          i++;
+        }
+      }
+      if (depth === 1) tokens.push({ base: "\0GROUP", unbounded: false });
+      continue;
+    }
+
+    // Group close ) — skip trailing group quantifier (NESTED detector owns it).
+    if (c === ")") {
+      depth = Math.max(0, depth - 1);
+      i++;
+      if (i < pattern.length) {
+        if ("+*?".includes(pattern[i]!)) i++;
+        else if (pattern[i] === "{") {
+          const cl = pattern.indexOf("}", i);
+          i = cl === -1 ? i + 1 : cl + 1;
+        }
+      }
+      if (depth === 0) tokens.push({ base: "\0GROUP", unbounded: false });
+      continue;
+    }
+
+    // Skip anchors, alternation, dot wildcard, stray quantifiers.
+    if ("^$|.".includes(c)) { i++; continue; }
+    if ("+*?{}".includes(c)) { i++; continue; }
+
+    // Literal character.
+    i++;
+    if (depth === 0) tokens.push({ base: c, unbounded: readQuantifier() });
+  }
+
+  for (let j = 0; j < tokens.length - 1; j++) {
+    const a = tokens[j]!;
+    const b = tokens[j + 1]!;
+    if (a.unbounded && b.unbounded && a.base === b.base && a.base !== "\0GROUP") {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isSafeRegex(pattern: string): boolean {
+  if (pattern.length > REGEX_PATTERN_MAX_LEN) return false;
+  try {
+    // 编译失败即不安全（语法错）。
+    new RegExp(pattern);
+  } catch {
+    return false;
+  }
+  if (NESTED_UNBOUNDED_QUANTIFIER.test(pattern)) return false;
+  if (ADJACENT_DOUBLE_QUANTIFIER.test(pattern)) return false;
+  if (OVERLAPPING_ALTERNATION_QUANTIFIED.test(pattern)) return false;
+  if (hasAdjacentSameBaseQuantifiers(pattern)) return false;
+  return true;
+}
+
 const quotesRegexRuleSchema = z.object({
-  pattern: z.string().min(1),
+  pattern: z.string().min(1).max(REGEX_PATTERN_MAX_LEN).refine(isSafeRegex, {
+    message: "regex pattern contains a potentially catastrophic backtracking construct (nested/adjacent quantifiers) or fails to compile"
+  }),
   metric_key: z.string().min(1),
   unit_multiplier: z.number().positive().optional(),
   group: z.number().int().min(1).optional()
@@ -98,7 +250,7 @@ const quotesConfigSchema = z
     metric_keys: z.array(z.string().min(1)).min(1),
     endpoint: endpointSchema,
     retry: quotesRetrySchema,
-    regex_rules: z.array(quotesRegexRuleSchema).optional(),
+    regex_rules: z.array(quotesRegexRuleSchema).max(REGEX_RULES_MAX_COUNT).optional(),
     items: z.array(quotesSmmHqItemSchema).optional()
   })
   .refine((value) => value.adapter === "smm-hq" || value.items === undefined, {
@@ -162,7 +314,7 @@ export const sourceConfigSchema = z.discriminatedUnion("type", [
       item: z.string().min(1),
       title: z.string().min(1),
       link: z.string().min(1),
-      date: z.string().min(1),
+      date: z.string(),
       content: z.string().min(1).optional()
     }),
     useRealUa: z.boolean().optional(),
@@ -175,7 +327,11 @@ export const sourceConfigSchema = z.discriminatedUnion("type", [
     type: z.literal("playwright"),
     listUrl: z.string().url(),
     waitFor: z.string().min(1),
-    extractor: z.string().startsWith("() =>"),
+    // T-SEC-03: 声明式选择器取代编辑员可执行 extractor 字符串（new Function RCE）。
+    itemSelector: z.string().min(1),
+    titleSelector: z.string().min(1).default("a"),
+    linkSelector: z.string().min(1).default("a"),
+    limit: z.number().int().min(1).max(50).default(20),
     useRealUa: z.boolean().optional(),
     verificationBlocked: z.boolean().optional(),
     verificationBlockedReason: z.string().min(1).optional(),

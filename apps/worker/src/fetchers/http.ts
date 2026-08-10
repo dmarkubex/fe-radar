@@ -1,4 +1,7 @@
 import { createLogger, SourceFetchError } from "@fe-radar/shared";
+import { assertPublicFetchUrl, isInternalAllowlisted, isPrivateIp } from "@fe-radar/core";
+import dns from "node:dns";
+import type { LookupFunction } from "node:net";
 import { Agent, fetch as undiciFetch, ProxyAgent } from "undici";
 import type { Dispatcher } from "undici";
 import { proxyPool } from "../lib/proxy-pool";
@@ -45,11 +48,50 @@ export interface FetchTextOptions {
   };
 }
 
+/**
+ * T-SEC-12: 连接时 DNS 复验，堵 DNS rebinding TOCTOU。
+ * assertPublicFetchUrl 在 fetch 前解析过一次，但 undici 建连时会再解析一次，TTL=0 域名
+ * 可在两次解析之间换成内网 IP。把守卫钉到 net/tls.connect 的 lookup 上：连接实际解析时
+ * 对每个返回地址跑 isPrivateIp，任一私网 / 保留地址即报错拒绝建连。
+ * allowlist（FETCH_INTERNAL_ALLOWLIST）内 hostname 豁免 —— 内部服务（如 rsshub:1200）
+ * 解析到私网 IP 属正常，与 assertPublicFetchUrl 的 allowlist 分支同一判定。
+ */
+export function createSsrfGuardedLookup(): LookupFunction {
+  return (hostname, options, callback) => {
+    dns.lookup(hostname, { ...options, all: true }, (err, records) => {
+      if (err) {
+        callback(err, [], undefined);
+        return;
+      }
+      if (!isInternalAllowlisted(hostname)) {
+        for (const record of records) {
+          if (isPrivateIp(record.address)) {
+            const blocked = new Error(
+              `SSRF guard: connection-time DNS resolution of ${hostname} hit blocked address ${record.address}`
+            ) as NodeJS.ErrnoException;
+            blocked.code = "FETCH_SSRF_BLOCKED";
+            callback(blocked, [], undefined);
+            return;
+          }
+        }
+      }
+      if (options.all) {
+        callback(null, records);
+      } else {
+        callback(null, records[0]?.address ?? "", records[0]?.family ?? 4);
+      }
+    });
+  };
+}
+
 function buildDispatcher(
   proxyServer: string | undefined,
   insecureTLS: boolean
 ): Dispatcher | undefined {
   if (proxyServer) {
+    // 代理路径残余风险：目标 hostname 的 DNS 解析发生在代理端，本地 lookup 守卫管不到
+    // 实际连接目标。内网代理部署下由代理出口策略兜底；fetch 前的 assertPublicFetchUrl
+    // 与逐跳重定向复验仍然生效。
     if (insecureTLS) {
       return new ProxyAgent({
         uri: proxyServer,
@@ -59,11 +101,12 @@ function buildDispatcher(
     return new ProxyAgent(proxyServer);
   }
 
+  // 非代理路径一律显式建 Agent，挂上连接时 lookup 复验（TOCTOU 防线）。
   if (insecureTLS) {
-    return new Agent({ connect: { rejectUnauthorized: false } });
+    return new Agent({ connect: { rejectUnauthorized: false, lookup: createSsrfGuardedLookup() } });
   }
 
-  return undefined;
+  return new Agent({ connect: { lookup: createSsrfGuardedLookup() } });
 }
 
 async function readTextWithLimit(
@@ -126,10 +169,63 @@ async function readTextWithLimit(
   return text + decoder.decode();
 }
 
+const MAX_REDIRECTS = 5;
+
+/**
+ * 复核 F5: 手动逐跳跟随重定向，对每个 Location header 复跑 SSRF 守卫，防止初始 URL 合法
+ * 但 302 跳到内网/metadata。fetchImpl 必须以 redirect: "manual" 调用（不会自动跟随）。
+ */
+async function followRedirectsWithGuard(
+  fetchOnce: (url: string) => Promise<ReadableTextResponse>,
+  startUrl: string
+): Promise<ReadableTextResponse> {
+  let currentUrl = startUrl;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+    const res = await fetchOnce(currentUrl);
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get("location");
+      if (!location) {
+        throw new SourceFetchError("FETCH_HTTP_ERROR", `Redirect ${res.status} without Location header`, { url: currentUrl });
+      }
+      let nextUrl: string;
+      try {
+        nextUrl = new URL(location, currentUrl).toString();
+      } catch {
+        throw new SourceFetchError("FETCH_HTTP_ERROR", `Invalid redirect Location: ${location}`, { url: currentUrl });
+      }
+      // 复跑 SSRF 守卫（含 DNS 解析），拒绝跳到内网/metadata。
+      if (process.env.SSRF_GUARD_ENABLED !== "false") {
+        const guard = await assertPublicFetchUrl(nextUrl);
+        if (!guard.allowed) {
+          throw new SourceFetchError("FETCH_SSRF_BLOCKED", `Redirect target blocked by SSRF guard: ${guard.reason}`, { url: nextUrl, reason: guard.reason, from: currentUrl });
+        }
+      }
+      currentUrl = nextUrl;
+      continue;
+    }
+    return res;
+  }
+  throw new SourceFetchError("FETCH_HTTP_ERROR", `Too many redirects (>${MAX_REDIRECTS})`, { url: startUrl });
+}
+
 export async function fetchTextWithPolicy(
   url: string,
   options: FetchTextOptions
 ): Promise<string> {
+  // T-SEC-12: SSRF 守卫在实际网络边界拦截 —— 拒绝非 http(s) / URL 凭据 / 非标端口 / 解析到内网
+  // (loopback/private/link-local/metadata) 的目的地。每次实际 fetch 前复验，防 DNS rebinding。
+  // 默认开启；测试可经 SSRF_GUARD_ENABLED=false 关闭（避免离线 DNS 失败误拒公共域名）。
+  if (process.env.SSRF_GUARD_ENABLED !== "false") {
+    const guard = await assertPublicFetchUrl(url);
+    if (!guard.allowed) {
+      throw new SourceFetchError(
+        "FETCH_SSRF_BLOCKED",
+        `Outbound URL blocked by SSRF guard: ${guard.reason}`,
+        { url, reason: guard.reason }
+      );
+    }
+  }
+
   const userAgent = acquireUserAgent(options.useRealUa);
   const insecureTLS = options.insecureTLS === true;
 
@@ -192,12 +288,18 @@ export async function fetchTextWithPolicy(
       mergedHeaders["user-agent"] = userAgent;
       // Caller-supplied `signal` is intentionally ignored — the policy layer
       // always attaches its own timeout abort to keep retry semantics intact.
-      const response = await fetchImpl(url, {
-        ...(options.init ?? {}),
-        headers: mergedHeaders,
-        signal: AbortSignal.timeout(options.timeoutMs),
-        dispatcher
-      });
+      // 复核 F5: 关闭自动重定向，手动逐跳跟随并对每个 Location 复跑 SSRF 守卫，
+      // 防止初始 URL 合法但 302 跳到内网/metadata。
+      const response = await followRedirectsWithGuard(
+        (u: string) => fetchImpl(u, {
+          ...(options.init ?? {}),
+          headers: mergedHeaders,
+          signal: AbortSignal.timeout(options.timeoutMs),
+          dispatcher,
+          redirect: "manual"
+        } as RequestInit),
+        url
+      );
       if (response.status === 403 || response.status === 429) {
         proxyPool.release(proxy, false);
         proxy = proxyPool.acquire({ retry: true });

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 interface ScheduleConfig {
   enabled: boolean;
   sendTime: string;
+  briefingSendTime: string;
   scheduleMode: "daily" | "business_days";
   baseUrl: string;
 }
@@ -21,6 +22,7 @@ const FIELD =
 const DEFAULT_CONFIG: ScheduleConfig = {
   enabled: false,
   sendTime: "16:15",
+  briefingSendTime: "17:00",
   scheduleMode: "business_days",
   baseUrl: "http://fe-radar.internal",
 };
@@ -47,6 +49,7 @@ export function ScheduleForm({ targetCount }: ScheduleFormProps): React.JSX.Elem
       setConfig({
         enabled: payload.config.enabled,
         sendTime: payload.config.sendTime,
+        briefingSendTime: payload.config.briefingSendTime,
         scheduleMode: payload.config.scheduleMode,
         baseUrl: payload.config.baseUrl,
       });
@@ -69,6 +72,7 @@ export function ScheduleForm({ targetCount }: ScheduleFormProps): React.JSX.Elem
       const body = {
         enabled: formData.get("enabled") === "on",
         sendTime: String(formData.get("sendTime") ?? "").trim(),
+        briefingSendTime: String(formData.get("briefingSendTime") ?? "").trim(),
         scheduleMode: String(formData.get("scheduleMode") ?? "business_days") as
           | "daily"
           | "business_days",
@@ -92,6 +96,7 @@ export function ScheduleForm({ targetCount }: ScheduleFormProps): React.JSX.Elem
       setConfig({
         enabled: payload.config.enabled,
         sendTime: payload.config.sendTime,
+        briefingSendTime: payload.config.briefingSendTime,
         scheduleMode: payload.config.scheduleMode,
         baseUrl: payload.config.baseUrl,
       });
@@ -132,16 +137,35 @@ export function ScheduleForm({ targetCount }: ScheduleFormProps): React.JSX.Elem
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block space-y-1.5">
-                <span className="eyebrow">发送时间 HH:mm</span>
+                <span className="eyebrow">产业日报发送时间 HH:mm</span>
                 <input
                   className={FIELD}
                   name="sendTime"
                   defaultValue={config.sendTime}
-                  placeholder="16:15"
+                  placeholder="09:00"
                   pattern="(?:[01]\d|2[0-3]):[0-5]\d"
                   required
                   data-testid="schedule-send-time"
                 />
+                <span className="block font-mono text-[11px] text-fg-soft">
+                  日报 08:00 生成，请留出余量。
+                </span>
+              </label>
+
+              <label className="block space-y-1.5">
+                <span className="eyebrow">铜锂日报发送时间 HH:mm</span>
+                <input
+                  className={FIELD}
+                  name="briefingSendTime"
+                  defaultValue={config.briefingSendTime}
+                  placeholder="17:00"
+                  pattern="(?:[01]\d|2[0-3]):[0-5]\d"
+                  required
+                  data-testid="schedule-briefing-send-time"
+                />
+                <span className="block font-mono text-[11px] text-fg-soft">
+                  铜锂简报工作日 16:00 生成，请留出余量。
+                </span>
               </label>
 
               <label className="block space-y-1.5">

@@ -1,12 +1,15 @@
 import { desc, eq } from "drizzle-orm";
 import { auditLogs, getDb, mergeConflicts, users } from "@fe-radar/db";
-import { requireRequestRole, getRequestUser } from "@/lib/api/authz";
+import { requireFreshRole, getRequestUser } from "@/lib/api/authz";
 import { createUserSchema, validationError } from "@/lib/api/users-schema";
 import { hashPassword } from "@/lib/auth/password";
 
 import type { NextRequest } from "next/server";
 
-export async function GET(): Promise<Response> {
+export async function GET(request: NextRequest): Promise<Response> {
+  const authError = await requireFreshRole(request, "admin");
+  if (authError) return authError;
+
   const [userRows, conflictRows] = await Promise.all([
     getDb().select({
       id: users.id,
@@ -24,7 +27,7 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
-  const authError = await requireRequestRole(request, "admin");
+  const authError = await requireFreshRole(request, "admin");
   if (authError) return authError;
 
   const actor = await getRequestUser(request);

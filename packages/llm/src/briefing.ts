@@ -191,10 +191,11 @@ export function buildBriefingInput(
  *   - 公网 LLM 调用前脱敏（PII 命中 block → 抛 LlmError）
  *   - audit log 写入（scrubber 内部处理）
  */
-export async function runBriefingGen(input: string): Promise<LlmResult<BriefingOutput>> {
+export async function runBriefingGen(input: string, projectCodes?: string[]): Promise<LlmResult<BriefingOutput>> {
   // Kimi 网关无公网出口（转发 api.moonshot.cn 超时），改用同网关可达的 DeepSeek
   const client = createDeepSeekClient();
-  const scrubbed = withScrubber(client);
+  // T-SEC-09: 注入项目代号字典（由 briefing-gen job 从 DB 加载后传入）。
+  const scrubbed = withScrubber(client, projectCodes?.length ? { projectCodes } : undefined);
   return scrubbed.chatJson<BriefingOutput>({
     system: BRIEFING_SYSTEM_PROMPT,
     schemaName: "briefing",

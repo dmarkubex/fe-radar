@@ -5,6 +5,9 @@ import {
   buildSafeCallbackUrl,
   isDingTalkUserAgent
 } from "@/lib/auth/safe-callback-url";
+// 复核 CRIT-1: middleware 跑在 Edge runtime，不能 import @fe-radar/db（postgres.js → node:net）。
+// token 新鲜度校验（verifyTokenFreshness）改在特权 route handler 里做（Node runtime），
+// 见 apps/web/lib/api/authz.ts 的 requireFreshRole。
 
 import type { NextRequest } from "next/server";
 
@@ -82,6 +85,9 @@ export default async function middleware(request: NextRequest): Promise<NextResp
       }
       return NextResponse.json({ error: { code: "FORBIDDEN", message: "权限不足" } }, { status: 403 });
     }
+
+    // T-SEC-06 (复核 CRIT-1): token 新鲜度校验从 middleware 移到特权 route handler
+    // （requireFreshRole），因为 middleware 跑 Edge runtime 不能查 DB。RBAC 仍在此生效。
   }
 
   // NextResponse.next({ request }) makes header readable via headers() in RSC; see DMA-51

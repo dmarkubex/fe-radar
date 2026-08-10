@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 import type * as UsersSchemaModule from "@/lib/api/users-schema";
 
 const {
-  mockRequireRequestRole,
+  mockRequireFreshRole,
   mockGetRequestUser,
   mockHashPassword,
   selectWhere,
@@ -22,7 +22,7 @@ const {
   const mockInsert = vi.fn(() => ({ values: insertValues }));
 
   return {
-    mockRequireRequestRole: vi.fn<(req: NextRequest, role: string) => Promise<Response | null>>(),
+    mockRequireFreshRole: vi.fn<(req: NextRequest, role: string) => Promise<Response | null>>(),
     mockGetRequestUser: vi.fn<(req: NextRequest) => Promise<{ id?: number; role?: string; name?: string | null }>>(),
     mockHashPassword: vi.fn<(password: string) => Promise<string>>(),
     selectWhere,
@@ -39,7 +39,7 @@ vi.mock("drizzle-orm", () => ({
 }));
 
 vi.mock("@/lib/api/authz", () => ({
-  requireRequestRole: mockRequireRequestRole,
+  requireFreshRole: mockRequireFreshRole,
   getRequestUser: mockGetRequestUser
 }));
 
@@ -83,7 +83,7 @@ function makeRequest(body: Record<string, unknown>): NextRequest {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockRequireRequestRole.mockResolvedValue(null);
+  mockRequireFreshRole.mockResolvedValue(null);
   mockGetRequestUser.mockResolvedValue({ id: 1, role: "admin", name: "Admin" });
   mockHashPassword.mockResolvedValue("hashed-password");
   selectWhere.mockResolvedValue([]);
@@ -110,7 +110,7 @@ describe("POST /api/users", () => {
     const body = await response.json() as Record<string, unknown>;
     expect(body).toMatchObject({ username: "jdoe", name: "张三", role: "viewer" });
     expect(body).not.toHaveProperty("passwordHash");
-    expect(mockRequireRequestRole).toHaveBeenCalledWith(expect.anything(), "admin");
+    expect(mockRequireFreshRole).toHaveBeenCalledWith(expect.anything(), "admin");
     expect(mockHashPassword).toHaveBeenCalledWith("password123");
     expect(insertValues).toHaveBeenNthCalledWith(1, expect.objectContaining({ passwordHash: "hashed-password" }));
     expect(insertValues).toHaveBeenNthCalledWith(2, expect.objectContaining({
@@ -138,7 +138,7 @@ describe("POST /api/users", () => {
   });
 
   it("returns auth errors for non-admin users", async () => {
-    mockRequireRequestRole.mockResolvedValueOnce(
+    mockRequireFreshRole.mockResolvedValueOnce(
       Response.json({ error: { code: "FORBIDDEN", message: "权限不足" } }, { status: 403 })
     );
 

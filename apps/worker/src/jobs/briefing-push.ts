@@ -6,9 +6,10 @@ import {
   briefingTargets,
   briefingPushes,
   briefingHolidays,
+  dailyPushConfig,
 } from "@fe-radar/db";
 import { isBusinessDay } from "@fe-radar/core";
-import { createLogger, nowInAppTimezone } from "@fe-radar/shared";
+import { APP_TIMEZONE, createLogger, dayjs, nowInAppTimezone } from "@fe-radar/shared";
 import { sendActionCard } from "../lib/dingtalk-bot";
 
 const logger = createLogger({ service: "briefing-push" });
@@ -103,11 +104,12 @@ function buildCardText(briefing: BriefingRow): string {
  */
 async function pushToTarget(
   briefing: BriefingRow,
-  target: TargetRow
+  target: TargetRow,
+  baseUrl: string = INTRANET_BASE_URL
 ): Promise<{ ok: boolean; attempts: number; error?: string }> {
   const title = `远东·铜锂行情简报 · ${briefing.briefingDate}`;
   const text = buildCardText(briefing);
-  const actionURL = `${INTRANET_BASE_URL}/briefing/${briefing.id}`;
+  const actionURL = `${baseUrl}/briefing/${briefing.id}`;
 
   let lastError = "";
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -137,7 +139,11 @@ async function pushToTarget(
   return { ok: false, attempts: MAX_ATTEMPTS, error: lastError };
 }
 
-export async function runBriefingPush(briefingId: number): Promise<BriefingPushResult> {
+export async function runBriefingPush(
+  briefingId: number,
+  /** Card deep-link host; scheduled path passes daily_push_config.base_url. */
+  baseUrl?: string
+): Promise<BriefingPushResult> {
   const now = new Date();
 
   // --- holiday check ---
@@ -181,7 +187,23 @@ export async function runBriefingPush(briefingId: number): Promise<BriefingPushR
     return { briefingId, succeeded: 0, failed: 0, skipped: true };
   }
 
-  logger.info({ briefingId, targetCount: targets.length }, "briefing-push: starting push");
+  // Manual repush passes no baseUrl. Fall back to the same daily_push_config.base_url
+  // the scheduled path uses, then to env — stack 89 sets neither INTRANET_URL nor
+  // NEXT_PUBLIC_APP_URL, so the bare env default is a dead link.
+  let cardBaseUrl = baseUrl;
+  if (!cardBaseUrl) {
+    const [cfg] = await db
+      .select({ baseUrl: dailyPushConfig.baseUrl })
+      .from(dailyPushConfig)
+      .where(eq(dailyPushConfig.id, 1))
+      .limit(1);
+    cardBaseUrl = cfg?.baseUrl ?? INTRANET_BASE_URL;
+  }
+
+  logger.info(
+    { briefingId, targetCount: targets.length, cardBaseUrl },
+    "briefing-push: starting push"
+  );
 
   // --- concurrency-limited push with p-limit ---
   const limit = pLimit(PUSH_CONCURRENCY);
@@ -212,7 +234,7 @@ export async function runBriefingPush(briefingId: number): Promise<BriefingPushR
           return;
         }
 
-        const result = await pushToTarget(briefing, target);
+        const result = await pushToTarget(briefing, target, cardBaseUrl);
         const pushStatus = result.ok ? "succeeded" : "failed";
         const pushedAt = result.ok ? new Date() : null;
 
@@ -255,9 +277,66 @@ export async function runBriefingPush(briefingId: number): Promise<BriefingPushR
 }
 
 /**
+ * Scheduled 铜锂日报 push — migration 0060 split it off the 产业日报 card.
+ *
+ * Rides the same minute tick as runScheduledDailyPush but gates on
+ * daily_push_config.briefing_send_time, so the two reports go out at their own
+ * times (产业日报 09:00 / 铜锂日报 17:00 by default) as separate cards.
+ * `enabled` is the shared kill switch for both.
+ *
+ * ponytail: runBriefingPush is check-then-send, not claim-first like daily-push.
+ * Safe here only because the fe-briefing-push worker runs concurrency:1 in a
+ * single container — a second worker replica could double-send. Upgrade path:
+ * copy daily-push's INSERT ... ON CONFLICT DO NOTHING RETURNING claim.
+ * A `failed` row deliberately keeps retrying on later ticks until midnight,
+ * which is how a transient DingTalk outage self-heals.
+ */
+export async function runScheduledBriefingPush(
+  options: { now?: Date } = {}
+): Promise<{ skipped: boolean; reason?: string; briefingId?: number }> {
+  const now = options.now ? dayjs(options.now).tz(APP_TIMEZONE) : dayjs().tz(APP_TIMEZONE);
+  const currentHm = now.format("HH:mm");
+  const db = getDb();
+
+  const [config] = await db
+    .select({
+      enabled: dailyPushConfig.enabled,
+      briefingSendTime: dailyPushConfig.briefingSendTime,
+      baseUrl: dailyPushConfig.baseUrl,
+    })
+    .from(dailyPushConfig)
+    .where(eq(dailyPushConfig.id, 1))
+    .limit(1);
+
+  if (!config) {
+    logger.info({}, "briefing-push skipped: config row missing");
+    return { skipped: true, reason: "config_missing" };
+  }
+  if (!config.enabled) {
+    logger.info({ briefingSendTime: config.briefingSendTime }, "briefing-push skipped: disabled");
+    return { skipped: true, reason: "disabled" };
+  }
+  // Same `>=` reasoning as daily-push: an exact-minute gate loses to slow generation.
+  if (currentHm < config.briefingSendTime) {
+    logger.info(
+      { briefingSendTime: config.briefingSendTime, currentHm },
+      "briefing-push skipped: before briefing_send_time"
+    );
+    return { skipped: true, reason: "before_send_time" };
+  }
+
+  const briefingId = await scheduleLatestBriefingPush();
+  if (briefingId == null) return { skipped: true, reason: "no_briefing" };
+
+  // runBriefingPush does its own holiday gate and per-target dedup.
+  const result = await runBriefingPush(briefingId, config.baseUrl);
+  return { skipped: result.skipped, briefingId };
+}
+
+/**
  * Resolve today's pushable commodity briefing id (succeeded/degraded).
- * Kept for ops/tests; scheduled merged push uses runScheduledDailyPush (T-DUP-02).
- * Manual repush uses runBriefingPush with an explicit positive briefingId.
+ * Used by runScheduledBriefingPush; manual repush passes an explicit positive
+ * briefingId to runBriefingPush instead.
  */
 export async function scheduleLatestBriefingPush(): Promise<number | null> {
   const db = getDb();

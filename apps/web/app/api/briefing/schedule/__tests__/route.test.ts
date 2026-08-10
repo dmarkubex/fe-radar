@@ -39,6 +39,14 @@ vi.mock("drizzle-orm", () => ({
 
 vi.mock("@/lib/api/authz", () => ({
   getRequestUser: (...args: unknown[]) => mockGetRequestUser(...args),
+  // T-SEC-06: route 改用 requireFreshRole（内部 = requireRequestRole + token 新鲜度）。
+  // mock 语义与真实实现一致：无 role 401、非 admin 403、否则放行。
+  requireFreshRole: async (...args: unknown[]) => {
+    const user = await mockGetRequestUser(...args);
+    if (!user.role) return Response.json({ error: { code: "UNAUTHORIZED", message: "请先登录" } }, { status: 401 });
+    if (user.role !== "admin") return Response.json({ error: { code: "FORBIDDEN", message: "权限不足" } }, { status: 403 });
+    return null;
+  },
   unauthorized: () =>
     Response.json({ error: { code: "UNAUTHORIZED", message: "请先登录" } }, { status: 401 }),
   forbidden: () =>

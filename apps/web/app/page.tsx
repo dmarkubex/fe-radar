@@ -2,9 +2,7 @@ import { PageFrame } from "@/components/layout/page-frame";
 import { PageHeader } from "@/components/layout/page-header";
 import { FilterBar } from "@/components/timeline/filter-bar";
 import { TimelineList } from "@/components/timeline/timeline-list";
-import { auth } from "@/auth";
 import { fetchTimeline } from "@/lib/api/timeline-query";
-import { hasRole } from "@/lib/auth/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -36,8 +34,6 @@ export default async function HomePage({ searchParams }: { searchParams: PageSea
     eventType: first(params.eventType)
   };
   const initialData = await fetchTimeline({ filters });
-  const session = await auth();
-  const canCreatePrediction = hasRole(session?.user?.role, "editor");
 
   const totalCount = initialData.items.length;
   const alertCount = initialData.items.filter((i) => i.alertType === "own").length;
@@ -60,7 +56,6 @@ export default async function HomePage({ searchParams }: { searchParams: PageSea
       <FilterBar />
 
       <TimelineList
-        canCreatePrediction={canCreatePrediction}
         endpoint={endpointFromParams(params)}
         initialData={initialData}
         variant="timeline"

@@ -3,6 +3,7 @@
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { normalizeSafeCallbackUrl } from "@/lib/auth/safe-callback-url";
 
 interface LocalLoginFormProps {
   compact?: boolean;
@@ -30,7 +31,10 @@ export function LocalLoginForm({ compact = false }: LocalLoginFormProps): React.
       return;
     }
 
-    window.location.href = searchParams.get("callbackUrl") || "/";
+    // T-SEC-05: never navigate to the raw query param — javascript:/data: would run as
+    // authenticated XSS. normalizeSafeCallbackUrl collapses anything that isn't a
+    // single-leading-slash same-origin relative path to "/".
+    window.location.href = normalizeSafeCallbackUrl(searchParams.get("callbackUrl"));
   }
 
   const gap = compact ? "gap-3" : "gap-4";

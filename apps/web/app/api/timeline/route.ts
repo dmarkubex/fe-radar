@@ -1,10 +1,14 @@
 import { canIncludeBlocked, getRequestUser } from "@/lib/api/authz";
+import { requireFreshViewer } from "@/lib/auth/token-freshness";
 import { fetchTimeline } from "@/lib/api/timeline-query";
 import { timelineQuerySchema } from "@/lib/api/timeline-schema";
 
 import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest): Promise<Response> {
+  const freshError = await requireFreshViewer(request);
+  if (freshError) return freshError;
+
   const { searchParams } = request.nextUrl;
   const user = await getRequestUser(request);
   const parsed = timelineQuerySchema.safeParse({

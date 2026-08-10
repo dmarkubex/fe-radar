@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Hoist mock functions so vi.mock factories can reference them
 const {
   mockGetRequestUser,
+  mockRequireFreshRole,
   selectWhere,
   mockSelect,
   updateReturning,
@@ -24,6 +25,7 @@ const {
 
   return {
     mockGetRequestUser: vi.fn<(req: unknown) => Promise<{ id?: number; role?: string; name?: string | null }>>(),
+    mockRequireFreshRole: vi.fn<(req: unknown, role: string) => Promise<Response | null>>(),
     selectWhere,
     selectFrom,
     mockSelect,
@@ -44,10 +46,16 @@ vi.mock("drizzle-orm", () => ({
   eq: (col: unknown, val: unknown) => ({ col, val, op: "eq" }),
   isNull: (col: unknown) => ({ col, op: "isNull" }),
   ne: (col: unknown, val: unknown) => ({ col, val, op: "ne" }),
+  // T-SEC-06: route now increments token_version via sql`<col> + 1`.
+  sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
+    $sql: strings.join("?"),
+    $values: values,
+  }),
 }));
 
 vi.mock("@/lib/api/authz", () => ({
   getRequestUser: mockGetRequestUser,
+  requireFreshRole: mockRequireFreshRole,
 }));
 
 vi.mock("@/lib/api/users-schema", async () => {
@@ -72,7 +80,7 @@ vi.mock("@fe-radar/db", () => ({
     update: mockUpdate,
     insert: mockInsert,
   }),
-  users: { id: "id", role: "role", disabledAt: "disabledAt" },
+  users: { id: "id", role: "role", disabledAt: "disabledAt", tokenVersion: "tokenVersion", createdAt: "createdAt", username: "username", dingtalkId: "dingtalkId", name: "name", dept: "dept" },
   auditLogs: {},
   mergeConflicts: {},
 }));
@@ -120,6 +128,7 @@ describe("PUT /api/users/[id] — admin protection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     insertValues.mockResolvedValue(undefined);
+    mockRequireFreshRole.mockResolvedValue(null);
   });
 
   afterEach(() => {

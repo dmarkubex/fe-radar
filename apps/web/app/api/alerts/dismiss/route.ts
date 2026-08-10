@@ -1,6 +1,6 @@
 import { inArray, sql } from "drizzle-orm";
 import { getDb, itemAnalysis } from "@fe-radar/db";
-import { requireRequestRole } from "@/lib/api/authz";
+import { requireFreshRole } from "@/lib/api/authz";
 import { dismissSchema } from "@/lib/api/alerts-schema";
 
 import type { NextRequest } from "next/server";
@@ -13,7 +13,7 @@ function getRowCount(result: unknown): number | null {
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
-  const authError = await requireRequestRole(request, "editor");
+  const authError = await requireFreshRole(request, "editor");
   if (authError) return authError;
 
   const body = await request.json().catch(() => null);

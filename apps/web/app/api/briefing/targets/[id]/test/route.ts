@@ -14,7 +14,7 @@ import {
   type DailyReportSections,
 } from "@fe-radar/core";
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
-import { getRequestUser, unauthorized, forbidden, notFound } from "@/lib/api/authz";
+import { getRequestUser, unauthorized, forbidden, notFound, requireFreshRole } from "@/lib/api/authz";
 
 import type { NextRequest } from "next/server";
 
@@ -39,6 +39,8 @@ function signWebhook(webhookUrl: string, signSecret: string): string {
  * Does NOT write daily_pushes audit rows (FR-10).
  */
 export async function POST(request: NextRequest, context: RouteContext): Promise<Response> {
+  const freshError = await requireFreshRole(request, "admin");
+  if (freshError) return freshError;
   const user = await getRequestUser(request);
   if (!user.role) return unauthorized();
   if (user.role !== "admin") return forbidden();

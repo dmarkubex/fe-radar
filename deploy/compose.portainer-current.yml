@@ -19,8 +19,8 @@ services:
       TZ: Asia/Shanghai
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432" # 映射到宿主机，方便 psql 直接查（测试用；生产关闭）
+    # T-SEC-13: 不发布 5432 到宿主机接口（短语法默认绑全部接口，绕过 web 鉴权直接暴露
+    # DB 认证面）。临时排查用 `docker exec` 进容器 psql，或 SSH tunnel 仅绑 127.0.0.1。
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U fe_radar -d fe_radar"]
       interval: 10s
@@ -84,6 +84,10 @@ services:
       DATABASE_URL: postgres://fe_radar:${DB_PASSWORD:?在 Portainer stack 环境变量填 DB_PASSWORD}@postgres:5432/fe_radar
       REDIS_URL: redis://redis:6379
       RSSHUB_BASE_URL: http://rsshub:1200
+      # T-SEC-12 / S5: SSRF 守卫默认拒绝内网/非标端口；容器内抓 rsshub:1200 必须进 allowlist，
+      # 否则 PORT_BLOCKED:1200 会打死 quotes-fetch 与所有经 RSSHub 的源（与 stack.yml 对齐）。
+      # 最小权限：仅 RSSHub；minio/redis/postgres 不经 url-guard，不得加入。
+      FETCH_INTERNAL_ALLOWLIST: rsshub
       PROXY_POOL_ENABLED: "false"
       # worker RSS 抓 RSSHub 的超时（冷缓存回源慢，4s 默认太短）；需配套新 worker 镜像才生效
       RSS_FETCH_TIMEOUT_MS: ${RSS_FETCH_TIMEOUT_MS:-15000}
@@ -109,12 +113,26 @@ services:
       FIRECRAWL_BASE_URL: ${FIRECRAWL_BASE_URL:-https://api.firecrawl.dev/v2}
       REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users,public.commodity_briefings,public.commodity_quotes,public.briefing_targets,public.briefing_template_fields,public.daily_push_config,public.daily_pushes
       DB_WAIT_TIMEOUT_SECONDS: "180"
+      # ── v1.1 商品简报渲染：MinIO 上传 + docx 模板（与 stack.yml 对齐；本文件此前缺失，
+      #    从此 compose 部署会抹掉线上已有配置，导致渲染失败 / 下载 410）──
+      BRIEFING_TEMPLATE_PATH: /app/design/templates/briefing.docx
+      BRIEFING_MINIO_BUCKET: fe-radar-briefings
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      # T-SEC-17: worker 改用 scoped service account（按 docs/runbook/minio-least-privilege.md 预建），
+      # 不再挂 root 凭据。entrypoint（fe-entrypoint.sh）读 *_FILE → 注入明文 MINIO_ACCESS_KEY/SECRET_KEY。
+      MINIO_ACCESS_KEY_FILE: /run/secrets/minio_worker_access_key
+      MINIO_SECRET_KEY_FILE: /run/secrets/minio_worker_secret_key
     depends_on:
       migrate:
         condition: service_completed_successfully
       redis:
         condition: service_started
     restart: unless-stopped
+    secrets:
+      - minio_worker_access_key
+      - minio_worker_secret_key
 
   scheduler:
     image: harborssl.fegroup.cn/custom-project/fe-radar-worker:latest
@@ -151,8 +169,20 @@ services:
       TZ: Asia/Shanghai
       DATABASE_URL: postgres://fe_radar:${DB_PASSWORD:?在 Portainer stack 环境变量填 DB_PASSWORD}@postgres:5432/fe_radar
       REDIS_URL: redis://redis:6379
-      # 从局域网/其他机器访问时必须设成实际访问地址，否则登录回调失败：
-      NEXTAUTH_URL: ${NEXTAUTH_URL:?在 Portainer stack 环境变量填实际访问地址，如 http://10.1.20.156:3013}
+      # S2 / 登录限速 IP 维度：
+      # TRUST_PROXY_HEADERS — 仅当前面有会重写 X-Forwarded-For 的可信代理
+      # （如 Nginx `$proxy_add_x_forwarded_for`）时设为 "true"，才启用 IP 维度登录限速并解析 XFF。
+      # 当前部署：直发 published 端口、无重写 XFF 的可信代理层 → 保持默认关闭
+      # （不设或 "false"）。关闭时仅用 peer 地址；取不到则跳过 IP 维度（username 限速仍生效），
+      # 绝不回退共享 "unknown" 键（防伪造 XFF 绕过 / 故意无 XFF 锁死全员）。
+      # 若日后前置 Nginx/CDN 并正确追加 XFF，再显式设 TRUST_PROXY_HEADERS=true，
+      # 可选 TRUSTED_PROXY_HOPS（默认 1 = 单层代理，取 XFF 右数第 hops 项）。
+      # TRUST_PROXY_HEADERS: "false"
+      # 从局域网/其他机器访问时必须设成实际访问地址，否则登录回调失败。
+      # S5 / T-SEC-16: 生产启动要求 AUTH_URL/NEXTAUTH_URL 非空。内网 only 允许 http://
+      # （instrumentation 打 WARN 并强制 Secure cookie=false，不再 throw 导致 crash-loop）。
+      # 切外网时必须改为 https://...，见 docs/runbook/external-https-deployment.md。
+      NEXTAUTH_URL: ${NEXTAUTH_URL:?在 Portainer 填实际访问 origin：内网可 http://10.1.20.156:3013；外网必须 https://...}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?在 Portainer stack 环境变量填 NEXTAUTH_SECRET}
       # ── 钉钉扫码登录（普通员工用；不开则登录页只有 admin 本地账号）──
       # 钉钉应用后台必须把回调地址设成 http://10.1.20.156:3013/api/auth/callback/dingtalk
@@ -161,16 +191,65 @@ services:
       DINGTALK_APP_SECRET: ${DINGTALK_APP_SECRET:?在 Portainer stack 环境变量填钉钉 AppSecret}
       DINGTALK_CORP_ID: ${DINGTALK_CORP_ID:?在 Portainer stack 环境变量填钉钉 CorpId}
       # 应急兜底：SSO 故障时仍允许 admin 用本地账号密码登录（dingtalk-provider.ts:isLocalLoginAllowed）
-      EMERGENCY_LOCAL_LOGIN: "true"
+      # T-SEC-02 / T-SEC-08: 默认关闭，仅排障时显式设 EMERGENCY_LOCAL_LOGIN=true 开启；
+      # 常态开启等于把无限尝试的本地凭据入口长期暴露在内网/外网。
+      EMERGENCY_LOCAL_LOGIN: ${EMERGENCY_LOCAL_LOGIN:-false}
       REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users,public.commodity_briefings,public.commodity_quotes,public.briefing_targets,public.briefing_template_fields,public.daily_push_config,public.daily_pushes
       DB_WAIT_TIMEOUT_SECONDS: "180"
+      # ── v1.1 商品简报下载：MinIO 只读（与 stack.yml 对齐；此前缺失，
+      #    从此 compose 部署会抹掉线上已有配置 → 下载 statObject/getObject 失败 / 410）──
+      BRIEFING_MINIO_BUCKET: fe-radar-briefings
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      # T-SEC-17: web 改用 scoped 只读 service account（按 docs/runbook/minio-least-privilege.md 预建），
+      # 不再挂 root 凭据。entrypoint（fe-entrypoint.sh）读 *_FILE → 注入明文 MINIO_ACCESS_KEY/SECRET_KEY。
+      MINIO_ACCESS_KEY_FILE: /run/secrets/minio_web_access_key
+      MINIO_SECRET_KEY_FILE: /run/secrets/minio_web_secret_key
     ports:
       - "3013:3000"
     depends_on:
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped
+    secrets:
+      - minio_web_access_key
+      - minio_web_secret_key
+
+  # MinIO 对象存储（v1.1 商品简报 docx）。canonical stack.yml 已有此 service；本文件此前缺失 →
+  # 从本 compose 部署会把线上 minio 抹掉，简报渲染/下载全挂。root 凭据仅本 service 持有，
+  # web/worker/backup 用 scoped service account（见 docs/runbook/minio-least-privilege.md）。
+  minio:
+    image: harborssl.fegroup.cn/custom-project/minio:RELEASE.2025-09-07T16-13-09Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      TZ: Asia/Shanghai
+      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+    secrets:
+      - minio_root_user
+      - minio_root_password
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
 
 volumes:
   postgres_data:
   redis_data:
+  minio_data:
+
+secrets:
+  # T-SEC-17: MinIO root 仅 minio service 持有；web/worker/backup 用 scoped 账号。
+  # 按 docs/runbook/minio-least-privilege.md 预建后，在 Portainer 用同名 external secret 创建。
+  minio_root_user:
+    external: true
+  minio_root_password:
+    external: true
+  minio_web_access_key:
+    external: true
+  minio_web_secret_key:
+    external: true
+  minio_worker_access_key:
+    external: true
+  minio_worker_secret_key:
+    external: true

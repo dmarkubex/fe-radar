@@ -105,7 +105,6 @@ environment:
 - `AUTH_TRUST_HOST=true` 允许 Auth.js 接受反向代理转发的真实 Host。
 - 外网运行时删除或设为 `false`：`EMERGENCY_LOCAL_LOGIN`。仅 SSO 故障处置期间临时开启。
 - `NEXTAUTH_SECRET`、钉钉 AppSecret 等密钥继续由 Portainer 环境或 Docker secret 提供，不写入 Git。
-- 若 MiroFish 也对用户开放，其 `MIROFISH_WEB_BASE_URL` 和公开 API 地址必须分别切换到 HTTPS 入口；容器间 `MIROFISH_API_BASE_URL=http://mirofish:5001` 保持不变。
 
 仓库正式执行外网切换时，应将 `deploy/stack.yml` 中固定的 HTTP `NEXTAUTH_URL` 改为 Portainer 必填变量，避免后续重新部署退回 HTTP：
 

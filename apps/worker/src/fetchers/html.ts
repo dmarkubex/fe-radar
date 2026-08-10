@@ -86,6 +86,12 @@ export async function fetchHtml(
     source: context.sourceName,
     fetchImpl
   });
+  // 阿里云 WAF 挑战页（1b98ad9 误删，恢复）：被拦截时给可操作错误码，而不是 FETCH_HTML_EMPTY。
+  if (html.includes("aliyun_waf") || html.includes("acw_sc__v2")) {
+    throw new SourceFetchError("FETCH_WAF_CHALLENGE", "page blocked by Aliyun WAF challenge", {
+      url: config.listUrl
+    });
+  }
   const $ = load(html);
   const items: StandardItem[] = [];
 
@@ -95,13 +101,15 @@ export async function fetchHtml(
       .text()
       .trim();
     const href = firstSelectorMatch(root, config.selectors.link).attr("href");
-    const dateText = firstSelectorMatch(root, config.selectors.date)
-      .text()
-      .trim();
+    const dateText = config.selectors.date
+      ? firstSelectorMatch(root, config.selectors.date).text().trim()
+      : "";
     const content = config.selectors.content
       ? firstSelectorMatch(root, config.selectors.content).text().trim()
       : root.text().trim();
-    const publishedAt = parsePublishedAt(dateText);
+    // 配了 date selector 才严格校验日期（T-G0-04：防选择器漂移静默产出垃圾时间线）；
+    // date:"" 的无日期列表页（bjx 系生产配置即如此，见 0022）回退抓取时间。
+    const publishedAt = config.selectors.date ? parsePublishedAt(dateText) : new Date();
     if (!title || !href || !publishedAt) return;
     items.push({
       title,

@@ -1,7 +1,9 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import type * as Undici from "undici";
+import type * as Core from "@fe-radar/core";
 import { fetch as undiciFetch } from "undici";
+import { assertPublicFetchUrl } from "@fe-radar/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as sse from "../sse";
 
@@ -27,6 +29,16 @@ vi.mock("undici", async (importOriginal) => {
   };
 });
 
+// T-SEC-12: sse 走共享 fetchTextWithPolicy（../http）后，SSRF 守卫来自 @fe-radar/core。
+// 默认放行；个别用例覆写返回值验证守卫接入。
+vi.mock("@fe-radar/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof Core>();
+  return {
+    ...actual,
+    assertPublicFetchUrl: vi.fn(),
+  };
+});
+
 vi.mock("../../../lib/proxy-pool", () => ({
   proxyPool: {
     acquire: vi.fn(() => undefined),
@@ -43,6 +55,7 @@ vi.mock("../../../lib/robots", () => ({
 }));
 
 const mockFetch = vi.mocked(undiciFetch);
+const mockAssertPublicFetchUrl = vi.mocked(assertPublicFetchUrl);
 
 describe("sse adapter helpers", () => {
   it("builds query URL with stock and explicit date range", () => {
@@ -122,6 +135,8 @@ describe("sse adapter helpers", () => {
 describe("sseAdapter.fetch", () => {
   beforeEach(() => {
     mockFetch.mockReset();
+    mockAssertPublicFetchUrl.mockReset();
+    mockAssertPublicFetchUrl.mockResolvedValue({ allowed: true, reason: "PUBLIC_HOSTNAME" });
   });
 
   it("has correct adapter name", () => {
@@ -207,6 +222,24 @@ describe("sseAdapter.fetch", () => {
         endpoint: "http://169.254.169.254/latest/meta-data",
       },
     })).rejects.toMatchObject({ code: "FETCH_CONFIG" });
+  });
+
+  // T-SEC-12: sse 已切换到共享 fetchTextWithPolicy（../http）——SSRF 守卫在 robots/fetch
+  // 之前拦截解析到内网的目的地，防止 validateSseEndpoint 之外的 DNS rebinding 面。
+  it("blocks endpoints resolving to private IPs via the shared SSRF guard", async () => {
+    vi.stubEnv("SSRF_GUARD_ENABLED", "true");
+    mockAssertPublicFetchUrl.mockResolvedValue({ allowed: false, reason: "RESOLVED_PRIVATE:10.0.0.1" });
+    try {
+      await expect(sse.sseAdapter.fetch({ sourceName: "上交所公告" })).rejects.toMatchObject({
+        code: "FETCH_SSRF_BLOCKED",
+      });
+      expect(mockAssertPublicFetchUrl).toHaveBeenCalledWith(
+        expect.stringContaining("query.sse.com.cn")
+      );
+      expect(mockFetch).not.toHaveBeenCalled();
+    } finally {
+      vi.stubEnv("SSRF_GUARD_ENABLED", "false");
+    }
   });
 
   it("rejects non-default ports (different origin on the same host)", () => {

@@ -1,6 +1,7 @@
 import { and, desc, eq, lt } from "drizzle-orm";
 import { getDb, itemAnalysis, items, sources } from "@fe-radar/db";
 import { backlogQuerySchema } from "@/lib/api/backlog-schema";
+import { requireFreshRole } from "@/lib/api/authz";
 
 import type { NextRequest } from "next/server";
 
@@ -21,6 +22,9 @@ function decodeCursor(cursor?: string): { fetchedAt: Date; id: number } | null {
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
+  const authError = await requireFreshRole(request, "admin");
+  if (authError) return authError;
+
   const { searchParams } = request.nextUrl;
   const parsed = backlogQuerySchema.safeParse({
     state: searchParams.get("state") ?? undefined,

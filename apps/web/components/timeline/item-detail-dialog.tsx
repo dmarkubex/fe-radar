@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { FeedbackButtons } from "@/components/timeline/feedback-buttons";
-import { MirofishPredictionButton } from "@/components/timeline/mirofish-prediction-button";
 import {
   entityTypeLabel,
   formatAppTime,
@@ -18,11 +17,9 @@ import { safeItemHref } from "@/lib/safe-external-url";
 import type { ItemDetailDto } from "@/lib/api/timeline-query";
 
 export function ItemDetailDialog({
-  canCreatePrediction,
   itemId,
   onClose
 }: {
-  canCreatePrediction: boolean;
   itemId: number | null;
   onClose: () => void;
 }): React.JSX.Element | null {
@@ -163,7 +160,6 @@ export function ItemDetailDialog({
           </section>
 
           <FeedbackButtons itemId={item.id} />
-          {canCreatePrediction ? <MirofishPredictionButton itemId={item.id} /> : null}
         </div>
       ) : loading ? (
         <div className="space-y-4 p-5" aria-label="正在加载条目详情">

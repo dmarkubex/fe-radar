@@ -146,7 +146,10 @@ function stripTrailingSlashes(url: string): string {
 /** baseUrl: absolute http(s) only; trailing slashes stripped on parse. */
 export const scheduleConfigSchema = z.object({
   enabled: z.boolean(),
+  /** 产业日报推送时间 */
   sendTime: z.string().regex(HH_MM, "sendTime 必须为 HH:mm"),
+  /** 铜锂日报推送时间（0060 拆分）。optional 让未升级的旧前端 PUT 仍能通过。 */
+  briefingSendTime: z.string().regex(HH_MM, "briefingSendTime 必须为 HH:mm").optional(),
   scheduleMode: z.enum(["daily", "business_days"]),
   baseUrl: z
     .string()
