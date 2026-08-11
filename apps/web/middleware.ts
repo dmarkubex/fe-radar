@@ -12,6 +12,18 @@ import {
 import type { NextRequest } from "next/server";
 import type { UserRole } from "@fe-radar/shared";
 
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function httpOrigin(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * A-5 权威定义：admin **页面**路径 → 最低角色。
  * middleware 与 `(admin)/layout` → `gateAdminPage` 必须共用本函数，禁止第二份清单。
@@ -62,8 +74,26 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     pathname.startsWith("/api/alerts/count") ||
     pathname.startsWith("/api/briefing") ||
     pathname.startsWith("/api/quotes");
+  const isProtectedApi =
+    pathname.startsWith("/api/") && (isAdminPath || isEditorPath || isTimelineApi);
 
   if (!isAuthPath && (isAdminPath || isEditorPath || isTimelinePage || isTimelineApi)) {
+    if (isProtectedApi && MUTATING_METHODS.has(request.method)) {
+      const requestOrigin = httpOrigin(request.headers.get("origin"));
+      const configuredAuthUrl = [process.env.AUTH_URL, process.env.NEXTAUTH_URL]
+        .find((value) => typeof value === "string" && value.trim() !== "")
+        ?.trim();
+      const allowedOrigin = configuredAuthUrl
+        ? httpOrigin(configuredAuthUrl)
+        : request.nextUrl.origin;
+      if (!requestOrigin || requestOrigin !== allowedOrigin) {
+        return NextResponse.json(
+          { error: { code: "FORBIDDEN", message: "跨站请求已拒绝" } },
+          { status: 403 }
+        );
+      }
+    }
+
     const token = await getToken({
       req: request,
       cookieName: "fe-radar.session-token",

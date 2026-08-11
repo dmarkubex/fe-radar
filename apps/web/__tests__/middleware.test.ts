@@ -19,9 +19,14 @@ vi.mock("next-auth/jwt", () => ({ getToken: mockGetToken }));
 import middleware from "../middleware";
 import type { NextRequest } from "next/server";
 
-const mw = (path: string, headers = new Headers()) => {
-  const url = `http://localhost${path}`;
-  const req = { nextUrl: new URL(url), url, headers } as unknown as NextRequest;
+const mw = (
+  path: string,
+  headers = new Headers(),
+  method = "GET",
+  baseUrl = "http://localhost"
+) => {
+  const nextUrl = new URL(path, baseUrl);
+  const req = { nextUrl, url: nextUrl.href, headers, method } as unknown as NextRequest;
   return middleware(req);
 };
 
@@ -163,6 +168,105 @@ describe("middleware auth gate (Antigravity #5)", () => {
     const res = await mw("/api/timeline");
     expect(res.status).not.toBe(401);
     expect(res.status).not.toBe(403);
+  });
+});
+
+describe("middleware protected API origin gate", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv("AUTH_URL", "");
+    vi.stubEnv("NEXTAUTH_URL", "");
+    mockGetToken.mockResolvedValue({ role: "viewer", sub: "1" });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("rejects cross-site writes for every mutating method", async () => {
+    for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+      const res = await mw(
+        "/api/alerts/dismiss",
+        new Headers({ origin: "https://evil.example" }),
+        method
+      );
+      expect(res.status).toBe(403);
+    }
+  });
+
+  it.each([null, "not-a-url"])("rejects a missing or invalid Origin: %s", async (origin) => {
+    const headers = new Headers();
+    if (origin) headers.set("origin", origin);
+
+    expect((await mw("/api/alerts/dismiss", headers, "POST")).status).toBe(403);
+  });
+
+  it.each([
+    ["admin", "/api/users", "admin"],
+    ["editor", "/api/sources", "editor"],
+    ["timeline", "/api/alerts/dismiss", "viewer"]
+  ])("allows a same-origin %s write", async (_kind, path, role) => {
+    mockGetToken.mockResolvedValue({ role, sub: "1" });
+    const res = await mw(path, new Headers({ origin: "http://localhost" }), "POST");
+
+    expect(res.status).not.toBe(403);
+  });
+
+  it("allows the configured external origin behind an internal request URL", async () => {
+    vi.stubEnv("AUTH_URL", "");
+    vi.stubEnv("NEXTAUTH_URL", "https://radar.example.com");
+
+    const res = await mw(
+      "/api/alerts/dismiss",
+      new Headers({ origin: "https://radar.example.com" }),
+      "POST",
+      "http://web:3000"
+    );
+    const internal = await mw(
+      "/api/alerts/dismiss",
+      new Headers({ origin: "http://web:3000" }),
+      "POST",
+      "http://web:3000"
+    );
+
+    expect(res.status).not.toBe(403);
+    expect(internal.status).toBe(403);
+  });
+
+  it("uses AUTH_URL only when both configured origins are non-empty", async () => {
+    vi.stubEnv("AUTH_URL", "https://primary.example.com");
+    vi.stubEnv("NEXTAUTH_URL", "https://secondary.example.com");
+
+    const primary = await mw(
+      "/api/alerts/dismiss",
+      new Headers({ origin: "https://primary.example.com" }),
+      "POST",
+      "http://web:3000"
+    );
+    const secondary = await mw(
+      "/api/alerts/dismiss",
+      new Headers({ origin: "https://secondary.example.com" }),
+      "POST",
+      "http://web:3000"
+    );
+
+    expect(primary.status).not.toBe(403);
+    expect(secondary.status).toBe(403);
+  });
+
+  it("does not intercept the Auth.js callback", async () => {
+    const res = await mw(
+      "/api/auth/callback/dingtalk",
+      new Headers({ origin: "https://evil.example" }),
+      "POST"
+    );
+
+    expect(res.status).not.toBe(403);
+    expect(mockGetToken).not.toHaveBeenCalled();
+  });
+
+  it("allows a GET without Origin", async () => {
+    expect((await mw("/api/timeline")).status).not.toBe(403);
   });
 });
 

@@ -35,6 +35,12 @@ function resolveConfiguredAuthUrl(): string {
 
 const authUrl = resolveConfiguredAuthUrl();
 const useSecureCookie = authUrl ? authUrl.startsWith("https://") : process.env.NODE_ENV === "production";
+const authCookieOptions = {
+  httpOnly: true,
+  sameSite: useSecureCookie ? "none" : "lax",
+  path: "/",
+  secure: useSecureCookie
+} as const;
 
 // T-SEC-16 (复核): 生产 HTTPS origin 断言已移到 instrumentation.ts register（启动钩子），
 // 避免在 next build 的 page-data 阶段（NODE_ENV=production 但非真实启动）误触发导致构建挂。
@@ -171,12 +177,11 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   cookies: {
     sessionToken: {
       name: "fe-radar.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: useSecureCookie
-      }
+      options: authCookieOptions
+    },
+    csrfToken: {
+      name: `${useSecureCookie ? "__Host-" : ""}authjs.csrf-token`,
+      options: authCookieOptions
     }
   }
 });
