@@ -31,8 +31,10 @@ jobs:
 
     env:
       DATABASE_URL: postgres://fe_radar:fe_radar@localhost:5432/fe_radar
-      AUTH_SECRET: fe-radar-e2e-secret-fe-radar-e2e-secret
-      NEXTAUTH_SECRET: fe-radar-e2e-secret-fe-radar-e2e-secret
+      # 开源后请在 GitHub Repo → Settings → Secrets 配置 NEXTAUTH_SECRET_E2E；
+      # 未配置时回退到下方占位符（仅 e2e 使用，非真实密钥，已在 .gitleaks.toml 放行）。
+      AUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET_E2E || 'e2e-dummy-secret-not-for-production' }}
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET_E2E || 'e2e-dummy-secret-not-for-production' }}
       NEXTAUTH_URL: http://localhost:3000
       MIGRATION_PROFILE: e2e
       SEED_ADMIN_USERNAME: admin

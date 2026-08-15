@@ -1,0 +1,14 @@
+# fe-radar — gitleaks 配置
+# 用途：放行仓库内已知的 CI / 本地开发占位凭据，避免误报；真实密钥一律拦截。
+# 注意：这里的放行项都是 localhost 或 e2e 专用占位值，绝非真实密钥。
+[extend]
+use-default = true
+
+[allowlist]
+description = "Known non-secret CI/dev placeholders (localhost + e2e dummy)"
+regexes = [
+  '''(?i)fe-radar-e2e-secret[0-9a-z-]*''',
+  '''(?i)e2e-dummy-secret-not-for-production''',
+  '''postgres://fe_radar:fe_radar@localhost:5432/fe_radar''',
+  '''postgres://fe_radar:fe_radar_dev@localhost:5432/fe_radar''',
+]

@@ -59,6 +59,11 @@ scripts/samples/
 
 # 会话临时产出（与项目代码无关）
 /.zcode/
+
+# WorkBuddy AI 本地状态（agent 记忆 / 运行态，非项目资产，禁止进公开仓库）
+/.workbuddy-ai/
+# Playwright CLI 本地缓存
+/.playwright-cli/
 /diff.patch
 /diff.txt
 /diff_output.txt
