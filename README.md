@@ -111,7 +111,9 @@ cp apps/web/.env.example apps/web/.env.local   # 按需填写环境变量（见�
 
 ## 许可证
 
-内部项目开源，许可证待定。使用前请留意各信源的使用条款与行业数据合规要求。
+本项目以 **Apache License 2.0** 发布。详见根目录 [`LICENSE`](./LICENSE)。
+
+使用前请留意各信源的使用条款与行业数据合规要求。
 
 ---
 
