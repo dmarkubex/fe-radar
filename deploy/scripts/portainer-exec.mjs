@@ -50,7 +50,8 @@ function parseArgs(argv) {
     else if (flags[i] === "--endpoint") out.endpoint = flags[++i] || "";
     else throw new Error(`unknown flag: ${flags[i]}`);
   }
-  if (!out.match) throw new Error("--match <container name substring> is required");
+  if (!out.match)
+    throw new Error("--match <container name substring> is required");
   if (out.cmd.length === 0) throw new Error("command after `--` is empty");
   return out;
 }
@@ -85,7 +86,9 @@ function requestJson(baseUrl, path, { token, method = "GET", body } = {}) {
             parsed = text;
           }
           if (res.statusCode >= 400) {
-            reject(new Error(`HTTP ${res.statusCode} ${path}: ${text.slice(0, 300)}`));
+            reject(
+              new Error(`HTTP ${res.statusCode} ${path}: ${text.slice(0, 300)}`)
+            );
           } else {
             resolve(parsed);
           }
@@ -225,7 +228,9 @@ async function main() {
   const username = process.env.PORTAINER_USERNAME || "admin";
   const password = process.env.PORTAINER_PASSWORD;
   if (!baseUrl || !password) {
-    throw new Error("PORTAINER_URL / PORTAINER_PASSWORD missing (check env file)");
+    throw new Error(
+      "PORTAINER_URL / PORTAINER_PASSWORD missing (check env file)"
+    );
   }
   const endpoint = args.endpoint || process.env.PORTAINER_ENDPOINT_ID || "3";
 
