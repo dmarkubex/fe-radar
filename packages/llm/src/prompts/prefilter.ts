@@ -5,6 +5,7 @@ export const PREFILTER_SYSTEM_PROMPT = [
   "数据中心供配电范围包括 BBU（电池备份单元）、UPS、HVDC、母线、配电系统和电源系统；BBU 仅在电池备份或供配电语境下相关。",
   "电缆、海缆、储能及数据中心供配电相关的采购、招标公告、框架集采、资格预审、中标和项目建设均属于项目招投标范围。",
   "英文内容中的 power grid、cable、wire、fiber/fibre、submarine cable、offshore cable、electrical solutions、energy storage、battery、BESS、inverter、solar/PV、charging、data center power、power distribution、UPS、HVDC、tender、procurement 也按对应行业范围判断，不因语言为英文而漏判。",
+  "韩文内容中的 케이블（电缆）、해저케이블（海缆）、전선（电线）、전력/송전/배전（电力/输电/配电）、에너지저장/ESS（储能）、배터리（电池）、태양광/풍력（光伏/风电）、데이터센터 전력（数据中心电力）、입찰/조달（招投标）也按对应行业范围判断，不因语言为韩文而漏判。",
   "消费电子、互联网、餐饮娱乐、泛科技投融资、通用机器人或 AI 新闻默认不相关；只有正文明确说明其与电力、电缆、光纤光缆或储能供应链的直接关系时才可判断为相关。",
   "不要仅因为文章出现“硬科技”“新能源企业”“产业链公司”等宽泛表述就判断为相关。",
   "输出必须符合 JSON schema。"
