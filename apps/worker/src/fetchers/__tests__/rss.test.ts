@@ -61,4 +61,58 @@ describe("rss fetcher", () => {
       )
     ).rejects.toMatchObject({ code: "FETCH_RSS_INVALID" });
   });
+
+  // keywordFilter 语义与 html.ts 一致：title + content 命中任一关键词（大小写敏感）才保留。
+  it("keeps only items whose title or content contains a keywordFilter keyword", async () => {
+    const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>Feed</title>
+      <item><title>电缆招标公告</title><link>https://example.com/a</link><description>某项目</description></item>
+      <item><title>娱乐新闻</title><link>https://example.com/b</link><description>明星动态</description></item>
+      <item><title>普通新闻</title><link>https://example.com/c</link><description>涉及储能产业链</description></item>
+    </channel></rss>`;
+    const fetchImpl = async (url: string) =>
+      url.endsWith("/robots.txt") ? new Response("") : new Response(xml);
+
+    const items = await fetchRss(
+      { type: "rss", url: "https://example.com/rss.xml", keywordFilter: ["电缆", "储能"] },
+      { sourceName: "filtered" },
+      fetchImpl as typeof fetch
+    );
+    expect(items.map((item) => item.url)).toEqual([
+      "https://example.com/a",
+      "https://example.com/c"
+    ]);
+  });
+
+  it("keywordFilter matching is case-sensitive", async () => {
+    const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>Feed</title>
+      <item><title>CABLE news</title><link>https://example.com/a</link><description>upper</description></item>
+      <item><title>cable news</title><link>https://example.com/b</link><description>lower</description></item>
+    </channel></rss>`;
+    const fetchImpl = async (url: string) =>
+      url.endsWith("/robots.txt") ? new Response("") : new Response(xml);
+
+    const items = await fetchRss(
+      { type: "rss", url: "https://example.com/rss.xml", keywordFilter: ["cable"] },
+      { sourceName: "case" },
+      fetchImpl as typeof fetch
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]?.url).toBe("https://example.com/b");
+  });
+
+  it("throws FETCH_RSS_EMPTY when keywordFilter removes every item", async () => {
+    const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>Feed</title>
+      <item><title>娱乐新闻</title><link>https://example.com/a</link><description>明星</description></item>
+    </channel></rss>`;
+    const fetchImpl = async (url: string) =>
+      url.endsWith("/robots.txt") ? new Response("") : new Response(xml);
+
+    await expect(
+      fetchRss(
+        { type: "rss", url: "https://example.com/rss.xml", keywordFilter: ["电缆"] },
+        { sourceName: "all-filtered" },
+        fetchImpl as typeof fetch
+      )
+    ).rejects.toMatchObject({ code: "FETCH_RSS_EMPTY" });
+  });
 });

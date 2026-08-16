@@ -56,7 +56,20 @@ export async function fetchRss(config: RssSourceConfig, context: FetchContext, f
         { source: context.sourceName, skipped, total: feed.items.length }
       );
     }
-    return items;
+    // 与 html.ts keywordFilter 语义一致：title + content 包含任一关键词（大小写敏感）才保留。
+    const filtered = config.keywordFilter?.length
+      ? items.filter((item) =>
+          config.keywordFilter!.some((keyword) => `${item.title} ${item.content}`.includes(keyword))
+        )
+      : items;
+    if (filtered.length === 0) {
+      throw new SourceFetchError("FETCH_RSS_EMPTY", "RSS items all filtered out by keywordFilter", {
+        source: context.sourceName,
+        keywords: config.keywordFilter,
+        total: items.length
+      });
+    }
+    return filtered;
   } catch (error) {
     if (error instanceof SourceFetchError) {
       throw error;
