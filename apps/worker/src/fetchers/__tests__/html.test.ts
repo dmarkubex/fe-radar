@@ -100,6 +100,32 @@ describe("parsePublishedAt", () => {
     expect(parsePublishedAt("not a date")).toBeNull();
     expect(parsePublishedAt("2026-13-40")).toBeNull();
   });
+
+  it("parses Chinese relative dates like 3天前 / 12小时前 / 45分钟前", () => {
+    const now = Date.now();
+    const days = parsePublishedAt("3天前");
+    const daysAlias = parsePublishedAt("3日前");
+    const hours = parsePublishedAt("12小时前");
+    const minutes = parsePublishedAt("45分钟前");
+    expect(days).not.toBeNull();
+    expect(Math.abs(now - days!.getTime() - 3 * 86400e3)).toBeLessThan(5000);
+    expect(Math.abs(now - daysAlias!.getTime() - 3 * 86400e3)).toBeLessThan(5000);
+    expect(Math.abs(now - hours!.getTime() - 12 * 3600e3)).toBeLessThan(5000);
+    expect(Math.abs(now - minutes!.getTime() - 45 * 60e3)).toBeLessThan(5000);
+  });
+
+  it("parses English relative dates like 3 days ago", () => {
+    const now = Date.now();
+    expect(Math.abs(now - parsePublishedAt("3 days ago")!.getTime() - 3 * 86400e3)).toBeLessThan(5000);
+    expect(Math.abs(now - parsePublishedAt("1 day ago")!.getTime() - 86400e3)).toBeLessThan(5000);
+    expect(Math.abs(now - parsePublishedAt("2 Hours Ago")!.getTime() - 2 * 3600e3)).toBeLessThan(5000);
+    expect(Math.abs(now - parsePublishedAt("30 minutes ago")!.getTime() - 30 * 60e3)).toBeLessThan(5000);
+  });
+
+  it("returns null for oversized relative dates", () => {
+    expect(parsePublishedAt("400天前")).toBeNull();
+    expect(parsePublishedAt("999 days ago")).toBeNull();
+  });
 });
 
 describe("fetchHtml date validation", () => {

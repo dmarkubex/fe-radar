@@ -32,6 +32,10 @@ const MONTHS = [
 ];
 const DOMESTIC_TIME = /(?:T|\s)(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/;
 const EXPLICIT_TIMEZONE = /(?:Z|[+-]\d{2}:?\d{2}|GMT|UTC)\s*$/i;
+// 相对日期：中文“3天前/12小时前/45分钟前”（日与天同义）、英文“3 days ago”。
+const RELATIVE_DATE_ZH = /(\d{1,3})\s*(分钟|小时|天|日)前/;
+const RELATIVE_DATE_EN = /(\d{1,3})\s+(minutes?|hours?|days?)\s+ago/i;
+const MAX_RELATIVE_MS = 365 * 86400e3;
 
 export function parsePublishedAt(raw: string | null | undefined): Date | null {
   const value = raw?.trim();
@@ -40,6 +44,22 @@ export function parsePublishedAt(raw: string | null | undefined): Date | null {
   if (EXPLICIT_TIMEZONE.test(value)) {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const relativeZh = RELATIVE_DATE_ZH.exec(value);
+  const relativeEn = relativeZh ? null : RELATIVE_DATE_EN.exec(value);
+  if (relativeZh || relativeEn) {
+    const amount = Number((relativeZh ?? relativeEn)![1]);
+    const unit = (relativeZh?.[2] ?? relativeEn?.[2]?.toLowerCase()) ?? "";
+    const unitMs =
+      unit === "分钟" || unit.startsWith("minute")
+        ? 60e3
+        : unit === "小时" || unit.startsWith("hour")
+          ? 3600e3
+          : 86400e3;
+    const ms = amount * unitMs;
+    if (!Number.isFinite(ms) || ms > MAX_RELATIVE_MS) return null;
+    return new Date(Date.now() - ms);
   }
 
   const domestic = DOMESTIC_DATE.exec(value);
