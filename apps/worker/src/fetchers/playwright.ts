@@ -4,6 +4,7 @@ import { acquireUserAgent } from "../lib/ua-pool";
 import { proxyPool, type ProxyEndpoint } from "../lib/proxy-pool";
 import { assertRobotsAllowed } from "../lib/robots";
 import type { FetchContext, PlaywrightSourceConfig, StandardItem } from "./types";
+import { parsePublishedAt } from "./html";
 
 const logger = createLogger({ service: "fetch-playwright" });
 
@@ -206,12 +207,17 @@ export async function fetchPlaywright(
     await page.waitForSelector(config.waitFor, { timeout: 30000 });
     const extracted = await extractItems(page, config, finalUrl);
     proxyPool.release(proxy, true);
-    return extracted.map((item) => ({
-      title: item.title.trim(),
-      url: new URL(item.url, finalUrl).toString(),
-      content: (item.content ?? item.title).trim(),
-      publishedAt: item.publishedAt ? new Date(item.publishedAt) : new Date()
-    }));
+    // Gate 0（对齐 html.ts）：配了 dateSelector 的源必须解析出真实发布时间，解析失败的
+    // 条目丢弃（防选择器漂移静默产出以抓取时间冒充的垃圾时间线）；未配 dateSelector 的
+    // 存量源保持抓取时间兜底不变。
+    return extracted
+      .map((item) => ({
+        title: item.title.trim(),
+        url: new URL(item.url, finalUrl).toString(),
+        content: (item.content ?? item.title).trim(),
+        publishedAt: config.dateSelector ? parsePublishedAt(item.publishedAt) : new Date()
+      }))
+      .filter((item): item is StandardItem => item.publishedAt !== null);
   } catch (error) {
     proxyPool.release(proxy, false);
     throw error;
@@ -302,19 +308,31 @@ async function extractItems(
   const itemSelector = config.itemSelector;
   const titleSelector = config.titleSelector ?? "a";
   const linkSelector = config.linkSelector ?? "a";
+  const dateSelector = config.dateSelector;
+  const dateAttribute = config.dateAttribute;
   const limit = Math.min(Math.max(config.limit ?? 20, 1), 50);
 
-  const extracted = await page.$$eval<ExtractedItem[], { titleSelector: string; linkSelector: string; limit: number }>(
+  const extracted = await page.$$eval<
+    ExtractedItem[],
+    { titleSelector: string; linkSelector: string; dateSelector?: string; dateAttribute?: string; limit: number }
+  >(
     itemSelector,
-    (nodes, { titleSelector, linkSelector, limit }) =>
+    (nodes, { titleSelector, linkSelector, dateSelector, dateAttribute, limit }) =>
       nodes.slice(0, limit).map((node) => {
         const titleEl = node.matches(titleSelector) ? node : node.querySelector(titleSelector);
         const linkEl = node.matches(linkSelector) ? node : node.querySelector(linkSelector);
         const title = titleEl?.textContent ?? "";
         const url = (linkEl as HTMLAnchorElement | null)?.href ?? "";
-        return { title: title.trim(), url };
+        // Gate 0：配了 dateSelector 才抽取日期文本；dateAttribute 用于 <time datetime> 类属性。
+        let publishedAt: string | undefined;
+        if (dateSelector) {
+          const dateEl = node.matches(dateSelector) ? node : node.querySelector(dateSelector);
+          const raw = dateAttribute ? dateEl?.getAttribute(dateAttribute) : dateEl?.textContent;
+          publishedAt = raw?.trim() || undefined;
+        }
+        return { title: title.trim(), url, publishedAt };
       }),
-    { titleSelector, linkSelector, limit }
+    { titleSelector, linkSelector, dateSelector, dateAttribute, limit }
   );
 
   // Align with html.ts FETCH_HTML_EMPTY: zero itemSelector matches must fail the source,

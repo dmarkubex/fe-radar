@@ -40,6 +40,10 @@ export interface PlaywrightSourceConfig {
   itemSelector: string;
   titleSelector?: string;
   linkSelector?: string;
+  /** Gate 0：声明式日期选择器；配置后条目必须能解析出真实发布时间，否则丢弃。 */
+  dateSelector?: string;
+  /** 配合 dateSelector 读属性值（如 `<time datetime>`）；不配置则读 textContent。 */
+  dateAttribute?: string;
   limit?: number;
 }
 

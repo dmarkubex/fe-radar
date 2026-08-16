@@ -38,6 +38,47 @@ function makeContext(newPage: () => Promise<PageLike>): BrowserContextLike {
   };
 }
 
+interface FakeDatedItem {
+  title: string;
+  url: string;
+  /** textContent returned when the browser fn queries the configured dateSelector. */
+  dateText?: string;
+  /** attribute values for the date element (e.g. `<time datetime>` via dateAttribute). */
+  dateAttrs?: Record<string, string>;
+}
+
+/**
+ * Fake page whose nodes answer the dateSelector from $$eval's arg (Gate 0 date path).
+ * Non-date selectors fall back to the title/link stand-in, same as makePage.
+ */
+function makePageWithDates(items: FakeDatedItem[]): PageLike {
+  return {
+    async goto() {},
+    async waitForSelector() {},
+    async $$eval<T, U>(_selector: string, fn: (nodes: Element[], arg: U) => T, arg: U): Promise<T> {
+      const { dateSelector } = arg as { dateSelector?: string };
+      const nodes = items.map((item) => ({
+        textContent: item.title,
+        href: item.url,
+        matches: () => false,
+        querySelector: (sel: string) => {
+          if (dateSelector && sel === dateSelector) {
+            return {
+              textContent: item.dateText ?? "",
+              getAttribute: (name: string) => item.dateAttrs?.[name] ?? null
+            };
+          }
+          return { textContent: item.title, href: item.url };
+        }
+      })) as unknown as Element[];
+      return fn(nodes, arg) as T;
+    },
+    async route() {},
+    url: () => "https://example.com/",
+    async close() {}
+  } satisfies PageLike;
+}
+
 function makeProxy(id: string, server: string): ProxyEndpoint {
   return { id, server, disabled: false, failCount: 0 };
 }
@@ -712,5 +753,129 @@ describe("playwright fetcher", () => {
     } finally {
       vi.stubEnv("SSRF_GUARD_ENABLED", "false");
     }
+  });
+
+  // Gate 0：配 dateSelector 的源必须带真实发布时间（T-G0-04，对齐 html.ts 语义）。
+  it("parses publishedAt from dateSelector textContent and dateAttribute (datetime)", async () => {
+    const pool = new BrowserContextPool(async () => ({
+      async newContext() {
+        return makeContext(async () =>
+          makePageWithDates([
+            { title: "Chinese date", url: "https://example.com/a", dateText: "2026年8月10日" },
+            {
+              title: "Datetime attr",
+              url: "https://example.com/b",
+              dateAttrs: { datetime: "2026-08-12T09:30:00+08:00" }
+            }
+          ])
+        );
+      },
+      async close() {}
+    }));
+    const robotsFetch = async () => new Response("");
+
+    // First item: date from textContent (no dateAttribute).
+    const outText = await fetchPlaywright(
+      {
+        type: "playwright",
+        listUrl: "https://example.com",
+        waitFor: "body",
+        itemSelector: "article",
+        dateSelector: ".date"
+      },
+      { sourceName: "test" },
+      pool,
+      robotsFetch as typeof fetch
+    );
+    // parsePublishedAt treats 无显式时区的国内日期为 Asia/Shanghai（UTC+8）。
+    expect(outText[0]?.publishedAt).toEqual(new Date(Date.UTC(2026, 7, 10) - 8 * 3600e3));
+
+    // Second fetch on a fresh pool: date from dateAttribute (`<time datetime>`).
+    const pool2 = new BrowserContextPool(async () => ({
+      async newContext() {
+        return makeContext(async () =>
+          makePageWithDates([
+            {
+              title: "Datetime attr",
+              url: "https://example.com/b",
+              dateAttrs: { datetime: "2026-08-12T09:30:00+08:00" }
+            }
+          ])
+        );
+      },
+      async close() {}
+    }));
+    const outAttr = await fetchPlaywright(
+      {
+        type: "playwright",
+        listUrl: "https://example.com",
+        waitFor: "body",
+        itemSelector: "article",
+        dateSelector: "time",
+        dateAttribute: "datetime"
+      },
+      { sourceName: "test" },
+      pool2,
+      robotsFetch as typeof fetch
+    );
+    expect(outAttr[0]?.publishedAt).toEqual(new Date("2026-08-12T09:30:00+08:00"));
+  });
+
+  // Gate 0：配了 dateSelector 但日期解析失败 → 条目丢弃（防 selector 漂移静默产出垃圾），
+  // 不允许回退抓取时间冒充发布时间。
+  it("drops items whose dateSelector text fails to parse when dateSelector is configured", async () => {
+    const pool = new BrowserContextPool(async () => ({
+      async newContext() {
+        return makeContext(async () =>
+          makePageWithDates([
+            { title: "Valid date", url: "https://example.com/a", dateText: "2026-08-10" },
+            { title: "Drifted selector", url: "https://example.com/b", dateText: "加载中…" },
+            { title: "Missing date node", url: "https://example.com/c" } // dateText undefined → ""
+          ])
+        );
+      },
+      async close() {}
+    }));
+    const robotsFetch = async () => new Response("");
+
+    const out = await fetchPlaywright(
+      {
+        type: "playwright",
+        listUrl: "https://example.com",
+        waitFor: "body",
+        itemSelector: "article",
+        dateSelector: ".date"
+      },
+      { sourceName: "test" },
+      pool,
+      robotsFetch as typeof fetch
+    );
+    expect(out.map((r) => r.title)).toEqual(["Valid date"]);
+    expect(out[0]?.publishedAt).toEqual(new Date(Date.UTC(2026, 7, 10) - 8 * 3600e3));
+  });
+
+  // 兼容存量 playwright 源（如北极星系）：未配 dateSelector 时保持抓取时间兜底不变。
+  it("keeps fetch-time fallback when dateSelector is not configured", async () => {
+    const pool = new BrowserContextPool(async () => ({
+      async newContext() {
+        return makeContext(async () => makePage([{ title: "Legacy", url: "https://example.com/a" }]));
+      },
+      async close() {}
+    }));
+    const robotsFetch = async () => new Response("");
+
+    const before = Date.now();
+    const out = await fetchPlaywright(
+      { type: "playwright", listUrl: "https://example.com", waitFor: "body", itemSelector: "article" },
+      { sourceName: "test" },
+      pool,
+      robotsFetch as typeof fetch
+    );
+    const after = Date.now();
+
+    expect(out).toHaveLength(1);
+    const published = out[0]?.publishedAt.getTime();
+    expect(published).toBeGreaterThanOrEqual(before);
+    expect(published).toBeLessThanOrEqual(after);
   });
 });
