@@ -32,10 +32,17 @@ const MONTHS = [
 ];
 const DOMESTIC_TIME = /(?:T|\s)(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/;
 const EXPLICIT_TIMEZONE = /(?:Z|[+-]\d{2}:?\d{2}|GMT|UTC)\s*$/i;
-// 相对日期：中文“3天前/12小时前/45分钟前”（日与天同义）、英文“3 days ago”。
-const RELATIVE_DATE_ZH = /(?<!\d)(\d{1,3})\s*(分钟|小时|天|日)前/;
-const RELATIVE_DATE_EN = /(?<!\d)(\d{1,3})\s+(minutes?|hours?|days?)\s+ago/i;
+// 相对日期：先捕获完整数字 token（含小数点/千分位逗号/空格分组），再校验是否为纯 1–3 位整数。
+// 只拦「末尾 1–3 位」会让 1000.0 / 1,000 / 3 000 这类分隔符变体绕过 lookbehind。
+const RELATIVE_NUM_TOKEN = String.raw`(\d+(?:[.,\s]\d+)*)`;
+const RELATIVE_DATE_ZH = new RegExp(`${RELATIVE_NUM_TOKEN}\\s*(分钟|小时|天|日)前`);
+const RELATIVE_DATE_EN = new RegExp(`${RELATIVE_NUM_TOKEN}\\s+(minutes?|hours?|days?)\\s+ago`, "i");
 const MAX_RELATIVE_MS = 365 * 86400e3;
+
+function parseRelativeAmount(token: string): number | null {
+  if (!/^\d{1,3}$/.test(token)) return null;
+  return Number(token);
+}
 
 export function parsePublishedAt(raw: string | null | undefined): Date | null {
   const value = raw?.trim();
@@ -49,7 +56,8 @@ export function parsePublishedAt(raw: string | null | undefined): Date | null {
   const relativeZh = RELATIVE_DATE_ZH.exec(value);
   const relativeEn = relativeZh ? null : RELATIVE_DATE_EN.exec(value);
   if (relativeZh || relativeEn) {
-    const amount = Number((relativeZh ?? relativeEn)![1]);
+    const amount = parseRelativeAmount((relativeZh ?? relativeEn)![1]);
+    if (amount === null) return null;
     const unit = (relativeZh?.[2] ?? relativeEn?.[2]?.toLowerCase()) ?? "";
     const unitMs =
       unit === "分钟" || unit.startsWith("minute")

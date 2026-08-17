@@ -144,16 +144,23 @@ describe("parsePublishedAt", () => {
     expect(Math.abs(now - parsePublishedAt("1 hour ago")!.getTime() - 3600e3)).toBeLessThan(5000);
   });
 
-  // 不阻断：(?<!\d) 只拦「从更长数字中间截 1–3 位」。符号/小数是另一类畸形输入，
-  // 真实新闻站不会输出；扩正则另开任务，见 HANDOFF 0817-01 坑。
-  it("does not treat signed or decimal relative dates as the 4-digit-prefix bug", () => {
+  // 回代：小数点 / 千分位逗号 / 空格分组会在末尾 1–3 位前形成非数字字符，
+  // 让 (?<!\d) 通过并把尾部当成小数字。完整 token 非纯 1–3 位整数则 fail-closed。
+  it("returns null for relative dates whose numeric token is not a plain 1-3 digit integer", () => {
+    expect(parsePublishedAt("1000.0天前")).toBeNull();
+    expect(parsePublishedAt("1000.0 days ago")).toBeNull();
+    expect(parsePublishedAt("1,000天前")).toBeNull();
+    expect(parsePublishedAt("1,000 days ago")).toBeNull();
+    expect(parsePublishedAt("3 000 days ago")).toBeNull();
+    expect(parsePublishedAt("1.5 days ago")).toBeNull();
+    expect(parsePublishedAt("1.5天前")).toBeNull();
+  });
+
+  it("still parses a leading-minus relative date as the unsigned amount", () => {
     const now = Date.now();
     const signed = parsePublishedAt("-3 days ago");
-    const decimal = parsePublishedAt("1.5 days ago");
     expect(signed).not.toBeNull();
     expect(Math.abs(now - signed!.getTime() - 3 * 86400e3)).toBeLessThan(5000);
-    expect(decimal).not.toBeNull();
-    expect(Math.abs(now - decimal!.getTime() - 5 * 86400e3)).toBeLessThan(5000);
   });
 });
 
