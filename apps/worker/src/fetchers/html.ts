@@ -34,9 +34,10 @@ const MONTHS = [
 ];
 const DOMESTIC_TIME = /(?:T|\s)(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/;
 const EXPLICIT_TIMEZONE = /(?:Z|[+-]\d{2}:?\d{2}|GMT|UTC)\s*$/i;
-// 相对日期：变长负向 lookbehind 堵住「起始点之前存在某个数字、中间隔着任意非数字」。
+// 相对日期：有界负向 lookbehind 堵住「起始点之前存在某个数字、中间隔着至多 2 个非数字」。
 // 不枚举分隔符；顿号 / 全角逗号 / 撇号 / 下划线等一律 fail-closed。
-const RELATIVE_NUM_TOKEN = String.raw`(?<!\d[^\d]*)(\d{1,3})`;
+// 已知残留：`\d` 仅匹配 ASCII 数字，Unicode 数字（全角/阿拉伯-印度/上标等）与 ASCII 数字混排时仍可能绕过，定性为 LOW 不阻断，理由见 `.ai/reviews/2026-08-17-t-g5-batch6-fix3-reverify-review.md`
+const RELATIVE_NUM_TOKEN = String.raw`(?<!\d[^\d]{0,2})(\d{1,3})`;
 const RELATIVE_DATE_ZH = new RegExp(`${RELATIVE_NUM_TOKEN}\\s*(分钟|小时|天|日)前`);
 const RELATIVE_DATE_EN = new RegExp(`${RELATIVE_NUM_TOKEN}\\s+(minutes?|hours?|days?)\\s+ago`, "i");
 const MAX_RELATIVE_MS = 365 * 86400e3;
