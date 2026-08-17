@@ -62,12 +62,19 @@ export async function fetchRss(config: RssSourceConfig, context: FetchContext, f
           config.keywordFilter!.some((keyword) => `${item.title} ${item.content}`.includes(keyword))
         )
       : items;
+    // keywordFilter 收窄导致 0 条是业务空窗，不是抓取故障。抛 SourceFetchError
+    // 会被 fetch.ts 计入 fail_count，连续命中会自动禁用生产源（0042 已给 36氪等
+    // 4 个在用 rss 源配了 keywordFilter）。feed 本身 0 条仍走上方 FETCH_RSS_INVALID。
     if (filtered.length === 0) {
-      throw new SourceFetchError("FETCH_RSS_EMPTY", "RSS items all filtered out by keywordFilter", {
-        source: context.sourceName,
-        keywords: config.keywordFilter,
-        total: items.length
-      });
+      logger.debug(
+        {
+          source: context.sourceName,
+          keywords: config.keywordFilter,
+          total: items.length
+        },
+        "RSS items all filtered out by keywordFilter"
+      );
+      return [];
     }
     return filtered;
   } catch (error) {

@@ -100,19 +100,77 @@ describe("rss fetcher", () => {
     expect(items[0]?.url).toBe("https://example.com/b");
   });
 
-  it("throws FETCH_RSS_EMPTY when keywordFilter removes every item", async () => {
+  it("returns [] without throwing when keywordFilter removes every item", async () => {
     const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>Feed</title>
       <item><title>娱乐新闻</title><link>https://example.com/a</link><description>明星</description></item>
     </channel></rss>`;
     const fetchImpl = async (url: string) =>
       url.endsWith("/robots.txt") ? new Response("") : new Response(xml);
 
+    const items = await fetchRss(
+      { type: "rss", url: "https://example.com/rss.xml", keywordFilter: ["电缆"] },
+      { sourceName: "all-filtered" },
+      fetchImpl as typeof fetch
+    );
+    expect(items).toEqual([]);
+  });
+
+  // 回代：0042 给 36氪快讯等生产 rss 源配的真实 keywordFilter。feed 非空但本轮
+  // 标题/内容都不命中行业词 → 修复前抛 FETCH_RSS_EMPTY（计入 fail_count），
+  // 修复后返回 []，不会抛出 SourceFetchError。
+  it("does not throw a fail_count error when a non-empty 36kr-style feed misses every keyword", async () => {
+    const keywordFilter = [
+      "电力",
+      "电网",
+      "电缆",
+      "电线",
+      "输配电",
+      "特高压",
+      "变压器",
+      "储能",
+      "能源",
+      "光伏",
+      "风电",
+      "新能源",
+      "锂电",
+      "锂电池",
+      "碳酸锂",
+      "铜",
+      "有色",
+      "稀土",
+      "充电桩",
+      "电池",
+      "电工",
+      "远东",
+      "光纤",
+      "光缆",
+      "光通信",
+      "光模块",
+      "OPGW",
+      "ADSS"
+    ];
+    const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>36氪快讯</title>
+      <item><title>美联储加息预期升温</title><link>https://36kr.com/a</link><description>美元指数走强，非农数据超预期</description></item>
+      <item><title>某明星代言新款手机发布</title><link>https://36kr.com/b</link><description>消费电子发布会花絮与票房讨论</description></item>
+      <item><title>沪指收涨0.5%，北向资金净流入</title><link>https://36kr.com/c</link><description>两市成交额回升，券商板块领涨</description></item>
+    </channel></rss>`;
+    const fetchImpl = async (url: string) =>
+      url.endsWith("/robots.txt") ? new Response("") : new Response(xml);
+
     await expect(
       fetchRss(
-        { type: "rss", url: "https://example.com/rss.xml", keywordFilter: ["电缆"] },
-        { sourceName: "all-filtered" },
+        { type: "rss", url: "https://36kr.com/feed", keywordFilter },
+        { sourceName: "36氪快讯" },
         fetchImpl as typeof fetch
       )
-    ).rejects.toMatchObject({ code: "FETCH_RSS_EMPTY" });
+    ).resolves.toEqual([]);
+
+    await expect(
+      fetchRss(
+        { type: "rss", url: "https://36kr.com/feed", keywordFilter },
+        { sourceName: "36氪快讯" },
+        fetchImpl as typeof fetch
+      )
+    ).resolves.not.toBeInstanceOf(SourceFetchError);
   });
 });
