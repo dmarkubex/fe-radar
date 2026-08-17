@@ -56,11 +56,15 @@ function parseArgs(argv) {
   return out;
 }
 
+/** Opt-in only. Unset / any value other than "1" keeps TLS certificate verification on. */
+function isInsecureTls() {
+  return process.env.PORTAINER_INSECURE === "1";
+}
+
 function requestJson(baseUrl, path, { token, method = "GET", body } = {}) {
   const url = new URL(`${baseUrl}${path}`);
   const isHttps = url.protocol === "https:";
   const transport = isHttps ? https : http;
-  const insecure = process.env.PORTAINER_INSECURE !== "0";
   return new Promise((resolve, reject) => {
     const req = transport.request(
       {
@@ -72,7 +76,7 @@ function requestJson(baseUrl, path, { token, method = "GET", body } = {}) {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        rejectUnauthorized: !insecure
+        rejectUnauthorized: !isInsecureTls()
       },
       (res) => {
         const chunks = [];
@@ -141,7 +145,7 @@ function execStartWs(baseUrl, execId, endpointId, token, timeoutMs = 300_000) {
       {
         host: url.hostname,
         port: Number(url.port || (url.protocol === "https:" ? 443 : 80)),
-        rejectUnauthorized: false
+        rejectUnauthorized: !isInsecureTls()
       },
       () => {
         socket.write(
