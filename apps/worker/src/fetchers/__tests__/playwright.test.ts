@@ -854,6 +854,57 @@ describe("playwright fetcher", () => {
     expect(out[0]?.publishedAt).toEqual(new Date(Date.UTC(2026, 7, 10) - 8 * 3600e3));
   });
 
+  // Gate 0：配了 dateSelector 且全部日期解析失败 → FETCH_PLAYWRIGHT_EMPTY。
+  // 修复前 filter 后返回 []，fetch.ts 记成功并清零 fail_count，选择器漂移被伪装成健康。
+  it("throws FETCH_PLAYWRIGHT_EMPTY when dateSelector is set and every date fails to parse", async () => {
+    const pool = new BrowserContextPool(async () => ({
+      async newContext() {
+        return makeContext(async () =>
+          makePageWithDates([
+            { title: "Drifted A", url: "https://example.com/a", dateText: "加载中…" },
+            { title: "Drifted B", url: "https://example.com/b", dateText: "刚刚" },
+            { title: "Missing date node", url: "https://example.com/c" }
+          ])
+        );
+      },
+      async close() {}
+    }));
+    const robotsFetch = async () => new Response("");
+
+    await expect(
+      fetchPlaywright(
+        {
+          type: "playwright",
+          listUrl: "https://example.com",
+          waitFor: "body",
+          itemSelector: "article",
+          dateSelector: ".date"
+        },
+        { sourceName: "test" },
+        pool,
+        robotsFetch as typeof fetch
+      )
+    ).rejects.toMatchObject({
+      code: "FETCH_PLAYWRIGHT_EMPTY",
+      message: "Playwright dateSelector dates all failed to parse"
+    });
+
+    await expect(
+      fetchPlaywright(
+        {
+          type: "playwright",
+          listUrl: "https://example.com",
+          waitFor: "body",
+          itemSelector: "article",
+          dateSelector: ".date"
+        },
+        { sourceName: "test" },
+        pool,
+        robotsFetch as typeof fetch
+      )
+    ).rejects.toBeInstanceOf(SourceFetchError);
+  });
+
   // 兼容存量 playwright 源（如北极星系）：未配 dateSelector 时保持抓取时间兜底不变。
   it("keeps fetch-time fallback when dateSelector is not configured", async () => {
     const pool = new BrowserContextPool(async () => ({

@@ -206,11 +206,13 @@ export async function fetchPlaywright(
     }
     await page.waitForSelector(config.waitFor, { timeout: 30000 });
     const extracted = await extractItems(page, config, finalUrl);
-    proxyPool.release(proxy, true);
     // Gate 0（对齐 html.ts）：配了 dateSelector 的源必须解析出真实发布时间，解析失败的
     // 条目丢弃（防选择器漂移静默产出以抓取时间冒充的垃圾时间线）；未配 dateSelector 的
     // 存量源保持抓取时间兜底不变。
-    return extracted
+    // 全部日期解析失败必须在 mark-success 之前抛错：否则 fetch.ts 把 [] 当「无新增」
+    // 并 markSourceSuccess()，选择器漂移会被永久伪装成健康。抛错须在 release(true)
+    // 之前，否则 catch 会再 release(false) 造成双重打分。
+    const mapped = extracted
       .map((item) => ({
         title: item.title.trim(),
         url: new URL(item.url, finalUrl).toString(),
@@ -218,6 +220,20 @@ export async function fetchPlaywright(
         publishedAt: config.dateSelector ? parsePublishedAt(item.publishedAt) : new Date()
       }))
       .filter((item): item is StandardItem => item.publishedAt !== null);
+    if (config.dateSelector && mapped.length === 0) {
+      throw new SourceFetchError(
+        "FETCH_PLAYWRIGHT_EMPTY",
+        "Playwright dateSelector dates all failed to parse",
+        {
+          dateSelector: config.dateSelector,
+          matched: extracted.length,
+          valid: 0,
+          reason: "all dateSelector dates failed to parse"
+        }
+      );
+    }
+    proxyPool.release(proxy, true);
+    return mapped;
   } catch (error) {
     proxyPool.release(proxy, false);
     throw error;
