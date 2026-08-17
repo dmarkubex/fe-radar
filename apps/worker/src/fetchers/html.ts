@@ -34,12 +34,17 @@ const MONTHS = [
 ];
 const DOMESTIC_TIME = /(?:T|\s)(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/;
 const EXPLICIT_TIMEZONE = /(?:Z|[+-]\d{2}:?\d{2}|GMT|UTC)\s*$/i;
-// 相对日期：有界负向 lookbehind 堵住「起始点之前存在某个数字、中间隔着至多 2 个非数字」。
-// 不枚举分隔符；顿号 / 全角逗号 / 撇号 / 下划线等一律 fail-closed。
-// 已知残留：`\d` 仅匹配 ASCII 数字，Unicode 数字（全角/阿拉伯-印度/上标等）与 ASCII 数字混排时仍可能绕过，定性为 LOW 不阻断，理由见 `.ai/reviews/2026-08-17-t-g5-batch6-fix3-reverify-review.md`
-const RELATIVE_NUM_TOKEN = String.raw`(?<!\d[^\d]{0,2})(\d{1,3})`;
-const RELATIVE_DATE_ZH = new RegExp(`${RELATIVE_NUM_TOKEN}\\s*(分钟|小时|天|日)前`);
-const RELATIVE_DATE_EN = new RegExp(`${RELATIVE_NUM_TOKEN}\\s+(minutes?|hours?|days?)\\s+ago`, "i");
+// 相对日期：整串锚定匹配（trim 后必须整个字符串就是"[已知前缀]数字+单位+前/ago"，不允许
+// 任何额外字符）。放弃兼容"标题/元数据文本紧贴相对日期"这类混排场景——2026-08-17 核查 16 个
+// 生产 html 信源的宽泛选择器实际捕获内容，均为绝对日期或已被上游选择器隔离，未观测到该场景；
+// 用户已确认收窄容错范围以终结正则窗口调参的拉锯（见 .ai/reviews/2026-08-17-t-g5-batch6-fix4-reverify-review.md）。
+// 副作用：整串锚定天然也堵死了此前登记为 LOW 残留的 Unicode 数字前缀绕过（１000天前 / ١234天前 /
+// ¹000天前 等），因为字符串开头若不是空白/已知前缀/[-.]/ASCII 数字，整体匹配直接失败，不再需要
+// 单独登记为已知残留。
+const RELATIVE_DATE_ZH =
+  /^(?:更新于|发布时间|发布于)?\s*[-.]?\s*(\d{1,3})\s*(分钟|小时|天|日)前$/;
+const RELATIVE_DATE_EN =
+  /^(?:Updated|Posted)?\s*[-.]?\s*(\d{1,3})\s+(minutes?|hours?|days?)\s+ago$/i;
 const MAX_RELATIVE_MS = 365 * 86400e3;
 
 export function parsePublishedAt(raw: string | null | undefined): Date | null {
