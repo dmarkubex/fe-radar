@@ -162,17 +162,26 @@ describe("parsePublishedAt", () => {
     expect(parsePublishedAt("1;000天前")).toBeNull();
     expect(parsePublishedAt("1000-000天前")).toBeNull();
     expect(parsePublishedAt("1、2天前")).toBeNull();
+    expect(parsePublishedAt("1   000天前")).toBeNull();
+    expect(parsePublishedAt("1\n   000天前")).toBeNull();
+    expect(parsePublishedAt("1000---000天前")).toBeNull();
+    expect(parsePublishedAt("1、、、2天前")).toBeNull();
   });
 
-  // 回代：有界 lookbehind 不再把更早出现、间隔超过 2 个非数字的无关 ASCII 数字一并挡住。
-  it("still parses a relative date when an earlier unrelated ASCII number is present", () => {
-    const now = Date.now();
-    const views = parsePublishedAt("阅读量 12 · 3天前");
-    const page = parsePublishedAt("第2页，更新于3天前");
-    expect(views).not.toBeNull();
-    expect(page).not.toBeNull();
-    expect(Math.abs(now - views!.getTime() - 3 * 86400e3)).toBeLessThan(5000);
-    expect(Math.abs(now - page!.getTime() - 3 * 86400e3)).toBeLessThan(5000);
+  // 回代：整串锚定后，标题/元数据紧贴相对日期不再解析（用户 2026-08-17 决策）。
+  it("returns null for metadata mixed with a relative date (whole-string anchor)", () => {
+    expect(parsePublishedAt("阅读量 12 · 3天前")).toBeNull();
+    expect(parsePublishedAt("第2页，更新于3天前")).toBeNull();
+    expect(parsePublishedAt("阅读量 12· 3天前")).toBeNull();
+    expect(parsePublishedAt("阅读量 12 ·3天前")).toBeNull();
+    expect(parsePublishedAt("阅读量 12·3天前")).toBeNull();
+    expect(parsePublishedAt("第2页 3天前")).toBeNull();
+  });
+
+  it("returns null for Unicode digit prefixes that are not ASCII 1-3 digit amounts", () => {
+    expect(parsePublishedAt("１000天前")).toBeNull();
+    expect(parsePublishedAt("١234天前")).toBeNull();
+    expect(parsePublishedAt("¹000天前")).toBeNull();
   });
 
   it("still parses a leading-minus relative date as the unsigned amount", () => {
