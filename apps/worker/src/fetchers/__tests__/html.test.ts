@@ -126,6 +126,35 @@ describe("parsePublishedAt", () => {
     expect(parsePublishedAt("400天前")).toBeNull();
     expect(parsePublishedAt("999 days ago")).toBeNull();
   });
+
+  // 回代：无前置数字边界时，"1000天前" 会从中间匹配成 "000天前"（amount=0 → 现在）。
+  it("does not match a 4+ digit prefix as a relative date (1000天前 / 1000 days ago)", () => {
+    expect(parsePublishedAt("1000天前")).toBeNull();
+    expect(parsePublishedAt("1000 days ago")).toBeNull();
+    expect(parsePublishedAt("10000天前")).toBeNull();
+    expect(parsePublishedAt("12345 hours ago")).toBeNull();
+  });
+
+  it("still parses normal relative dates after the digit-boundary fix", () => {
+    const now = Date.now();
+    expect(Math.abs(now - parsePublishedAt("3天前")!.getTime() - 3 * 86400e3)).toBeLessThan(5000);
+    expect(Math.abs(now - parsePublishedAt("12小时前")!.getTime() - 12 * 3600e3)).toBeLessThan(5000);
+    expect(Math.abs(now - parsePublishedAt("45分钟前")!.getTime() - 45 * 60e3)).toBeLessThan(5000);
+    expect(Math.abs(now - parsePublishedAt("2 days ago")!.getTime() - 2 * 86400e3)).toBeLessThan(5000);
+    expect(Math.abs(now - parsePublishedAt("1 hour ago")!.getTime() - 3600e3)).toBeLessThan(5000);
+  });
+
+  // 不阻断：(?<!\d) 只拦「从更长数字中间截 1–3 位」。符号/小数是另一类畸形输入，
+  // 真实新闻站不会输出；扩正则另开任务，见 HANDOFF 0817-01 坑。
+  it("does not treat signed or decimal relative dates as the 4-digit-prefix bug", () => {
+    const now = Date.now();
+    const signed = parsePublishedAt("-3 days ago");
+    const decimal = parsePublishedAt("1.5 days ago");
+    expect(signed).not.toBeNull();
+    expect(Math.abs(now - signed!.getTime() - 3 * 86400e3)).toBeLessThan(5000);
+    expect(decimal).not.toBeNull();
+    expect(Math.abs(now - decimal!.getTime() - 5 * 86400e3)).toBeLessThan(5000);
+  });
 });
 
 describe("fetchHtml date validation", () => {
