@@ -41,8 +41,8 @@ const RELATIVE_DATE_ZH = new RegExp(`${RELATIVE_NUM_TOKEN}\\s*(分钟|小时|天
 const RELATIVE_DATE_EN = new RegExp(`${RELATIVE_NUM_TOKEN}\\s+(minutes?|hours?|days?)\\s+ago`, "i");
 const MAX_RELATIVE_MS = 365 * 86400e3;
 
-function parseRelativeAmount(token: string): number | null {
-  if (!/^\d{1,3}$/.test(token)) return null;
+function parseRelativeAmount(token: string | undefined): number | null {
+  if (!token || !/^\d{1,3}$/.test(token)) return null;
   return Number(token);
 }
 
