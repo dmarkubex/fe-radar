@@ -164,6 +164,17 @@ describe("parsePublishedAt", () => {
     expect(parsePublishedAt("1、2天前")).toBeNull();
   });
 
+  // 回代：有界 lookbehind 不再把更早出现、间隔超过 2 个非数字的无关 ASCII 数字一并挡住。
+  it("still parses a relative date when an earlier unrelated ASCII number is present", () => {
+    const now = Date.now();
+    const views = parsePublishedAt("阅读量 12 · 3天前");
+    const page = parsePublishedAt("第2页，更新于3天前");
+    expect(views).not.toBeNull();
+    expect(page).not.toBeNull();
+    expect(Math.abs(now - views!.getTime() - 3 * 86400e3)).toBeLessThan(5000);
+    expect(Math.abs(now - page!.getTime() - 3 * 86400e3)).toBeLessThan(5000);
+  });
+
   it("still parses a leading-minus relative date as the unsigned amount", () => {
     const now = Date.now();
     const signed = parsePublishedAt("-3 days ago");
