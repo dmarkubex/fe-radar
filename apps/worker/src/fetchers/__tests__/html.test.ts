@@ -145,8 +145,8 @@ describe("parsePublishedAt", () => {
     expect(Math.abs(now - parsePublishedAt("1 hour ago")!.getTime() - 3600e3)).toBeLessThan(5000);
   });
 
-  // 回代：小数点 / 千分位逗号 / 空格分组会在末尾 1–3 位前形成非数字字符，
-  // 让 (?<!\d) 通过并把尾部当成小数字。完整 token 非纯 1–3 位整数则 fail-closed。
+  // 回代：任意非数字分隔（不限 [.,\s] 白名单）都会让旧正则在数字组尾部重新锚定。
+  // 变长 lookbehind (?<!\d[^\d]*) 整类堵住；顿号 / 全角逗号 / 撇号等同属此类。
   it("returns null for relative dates whose numeric token is not a plain 1-3 digit integer", () => {
     expect(parsePublishedAt("1000.0天前")).toBeNull();
     expect(parsePublishedAt("1000.0 days ago")).toBeNull();
@@ -155,6 +155,13 @@ describe("parsePublishedAt", () => {
     expect(parsePublishedAt("3 000 days ago")).toBeNull();
     expect(parsePublishedAt("1.5 days ago")).toBeNull();
     expect(parsePublishedAt("1.5天前")).toBeNull();
+    expect(parsePublishedAt("1、000天前")).toBeNull();
+    expect(parsePublishedAt("1，000天前")).toBeNull();
+    expect(parsePublishedAt("1'000天前")).toBeNull();
+    expect(parsePublishedAt("1_000天前")).toBeNull();
+    expect(parsePublishedAt("1;000天前")).toBeNull();
+    expect(parsePublishedAt("1000-000天前")).toBeNull();
+    expect(parsePublishedAt("1、2天前")).toBeNull();
   });
 
   it("still parses a leading-minus relative date as the unsigned amount", () => {
