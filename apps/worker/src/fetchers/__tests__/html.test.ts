@@ -184,6 +184,14 @@ describe("parsePublishedAt", () => {
     expect(parsePublishedAt("¹000天前")).toBeNull();
   });
 
+  it("returns null for prefix/sign/oversized-digit cross-boundary combinations", () => {
+    expect(parsePublishedAt("更新于 -1000天前")).toBeNull();
+    expect(parsePublishedAt("Updated .1000 days ago")).toBeNull();
+    expect(parsePublishedAt("发布时间：3天前")).toBeNull(); // 全角冒号不在白名单分隔符里
+    expect(parsePublishedAt("最后更新于3天前")).toBeNull(); // "最后更新于"不在前缀白名单
+    expect(parsePublishedAt("updated 3 days ago")).not.toBeNull(); // 前缀大小写不敏感（EN 正则带 i 标志）
+  });
+
   it("still parses a leading-minus relative date as the unsigned amount", () => {
     const now = Date.now();
     const signed = parsePublishedAt("-3 days ago");
