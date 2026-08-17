@@ -1,8 +1,10 @@
-import { SourceFetchError } from "@fe-radar/shared";
+import { createLogger, SourceFetchError } from "@fe-radar/shared";
 import { load, type Cheerio } from "cheerio";
 import type { AnyNode } from "domhandler";
 import type { FetchContext, HtmlSourceConfig, StandardItem } from "./types";
 import { fetchTextWithPolicy } from "./http";
+
+const logger = createLogger({ service: "fetch-html" });
 
 function firstSelectorMatch(root: Cheerio<AnyNode>, selector: string) {
   const nested = root.find(selector).first();
@@ -147,6 +149,13 @@ export async function fetchHtml(
     });
   });
 
+  if (items.length === 0) {
+    throw new SourceFetchError(
+      "FETCH_HTML_EMPTY",
+      "HTML selectors returned no items"
+    );
+  }
+  // 与 rss.ts keywordFilter 语义一致：title + content 包含任一关键词（大小写敏感）才保留。
   const filtered = config.keywordFilter?.length
     ? items.filter((item) =>
         config.keywordFilter!.some((keyword) =>
@@ -154,11 +163,19 @@ export async function fetchHtml(
         )
       )
     : items;
+  // keywordFilter 收窄导致 0 条是业务空窗，不是抓取故障。抛 SourceFetchError
+  // 会被 fetch.ts 计入 fail_count，连续命中会自动禁用生产 html 源（698/719/720/
+  // 730/731/732 均 enabled + keywordFilter）。选择器本身 0 条仍走上方 FETCH_HTML_EMPTY。
   if (filtered.length === 0) {
-    throw new SourceFetchError(
-      "FETCH_HTML_EMPTY",
-      "HTML selectors returned no items"
+    logger.debug(
+      {
+        source: context.sourceName,
+        keywords: config.keywordFilter,
+        total: items.length
+      },
+      "HTML items all filtered out by keywordFilter"
     );
+    return [];
   }
   return filtered;
 }

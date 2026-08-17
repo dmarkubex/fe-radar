@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { SourceFetchError } from "@fe-radar/shared";
 import { fetchHtml, parsePublishedAt } from "../html";
 
 describe("html fetcher", () => {
@@ -219,5 +220,109 @@ describe("fetchHtml date validation", () => {
     expect(items[0]?.publishedAt.toISOString()).toBe(
       "2026-05-10T16:00:00.000Z"
     );
+  });
+});
+
+describe("fetchHtml keywordFilter", () => {
+  const selectors = {
+    item: ".item",
+    title: ".title",
+    link: ".title",
+    date: ".date",
+    content: ".title"
+  } as const;
+
+  // 回代：0047 给 698 南方电网公开招采配的真实 keywordFilter。
+  // 选择器抓到非空公告，但本轮标题都不命中电缆/储能词 → 修复前抛 FETCH_HTML_EMPTY
+  //（计入 fail_count），修复后返回 []，不会抛出 SourceFetchError。
+  it("returns [] without throwing when keywordFilter removes every selected item", async () => {
+    const keywordFilter = [
+      "电线",
+      "电缆",
+      "导线",
+      "导体",
+      "铜芯",
+      "铝芯",
+      "储能",
+      "电池",
+      "PCS",
+      "BMS",
+      "EMS"
+    ];
+    const html = `<ul>
+      <li class="item"><a class="title" href="/a">办公用品采购公告</a><span class="date">2026-08-15</span></li>
+      <li class="item"><a class="title" href="/b">食堂食材招标</a><span class="date">2026-08-14</span></li>
+      <li class="item"><a class="title" href="/c">车辆维修服务询价</a><span class="date">2026-08-13</span></li>
+    </ul>`;
+    const fetchImpl = async (url: string) =>
+      url.endsWith("/robots.txt") ? new Response("") : new Response(html);
+
+    await expect(
+      fetchHtml(
+        {
+          type: "html",
+          listUrl: "https://www.bidding.csg.cn/zbcg/index.jhtml",
+          selectors,
+          keywordFilter
+        },
+        { sourceName: "南方电网公开招采" },
+        fetchImpl as typeof fetch
+      )
+    ).resolves.toEqual([]);
+
+    await expect(
+      fetchHtml(
+        {
+          type: "html",
+          listUrl: "https://www.bidding.csg.cn/zbcg/index.jhtml",
+          selectors,
+          keywordFilter
+        },
+        { sourceName: "南方电网公开招采" },
+        fetchImpl as typeof fetch
+      )
+    ).resolves.not.toBeInstanceOf(SourceFetchError);
+  });
+
+  it("keeps items that match a keywordFilter keyword", async () => {
+    const html = `<ul>
+      <li class="item"><a class="title" href="/a">电缆采购公告</a><span class="date">2026-08-15</span></li>
+      <li class="item"><a class="title" href="/b">食堂食材招标</a><span class="date">2026-08-14</span></li>
+    </ul>`;
+    const fetchImpl = async (url: string) =>
+      url.endsWith("/robots.txt") ? new Response("") : new Response(html);
+
+    const items = await fetchHtml(
+      {
+        type: "html",
+        listUrl: "https://www.bidding.csg.cn/zbcg/index.jhtml",
+        selectors,
+        keywordFilter: ["电缆", "储能"]
+      },
+      { sourceName: "南方电网公开招采" },
+      fetchImpl as typeof fetch
+    );
+
+    expect(items).toHaveLength(1);
+    expect(items[0]?.title).toBe("电缆采购公告");
+  });
+
+  it("still throws FETCH_HTML_EMPTY when selectors match no items", async () => {
+    const html = `<ul><li class="other"><a href="/a">无关</a></li></ul>`;
+    const fetchImpl = async (url: string) =>
+      url.endsWith("/robots.txt") ? new Response("") : new Response(html);
+
+    await expect(
+      fetchHtml(
+        {
+          type: "html",
+          listUrl: "https://example.com/news/",
+          selectors,
+          keywordFilter: ["电缆"]
+        },
+        { sourceName: "selector-miss" },
+        fetchImpl as typeof fetch
+      )
+    ).rejects.toMatchObject({ code: "FETCH_HTML_EMPTY" });
   });
 });
