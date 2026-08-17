@@ -145,8 +145,8 @@ describe("parsePublishedAt", () => {
     expect(Math.abs(now - parsePublishedAt("1 hour ago")!.getTime() - 3600e3)).toBeLessThan(5000);
   });
 
-  // 回代：任意非数字分隔（不限 [.,\s] 白名单）都会让旧正则在数字组尾部重新锚定。
-  // 变长 lookbehind (?<!\d[^\d]*) 整类堵住；顿号 / 全角逗号 / 撇号等同属此类。
+  // 回代：千分位、小数点、顿号等把数字切开后，字符串里会留下正则吃不掉的字符。
+  // 整串 ^...$ 要求整段都是合法相对日期，多出来的字符会让末尾 $ 对不上，于是返回 null。
   it("returns null for relative dates whose numeric token is not a plain 1-3 digit integer", () => {
     expect(parsePublishedAt("1000.0天前")).toBeNull();
     expect(parsePublishedAt("1000.0 days ago")).toBeNull();
