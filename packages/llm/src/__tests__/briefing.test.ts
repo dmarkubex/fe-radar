@@ -219,7 +219,8 @@ describe("runBriefingGen scrubber integration", () => {
     })) as unknown as LlmClient["chatJson"];
     const mockKimiClient: LlmClient = {
       chatJson: mockChatJson,
-      embedding: vi.fn()
+      embedding: vi.fn(),
+      chatStream: vi.fn()
     };
 
     // Wrap with scrubber (mirrors what runBriefingGen does internally)
@@ -240,7 +241,8 @@ describe("runBriefingGen scrubber integration", () => {
   it("blocks request when input contains internal IP (scrubber block path)", async () => {
     const mockKimiClient: LlmClient = {
       chatJson: vi.fn(),
-      embedding: vi.fn()
+      embedding: vi.fn(),
+      chatStream: vi.fn()
     };
     const scrubbed = withScrubber(mockKimiClient);
 
@@ -267,7 +269,8 @@ describe("runBriefingGen scrubber integration", () => {
           provider: "kimi"
         };
       }) as unknown as LlmClient["chatJson"],
-      embedding: vi.fn()
+      embedding: vi.fn(),
+      chatStream: vi.fn()
     };
     const scrubbed = withScrubber(mockKimiClient);
 

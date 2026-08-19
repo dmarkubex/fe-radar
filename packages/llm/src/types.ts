@@ -23,9 +23,40 @@ export interface EmbeddingRequest {
   input: string;
 }
 
+export type ChatRole = "system" | "user" | "assistant" | "tool";
+
+export interface ChatMessage {
+  role: ChatRole;
+  content: string;
+  /** role=tool 必填 */
+  tool_call_id?: string;
+  /** assistant 发起工具 */
+  tool_calls?: Array<{ id: string; name: string; arguments: string }>;
+}
+
+export interface ChatToolDef {
+  type: "function";
+  function: { name: string; description: string; parameters: Record<string, unknown> };
+}
+
+export type ChatStreamDelta =
+  | { type: "token"; data: string }
+  | { type: "tool_call"; data: { id: string; name: string; arguments: string } }
+  | { type: "usage"; data: LlmUsage }
+  | { type: "done" };
+
+export interface ChatStreamRequest {
+  messages: ChatMessage[];
+  tools?: ChatToolDef[];
+  temperature?: number;
+  /** worker /internal/llm 必须透传到 create(..., { signal })；scrubber 原样转发，不得丢掉 */
+  signal?: AbortSignal;
+}
+
 export interface LlmClient {
   chatJson<T>(request: JsonSchemaRequest): Promise<LlmResult<T>>;
   embedding(request: EmbeddingRequest): Promise<LlmResult<number[]>>;
+  chatStream(request: ChatStreamRequest): AsyncIterable<ChatStreamDelta>;
 }
 
 export interface IndustryPrefilterResult {

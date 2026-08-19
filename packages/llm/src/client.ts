@@ -1,8 +1,20 @@
 import OpenAI from "openai";
 import pino from "pino";
-import type { ChatCompletionCreateParamsNonStreaming } from "openai/resources/chat/completions";
 import { LlmError } from "@fe-radar/shared";
-import type { EmbeddingRequest, JsonSchemaRequest, LlmClient, LlmResult } from "./types";
+import type {
+  ChatCompletionCreateParamsNonStreaming,
+  ChatCompletionMessageParam
+} from "openai/resources/chat/completions";
+import type {
+  ChatMessage,
+  ChatStreamDelta,
+  ChatStreamRequest,
+  EmbeddingRequest,
+  JsonSchemaRequest,
+  LlmClient,
+  LlmResult,
+  LlmUsage
+} from "./types";
 
 const logger = pino({ name: "fe-radar-llm" });
 
@@ -84,6 +96,63 @@ export class OpenAiCompatibleClient implements LlmClient {
     }
 
     throw new LlmError("LLM_JSON_INVALID", "LLM JSON schema request failed after retries", { cause: lastError });
+  }
+
+  /**
+   * 流式对话（tools + stream）。每次调用独立 timeout 60s、0 重试、透传 AbortSignal；
+   * 不改构造器默认（chatJson 的应用层 3 次重试保持不变）。
+   */
+  public async *chatStream(request: ChatStreamRequest): AsyncIterable<ChatStreamDelta> {
+    const stream = await this.client.chat.completions.create(
+      {
+        model: this.options.model,
+        temperature: request.temperature ?? this.options.defaultTemperature ?? 0.2,
+        messages: toOpenAiChatMessages(request.messages),
+        tools: request.tools,
+        stream: true,
+        stream_options: { include_usage: true }
+      },
+      { timeout: 60_000, maxRetries: 0, signal: request.signal }
+    );
+
+    const pendingToolCalls = new Map<number, { id: string; name: string; arguments: string }>();
+    let usage: LlmUsage | undefined;
+
+    for await (const chunk of stream) {
+      if (chunk.usage) {
+        usage = this.usage(chunk.usage.prompt_tokens ?? 0, chunk.usage.completion_tokens ?? 0);
+      }
+      const choice = chunk.choices[0];
+      if (!choice) {
+        continue;
+      }
+      if (choice.delta?.content) {
+        yield { type: "token", data: choice.delta.content };
+      }
+      for (const toolCall of choice.delta?.tool_calls ?? []) {
+        const pending = pendingToolCalls.get(toolCall.index) ?? { id: "", name: "", arguments: "" };
+        if (toolCall.id) {
+          pending.id = toolCall.id;
+        }
+        if (toolCall.function?.name) {
+          pending.name = toolCall.function.name;
+        }
+        if (toolCall.function?.arguments) {
+          pending.arguments += toolCall.function.arguments;
+        }
+        pendingToolCalls.set(toolCall.index, pending);
+      }
+      if (choice.finish_reason === "tool_calls") {
+        yield* flushToolCalls(pendingToolCalls);
+      }
+    }
+
+    // 流结束仍未收到 finish_reason=tool_calls 时也要发完整 tool_call 帧
+    yield* flushToolCalls(pendingToolCalls);
+    if (usage) {
+      yield { type: "usage", data: usage };
+    }
+    yield { type: "done" };
   }
 
   private async createChatJsonCompletion(request: JsonSchemaRequest) {
@@ -190,6 +259,36 @@ export class OpenAiCompatibleClient implements LlmClient {
       totalTokens: inputTokens + outputTokens,
       costCny
     };
+  }
+}
+
+function toOpenAiChatMessages(messages: ChatMessage[]): ChatCompletionMessageParam[] {
+  return messages.map((message) => {
+    if (message.role === "tool") {
+      return { role: "tool", content: message.content, tool_call_id: message.tool_call_id ?? "" };
+    }
+    if (message.role === "assistant" && message.tool_calls) {
+      return {
+        role: "assistant",
+        content: message.content,
+        tool_calls: message.tool_calls.map((call) => ({
+          id: call.id,
+          type: "function",
+          function: { name: call.name, arguments: call.arguments }
+        }))
+      };
+    }
+    return { role: message.role, content: message.content };
+  });
+}
+
+function* flushToolCalls(pending: Map<number, { id: string; name: string; arguments: string }>): Generator<ChatStreamDelta> {
+  for (const index of [...pending.keys()].sort((a, b) => a - b)) {
+    const call = pending.get(index);
+    if (call) {
+      pending.delete(index);
+      yield { type: "tool_call", data: call };
+    }
   }
 }
 

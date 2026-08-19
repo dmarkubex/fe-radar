@@ -1,6 +1,14 @@
 import { scrubText, type ScrubContext, type ScrubResult } from "@fe-radar/core";
 import { LlmError } from "@fe-radar/shared";
-import type { EmbeddingRequest, JsonSchemaRequest, LlmClient, LlmResult } from "../types";
+import type {
+  ChatMessage,
+  ChatStreamDelta,
+  ChatStreamRequest,
+  EmbeddingRequest,
+  JsonSchemaRequest,
+  LlmClient,
+  LlmResult
+} from "../types";
 
 export interface ScrubbedBlockResult {
   blocked: true;
@@ -29,6 +37,22 @@ export class ScrubbedLlmClient implements LlmClient {
       throw new LlmError("SCRUBBER_BLOCKED", "Embedding request blocked by scrubber", scrub.audit);
     }
     return this.inner.embedding({ input: scrub.cleaned });
+  }
+
+  /**
+   * 对 messages 每一条 content（system / user / assistant / tool）scrubText；
+   * 任一条 block 即抛两参 LlmError，不调 inner。signal 原样转发。
+   */
+  public async *chatStream(request: ChatStreamRequest): AsyncIterable<ChatStreamDelta> {
+    const messages: ChatMessage[] = [];
+    for (const message of request.messages) {
+      const scrub = safeScrub(message.content, this.context);
+      if (scrub.level === "block") {
+        throw new LlmError("SCRUBBER_BLOCKED", "scrubber blocked");
+      }
+      messages.push({ ...message, content: scrub.cleaned });
+    }
+    yield* this.inner.chatStream({ ...request, messages });
   }
 }
 
