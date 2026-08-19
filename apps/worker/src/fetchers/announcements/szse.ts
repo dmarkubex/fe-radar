@@ -7,6 +7,7 @@
  * NFR: 禁止 LLM；抓取失败抛错交给 fetch handler 记录 source failure。
  */
 
+import { waitHostGapForUrl } from "@fe-radar/core";
 import { SourceFetchError } from "@fe-radar/shared";
 import { fetch as undiciFetch, ProxyAgent } from "undici";
 import { proxyPool } from "../../lib/proxy-pool";
@@ -232,6 +233,8 @@ export async function fetchJsonPostWithPolicy(
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
+      // T-CA-04 / design §3.4.2 IN④：每次 POST 前打同站闸（含 retry 第二发）。
+      await waitHostGapForUrl(url);
       const response = await fetchImpl(`${url}?random=${Math.random()}`, {
         method: "POST",
         headers: {

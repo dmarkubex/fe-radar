@@ -1,5 +1,5 @@
 import robotsParser from "robots-parser";
-import { assertPublicFetchUrl } from "@fe-radar/core";
+import { assertPublicFetchUrl, waitHostGapForUrl } from "@fe-radar/core";
 import { createLogger, SourceFetchError } from "@fe-radar/shared";
 import { DEFAULT_USER_AGENT } from "./ua-pool";
 
@@ -101,7 +101,8 @@ async function fetchRobotsText(
         );
       }
     }
-
+    // T-CA-04 / design §3.4.2 IN②：每一跳 fetchImpl 前打同站闸（顺序固定：SSRF 守卫 → 闸 → fetch）。
+    await waitHostGapForUrl(currentUrl);
     const response = await fetchImpl(currentUrl, {
       signal: AbortSignal.timeout(3000),
       redirect: "manual"

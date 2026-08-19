@@ -1,5 +1,5 @@
 import { createLogger, SourceFetchError } from "@fe-radar/shared";
-import { assertPublicFetchUrl } from "@fe-radar/core";
+import { assertPublicFetchUrl, waitHostGapForUrl } from "@fe-radar/core";
 import { acquireUserAgent } from "../lib/ua-pool";
 import { proxyPool, type ProxyEndpoint } from "../lib/proxy-pool";
 import { assertRobotsAllowed } from "../lib/robots";
@@ -183,6 +183,9 @@ export async function fetchPlaywright(
   const page = await browserContext.newPage();
 
   try {
+    // T-CA-04 / design §3.4.2 IN③：列表页 goto 前显式打一次闸。禁止做成「所有 goto 必打」
+    // 的通用包装 —— 全文路径的闸由 §3.4.1 step 4 自己显式调用，不再重复。
+    await waitHostGapForUrl(config.listUrl);
     await page.goto(config.listUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
     // Always capture post-navigation URL (redirect landing). Used for SSRF recheck
     // and for extractItems list-page fallback detection — not gated on SSRF switch.

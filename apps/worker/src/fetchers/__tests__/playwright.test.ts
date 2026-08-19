@@ -1,8 +1,19 @@
+import type * as FeRadarCore from "@fe-radar/core";
 import { describe, expect, it, vi } from "vitest";
 import { SourceFetchError } from "@fe-radar/shared";
 import { BrowserContextPool, fetchPlaywright } from "../playwright";
 import type { BrowserContextLike, PageLike, RequestLike, RouteLike } from "../playwright";
 import type { ProxyEndpoint } from "../../lib/proxy-pool";
+
+// T-CA-04: partial mock —— waitHostGapForUrl 换成 spy（默认 no-op）。既让
+// 「复用池 10 连抓」等用例不必为同站闸真睡 ~1s/次，也供「goto 前打闸」断言；
+// 其余 core 导出（assertPublicFetchUrl 等 SSRF 守卫）走真实现。
+const mockWaitHostGap = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+
+vi.mock("@fe-radar/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof FeRadarCore>();
+  return { ...actual, waitHostGapForUrl: mockWaitHostGap };
+});
 
 /** Builds a fake page whose $$eval returns the given items (declarative selector path, T-SEC-03). */
 function makePage(
@@ -136,6 +147,34 @@ describe("playwright fetcher", () => {
       );
     }
     expect(contexts).toBeLessThanOrEqual(2);
+  });
+
+  it("waits the host gap gate before page.goto with the list URL (T-CA-04 IN③)", async () => {
+    const order: string[] = [];
+    mockWaitHostGap.mockImplementation(async () => {
+      order.push("gap");
+    });
+    const pool = new BrowserContextPool(async () => ({
+      async newContext() {
+        return makeContext(async () => ({
+          ...makePage([{ title: "A", url: "https://example.com/a" }]),
+          async goto(url: string) {
+            order.push(`goto:${url}`);
+          }
+        }) as PageLike);
+      },
+      async close() {}
+    }));
+    const robotsFetch = async () => new Response("");
+
+    await fetchPlaywright(
+      { type: "playwright", listUrl: "https://example.com/list", waitFor: "body", itemSelector: "a" },
+      { sourceName: "test" },
+      pool,
+      robotsFetch as typeof fetch
+    );
+
+    expect(order).toEqual(["gap", "goto:https://example.com/list"]);
   });
 
   it("closes both browser and context on pool.close()", async () => {

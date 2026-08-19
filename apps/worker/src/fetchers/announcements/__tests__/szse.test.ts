@@ -1,5 +1,6 @@
 import { readFileSync } from "fs";
 import { join } from "path";
+import type * as FeRadarCore from "@fe-radar/core";
 import type * as Undici from "undici";
 import { fetch as undiciFetch } from "undici";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -45,6 +46,15 @@ vi.mock("../../lib/ua-pool", () => ({
 vi.mock("../../lib/robots", () => ({
   assertRobotsAllowed: vi.fn().mockResolvedValue(undefined),
 }));
+
+// T-CA-04: partial mock —— 只替换 waitHostGapForUrl 为 spy（默认 no-op），
+// 供「POST 前打闸」断言；其余 core 导出（url-guard 等）走真实现。
+const mockWaitHostGap = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+
+vi.mock("@fe-radar/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof FeRadarCore>();
+  return { ...actual, waitHostGapForUrl: mockWaitHostGap };
+});
 
 const mockFetch = vi.mocked(undiciFetch);
 
@@ -137,6 +147,24 @@ describe("szseAdapter.fetch", () => {
       expect(item.content.length).toBeGreaterThan(0);
       expect(item.publishedAt).toBeInstanceOf(Date);
     }
+  });
+
+  it("waits the host gap gate before each POST (T-CA-04 IN④)", async () => {
+    const order: string[] = [];
+    mockWaitHostGap.mockImplementation(async () => {
+      order.push("gap");
+    });
+    mockFetch.mockImplementation(async (_url, init) => {
+      if (init?.method === "POST") {
+        order.push("post");
+        return jsonResponse(JSON.parse(loadFixture("szse-ok.json")));
+      }
+      return robotsResponse();
+    });
+
+    await szse.szseAdapter.fetch({ sourceName: "深交所披露" });
+
+    expect(order).toEqual(["gap", "post"]);
   });
 
   it("returns [] for empty API results", async () => {

@@ -1,3 +1,4 @@
+import type * as Core from "@fe-radar/core";
 import type * as Shared from "@fe-radar/shared";
 import type * as Undici from "undici";
 import type { LookupFunction } from "node:net";
@@ -73,6 +74,13 @@ vi.mock("../../lib/robots", () => ({
   assertRobotsAllowed: vi.fn().mockResolvedValue(undefined)
 }));
 
+// T-CA-04: partial mock —— waitHostGapForUrl 换成 spy（默认 no-op），
+// 供「retry 第二发也打闸」断言并避免真睡 1s；其余 core 导出走真实现。
+const mockWaitHostGap = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock("@fe-radar/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof Core>();
+  return { ...actual, waitHostGapForUrl: mockWaitHostGap };
+});
 const mockFetch = vi.mocked(undiciFetch);
 const mockAgent = vi.mocked(Agent);
 const mockProxyAgent = vi.mocked(ProxyAgent);
@@ -81,8 +89,11 @@ const mockAssertRobotsAllowed = vi.mocked(assertRobotsAllowed);
 
 type CapturedFetchInit = RequestInit & { dispatcher?: unknown };
 
-function textResponse(body: string): Awaited<ReturnType<typeof undiciFetch>> {
-  return new Response(body) as unknown as Awaited<
+function textResponse(
+  body: string,
+  status = 200
+): Awaited<ReturnType<typeof undiciFetch>> {
+  return new Response(body, { status }) as unknown as Awaited<
     ReturnType<typeof undiciFetch>
   >;
 }
@@ -326,6 +337,23 @@ describe("fetchTextWithPolicy dispatcher", () => {
     } finally {
       restore();
     }
+  });
+
+  // T-CA-04 IN①: 闸在 fetchImpl 闭包入口 —— retry 第二发（403 换代理重试）也必须再次打闸。
+  it("runs the host gap gate on every attempt including the 403 retry (T-CA-04)", async () => {
+    mockFetch
+      .mockResolvedValueOnce(textResponse("forbidden", 403))
+      .mockResolvedValueOnce(textResponse("ok"));
+
+    const body = await fetchTextWithPolicy("https://example.com/news", {
+      timeoutMs: 1000
+    });
+
+    expect(body).toBe("ok");
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockWaitHostGap).toHaveBeenCalledTimes(2);
+    expect(mockWaitHostGap).toHaveBeenNthCalledWith(1, "https://example.com/news");
+    expect(mockWaitHostGap).toHaveBeenNthCalledWith(2, "https://example.com/news");
   });
 });
 

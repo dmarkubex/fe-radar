@@ -1,5 +1,5 @@
 import { createLogger, SourceFetchError } from "@fe-radar/shared";
-import { assertPublicFetchUrl, isInternalAllowlisted, isPrivateIp } from "@fe-radar/core";
+import { assertPublicFetchUrl, isInternalAllowlisted, isPrivateIp, waitHostGapForUrl } from "@fe-radar/core";
 import dns from "node:dns";
 import type { LookupFunction } from "node:net";
 import { Agent, fetch as undiciFetch, ProxyAgent } from "undici";
@@ -252,6 +252,10 @@ export async function fetchTextWithPolicy(
     input: string,
     init: FetchInitWithDispatcher
   ): Promise<ReadableTextResponse> => {
+    // T-CA-04 / design §3.4.2 IN①：同站闸在闭包入口、分支之前 —— retry 第二发与
+    // redirect 下一跳（followRedirectsWithGuard → fetchImpl）都经此打闸；rss/html/quotes
+    // 等走 fetchTextWithPolicy 的适配器被这里覆盖，适配器内不再重复调用。
+    await waitHostGapForUrl(input);
     if (options.fetchImpl) {
       return options.fetchImpl(input, init);
     }
