@@ -1,8 +1,10 @@
 import { Worker } from "bullmq";
 
 import { QUEUES, QUEUE_CLEANUP } from "@fe-radar/shared";
+import { asRedisEval, setHostThrottleRedis } from "@fe-radar/core";
 import { getDb } from "@fe-radar/db";
 import { createQwenClient, createDeepSeekClient, createKimiClient } from "@fe-radar/llm";
+import { closePlaywrightPool, getOrCreatePlaywrightPool } from "./lib/playwright-pool";
 
 import type { BriefingGenJob, BriefingPushJob, FetchSourceJob, PipelineJob, QuotesFetchJob, WebsearchJob } from "./queues";
 import { createRedisConnection, createWebsearchQueue, FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, DAILY_REPORT_SCHEDULE_CRON, DAILY_REPORT_SCHEDULE_TZ, DEFAULT_JOB_OPTIONS, QUEUE_QUOTES_FETCH, QUEUE_BRIEFING_GEN, BRIEFING_GEN_SCHEDULE_CRON, BRIEFING_GEN_SCHEDULE_TZ, QUEUE_BRIEFING_PUSH, getBriefingRepushId, isDailyRepushJob, isMinuteTickJob } from "./queues";
@@ -45,7 +47,8 @@ interface WorkerRuntimeOptions {
   workers: CloseableResource[];
   queues: CloseableResource[];
   connection: RedisConnection;
-  getPlaywrightPool: () => CloseableResource | undefined;
+  /** T-CA-04: shutdown 只关一次全局 Playwright 池（禁止双重 close）。 */
+  closePlaywrightPool: () => Promise<void>;
   logger: ShutdownLogger;
   onShutdown?: () => void | Promise<void>;
 }
@@ -60,10 +63,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
         await options.onShutdown?.();
         await Promise.all(options.workers.map((w) => w.close()));
         await Promise.all(options.queues.map((q) => q.close()));
-        const pool = options.getPlaywrightPool();
-        if (pool) {
-          await pool.close();
-        }
+        await options.closePlaywrightPool();
         await options.connection.quit();
         options.logger.info({ signal }, "shutdown complete");
       })();
@@ -76,7 +76,31 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
 export async function startWorker(): Promise<WorkerRuntime> {
   const connection = createRedisConnection();
 
+  // T-CA-04 / design §3.4.2: worker 进程内同站闸统一接 Redis。必须经 asRedisEval
+  // 严格 wrapper，禁止把 ioredis 实例当 RedisEvalLike 裸传（quota 存量裸 cast 不在本批次）。
+  // MIRROR: scripts/sources-fetch-audit.ts + apps/worker/src/scripts/verify-sources.ts 同款桥接。
+  // ioredis 的 eval 重载与 asRedisEval 的 (...unknown[]) 输入不结构兼容（参数逆变），
+  // 这里只做参数形状桥接（全部转成合法 RedisValue）；数值返回校验仍由 asRedisEval 承担。
+  setHostThrottleRedis(
+    asRedisEval({
+      eval: (...args: unknown[]) =>
+        connection.eval(
+          String(args[0]),
+          Number(args[1]),
+          ...args.slice(2).map((v) => (typeof v === "number" ? v : String(v)))
+        )
+    })
+  );
+
   const heartbeat = startHeartbeat(connection);
+
+  try {
+    // T-CA-04: 预热全局 Playwright 池（getter 内部是生产路径唯一 launch 点）。
+    // 失败只 warn 不 process.exit —— 首个 playwright 抓取时经 getter 懒重试。
+    handlerContext.playwrightPool = await getOrCreatePlaywrightPool();
+  } catch (err) {
+    logger.warn({ err }, "playwright pool warmup failed; will retry lazily on first playwright fetch");
+  }
 
   handlerContext.qwen = createQwenClient();
   handlerContext.deepSeek = createDeepSeekClient();
@@ -317,7 +341,7 @@ export async function startWorker(): Promise<WorkerRuntime> {
     workers: allWorkers,
     queues: allQueues,
     connection,
-    getPlaywrightPool: () => handlerContext.playwrightPool,
+    closePlaywrightPool,
     logger,
     onShutdown: async () => {
       await heartbeat.stop();

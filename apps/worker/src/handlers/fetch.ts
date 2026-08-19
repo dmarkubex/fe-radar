@@ -25,7 +25,7 @@ import {
   type DedupCandidate,
   type ExistingItemFingerprint
 } from "../dedup";
-import { createPlaywrightPool } from "../fetchers/playwright";
+import { getOrCreatePlaywrightPool } from "../lib/playwright-pool";
 import { drainPendingQuotaBacklog } from "../jobs/quota-drain";
 
 import { logger, handlerContext, loadOwnCompanyProfile } from "./context";
@@ -110,7 +110,8 @@ export async function handleFetchJob(job: {
   let rawItems: StandardItem[];
   try {
     if (config.type === "playwright" && !handlerContext.playwrightPool) {
-      handlerContext.playwrightPool = await createPlaywrightPool();
+      // T-CA-04: 懒建走全局 getter —— 生产路径唯一允许的 createPlaywrightPool 在其内部。
+      handlerContext.playwrightPool = await getOrCreatePlaywrightPool();
     }
     rawItems = await fetchSourceItems(
       config,

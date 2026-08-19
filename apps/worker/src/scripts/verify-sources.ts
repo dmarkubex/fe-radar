@@ -15,10 +15,13 @@ import {
   type FetcherType,
   type SourceRecord
 } from "@fe-radar/db";
+import { asRedisEval, setHostThrottleRedis } from "@fe-radar/core";
+import IORedis from "ioredis";
 
 import { fetchSourceItems, type SourceConfig } from "../fetchers";
 import { assertRobotsAllowed } from "../lib/robots";
 import { acquireUserAgent } from "../lib/ua-pool";
+import { closePlaywrightPool } from "../lib/playwright-pool";
 
 const MIN_ITEMS = 3;
 const SOURCE_INTERVAL_MS = 1_000;
@@ -251,6 +254,38 @@ async function main(): Promise<void> {
     throw new Error("DATABASE_URL is required");
   }
 
+  // T-CA-04: 独立 Node 进程不经 worker bootstrap —— 发起任何 fetch 前必须先接同站闸
+  //（缺 REDIS_URL 直接退出，禁止无 redis 当 noop）。Playwright 池不传入，
+  // 经 source.ts 的全局 getter 懒建，进程退出统一 closePlaywrightPool。
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    console.error("REDIS_URL required for host throttle");
+    process.exit(1);
+  }
+  const redis = new IORedis(redisUrl);
+  // MIRROR: bootstrap.ts + scripts/sources-fetch-audit.ts 同款 ioredis eval 形状桥接
+  //（参数逆变，不结构兼容 (...unknown[])；数值返回校验仍由 asRedisEval 承担）。
+  setHostThrottleRedis(
+    asRedisEval({
+      eval: (...args: unknown[]) =>
+        redis.eval(
+          String(args[0]),
+          Number(args[1]),
+          ...args.slice(2).map((v) => (typeof v === "number" ? v : String(v)))
+        )
+    })
+  );
+
+  try {
+    await runVerification();
+  } finally {
+    await closePlaywrightPool();
+    await redis.quit();
+  }
+  process.exit(0);
+}
+
+async function runVerification(): Promise<void> {
   const includeDisabled = process.argv.includes("--include-disabled");
   const jsonOutput = process.argv.includes("--json");
   const sourceId = parseSourceIdArg(process.argv);
@@ -281,7 +316,6 @@ async function main(): Promise<void> {
   if (results.some((result) => result.status === "fail")) {
     throw new Error("one or more sources failed the >=3 parsed-item gate");
   }
-  process.exit(0);
 }
 
 // ESM entry detection: compare this module URL to argv[1] (realpath).

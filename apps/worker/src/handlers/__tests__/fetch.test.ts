@@ -13,7 +13,8 @@ const {
   mockAdmitToScoring,
   mockRollbackAdmit,
   mockEnqueueItemPipeline,
-  mockDrainPendingQuotaBacklog
+  mockDrainPendingQuotaBacklog,
+  mockGetOrCreatePlaywrightPool
 } = vi.hoisted(() => ({
   mockGetDb: vi.fn(),
   mockFetchRss: vi.fn(),
@@ -26,7 +27,8 @@ const {
   mockAdmitToScoring: vi.fn(),
   mockRollbackAdmit: vi.fn(),
   mockEnqueueItemPipeline: vi.fn(),
-  mockDrainPendingQuotaBacklog: vi.fn()
+  mockDrainPendingQuotaBacklog: vi.fn(),
+  mockGetOrCreatePlaywrightPool: vi.fn().mockResolvedValue({ close: vi.fn() })
 }));
 
 vi.mock("node:crypto", () => ({ randomUUID: () => "test-uuid" }));
@@ -79,8 +81,9 @@ vi.mock("../../dedup", () => ({
   dedupItems: mockDedupItems
 }));
 
-vi.mock("../../fetchers/playwright", () => ({
-  createPlaywrightPool: vi.fn()
+// T-CA-04: mock 全局池 getter（fetch handler 懒建走它），不再 mock createPlaywrightPool。
+vi.mock("../../lib/playwright-pool", () => ({
+  getOrCreatePlaywrightPool: mockGetOrCreatePlaywrightPool
 }));
 
 vi.mock("../../queues", () => ({

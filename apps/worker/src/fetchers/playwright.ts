@@ -48,6 +48,11 @@ export interface PageLike {
   route?(url: string, handler: (route: RouteLike, request: RequestLike) => Promise<void>): Promise<unknown>;
   /** 当前主框架 URL；goto 后用于复验最终落点（Chromium 内部消化 30x，route 拦不到）。 */
   url(): string;
+  /**
+   * T-CA-04（design §3.4.1）：页面 HTML。无 timeout 参（与 Playwright 真实签名一致）；
+   * 全文路径的竞速由调用方 Promise.race 包一层，不在接口里加参数。
+   */
+  content(): Promise<string>;
   close(): Promise<void>;
 }
 
@@ -70,6 +75,13 @@ const MAX_CONTEXTS = 2;
 export class BrowserContextPool {
   private slots: PoolSlot[] = [];
   private cursor = 0;
+  /**
+   * T-CA-04（design §3.4.2 Playwright 池段）：in-flight slot 创建占位。
+   * 并发 acquire 在池未满时共享同一次 factory 调用（第二个等第一个 launch 结束，
+   * 不得并发双 launch）；launch reject → 该次 acquire 失败并清掉占位，
+   * 允许下一次 acquire 重试。
+   */
+  private createInFlight: Promise<unknown> | null = null;
 
   public constructor(private readonly browserFactory: () => Promise<BrowserLike>) {}
 
@@ -87,19 +99,21 @@ export class BrowserContextPool {
    * proxy for proxyPool.release scoring — never the pre-acquire request values.
    */
   public async acquire(userAgent: string, proxy?: ProxyEndpoint): Promise<PooledBrowserContext> {
-    if (this.slots.length < MAX_CONTEXTS) {
-      const browser = await this.browserFactory();
-      const context = await browser.newContext({
-        userAgent,
-        proxy: proxy?.server ? { server: proxy.server } : undefined
-      });
-      // SSRF subresource guard once per context creation — covers main page + future
-      // popups (window.open). Do NOT re-install on pool reuse (duplicate handlers).
-      if (process.env.SSRF_GUARD_ENABLED !== "false") {
-        await installSubresourceGuard(context);
+    while (this.slots.length < MAX_CONTEXTS) {
+      const inFlight = this.createInFlight;
+      if (inFlight) {
+        // 并发双 acquire：等待正在进行的 launch，结束后重新评估容量
+        //（可能自行起下一次 flight，或转 RR 复用）。共享的 flight 失败则一并失败。
+        await inFlight;
+        continue;
       }
-      this.slots.push({ browser, context, userAgent, proxy });
-      return { context, userAgent, proxy };
+      const creating = this.createSlot(userAgent, proxy);
+      this.createInFlight = creating;
+      try {
+        return await creating;
+      } finally {
+        this.createInFlight = null;
+      }
     }
 
     const startIdx = this.cursor % this.slots.length;
@@ -137,6 +151,21 @@ export class BrowserContextPool {
     rebuildSlot.context = context;
     rebuildSlot.userAgent = userAgent;
     rebuildSlot.proxy = proxy;
+    return { context, userAgent, proxy };
+  }
+
+  private async createSlot(userAgent: string, proxy?: ProxyEndpoint): Promise<PooledBrowserContext> {
+    const browser = await this.browserFactory();
+    const context = await browser.newContext({
+      userAgent,
+      proxy: proxy?.server ? { server: proxy.server } : undefined
+    });
+    // SSRF subresource guard once per context creation — covers main page + future
+    // popups (window.open). Do NOT re-install on pool reuse (duplicate handlers).
+    if (process.env.SSRF_GUARD_ENABLED !== "false") {
+      await installSubresourceGuard(context);
+    }
+    this.slots.push({ browser, context, userAgent, proxy });
     return { context, userAgent, proxy };
   }
 

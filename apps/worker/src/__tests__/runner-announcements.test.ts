@@ -95,8 +95,10 @@ vi.mock("../fetchers", () => ({
   fetchSourceItems: mockFetchSourceItems,
 }));
 
-vi.mock("../fetchers/playwright", () => ({
-  createPlaywrightPool: vi.fn(),
+// T-CA-04: mock 全局池 getter，避免未 mock 的真 getter 去 launch chromium。
+vi.mock("../lib/playwright-pool", () => ({
+  getOrCreatePlaywrightPool: vi.fn().mockResolvedValue({ close: vi.fn() }),
+  closePlaywrightPool: vi.fn().mockResolvedValue(undefined)
 }));
 
 vi.mock("../dedup", () => ({
@@ -253,13 +255,13 @@ describe("worker runtime shutdown", () => {
     const workerA = { close: vi.fn().mockResolvedValue(undefined) };
     const workerB = { close: vi.fn().mockResolvedValue(undefined) };
     const queue = { close: vi.fn().mockResolvedValue(undefined) };
-    const playwrightPool = { close: vi.fn().mockResolvedValue(undefined) };
+    const mockClosePool = vi.fn().mockResolvedValue(undefined);
     const connection = { quit: vi.fn().mockResolvedValue(undefined) };
     const runtime = __testables.createWorkerRuntime({
       workers: [workerA, workerB],
       queues: [queue],
       connection,
-      getPlaywrightPool: () => playwrightPool,
+      closePlaywrightPool: mockClosePool,
       logger: { info: vi.fn() },
     });
 
@@ -268,7 +270,7 @@ describe("worker runtime shutdown", () => {
     expect(workerA.close).toHaveBeenCalledTimes(1);
     expect(workerB.close).toHaveBeenCalledTimes(1);
     expect(queue.close).toHaveBeenCalledTimes(1);
-    expect(playwrightPool.close).toHaveBeenCalledTimes(1);
+    expect(mockClosePool).toHaveBeenCalledTimes(1);
     expect(connection.quit).toHaveBeenCalledTimes(1);
   });
 });

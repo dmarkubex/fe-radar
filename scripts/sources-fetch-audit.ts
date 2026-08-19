@@ -3,10 +3,13 @@
  * 用法：pnpm tsx scripts/sources-fetch-audit.ts
  * 环境：GOV_HTML_SMOKE_SKIP=1 跳过（仅打印清单）
  */
+import IORedis from "ioredis";
+import { asRedisEval, setHostThrottleRedis } from "@fe-radar/core";
 import { fetchAnnouncements } from "../apps/worker/src/fetchers/announcements/index.js";
 import { fetchHtml } from "../apps/worker/src/fetchers/html.js";
-import { fetchPlaywright, createPlaywrightPool } from "../apps/worker/src/fetchers/playwright.js";
+import { fetchPlaywright } from "../apps/worker/src/fetchers/playwright.js";
 import { fetchRss } from "../apps/worker/src/fetchers/rss.js";
+import { closePlaywrightPool, getOrCreatePlaywrightPool } from "../apps/worker/src/lib/playwright-pool.js";
 import type { SourceConfig } from "../apps/worker/src/fetchers/types.js";
 
 interface AuditSource {
@@ -86,12 +89,9 @@ async function fetchSource(source: AuditSource): Promise<{ items: number; error?
     case "announcement":
       return { items: (await fetchAnnouncements(cfg, ctx)).length };
     case "playwright": {
-      const pool = await createPlaywrightPool();
-      try {
-        return { items: (await fetchPlaywright(cfg, ctx, pool)).length };
-      } finally {
-        await pool.close();
-      }
+      // T-CA-04: 全局池 getter（禁止直接 createPlaywrightPool / 逐源 close）。
+      const pool = await getOrCreatePlaywrightPool();
+      return { items: (await fetchPlaywright(cfg, ctx, pool)).length };
     }
     default:
       return { items: 0, error: `unsupported type ${(cfg as { type: string }).type}` };
@@ -104,10 +104,39 @@ async function main(): Promise<void> {
     return;
   }
 
+  // T-CA-04: 本脚本走真实 fetch，入口必须先接同站闸（缺 REDIS_URL 直接退出，
+  // 禁止无 redis 当 noop）。GOV_HTML_SMOKE_SKIP 早退路径不需要 Redis。
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    console.error("REDIS_URL required for host throttle");
+    process.exit(1);
+  }
+  const redis = new IORedis(redisUrl);
+  // MIRROR: apps/worker/src/bootstrap.ts + apps/worker/src/scripts/verify-sources.ts
+  // 同款 ioredis eval 形状桥接（参数逆变；数值返回校验仍由 asRedisEval 承担）。
+  setHostThrottleRedis(
+    asRedisEval({
+      eval: (...args: unknown[]) =>
+        redis.eval(
+          String(args[0]),
+          Number(args[1]),
+          ...args.slice(2).map((v) => (typeof v === "number" ? v : String(v)))
+        )
+    })
+  );
+
+  try {
+    await runAudit();
+  } finally {
+    await closePlaywrightPool();
+    await redis.quit();
+  }
+}
+
+async function runAudit(): Promise<void> {
   const rows: AuditRow[] = [];
   const enabled = SOURCES.filter((s) => s.enabled);
   const disabled = SOURCES.filter((s) => !s.enabled);
-
   console.log(`\n=== 信源抓取审计（enabled=${enabled.length} / total=${SOURCES.length}）===\n`);
 
   for (const source of enabled) {

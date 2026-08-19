@@ -36,6 +36,9 @@ function makePage(
     },
     async route() {},
     url: () => finalUrl,
+    async content() {
+      return "";
+    },
     async close() {}
   } satisfies PageLike;
 }
@@ -86,6 +89,9 @@ function makePageWithDates(items: FakeDatedItem[]): PageLike {
     },
     async route() {},
     url: () => "https://example.com/",
+    async content() {
+      return "";
+    },
     async close() {}
   } satisfies PageLike;
 }
@@ -384,6 +390,9 @@ describe("playwright fetcher", () => {
           },
           async route() {},
           url: () => "https://example.com/",
+          async content() {
+            return "";
+          },
           async close() {}
         } satisfies PageLike));
       },
@@ -638,6 +647,9 @@ describe("playwright fetcher", () => {
                   pageRouteCalled += 1;
                 },
                 url: () => "https://93.184.216.34/list",
+                async content() {
+                  return "";
+                },
                 async close() {}
               } satisfies PageLike;
             },
@@ -753,6 +765,9 @@ describe("playwright fetcher", () => {
             },
             async route() {},
             url: () => "http://169.254.169.254/latest/meta-data",
+            async content() {
+              return "";
+            },
             async close() {}
           } satisfies PageLike));
         },
@@ -967,5 +982,69 @@ describe("playwright fetcher", () => {
     const published = out[0]?.publishedAt.getTime();
     expect(published).toBeGreaterThanOrEqual(before);
     expect(published).toBeLessThanOrEqual(after);
+  });
+});
+
+// T-CA-04（design §3.4.2 Playwright 池段）：acquire 的 slot 创建/launch 必须串行。
+describe("BrowserContextPool.acquire serialization (T-CA-04)", () => {
+  it("two concurrent acquires with a rejecting factory call the factory exactly once", async () => {
+    let factoryCalls = 0;
+    const pool = new BrowserContextPool(async () => {
+      factoryCalls += 1;
+      throw new Error("launch failed");
+    });
+
+    const [first, second] = await Promise.allSettled([
+      pool.acquire("ua-1"),
+      pool.acquire("ua-2")
+    ]);
+
+    expect(factoryCalls).toBe(1);
+    expect(first.status).toBe("rejected");
+    expect(second.status).toBe("rejected");
+  });
+
+  it("second concurrent acquire waits for the first launch (serialized factory calls)", async () => {
+    const events: string[] = [];
+    const pool = new BrowserContextPool(async () => {
+      events.push("launch:start");
+      // 微任务挂起即可：序列化由 acquire 的 in-flight 结构保证，不需要真实计时器。
+      await Promise.resolve();
+      events.push("launch:end");
+      return {
+        async newContext() {
+          return makeContext(async () => makePage([{ title: "A", url: "https://example.com/a" }]));
+        },
+        async close() {}
+      };
+    });
+
+    const [first, second] = await Promise.all([pool.acquire("ua-1"), pool.acquire("ua-2")]);
+
+    expect(events).toEqual(["launch:start", "launch:end", "launch:start", "launch:end"]);
+    expect(first.userAgent).toBe("ua-1");
+    expect(second.userAgent).toBe("ua-2");
+  });
+
+  it("a failed launch does not poison the pool: the next acquire retries the factory", async () => {
+    let factoryCalls = 0;
+    const pool = new BrowserContextPool(async () => {
+      factoryCalls += 1;
+      if (factoryCalls === 1) {
+        throw new Error("launch failed");
+      }
+      return {
+        async newContext() {
+          return makeContext(async () => makePage([{ title: "A", url: "https://example.com/a" }]));
+        },
+        async close() {}
+      };
+    });
+
+    await expect(pool.acquire("ua-1")).rejects.toThrow("launch failed");
+    const pooled = await pool.acquire("ua-2");
+
+    expect(factoryCalls).toBe(2);
+    expect(pooled.userAgent).toBe("ua-2");
   });
 });
