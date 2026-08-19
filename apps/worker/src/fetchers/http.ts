@@ -35,6 +35,14 @@ export interface FetchTextOptions {
     init: FetchInitWithDispatcher
   ) => Promise<Response>;
   /**
+   * T-CA-05 (design §3.4.1 step 5): absolute remaining budget in ms from
+   * handler entry (`t0`). Each retry checks `remain = deadlineMs - (now - t0)`;
+   * `remain < 200` stops immediately so two 15s timeouts cannot stack to 30s.
+   * **Default undefined preserves v1.0 behavior (two full timeouts)**; only the
+   * copilot fulltext handler should pass it.
+   */
+  deadlineMs?: number;
+  /**
    * Optional extra RequestInit to merge into the policy fetch (e.g. POST method
    * and JSON body for adapters hitting public search APIs). The policy layer
    * still owns the user-agent, dispatcher, timeout abort, robots check, retry
@@ -248,6 +256,13 @@ export async function fetchTextWithPolicy(
 
   let proxy = skipProxyForInternal ? undefined : proxyPool.acquire();
   let lastError: unknown;
+  // T-CA-05: when caller provides deadlineMs, capture t0 here so each retry can
+  //   re-check `remain = deadlineMs - (now - t0)`. remain < 200 stops immediately
+  //   so two 15s timeouts cannot stack to 30s. When undefined, v1.0 keeps two
+  //   full timeouts untouched (see callers in fetchers outside this file).
+  const t0 = options.deadlineMs !== undefined ? Date.now() : 0;
+  const deadlineExceeded = (): boolean =>
+    options.deadlineMs !== undefined && options.deadlineMs - (Date.now() - t0) < 200;
   const fetchImpl = async (
     input: string,
     init: FetchInitWithDispatcher
@@ -266,6 +281,12 @@ export async function fetchTextWithPolicy(
   };
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (deadlineExceeded()) {
+      // Caller-side deadline exhausted before this attempt even starts. Stop
+      // retry loop and let the existing "throw lastError / FETCH_TIMEOUT" path
+      // below produce a clean error rather than firing one more 15s timeout.
+      break;
+    }
     const dispatcher = buildDispatcher(proxy?.server, insecureTLS);
     const policyFetch = ((input: string | URL | Request, init?: RequestInit) =>
       fetchImpl(input.toString(), {

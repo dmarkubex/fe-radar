@@ -402,3 +402,45 @@ describe("fetchTextWithPolicy init support", () => {
     expect(headers["user-agent"]).toBe("test-agent");
   });
 });
+// T-CA-05 (design §3.4.1 step 5): caller-side absolute deadline must stop the
+// retry loop. With `deadlineMs < 200` the budget is exhausted at function
+// entry (`remain = deadlineMs - 0 < 200`), so the retry loop's head check must
+// break before the FIRST fetch attempt fires.
+describe("fetchTextWithPolicy deadlineMs (T-CA-05)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.acquire.mockReturnValue(undefined);
+  });
+
+  it("does not call fetch when deadlineMs is exhausted at entry", async () => {
+    mockFetch.mockResolvedValue(textResponse("ok"));
+
+    const error: unknown = await fetchTextWithPolicy("https://example.com/news", {
+      timeoutMs: 1000,
+      deadlineMs: 100 // remain < 200 at t0 → break at loop head before any fetch
+    }).catch((err: unknown) => err);
+
+    // fetchImpl must never have run.
+    expect(mockFetch).toHaveBeenCalledTimes(0);
+    // lastError was never set either, so the function throws a generic
+    // FETCH_TIMEOUT (no lastError means we hit the bottom throw).
+    if (error && typeof error === "object" && "code" in error) {
+      expect((error as { code: unknown }).code).toBe("FETCH_TIMEOUT");
+    } else {
+      throw new Error("expected an error with a code field");
+    }
+  });
+
+  it("keeps two full retries when deadlineMs is undefined (v1.0 behavior)", async () => {
+    mockFetch
+      .mockResolvedValueOnce(textResponse("forbidden", 403))
+      .mockResolvedValueOnce(textResponse("ok"));
+
+    const body = await fetchTextWithPolicy("https://example.com/news", {
+      timeoutMs: 1000
+    });
+
+    expect(body).toBe("ok");
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+});
