@@ -13,7 +13,9 @@ export const QUEUES = {
   cluster: "fe-cluster",
   curator: "fe-curator",
   daily: "fe-daily",
-  websearch: "fe-websearch"
+  websearch: "fe-websearch",
+  // T-CA-04：本批次只加常量，T-CA-05 才会 new Worker(QUEUES.detailFetch) 并 listen :8071。
+  detailFetch: "fe-detail-fetch"
 } as const;
 
 // Non-pipeline BullMQ queue names. Single source of truth shared by worker
