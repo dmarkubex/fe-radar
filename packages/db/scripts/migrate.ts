@@ -331,6 +331,68 @@ export async function runMigrations(
   return output;
 }
 
+// ---------------------------------------------------------------------------
+// T-CA-02 / v1.3 Copilot（design §7）：
+// 1. runMigrations 之前（advisory lock 内、非事务）幂等创建 copilot_app ——
+//    0064 的 GRANT 引用该角色，且 CREATE ROLE 不能写进 0064（sql.begin 事务内会
+//    25001）。必须 LOGIN：CREATE ROLE 默认 NOLOGIN，角色连不上库。
+// 2. runMigrations 成功之后、unlock 之前设密码（env / file，两处都缺则 warn
+//    跳过、正常退出 —— 日常不带该 env 的 migrate 必须成功）。
+// 密码或其 SQL 严禁写进日志。
+// ---------------------------------------------------------------------------
+const COPILOT_APP_ROLE = "copilot_app";
+
+async function ensureCopilotAppRole(sql: postgres.Sql): Promise<void> {
+  const existing = await sql`
+    SELECT 1 FROM pg_roles WHERE rolname = ${COPILOT_APP_ROLE}
+  `;
+  if (existing.length > 0) {
+    console.log(`role ${COPILOT_APP_ROLE} already exists`);
+    return;
+  }
+  await sql.unsafe(
+    `CREATE ROLE ${COPILOT_APP_ROLE} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE`
+  );
+  console.log(`created role ${COPILOT_APP_ROLE}`);
+}
+
+function readCopilotAppPassword(): string {
+  const fromEnv = process.env.COPILOT_APP_PASSWORD;
+  if (fromEnv !== undefined) {
+    return fromEnv;
+  }
+  const file = process.env.COPILOT_APP_PASSWORD_FILE;
+  if (file === undefined) {
+    return "";
+  }
+  try {
+    return readFileSync(file, "utf8").trim();
+  } catch {
+    console.warn(`failed to read COPILOT_APP_PASSWORD_FILE=${file}`);
+    return "";
+  }
+}
+
+async function applyCopilotAppPassword(sql: postgres.Sql): Promise<void> {
+  const password = readCopilotAppPassword();
+  if (password === "") {
+    console.warn(
+      "COPILOT_APP_PASSWORD / COPILOT_APP_PASSWORD_FILE not provided; skipping copilot_app password"
+    );
+    return;
+  }
+  const existing = await sql`
+    SELECT 1 FROM pg_roles WHERE rolname = ${COPILOT_APP_ROLE}
+  `;
+  if (existing.length === 0) {
+    console.warn(`role ${COPILOT_APP_ROLE} missing; skipping password`);
+    return;
+  }
+  const escaped = password.replace(/'/g, "''");
+  await sql.unsafe(`ALTER ROLE ${COPILOT_APP_ROLE} PASSWORD '${escaped}'`);
+  console.log(`updated password for role ${COPILOT_APP_ROLE}`);
+}
+
 async function main(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
@@ -351,12 +413,16 @@ async function main(): Promise<void> {
   try {
     await ledger.lock();
     try {
+      // T-CA-02: 角色先于 runMigrations（0064 GRANT 引用它），非事务、幂等
+      await ensureCopilotAppRole(sql);
       await runMigrations({
         files,
         readFile: (file) => readFileSync(join(migrationsDir, file), "utf8"),
         ledger,
         baseline: process.env.MIGRATION_BASELINE
       });
+      // T-CA-02: 密码步在 runMigrations 成功之后、unlock 之前
+      await applyCopilotAppPassword(sql);
     } finally {
       await ledger.unlock();
     }

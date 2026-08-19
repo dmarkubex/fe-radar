@@ -10,6 +10,7 @@ import {
   integer,
   jsonb,
   numeric,
+  pgSchema,
   pgTable,
   primaryKey,
   real,
@@ -274,3 +275,86 @@ export const userRelations = relations(users, ({ many }) => ({
 export const entityFinancialsRelations = relations(entityFinancials, ({ one }) => ({
   entity: one(entities, { fields: [entityFinancials.entityId], references: [entities.id] })
 }));
+
+// ---------------------------------------------------------------------------
+// v1.3 Copilot（spec/v1.3-copilot-agent/design.md §7，migration 0064）
+// 角色不在此处：copilot_app 由 migrate.ts 在 runMigrations 之前非事务创建。
+// copilot.visible_items 视图只存在于 SQL（可见性单一来源），Drizzle 不镜像。
+// ---------------------------------------------------------------------------
+export const copilotSchema = pgSchema("copilot");
+
+export const copilotSessions = copilotSchema.table("sessions", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: bigint("user_id", { mode: "number" }).notNull().references(() => users.id),
+  title: text("title"),
+  source: text("source").notNull(),
+  // source='item' 时创建由应用写入；items 90 天清理后置 NULL（对话保留）
+  itemId: bigint("item_id", { mode: "number" }).references(() => items.id, { onDelete: "set null" }),
+  lastActive: timestamp("last_active", { withTimezone: true }).notNull().defaultNow(),
+  turnLockedAt: timestamp("turn_locked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => ({
+  sourceCheck: check("sessions_source_check", sql`${table.source} IN ('ask', 'item')`),
+  userLastIdx: index("sessions_user_last_idx").on(table.userId, table.lastActive.desc())
+}));
+
+// 全文只经 worker（POSTGRES_USER）写、Python 经 worker HTTP 读
+export const copilotItemFulltext = copilotSchema.table("item_fulltext", {
+  itemId: bigint("item_id", { mode: "number" }).primaryKey().references(() => items.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  truncated: boolean("truncated").notNull().default(false),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull()
+});
+
+export const copilotMessages = copilotSchema.table("messages", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  sessionId: bigint("session_id", { mode: "number" }).notNull().references(() => copilotSessions.id, { onDelete: "cascade" }),
+  role: text("role").notNull(),
+  content: text("content").notNull(),
+  citations: jsonb("citations").notNull().default(sql`'[]'::jsonb`),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => ({
+  roleCheck: check("messages_role_check", sql`${table.role} IN ('user', 'assistant')`),
+  sessionIdx: index("messages_session_id_idx").on(table.sessionId, table.id.desc())
+}));
+
+export const copilotAuditLog = copilotSchema.table("audit_log", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: bigint("user_id", { mode: "number" }).notNull().references(() => users.id),
+  sessionId: bigint("session_id", { mode: "number" }).references(() => copilotSessions.id, { onDelete: "set null" }),
+  messageId: bigint("message_id", { mode: "number" }).references(() => copilotMessages.id, { onDelete: "set null" }),
+  toolName: text("tool_name"),
+  argsPreview: text("args_preview"),
+  resultPreview: text("result_preview"),
+  resultRowCount: integer("result_row_count"),
+  tokenUsage: jsonb("token_usage"),
+  coverage: text("coverage").notNull().default("ok"),
+  aborted: boolean("aborted").notNull().default(false),
+  numbersUngrounded: integer("numbers_ungrounded").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => ({
+  coverageCheck: check("audit_log_coverage_check", sql`${table.coverage} IN ('none', 'ok')`),
+  messageIdx: index("audit_log_message_id_idx").on(table.messageId)
+}));
+
+export const copilotFeedbacks = copilotSchema.table("feedbacks", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  messageId: bigint("message_id", { mode: "number" }).notNull().references(() => copilotMessages.id, { onDelete: "cascade" }),
+  userId: bigint("user_id", { mode: "number" }).notNull().references(() => users.id),
+  rating: smallint("rating").notNull(),
+  reason: text("reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => ({
+  ratingCheck: check("feedbacks_rating_check", sql`${table.rating} IN (-1, 1)`),
+  messageUserUnique: unique("feedbacks_message_user_key").on(table.messageId, table.userId)
+}));
+
+// 灰度开关：判定只在 web（copilot_app 无此表权限）；seed 走 0064 ON CONFLICT DO NOTHING
+export const copilotFeatureFlags = copilotSchema.table("feature_flags", {
+  key: text("key").primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  userIds: bigint("user_ids", { mode: "number" }).array().notNull().default(sql`'{}'::bigint[]`),
+  depts: text("depts").array().notNull().default(sql`'{}'::text[]`),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: bigint("updated_by", { mode: "number" }).references(() => users.id)
+});
