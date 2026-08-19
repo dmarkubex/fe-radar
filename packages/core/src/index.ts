@@ -3,6 +3,7 @@ export * from "./litigation";
 export * from "./risk-search";
 export * from "./briefing";
 export * from "./daily-push-card";
+export * from "./host-throttle";
 export * from "./cluster";
 export * from "./curator";
 export * from "./priority";
