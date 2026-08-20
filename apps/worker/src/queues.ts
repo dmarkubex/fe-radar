@@ -179,6 +179,10 @@ export const QUEUE_WEBSEARCH = QUEUES.websearch;
 export const WEBSEARCH_SWEEP_SCHEDULE_CRON = "0 30 6 * * *";
 export const WEBSEARCH_SWEEP_SCHEDULE_TZ = "Asia/Shanghai";
 
+export const QUEUE_HEALTH_CHECK = "fe-health-check";
+export const HEALTH_CHECK_SCHEDULE_CRON = "0 0 9 * * *";
+export const HEALTH_CHECK_SCHEDULE_TZ = "Asia/Shanghai";
+
 export interface WebsearchJob {
   entityId: number;
   entityName: string;

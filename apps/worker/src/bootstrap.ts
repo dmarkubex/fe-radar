@@ -7,7 +7,7 @@ import { createQwenClient, createDeepSeekClient, createKimiClient } from "@fe-ra
 import { closePlaywrightPool, getOrCreatePlaywrightPool } from "./lib/playwright-pool";
 
 import type { BriefingGenJob, BriefingPushJob, FetchSourceJob, PipelineJob, QuotesFetchJob, WebsearchJob } from "./queues";
-import { createRedisConnection, createWebsearchQueue, FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, DAILY_REPORT_SCHEDULE_CRON, DAILY_REPORT_SCHEDULE_TZ, DEFAULT_JOB_OPTIONS, QUEUE_QUOTES_FETCH, QUEUE_BRIEFING_GEN, BRIEFING_GEN_SCHEDULE_CRON, BRIEFING_GEN_SCHEDULE_TZ, QUEUE_BRIEFING_PUSH, WEBSEARCH_SWEEP_SCHEDULE_CRON, WEBSEARCH_SWEEP_SCHEDULE_TZ, getBriefingRepushId, isDailyRepushJob, isMinuteTickJob } from "./queues";
+import { createRedisConnection, createWebsearchQueue, FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, DAILY_REPORT_SCHEDULE_CRON, DAILY_REPORT_SCHEDULE_TZ, DEFAULT_JOB_OPTIONS, QUEUE_QUOTES_FETCH, QUEUE_BRIEFING_GEN, BRIEFING_GEN_SCHEDULE_CRON, BRIEFING_GEN_SCHEDULE_TZ, QUEUE_BRIEFING_PUSH, WEBSEARCH_SWEEP_SCHEDULE_CRON, WEBSEARCH_SWEEP_SCHEDULE_TZ, QUEUE_HEALTH_CHECK, HEALTH_CHECK_SCHEDULE_CRON, HEALTH_CHECK_SCHEDULE_TZ, getBriefingRepushId, isDailyRepushJob, isMinuteTickJob } from "./queues";
 import { enqueueEnabledQuotesSources, scheduleQuotesFetchCron, scheduleBriefingPushCron, FETCH_CONCURRENCY } from "./scheduler";
 import { runCleanup, CLEANUP_SCHEDULE_CRON, CLEANUP_SCHEDULE_TZ } from "./jobs/cleanup";
 import { runQuotesFetch } from "./jobs/quotes-fetch";
@@ -26,6 +26,7 @@ import { handleCuratorJob } from "./handlers/curator";
 import { handleDailyJob } from "./handlers/daily";
 import { handleWebsearchJob } from "./jobs/websearch";
 import { runWebsearchSweep } from "./jobs/websearch-sweep";
+import { runHealthCheck } from "./jobs/health-check";
 import { handleDetailFetchJob } from "./jobs/detail-fetch";
 import { startInternalHttpServer } from "./internal/http-server";
 import { startHeartbeat } from "./heartbeat";
@@ -369,6 +370,29 @@ export async function startWorker(): Promise<WorkerRuntime> {
   );
   allWorkers.push(detailFetchWorker);
   handlerContext.detailFetchQueue = detailFetchQueue;
+
+  const healthCheckQueue = new Queue(QUEUE_HEALTH_CHECK, {
+    connection,
+    defaultJobOptions: { ...DEFAULT_JOB_OPTIONS, attempts: 1 },
+  });
+  allQueues.push(healthCheckQueue);
+  await healthCheckQueue.add("schedule-health-check", {}, {
+    repeat: { pattern: HEALTH_CHECK_SCHEDULE_CRON, tz: HEALTH_CHECK_SCHEDULE_TZ },
+    jobId: "schedule-health-check",
+  });
+
+  const healthCheckWorker = new Worker(
+    QUEUE_HEALTH_CHECK,
+    async () => {
+      try {
+        await runHealthCheck();
+      } catch (err) {
+        logger.error({ err }, "health check failed");
+      }
+    },
+    { connection, concurrency: 1 },
+  );
+  allWorkers.push(healthCheckWorker);
 
   // T-CA-05：内网 HTTP。listen 失败不 exit（http-server 已吞 error）。
   // SERVICE_TOKEN_WORKER_FILE 缺/空由 startInternalHttpServer 自己 warn。
