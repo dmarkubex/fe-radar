@@ -4,6 +4,10 @@ import {
   clusters,
   commodityBriefings,
   commodityQuotes,
+  copilotAuditLog,
+  copilotFeedbacks,
+  copilotMessages,
+  copilotSessions,
   dailyPushes,
   dailyReports,
   getDb,
@@ -26,6 +30,10 @@ export interface CleanupResult {
   deletedCommodityQuotes: number;
   deletedCommodityBriefings: number;
   deletedDailyPushes: number;
+  deletedCopilotFeedbacks: number;
+  deletedCopilotMessages: number;
+  deletedCopilotAuditLog: number;
+  deletedCopilotSessions: number;
 }
 
 export function retentionCutoff(now = new Date(), days = CLEANUP_RETENTION_DAYS): { timestamp: Date; date: string } {
@@ -74,9 +82,38 @@ export async function runCleanup(db: DbClient = getDb(), now = new Date()): Prom
       .where(lt(dailyPushes.reportDate, cutoff.date))
       .returning({ id: dailyPushes.id });
 
+    // v1.3 copilot: same tx, child-before-parent (design.md §3.5 L942–947).
+    // feedbacks/messages: createdAt < cutoff90 — a session with fresh lastActive
+    // still loses messages older than 90 days (fixture: last_active new, message 100d ago).
+    // audit_log: 365d. sessions: lastActive < cutoff90.
+    // Do not delete the grayscale switch table. Fulltext rows follow items 90d CASCADE.
+    const deletedCopilotFeedbacks = await tx
+      .delete(copilotFeedbacks)
+      .where(lt(copilotFeedbacks.createdAt, cutoff.timestamp))
+      .returning({ id: copilotFeedbacks.id });
+
+    const deletedCopilotMessages = await tx
+      .delete(copilotMessages)
+      .where(lt(copilotMessages.createdAt, cutoff.timestamp))
+      .returning({ id: copilotMessages.id });
+
+    const deletedCopilotAuditLog = await tx
+      .delete(copilotAuditLog)
+      .where(lt(copilotAuditLog.createdAt, quotesCutoff))
+      .returning({ id: copilotAuditLog.id });
+
+    const deletedCopilotSessions = await tx
+      .delete(copilotSessions)
+      .where(lt(copilotSessions.lastActive, cutoff.timestamp))
+      .returning({ id: copilotSessions.id });
+
     logger.info({ rowsDeleted: deletedCommodityQuotes.length, table: "commodity_quotes", retentionDays: 365 }, "cleanup");
     logger.info({ rowsDeleted: deletedCommodityBriefings.length, table: "commodity_briefings", retentionDays: 90 }, "cleanup");
     logger.info({ rowsDeleted: deletedDailyPushes.length, table: "daily_pushes", retentionDays: 90 }, "cleanup");
+    logger.info({ rowsDeleted: deletedCopilotFeedbacks.length, table: "copilot.feedbacks", retentionDays: 90 }, "cleanup");
+    logger.info({ rowsDeleted: deletedCopilotMessages.length, table: "copilot.messages", retentionDays: 90 }, "cleanup");
+    logger.info({ rowsDeleted: deletedCopilotAuditLog.length, table: "copilot.audit_log", retentionDays: 365 }, "cleanup");
+    logger.info({ rowsDeleted: deletedCopilotSessions.length, table: "copilot.sessions", retentionDays: 90 }, "cleanup");
 
     return {
       deletedItems: deletedItems.length,
@@ -85,6 +122,10 @@ export async function runCleanup(db: DbClient = getDb(), now = new Date()): Prom
       deletedCommodityQuotes: deletedCommodityQuotes.length,
       deletedCommodityBriefings: deletedCommodityBriefings.length,
       deletedDailyPushes: deletedDailyPushes.length,
+      deletedCopilotFeedbacks: deletedCopilotFeedbacks.length,
+      deletedCopilotMessages: deletedCopilotMessages.length,
+      deletedCopilotAuditLog: deletedCopilotAuditLog.length,
+      deletedCopilotSessions: deletedCopilotSessions.length,
     };
   });
 }
