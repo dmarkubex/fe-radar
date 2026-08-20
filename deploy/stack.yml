@@ -22,8 +22,10 @@ services:
       # 去掉硬编码 http 默认，强制部署方在 Portainer 环境变量里填。
       NEXTAUTH_URL: ${NEXTAUTH_URL:?在 Portainer stack 环境变量填实际访问 origin（外网切换前为 https://...）}
       NEXTAUTH_SECRET_FILE: /run/secrets/nextauth_secret
-      REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users,public.commodity_briefings,public.commodity_quotes,public.briefing_targets,public.briefing_template_fields,public.daily_push_config,public.daily_pushes
+      REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users,public.commodity_briefings,public.commodity_quotes,public.briefing_targets,public.briefing_template_fields,public.daily_push_config,public.daily_pushes,copilot.feature_flags
       DB_WAIT_TIMEOUT_SECONDS: "180"
+      COPILOT_UPSTREAM_URL: http://copilot:8000
+      COPILOT_INTERNAL_SECRET_FILE: /run/secrets/copilot_internal_secret
       BRIEFING_MINIO_BUCKET: fe-radar-briefings
       MINIO_ENDPOINT: minio
       MINIO_PORT: "9000"
@@ -37,6 +39,7 @@ services:
       - db_password
       - minio_web_access_key
       - minio_web_secret_key
+      - copilot_internal_secret
     networks:
       - internal # 连 postgres/redis/minio
       - edge # 对外发布端口（internal 网络 internal:true，无法承载 ingress）
@@ -59,8 +62,10 @@ services:
       TZ: Asia/Shanghai
       DATABASE_URL: postgres://fe_radar:${DB_PASSWORD}@postgres:5432/fe_radar
       REDIS_URL: redis://redis:6379
-      REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users,public.commodity_briefings,public.commodity_quotes,public.briefing_targets,public.briefing_template_fields,public.daily_push_config,public.daily_pushes
+      REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users,public.commodity_briefings,public.commodity_quotes,public.briefing_targets,public.briefing_template_fields,public.daily_push_config,public.daily_pushes,copilot.feature_flags
       DB_WAIT_TIMEOUT_SECONDS: "180"
+      WORKER_INTERNAL_BIND: "8071"
+      SERVICE_TOKEN_WORKER_FILE: /run/secrets/service_token_worker
       QWEN_BASE_URL: ${QWEN_BASE_URL:?set QWEN_BASE_URL in Portainer stack environment}
       QWEN_MODEL: ${QWEN_MODEL:-qwen3.6-27b}
       PROXY_POOL_ENABLED: "false"
@@ -100,6 +105,7 @@ services:
       - proxy_list
       - minio_worker_access_key
       - minio_worker_secret_key
+      - service_token_worker
     networks:
       - internal
     deploy:
@@ -116,7 +122,7 @@ services:
       DATABASE_URL: postgres://fe_radar:${DB_PASSWORD}@postgres:5432/fe_radar
       REDIS_URL: redis://redis:6379
       FETCH_ON_STARTUP: ${FETCH_ON_STARTUP:-false}
-      REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users,public.commodity_briefings,public.commodity_quotes,public.briefing_targets,public.briefing_template_fields,public.daily_push_config,public.daily_pushes
+      REQUIRE_DB_TABLES: public.sources,public.items,public.item_analysis,public.users,public.commodity_briefings,public.commodity_quotes,public.briefing_targets,public.briefing_template_fields,public.daily_push_config,public.daily_pushes,copilot.feature_flags
       DB_WAIT_TIMEOUT_SECONDS: "180"
     secrets:
       - db_password
@@ -126,6 +132,31 @@ services:
       replicas: 1
       restart_policy:
         condition: on-failure
+
+  copilot:
+    image: harborssl.fegroup.cn/custom-project/fe-radar-copilot:${IMAGE_TAG:?在 Portainer 环境变量填不可变版本号或 digest（禁止 latest）}
+    environment:
+      - TZ=Asia/Shanghai
+      - COPILOT_DB_URL_FILE=/run/secrets/copilot_db_url
+      - COPILOT_INTERNAL_SECRET_FILE=/run/secrets/copilot_internal_secret
+      - SERVICE_TOKEN_WORKER_FILE=/run/secrets/service_token_worker
+      - WORKER_INTERNAL_URL=http://worker:8071
+      - QWEN_BASE_URL=${QWEN_BASE_URL:?set QWEN_BASE_URL in Portainer stack environment}
+      - QWEN_EMBEDDING_BASE_URL=${QWEN_EMBEDDING_BASE_URL:-}
+      - QWEN_EMBEDDING_MODEL=${QWEN_EMBEDDING_MODEL:-qwen-embedding-1024}
+      - QWEN_API_KEY=${QWEN_API_KEY:-local-qwen}
+      - QWEN_EMBEDDING_API_KEY=${QWEN_EMBEDDING_API_KEY:-}
+    secrets: [copilot_db_url, copilot_internal_secret, service_token_worker]
+    networks: [internal]
+    deploy: { replicas: 1 }
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"
+        ]
 
   postgres:
     image: harborssl.fegroup.cn/custom-project/fe-radar/postgres-zhparser:pg16
@@ -310,6 +341,12 @@ secrets:
   datapro_agent_plan_key:
     external: true
   websearch_api_key:
+    external: true
+  copilot_db_url:
+    external: true
+  copilot_internal_secret:
+    external: true
+  service_token_worker:
     external: true
 
 configs:
