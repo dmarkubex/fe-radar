@@ -131,6 +131,13 @@ describe("startInternalHttpServer", () => {
     expect(mocks.runFulltextRequest).toHaveBeenCalledTimes(1);
   });
 
+  it("invalid WORKER_INTERNAL_BIND resolves bound=false without throw", async () => {
+    process.env.WORKER_INTERNAL_BIND = "not-a-port";
+    handle = await startInternalHttpServer({ loadToken: async () => TOKEN });
+    expect(handle.bound).toBe(false);
+    expect(handle.server).toBeNull();
+  });
+
   it("listen failure does not call process.exit", async () => {
     const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
     vi.spyOn(http.Server.prototype, "listen").mockImplementation(function listenFail(

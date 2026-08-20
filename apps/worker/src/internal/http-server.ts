@@ -80,12 +80,18 @@ export async function startInternalHttpServer(
       logger.error({ err, port }, "internal http listen failed; bullmq keeps running");
       resolve();
     });
-    server.listen(port, "0.0.0.0", () => {
-      bound = true;
-      const addr = server.address();
-      logger.info({ addr }, "internal http listening");
+    try {
+      server.listen(port, "0.0.0.0", () => {
+        bound = true;
+        const addr = server.address();
+        logger.info({ addr }, "internal http listening");
+        resolve();
+      });
+    } catch (err) {
+      // Number('not-a-port') 是 NaN，listen 同步抛 ERR_SOCKET_BAD_PORT
+      logger.error({ err, port }, "internal http listen failed; bullmq keeps running");
       resolve();
-    });
+    }
   });
 
   let shutdownPromise: Promise<void> | null = null;
