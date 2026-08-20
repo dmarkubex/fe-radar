@@ -463,6 +463,7 @@ export function mockFetchItemDetail(id: number): ItemDetailDto | null {
   if (!item) return null;
   return {
     ...item,
+    copilotEligible: true,
     content: `${item.title}\n\n这是 mock mode 下的正文，用于本机无数据库预览。`,
     translationZh: null,
     scores: {

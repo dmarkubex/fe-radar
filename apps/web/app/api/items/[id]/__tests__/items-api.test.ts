@@ -159,6 +159,7 @@ vi.mock("@fe-radar/db", () => ({
     d4Tech: "itemAnalysis.d4Tech",
     d5Business: "itemAnalysis.d5Business",
     isCurated: "itemAnalysis.isCurated",
+    isIndustryRelated: "itemAnalysis.isIndustryRelated",
     itemId: "itemAnalysis.itemId",
     qualityScore: "itemAnalysis.qualityScore",
     quotaState: "itemAnalysis.quotaState",
@@ -274,10 +275,30 @@ function columnValue(row: DetailSourceRow, columnOrValue: unknown) {
   return columnOrValue;
 }
 
+function matchesIndustryGate(row: DetailSourceRow): boolean {
+  const related = columnValue(row, "itemAnalysis.isIndustryRelated");
+  const circle = columnValue(row, "itemAnalysis.topCircle");
+  const alert = columnValue(row, "itemAnalysis.alertType");
+  return (
+    related !== false ||
+    circle === "C1" ||
+    circle === "C2" ||
+    alert === "own" ||
+    alert === "legal" ||
+    alert === "risk"
+  );
+}
+
 function matchesPredicate(
   row: DetailSourceRow,
-  predicate: QueryPredicate
+  predicate: QueryPredicate | string
 ): boolean {
+  if (predicate === "sql") {
+    return matchesIndustryGate(row);
+  }
+  if (typeof predicate !== "object" || predicate === null || !("op" in predicate)) {
+    return false;
+  }
   switch (predicate.op) {
     case "and":
       return predicate.conditions.every((condition) =>
@@ -320,6 +341,7 @@ function createDetailFixture(quotaState: string): DetailSourceRow {
     "itemAnalysis.d3Market": 30,
     "itemAnalysis.d4Tech": 40,
     "itemAnalysis.d5Business": 50,
+    "itemAnalysis.isIndustryRelated": true,
     "itemAnalysis.itemId": 42,
     "itemAnalysis.qualityScore": 88,
     "itemAnalysis.quotaState": quotaState,
@@ -396,7 +418,8 @@ function createDetailFixture(quotaState: string): DetailSourceRow {
         d5Business: 50
       },
       entities: [],
-      clusterItems: []
+      clusterItems: [],
+      copilotEligible: true
     }
   };
 }
@@ -480,6 +503,25 @@ describe("/api/items/[id]", () => {
         });
       }
     );
+
+    it("marks industry-out items copilotEligible false while still returning detail", async () => {
+      const { fetchItemDetail } = await vi.importActual<{
+        fetchItemDetail: typeof actualFetchItemDetail;
+      }>("../../../../../lib/api/timeline-query");
+      const fixture = createDetailFixture("admitted");
+      fixture["itemAnalysis.isIndustryRelated"] = false;
+      fixture["itemAnalysis.topCircle"] = "C3";
+      fixture.dbRow.topCircle = "C3";
+      const db = createFakeDetailDb(fixture) as unknown as DbClient;
+
+      const detail = await fetchItemDetail(42, { db });
+
+      expect(detail).toMatchObject({
+        id: 42,
+        title: "blocked detail",
+        copilotEligible: false
+      });
+    });
 
     it("hides crawl/risk-search original URL in the detail DTO", async () => {
       const { fetchItemDetail } = await vi.importActual<{

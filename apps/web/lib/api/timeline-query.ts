@@ -88,6 +88,7 @@ export interface TimelineCursorRow {
 }
 
 export interface ItemDetailDto extends TimelineItemDto {
+  copilotEligible: boolean;
   content: string | null;
   translationZh: string | null;
   scores: {
@@ -506,7 +507,7 @@ export async function fetchItemDetail(
     return null;
   }
 
-  const [entityRows, clusterRows] = await Promise.all([
+  const [entityRows, clusterRows, eligibleRows] = await Promise.all([
     db
       .select({
         id: entities.id,
@@ -536,11 +537,21 @@ export async function fetchItemDetail(
           .innerJoin(sources, eq(sources.id, items.sourceId))
           .leftJoin(itemAnalysis, eq(itemAnalysis.itemId, items.id))
           .where(eq(clusterItems.clusterId, row.clusterId))
-      : Promise.resolve([])
+      : Promise.resolve([]),
+    db
+      .select({ id: items.id })
+      .from(items)
+      .innerJoin(sources, eq(items.sourceId, sources.id))
+      .innerJoin(itemAnalysis, eq(itemAnalysis.itemId, items.id))
+      .leftJoin(clusterItems, eq(clusterItems.itemId, items.id))
+      .leftJoin(clusters, eq(clusters.id, clusterItems.clusterId))
+      .where(and(eq(items.id, id), visibleItemConditions({}, false, undefined, undefined, true, false)))
+      .limit(1)
   ]);
 
   return {
     ...toTimelineItem(row),
+    copilotEligible: Boolean(eligibleRows[0]),
     content: row.content,
     translationZh: row.translationZh,
     scores: {
