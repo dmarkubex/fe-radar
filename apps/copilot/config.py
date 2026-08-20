@@ -21,6 +21,7 @@ class Settings:
     copilot_internal_secret: str
     service_token_worker: str
     qwen_base_url: str
+    worker_internal_url: str
 
 
 def _fail(env_name: str) -> None:
@@ -49,11 +50,15 @@ def load_settings() -> Settings:
     qwen = (os.environ.get("QWEN_BASE_URL") or "").strip()
     if not qwen:
         _fail("QWEN_BASE_URL")
+    worker_url = (os.environ.get("WORKER_INTERNAL_URL") or "http://worker:8071").strip().rstrip("/")
+    if not worker_url:
+        worker_url = "http://worker:8071"
     return Settings(
         copilot_db_url=db_url,
         copilot_internal_secret=internal,
         service_token_worker=worker,
         qwen_base_url=qwen,
+        worker_internal_url=worker_url,
     )
 
 

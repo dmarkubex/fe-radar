@@ -16,6 +16,20 @@ MAX_LIMIT = 20
 DEFAULT_DAYS = 30
 MAX_DAYS = 90
 
+# FunctionTool 与 gateway 送模白名单必须同一份。禁止第二份字面量。
+TOOL_NAMES: tuple[str, ...] = (
+    "search_items",
+    "semantic_search",
+    "get_item",
+    "get_cluster",
+    "fetch_fulltext",
+    "get_daily_report",
+    "get_entity_financials",
+    "get_quotes_series",
+)
+READ_ONLY_TOOLS: frozenset[str] = frozenset(TOOL_NAMES) - frozenset({"fetch_fulltext"})
+BUILTIN_TOOL_NAMES: frozenset[str] = frozenset({"reset_tools", "Skill"})
+
 ToolFn = Callable[..., Awaitable[dict]]
 
 
