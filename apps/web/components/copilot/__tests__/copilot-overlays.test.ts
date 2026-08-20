@@ -24,6 +24,11 @@ describe("citation-list 引用卡", () => {
     expect(citationList).toContain('type="button"');
   });
 
+  it("item 卡渲染 summaryZh", () => {
+    expect(citationList).toContain("summaryZh");
+    expect(citationList).toContain("text.summary");
+  });
+
   it("点击 item 卡走 setCitationItemId（原窗口 overlay）", () => {
     expect(citationList).toContain("setCitationItemId(citation.itemId)");
   });
@@ -69,6 +74,17 @@ describe("ChatPanel", () => {
 
   it("feedback 走 POST /api/copilot/messages/:id/feedback", () => {
     expect(chatPanel).toContain("/feedback");
+    expect(chatPanel).toContain("{ rating, reason }");
+    expect(chatPanel).toContain("建议填写原因");
+  });
+
+  it("sessionId 变化时 abort，过期 turn 不得 setMessages / onSessionId", () => {
+    expect(chatPanel).toContain("abortRef.current?.abort()");
+    expect(chatPanel).toContain("function isStaleTurn");
+    expect(chatPanel).toContain("if (stale()) return");
+    expect(chatPanel).toContain("sessionIdRef.current");
+    expect(chatPanel).toContain("generation !== input.currentGeneration");
+    expect(chatPanel).toContain("startedSessionId !== input.currentSessionId");
   });
 });
 

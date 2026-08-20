@@ -4,16 +4,20 @@ import { useCopilot } from "./copilot-context";
 
 import type { CopilotCitation } from "./sse";
 
-function citationText(citation: CopilotCitation): { meta: string | null; title: string } {
+function citationText(citation: CopilotCitation): {
+  meta: string | null;
+  summary: string | null;
+  title: string;
+} {
   switch (citation.kind) {
     case "item":
-      return { title: citation.title, meta: citation.sourceName };
+      return { title: citation.title, meta: citation.sourceName, summary: citation.summaryZh };
     case "report":
-      return { title: `日报 ${citation.date}`, meta: null };
+      return { title: `日报 ${citation.date}`, meta: null, summary: null };
     case "financials":
-      return { title: citation.canonicalName, meta: citation.type };
+      return { title: citation.canonicalName, meta: citation.type, summary: null };
     case "quotes":
-      return { title: `${citation.symbol} · ${citation.metricKey}`, meta: null };
+      return { title: `${citation.symbol} · ${citation.metricKey}`, meta: null, summary: null };
   }
 }
 
@@ -51,6 +55,9 @@ export function CitationList({
               <span className="font-medium text-fg">{text.title}</span>
               {text.meta ? (
                 <span className="ml-2 text-xs text-fg-soft">{text.meta}</span>
+              ) : null}
+              {isItem ? (
+                <span className="mt-1 block text-xs text-fg-muted">{text.summary ?? ""}</span>
               ) : null}
             </button>
           </li>

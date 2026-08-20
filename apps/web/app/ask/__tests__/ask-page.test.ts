@@ -33,6 +33,11 @@ describe("/ask Server Component 灰度门", () => {
   it("会话列表 GET /api/copilot/sessions", () => {
     expect(askChat).toContain('fetch("/api/copilot/sessions")');
   });
+
+  it("busy 时禁用侧栏切会话", () => {
+    expect(askChat).toContain("disabled={chatBusy}");
+    expect(askChat).toContain("onBusy={setChatBusy}");
+  });
 });
 
 describe("forbidden.tsx", () => {

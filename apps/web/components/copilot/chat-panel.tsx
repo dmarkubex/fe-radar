@@ -22,6 +22,20 @@ interface ChatMessageView {
   notice: string | null;
 }
 
+function isStaleTurn(input: {
+  aborted: boolean;
+  generation: number;
+  currentGeneration: number;
+  startedSessionId: number | null;
+  currentSessionId: number | null;
+}): boolean {
+  return (
+    input.aborted ||
+    input.generation !== input.currentGeneration ||
+    input.startedSessionId !== input.currentSessionId
+  );
+}
+
 function toView(message: CopilotMessageDto): ChatMessageView {
   return {
     key: `m-${message.id}`,
@@ -50,6 +64,7 @@ async function readErrorCode(response: Response): Promise<string> {
  */
 export function ChatPanel({
   itemId = null,
+  onBusy,
   onClose,
   onSessionId,
   sessionId,
@@ -57,6 +72,7 @@ export function ChatPanel({
 }: {
   /** 详情会话首次发消息时携带；已有 sessionId 后只带 sessionId */
   itemId?: number | null;
+  onBusy?: (busy: boolean) => void;
   /** drawer 变体的关闭按钮 */
   onClose?: () => void;
   /** _ack / done 带回新 sessionId 时上抛（续聊用） */
@@ -70,12 +86,24 @@ export function ChatPanel({
   const [streamingText, setStreamingText] = useState("");
   const [toolName, setToolName] = useState<string | null>(null);
   const [rated, setRated] = useState<Record<number, 1 | -1>>({});
+  const [reasonDraft, setReasonDraft] = useState<Record<number, string>>({});
+  const [reasonOpen, setReasonOpen] = useState<number | null>(null);
   const keyCounter = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const sessionIdRef = useRef(sessionId);
+  const generationRef = useRef(0);
+  sessionIdRef.current = sessionId;
 
-  // 切换会话：null → 清空（新会话）；否则拉历史（最近 500 条，含依据卡）
+  // 切换会话：中断进行中的 turn；null → 清空；否则拉历史
   useEffect(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    generationRef.current += 1;
+    setBusy(false);
+    onBusy?.(false);
+    setStreamingText("");
+    setToolName(null);
     if (sessionId === null) {
       setMessages([]);
       return;
@@ -94,7 +122,7 @@ export function ChatPanel({
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [onBusy, sessionId]);
 
   // 卸载（关抽屉）时中断未完成的流
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -113,6 +141,7 @@ export function ChatPanel({
     if (!message || busy) return;
     setInput("");
     setBusy(true);
+    onBusy?.(true);
     setStreamingText("");
     setToolName(null);
     setMessages((prev) => [
@@ -122,6 +151,17 @@ export function ChatPanel({
 
     const controller = new AbortController();
     abortRef.current = controller;
+    const generation = ++generationRef.current;
+    const startedSessionId = sessionId;
+    const stale = (): boolean =>
+      isStaleTurn({
+        aborted: controller.signal.aborted,
+        generation,
+        currentGeneration: generationRef.current,
+        startedSessionId,
+        currentSessionId: sessionIdRef.current
+      });
+    onBusy?.(true);
     let turn: ChatTurn = createChatTurn();
     try {
       const response = await fetch("/api/copilot/chat", {
@@ -151,6 +191,7 @@ export function ChatPanel({
           for (const event of parsed.events) {
             turn = applySseEvent(turn, event);
           }
+          if (stale()) return;
           setStreamingText(turn.text);
           setToolName(turn.toolName);
         }
@@ -158,11 +199,13 @@ export function ChatPanel({
         turn = finishChatTurn(turn);
       }
     } catch {
-      if (controller.signal.aborted) return; // 抽屉已关，不再落状态
+      if (stale()) return;
       turn = { ...turn, status: "error", errorCode: "NETWORK" };
     }
 
+    if (stale()) return;
     setBusy(false);
+    onBusy?.(false);
     setStreamingText("");
     setToolName(null);
     if (turn.status === "done") {
@@ -188,22 +231,39 @@ export function ChatPanel({
         { key: nextKey("n"), id: null, role: "assistant", content: "", citations: [], notice }
       ]);
     }
-    if (turn.sessionId !== null && turn.sessionId !== sessionId) {
+    if (turn.sessionId !== null && turn.sessionId !== sessionIdRef.current) {
       onSessionId?.(turn.sessionId);
+    }
+  };
+
+  const postFeedback = async (
+    messageId: number,
+    rating: 1 | -1,
+    reason: string | null
+  ): Promise<void> => {
+    try {
+      await fetch(`/api/copilot/messages/${messageId}/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating, reason })
+      });
+    } catch {
+      // 反馈失败静默：不阻塞对话
     }
   };
 
   const sendFeedback = async (messageId: number, rating: 1 | -1): Promise<void> => {
     setRated((prev) => ({ ...prev, [messageId]: rating }));
-    try {
-      await fetch(`/api/copilot/messages/${messageId}/feedback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rating })
-      });
-    } catch {
-      // 反馈失败静默：不阻塞对话
-    }
+    setReasonOpen(messageId);
+    const reason = reasonDraft[messageId]?.trim() || null;
+    await postFeedback(messageId, rating, reason);
+  };
+
+  const submitReason = async (messageId: number): Promise<void> => {
+    const rating = rated[messageId];
+    if (rating !== 1 && rating !== -1) return;
+    const reason = reasonDraft[messageId]?.trim() || null;
+    await postFeedback(messageId, rating, reason);
   };
 
   return (
@@ -280,6 +340,35 @@ export function ChatPanel({
                       )}
                     </button>
                   ))}
+                </div>
+              ) : null}
+              {message.role === "assistant" &&
+              message.id !== null &&
+              reasonOpen === message.id ? (
+                <div className="mt-2 flex flex-col gap-1.5">
+                  <textarea
+                    aria-label="反馈理由"
+                    className="min-h-16 w-full resize-none rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-fg"
+                    maxLength={2000}
+                    onChange={(event) => {
+                      const id = message.id;
+                      if (id === null) return;
+                      setReasonDraft((prev) => ({ ...prev, [id]: event.target.value }));
+                    }}
+                    placeholder={
+                      rated[message.id] === -1 ? "建议填写原因" : "可选填写理由"
+                    }
+                    value={reasonDraft[message.id] ?? ""}
+                  />
+                  <button
+                    className="self-end text-xs text-accent"
+                    onClick={() => {
+                      if (message.id !== null) void submitReason(message.id);
+                    }}
+                    type="button"
+                  >
+                    提交理由
+                  </button>
                 </div>
               ) : null}
             </div>

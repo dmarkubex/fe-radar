@@ -14,6 +14,7 @@ import type { CopilotSessionDto } from "@/components/copilot/sse";
 export function AskChat(): React.JSX.Element {
   const [sessions, setSessions] = useState<CopilotSessionDto[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+  const [chatBusy, setChatBusy] = useState(false);
 
   const refreshSessions = useCallback(() => {
     fetch("/api/copilot/sessions")
@@ -36,7 +37,8 @@ export function AskChat(): React.JSX.Element {
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
       <aside className="flex flex-col gap-2">
         <button
-          className="rounded-md border border-border bg-surface px-3 py-2 text-left text-sm font-medium text-fg hover:bg-bg-deep"
+          className="rounded-md border border-border bg-surface px-3 py-2 text-left text-sm font-medium text-fg hover:bg-bg-deep disabled:opacity-50"
+          disabled={chatBusy}
           onClick={() => setActiveSessionId(null)}
           type="button"
         >
@@ -51,6 +53,7 @@ export function AskChat(): React.JSX.Element {
                     ? "border-accent bg-accent/5 text-fg"
                     : "border-hairline text-fg-muted hover:bg-bg"
                 }`}
+                disabled={chatBusy}
                 onClick={() => setActiveSessionId(session.id)}
                 type="button"
               >
@@ -69,6 +72,7 @@ export function AskChat(): React.JSX.Element {
         </ul>
       </aside>
       <ChatPanel
+        onBusy={setChatBusy}
         onSessionId={(nextSessionId) => {
           setActiveSessionId(nextSessionId);
           refreshSessions();
