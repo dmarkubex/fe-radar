@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 from agentscope.message import TextBlock
@@ -37,6 +38,19 @@ def _chat(client, conn: ChatFakeConn, payload: dict, *, user_id: int = 7):
     client.app.state.pool = FakePool(conn)
     body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     return client.post("/chat", content=body, headers=_post_headers(body, user_id))
+
+
+def test_wait_for_covers_persist_not_sse() -> None:
+    text = Path(__file__).resolve().parents[1].joinpath("chat.py").read_text()
+    start = text.index("async def _reply_ground_and_persist")
+    wait_call = text.index("await asyncio.wait_for(\n                    _reply_ground_and_persist()")
+    body = text[start:wait_call]
+    assert "agent.reply" in body
+    assert "visible_ids_of" in body
+    assert "ground_numbers" in body
+    assert "insert_assistant_message" in body
+    assert "insert_audit" in body
+    assert "yield sse" not in body
 
 
 def test_chat_hmac_wrong_still_401(client) -> None:

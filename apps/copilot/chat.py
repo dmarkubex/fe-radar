@@ -54,6 +54,11 @@ TURN_TIMEOUT_SEC = 120
 MAX_MESSAGE_LEN = 4000
 
 
+class _TurnAbort(Exception):
+    def __init__(self, code: str) -> None:
+        self.code = code
+
+
 class ChatBody(BaseModel):
     message: str
     sessionId: int | None = None
@@ -229,10 +234,78 @@ async def post_chat(request: Request, user: HmacUser, body: ChatBody) -> Streami
             agent = build_agent(model, state=state)
             user_msg = UserMsg(name="user", content=message)
 
+            async def _reply_ground_and_persist() -> tuple[str, list, str, int]:
+                reply_msg = await agent.reply(user_msg)
+                if reply_msg.finished_reason != ReplyFinishedReason.COMPLETED:
+                    raise _TurnAbort("COPILOT_ABORTED")
+                local_runs = list(toolRunsVar.get() or [])
+                local_cards = citations_from_tool_runs(local_runs)
+                if any(is_success_evidence(run) for run in local_runs):
+                    ids = item_ids_from_tool_runs(local_runs)
+                    if ids:
+                        async with pool.connection() as conn:
+                            visible = await visible_ids_of(conn, ids)
+                        if any(item not in visible for item in ids):
+                            raise _TurnAbort("COPILOT_ITEM_NOT_VISIBLE")
+                    local_answer = ground_numbers(extract_text(reply_msg), local_runs)
+                    cutoff = cutoff_date_from_runs(local_runs)
+                    if cutoff:
+                        local_answer = local_answer.rstrip() + f"\n数据截止：{cutoff}"
+                    local_coverage = "ok"
+                else:
+                    local_answer = RADAR_UNCOVERED
+                    local_cards = []
+                    local_coverage = "none"
+                if expired_item:
+                    local_answer = f"{EXPIRED_PREFIX}\n{local_answer}"
+                ungrounded = local_answer.count(REPLACE)
+                async with pool.connection() as conn:
+                    async with conn.transaction():
+                        local_assistant_id = await insert_assistant_message(
+                            conn, session_id, local_answer, local_cards
+                        )
+                        for row in rows_from_tool_runs(local_runs):
+                            await insert_audit(
+                                conn,
+                                user_id=user.user_id,
+                                session_id=session_id,
+                                message_id=local_assistant_id,
+                                tool_name=row.get("tool_name"),
+                                args_preview=row.get("args_preview"),
+                                result_preview=row.get("result_preview"),
+                                result_row_count=row.get("result_row_count"),
+                                coverage=local_coverage,
+                                aborted=False,
+                                numbers_ungrounded=ungrounded,
+                            )
+                        await insert_audit(
+                            conn,
+                            user_id=user.user_id,
+                            session_id=session_id,
+                            message_id=local_assistant_id,
+                            tool_name=None,
+                            args_preview=None,
+                            result_preview=local_answer[:500],
+                            result_row_count=None,
+                            coverage=local_coverage,
+                            aborted=False,
+                            numbers_ungrounded=ungrounded,
+                        )
+                        await touch_session(conn, session_id)
+                return local_answer, local_cards, local_coverage, local_assistant_id
+
             try:
-                reply_msg = await asyncio.wait_for(agent.reply(user_msg), timeout=TURN_TIMEOUT_SEC)
+                answer, cards, coverage, assistant_id = await asyncio.wait_for(
+                    _reply_ground_and_persist(), timeout=TURN_TIMEOUT_SEC
+                )
             except asyncio.TimeoutError:
                 error_code = "COPILOT_TURN_TIMEOUT"
+                await _write_aborted_audit(pool, user.user_id, session_id, list(toolRunsVar.get() or []))
+                if not await request.is_disconnected():
+                    yield sse({"type": "error", "data": {"code": error_code}})
+                return
+            except _TurnAbort as exc:
+                error_code = exc.code
                 await _write_aborted_audit(pool, user.user_id, session_id, list(toolRunsVar.get() or []))
                 if not await request.is_disconnected():
                     yield sse({"type": "error", "data": {"code": error_code}})
@@ -254,80 +327,8 @@ async def post_chat(request: Request, user: HmacUser, body: ChatBody) -> Streami
                     yield sse({"type": "error", "data": {"code": error_code}})
                 return
 
-            if reply_msg.finished_reason != ReplyFinishedReason.COMPLETED:
-                error_code = "COPILOT_ABORTED"
-                await _write_aborted_audit(pool, user.user_id, session_id, list(toolRunsVar.get() or []))
-                if not await request.is_disconnected():
-                    yield sse({"type": "error", "data": {"code": error_code}})
-                return
-
-            runs = list(toolRunsVar.get() or [])
-            cards = citations_from_tool_runs(runs)
-            if any(is_success_evidence(run) for run in runs):
-                ids = item_ids_from_tool_runs(runs)
-                if ids:
-                    async with pool.connection() as conn:
-                        visible = await visible_ids_of(conn, ids)
-                    if any(item not in visible for item in ids):
-                        error_code = "COPILOT_ITEM_NOT_VISIBLE"
-                        await _write_aborted_audit(pool, user.user_id, session_id, runs)
-                        if not await request.is_disconnected():
-                            yield sse({"type": "error", "data": {"code": error_code}})
-                        return
-                answer = ground_numbers(extract_text(reply_msg), runs)
-                cutoff = cutoff_date_from_runs(runs)
-                if cutoff:
-                    answer = answer.rstrip() + f"\n数据截止：{cutoff}"
-                coverage = "ok"
-            else:
-                answer = RADAR_UNCOVERED
-                cards = []
-                coverage = "none"
-
-            if expired_item:
-                answer = f"{EXPIRED_PREFIX}\n{answer}"
-
             yield sse({"type": "token", "data": answer})
             logger.info("first_answer_token", extra={"correlationId": correlation_id})
-
-            if await request.is_disconnected():
-                error_code = "COPILOT_CANCELLED"
-                await _write_aborted_audit(pool, user.user_id, session_id, runs)
-                return
-
-            ungrounded = answer.count(REPLACE)
-            async with pool.connection() as conn:
-                async with conn.transaction():
-                    assistant_id = await insert_assistant_message(conn, session_id, answer, cards)
-                    for row in rows_from_tool_runs(runs):
-                        await insert_audit(
-                            conn,
-                            user_id=user.user_id,
-                            session_id=session_id,
-                            message_id=assistant_id,
-                            tool_name=row.get("tool_name"),
-                            args_preview=row.get("args_preview"),
-                            result_preview=row.get("result_preview"),
-                            result_row_count=row.get("result_row_count"),
-                            coverage=coverage,
-                            aborted=False,
-                            numbers_ungrounded=ungrounded,
-                        )
-                    await insert_audit(
-                        conn,
-                        user_id=user.user_id,
-                        session_id=session_id,
-                        message_id=assistant_id,
-                        tool_name=None,
-                        args_preview=None,
-                        result_preview=answer[:500],
-                        result_row_count=None,
-                        coverage=coverage,
-                        aborted=False,
-                        numbers_ungrounded=ungrounded,
-                    )
-                    await touch_session(conn, session_id)
-
             yield sse({"type": "citation", "data": cards})
             yield sse(
                 {
