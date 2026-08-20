@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { AnalyzeButton } from "@/components/copilot/analyze-button";
 import { fetchItemDetail } from "@/lib/api/timeline-query";
 import {
   formatAppTime,
@@ -155,21 +156,24 @@ export default async function ItemDetailPage({
                   </span>
                 </div>
               </div>
-              {displayUrl ? (
-                <a
-                  href={displayUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-auto flex items-center gap-1.5 text-[11px] text-accent hover:text-accent-flame transition-colors"
-                >
-                  原文链接
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              ) : (
-                <span className="ml-auto border border-accent/30 bg-accent/8 px-2 py-1 font-mono text-[10px] tracking-[0.8px] text-accent">
-                  {item.acquisitionLabel ?? "AI获取"}
-                </span>
-              )}
+              <div className="ml-auto flex items-center gap-3">
+                <AnalyzeButton copilotEligible={item.copilotEligible} itemId={item.id} />
+                {displayUrl ? (
+                  <a
+                    href={displayUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-[11px] text-accent hover:text-accent-flame transition-colors"
+                  >
+                    原文链接
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : (
+                  <span className="border border-accent/30 bg-accent/8 px-2 py-1 font-mono text-[10px] tracking-[0.8px] text-accent">
+                    {item.acquisitionLabel ?? "AI获取"}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Body Content */}

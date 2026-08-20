@@ -32,7 +32,6 @@ export default async function RootLayout({
       copilotEnabled = false;
     }
   }
-  void copilotEnabled;
 
   if (isLoginPage) {
     return (
@@ -46,8 +45,9 @@ export default async function RootLayout({
     <html lang="zh-CN">
       <body>
         <AppShell
-          user={{ name: session?.user?.name, role: session?.user?.role }}
           activePath={activePath}
+          copilotEnabled={copilotEnabled}
+          user={{ name: session?.user?.name, role: session?.user?.role }}
         >
           {children}
         </AppShell>

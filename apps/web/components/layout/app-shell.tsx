@@ -7,8 +7,11 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { Menu, X } from "lucide-react";
 import { AlertBadge } from "@/components/layout/alert-badge";
+import { getBreadcrumb, getDataNav } from "@/components/layout/nav";
+import { CopilotProvider } from "@/components/copilot/copilot-provider";
 import { useModalBehavior } from "@/hooks/use-modal-behavior";
 
+import type { NavItem } from "@/components/layout/nav";
 import type { UserRole } from "@fe-radar/shared";
 
 const ROLE_WEIGHT: Record<UserRole, number> = { viewer: 1, editor: 2, admin: 3 };
@@ -30,22 +33,16 @@ function canSee(role: UserRole | undefined, minRole: UserRole): boolean {
   return Boolean(role && ROLE_WEIGHT[role] >= ROLE_WEIGHT[minRole]);
 }
 
-const MONITOR_NAV = [
-  { href: "/admin/dashboard", label: "概览 Dashboard", minRole: "admin" as UserRole },
-  { href: "/", label: "时间线 Timeline", minRole: "viewer" as UserRole },
-  { href: "/curated", label: "精选 Curated", minRole: "viewer" as UserRole, badge: "count" },
-  { href: "/alerts", label: "告警 Alerts", minRole: "viewer" as UserRole, badge: "alert" },
-  { href: "/daily", label: "日报 Digest", minRole: "viewer" as UserRole },
-  { href: "/briefing", label: "每日简报 Briefing", minRole: "viewer" as UserRole },
+const MONITOR_NAV: readonly NavItem[] = [
+  { href: "/admin/dashboard", label: "概览 Dashboard", minRole: "admin" },
+  { href: "/", label: "时间线 Timeline", minRole: "viewer" },
+  { href: "/curated", label: "精选 Curated", minRole: "viewer", badge: "count" },
+  { href: "/alerts", label: "告警 Alerts", minRole: "viewer", badge: "alert" },
+  { href: "/daily", label: "日报 Digest", minRole: "viewer" },
+  { href: "/briefing", label: "每日简报 Briefing", minRole: "viewer" },
 ];
 
-const DATA_NAV = [
-  { href: "/items", label: "条目查询", minRole: "viewer" as UserRole },
-  { href: "/search", label: "全文搜索", minRole: "viewer" as UserRole },
-  { href: "/admin/entities", label: "实体库", minRole: "editor" as UserRole },
-];
-
-const ADMIN_NAV = [
+const ADMIN_NAV: readonly NavItem[] = [
   { href: "/admin/sources", label: "信源 Sources", minRole: "editor" as UserRole },
   { href: "/admin/backlog", label: "队列 Backlog", minRole: "admin" as UserRole },
   { href: "/admin/briefing/logs", label: "简报生成日志", minRole: "admin" as UserRole },
@@ -57,10 +54,12 @@ const ADMIN_NAV = [
 
 export function AppShell({
   children,
+  copilotEnabled = false,
   user,
   activePath,
 }: {
   children: React.ReactNode;
+  copilotEnabled?: boolean;
   user?: { name?: string | null; role?: UserRole };
   activePath?: string;
 }): React.JSX.Element {
@@ -68,6 +67,7 @@ export function AppShell({
   const currentPath = pathname ?? activePath;
   const isLoggedIn = Boolean(user?.name);
   const initial = user?.name ? user.name.slice(0, 2).toUpperCase() : "?";
+  const dataNav = getDataNav(copilotEnabled);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
   useModalBehavior({
@@ -87,7 +87,7 @@ export function AppShell({
         {isLoggedIn ? (
           <nav className="flex-1">
             <NavSection title="监测" items={MONITOR_NAV} role={user?.role} activePath={currentPath} />
-            <NavSection title="数据" items={DATA_NAV} role={user?.role} activePath={currentPath} />
+            <NavSection title="数据" items={dataNav} role={user?.role} activePath={currentPath} />
             <NavSection title="管理" items={ADMIN_NAV} role={user?.role} activePath={currentPath} />
           </nav>
         ) : (
@@ -179,14 +179,18 @@ export function AppShell({
               </div>
               <nav className="flex-1 py-2" onClick={() => setDrawerOpen(false)}>
                 <NavSection title="监测" items={MONITOR_NAV} role={user?.role} activePath={currentPath} />
-                <NavSection title="数据" items={DATA_NAV} role={user?.role} activePath={currentPath} />
+                <NavSection title="数据" items={dataNav} role={user?.role} activePath={currentPath} />
                 <NavSection title="管理" items={ADMIN_NAV} role={user?.role} activePath={currentPath} />
               </nav>
             </div>
           </div>
         )}
 
-        {children}
+        {isLoggedIn ? (
+          <CopilotProvider enabled={copilotEnabled}>{children}</CopilotProvider>
+        ) : (
+          children
+        )}
       </main>
     </div>
   );
@@ -199,7 +203,7 @@ function NavSection({
   activePath,
 }: {
   title: string;
-  items: readonly { href: string; label: string; minRole: UserRole; badge?: string }[];
+  items: readonly NavItem[];
   role?: UserRole;
   activePath?: string;
 }): React.JSX.Element {
@@ -235,24 +239,4 @@ function NavSection({
       </nav>
     </>
   );
-}
-
-function getBreadcrumb(path?: string): string {
-  if (!path || path === "/") return "监测 / 时间线";
-  if (path.startsWith("/admin/dashboard")) return "监测 / 概览";
-  if (path.startsWith("/curated")) return "监测 / 精选";
-  if (path.startsWith("/alerts")) return "监测 / 告警";
-  if (path.startsWith("/daily")) return "监测 / 日报";
-  if (path.startsWith("/items")) return "数据 / 详情";
-  if (path.startsWith("/search")) return "监测 / 搜索";
-  if (path.startsWith("/admin/sources")) return "管理 / 信源";
-  if (path.startsWith("/admin/backlog")) return "管理 / Backlog";
-  if (path.startsWith("/admin/briefing/logs")) return "管理 / 简报生成日志";
-  if (path.startsWith("/admin/briefing/targets")) return "管理 / 简报推送";
-  if (path.startsWith("/admin/scoring-config")) return "管理 / 评分配置";
-  if (path.startsWith("/admin/worker")) return "管理 / 运行监控";
-  if (path.startsWith("/admin/users")) return "管理 / 用户";
-  if (path.startsWith("/admin/entities")) return "数据 / 实体";
-  if (path.startsWith("/briefing")) return "监测 / 简报";
-  return "";
 }

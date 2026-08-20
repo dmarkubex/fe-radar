@@ -3,6 +3,8 @@
 import { X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { AnalyzeButton } from "@/components/copilot/analyze-button";
+import { useCopilot } from "@/components/copilot/copilot-context";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { FeedbackButtons } from "@/components/timeline/feedback-buttons";
@@ -25,6 +27,7 @@ export function ItemDetailDialog({
 }): React.JSX.Element | null {
   const [item, setItem] = useState<ItemDetailDto | null>(null);
   const [loading, setLoading] = useState(false);
+  const { chatOpen, citationItemId } = useCopilot();
 
   useEffect(() => {
     if (!itemId) {
@@ -62,6 +65,7 @@ export function ItemDetailDialog({
   return (
     <Dialog
       ariaLabel="条目详情"
+      enabled={!chatOpen && citationItemId === null}
       onClose={onClose}
       open
       overlayClassName="items-end justify-center p-0 shell:items-start shell:px-4 shell:py-8"
@@ -72,16 +76,25 @@ export function ItemDetailDialog({
           <p className="text-xs font-medium text-fg-soft">{item ? `${item.sourceName} · ${formatAppTime(item.scoredAt)}` : "条目详情"}</p>
           <h2 className="mt-2 text-xl font-semibold leading-7 text-fg">{item?.title ?? (loading ? "加载中" : "不可访问")}</h2>
         </div>
-        <Button
-          aria-label="关闭详情"
-          type="button"
-          variant="outline"
-          className="min-h-11 shrink-0 gap-2 px-4 py-2.5 text-sm font-semibold"
-          onClick={onClose}
-        >
-          <X className="h-5 w-5 shrink-0" aria-hidden />
-          关闭
-        </Button>
+        <div className="flex shrink-0 items-start gap-2">
+          {item ? (
+            <AnalyzeButton
+              className="min-h-11 gap-2 px-4 py-2.5 text-sm font-semibold"
+              copilotEligible={item.copilotEligible}
+              itemId={item.id}
+            />
+          ) : null}
+          <Button
+            aria-label="关闭详情"
+            type="button"
+            variant="outline"
+            className="min-h-11 shrink-0 gap-2 px-4 py-2.5 text-sm font-semibold"
+            onClick={onClose}
+          >
+            <X className="h-5 w-5 shrink-0" aria-hidden />
+            关闭
+          </Button>
+        </div>
       </div>
 
       {item ? (
