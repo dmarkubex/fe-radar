@@ -1,11 +1,14 @@
 import { and, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
+import { hasDailyContent } from "@fe-radar/core";
 import { dailyReports, getDb, itemAnalysis, items, sources } from "@fe-radar/db";
-import { APP_TIMEZONE, dayjs, LlmError } from "@fe-radar/shared";
+import { APP_TIMEZONE, createLogger, dayjs, LlmError } from "@fe-radar/shared";
 import { assertKimiContext, DAILY_REPORT_SCHEMA, DAILY_REPORT_SYSTEM_PROMPT, withScrubber } from "@fe-radar/llm";
 import { loadProjectCodes } from "../handlers/context";
 
 import type { DbClient } from "@fe-radar/db";
 import type { DailyReportResult, LlmClient } from "@fe-radar/llm";
+
+const logger = createLogger({ service: "daily-gen" });
 
 export const DAILY_REPORT_CRON = "0 8 * * *";
 export const DAILY_REPORT_TZ = APP_TIMEZONE;
@@ -55,9 +58,16 @@ export async function loadDailyInput(db: DbClient = getDb(), now = dayjs().tz(AP
     .limit(200);
 }
 
-export async function runDailyGen(kimi: LlmClient, options: { db?: DbClient; now?: Date } = {}): Promise<DailyReportResult> {
+export async function runDailyGen(kimi: LlmClient, options: { db?: DbClient; now?: Date } = {}): Promise<DailyReportResult | null> {
   const db = options.db ?? getDb();
-  const inputItems = await loadDailyInput(db, options.now);
+  const now = options.now ?? new Date();
+  const reportDate = dayjs(now).tz(APP_TIMEZONE).format("YYYY-MM-DD");
+  const inputItems = await loadDailyInput(db, now);
+  if (inputItems.length === 0) {
+    logger.info({ reportDate, inputCount: 0 }, "daily-gen skipped: no curated items in window");
+    return null;
+  }
+
   const blockedCount = inputItems.filter((item) => item.summaryZh === DAILY_REPORT_BLOCKED_SUMMARY).length;
   if (blockedCount >= 5) {
     throw new LlmError("DAILY_REPORT_BLOCKED", "Daily report paused because too many items need manual scrub", { blockedCount });
@@ -75,7 +85,11 @@ export async function runDailyGen(kimi: LlmClient, options: { db?: DbClient; now
     schema: DAILY_REPORT_SCHEMA
   });
 
-  const reportDate = dayjs(options.now ?? new Date()).tz(APP_TIMEZONE).format("YYYY-MM-DD");
+  if (!hasDailyContent(result.value.sections)) {
+    logger.info({ reportDate }, "daily-gen skipped: llm returned empty sections");
+    return null;
+  }
+
   await db
     .insert(dailyReports)
     .values({ date: reportDate, sections: result.value.sections })
