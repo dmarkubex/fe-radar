@@ -32,8 +32,13 @@ export function buildDailyReportInput(itemsForReport: DailyInputItem[]): string 
     .join("\n\n");
 }
 
+/** Rolling 24h window used by daily-gen and health-check. Do not fork a second clock. */
+export function dailyInputSince(now = dayjs().tz(APP_TIMEZONE).toDate()): Date {
+  return dayjs(now).tz(APP_TIMEZONE).subtract(24, "hour").toDate();
+}
+
 export async function loadDailyInput(db: DbClient = getDb(), now = dayjs().tz(APP_TIMEZONE).toDate()): Promise<DailyInputItem[]> {
-  const since = dayjs(now).tz(APP_TIMEZONE).subtract(24, "hour").toDate();
+  const since = dailyInputSince(now);
   return db
     .select({
       title: items.title,
