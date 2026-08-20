@@ -72,8 +72,8 @@ export function drainBacklog(items: BacklogCandidate[], now = new Date(), maxAge
   return { expiredIds, retainedIds };
 }
 
-// v1.2 — websearch 月度限额（豆包搜索 500 次/月）
-export const WEBSEARCH_MONTHLY_BUDGET = 500;
+// v1.2 — websearch 月度限额（豆包搜索 1000 次/月）
+export const WEBSEARCH_MONTHLY_BUDGET = 1000;
 export const WEBSEARCH_TTL_SECONDS = 32 * 24 * 60 * 60; // 32 天，覆盖最长月
 
 export function websearchQuotaKey(yearMonth: string): string {

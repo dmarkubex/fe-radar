@@ -2,7 +2,7 @@ import { spawn, type ChildProcess, execFile } from "node:child_process";
 import { createServer } from "node:net";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { ADMIT_LUA, ROLLBACK_ADMIT_LUA, admitToScoring, admitWebSearch, computePriorityBacklogMetrics, drainBacklog, quotaKey, rollbackAdmit, websearchQuotaKey, type RedisEvalLike } from "../index";
+import { ADMIT_LUA, ROLLBACK_ADMIT_LUA, admitToScoring, admitWebSearch, computePriorityBacklogMetrics, drainBacklog, quotaKey, rollbackAdmit, WEBSEARCH_MONTHLY_BUDGET, websearchQuotaKey, type RedisEvalLike } from "../index";
 import {
   LOGIN_FAIL_LIMIT,
   LOGIN_FAIL_LUA,
@@ -147,16 +147,20 @@ describe("quota", () => {
 });
 
 describe("websearch quota", () => {
+  it("pins Doubao websearch monthly budget at 1000", () => {
+    expect(WEBSEARCH_MONTHLY_BUDGET).toBe(1000);
+  });
+
   it("admits within monthly budget", async () => {
     const redis = new FakeRedis();
     const decision = await admitWebSearch("2026-06", redis);
     expect(decision).toEqual({ state: "admitted", counterKey: websearchQuotaKey("2026-06") });
   });
 
-  it("rejects the 501st websearch in a month", async () => {
+  it("rejects the 1001st websearch in a month", async () => {
     const redis = new FakeRedis();
     let state = "admitted";
-    for (let i = 1; i <= 501; i += 1) {
+    for (let i = 1; i <= WEBSEARCH_MONTHLY_BUDGET + 1; i += 1) {
       state = (await admitWebSearch("2026-06", redis)).state;
     }
     expect(state).toBe("pending_over_quota");
@@ -164,7 +168,7 @@ describe("websearch quota", () => {
 
   it("resets counter on month change", async () => {
     const redis = new FakeRedis();
-    for (let i = 1; i <= 500; i += 1) {
+    for (let i = 1; i <= WEBSEARCH_MONTHLY_BUDGET; i += 1) {
       await admitWebSearch("2026-06", redis);
     }
     const julyDecision = await admitWebSearch("2026-07", redis);
