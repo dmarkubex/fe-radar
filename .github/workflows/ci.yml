@@ -81,6 +81,74 @@ jobs:
           }
           console.log(`current_user=${name}`);
           EOF
+      - name: Assert copilot_app GRANT
+        working-directory: packages/db
+        run: |
+          node --input-type=module <<'EOF'
+          import postgres from "postgres";
+
+          function isDenied(err) {
+            return /permission denied/i.test(String(err?.message ?? err));
+          }
+
+          const copilot = postgres(process.env.COPILOT_DB_URL, { max: 1 });
+          const admin = postgres(process.env.DATABASE_URL, { max: 1 });
+          try {
+            try {
+              await copilot`SELECT 1 FROM public.items LIMIT 1`;
+              console.error("expected public.items SELECT to fail");
+              process.exit(1);
+            } catch (err) {
+              if (!isDenied(err)) {
+                console.error("items SELECT failed for unexpected reason", err);
+                process.exit(1);
+              }
+              console.log("items SELECT permission denied");
+            }
+
+            try {
+              await copilot`SELECT password_hash FROM public.users LIMIT 1`;
+              console.error("expected public.users.password_hash SELECT to fail");
+              process.exit(1);
+            } catch (err) {
+              if (!isDenied(err)) {
+                console.error("users SELECT failed for unexpected reason", err);
+                process.exit(1);
+              }
+              console.log("users password_hash SELECT permission denied");
+            }
+
+            const stamp = Date.now();
+            const users = await admin`
+              INSERT INTO public.users (username, password_hash, name)
+              VALUES (${`copilot_golden_grant_${stamp}`}, ${"x"}, ${"golden-grant"})
+              RETURNING id
+            `;
+            const userId = users[0].id;
+            let sessionId = null;
+            try {
+              const sessions = await copilot`
+                INSERT INTO copilot.sessions (user_id, source)
+                VALUES (${userId}, ${"ask"})
+                RETURNING id
+              `;
+              sessionId = sessions[0].id;
+              if (sessionId == null) {
+                console.error("sessions INSERT returned no id");
+                process.exit(1);
+              }
+              console.log(`sessions INSERT ok id=${sessionId}`);
+            } finally {
+              if (sessionId != null) {
+                await admin`DELETE FROM copilot.sessions WHERE id = ${sessionId}`;
+              }
+              await admin`DELETE FROM public.users WHERE id = ${userId}`;
+            }
+          } finally {
+            await copilot.end();
+            await admin.end();
+          }
+          EOF
       - name: Copilot pytest
         working-directory: apps/copilot
         run: uv run pytest
