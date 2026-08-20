@@ -70,6 +70,7 @@ export const briefingTargets = pgTable("briefing_targets", {
   webhookUrl:  text("webhook_url").notNull(),
   signSecret:  text("sign_secret"),
   enabled:     boolean("enabled").notNull().default(true),
+  opsAlertEnabled: boolean("ops_alert_enabled").notNull().default(false),
   disabledAt:  timestamp("disabled_at", { mode: "date", withTimezone: true }),
   createdBy:   bigint("created_by", { mode: "number" }).references(() => users.id),
   createdAt:   timestamp("created_at", { mode: "date", withTimezone: true }).notNull().defaultNow()
