@@ -392,6 +392,33 @@ describe("runDetailFetch", () => {
     expect(mocks.proxyRelease).toHaveBeenCalled();
   });
 
+  it("Playwright success path releases proxy with true (non-empty HTML)", async () => {
+    const proxy = { id: "p1", server: "http://proxy.test:1", disabled: false, failCount: 0 };
+    const page = {
+      goto: vi.fn().mockResolvedValue(undefined),
+      url: vi.fn().mockReturnValue("https://example.com/news/42"),
+      content: vi.fn().mockResolvedValue(`<article>${"a".repeat(200)}</article>`),
+      close: vi.fn().mockResolvedValue(undefined),
+      waitForSelector: vi.fn().mockResolvedValue(undefined)
+    };
+    const context = { newPage: vi.fn().mockResolvedValue(page) };
+    mocks.getOrCreatePlaywrightPool.mockResolvedValue({
+      acquire: vi.fn().mockResolvedValue({ context, userAgent: "UA", proxy })
+    });
+    mocks.proxyAcquire.mockReturnValue(proxy);
+
+    const db = makeDb({
+      visible: [{ ...visibleRow, fetcher_type: "playwright" }]
+    });
+    mocks.getDb.mockReturnValue(db);
+
+    const result = await runDetailFetch(42);
+
+    expect(result.ok).toBe(true);
+    expect(mocks.proxyRelease).toHaveBeenCalledWith(proxy, true);
+    expect(mocks.proxyRelease).not.toHaveBeenCalledWith(proxy, false);
+  });
+
   it("Playwright path order: pool → acquire → robots(pooled UA) → waitHostGap → newPage → goto", async () => {
     const order: string[] = [];
     const page = {

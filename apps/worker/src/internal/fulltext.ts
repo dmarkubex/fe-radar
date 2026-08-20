@@ -344,7 +344,7 @@ async function fetchHtmlViaPlaywright(
       // best-effort close
     }
     if (pooled) {
-      proxyPool.release(pooled.proxy, !html);
+      proxyPool.release(pooled.proxy, Boolean(html));
     }
   }
 }
