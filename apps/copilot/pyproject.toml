@@ -1,0 +1,28 @@
+[project]
+name = "fe-radar-copilot"
+version = "0.1.0"
+description = "FE-Radar copilot sidecar (HMAC / JSON logs / healthz)"
+requires-python = ">=3.11"
+dependencies = [
+    "agentscope==2.0.6",
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.34.0",
+    "psycopg[binary]==3.2.4",
+    "psycopg_pool==3.2.4",
+    "httpx==0.28.1",
+    "pydantic==2.10.5",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
