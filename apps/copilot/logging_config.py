@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import logging.config
+import sys
 from typing import Any
 
 _REDACT_KEYS = frozenset({"webhook_url", "sign_secret", "authorization", "password"})
@@ -80,6 +81,17 @@ class DropUvicornBannerFilter(logging.Filter):
         return "Uvicorn running" not in message
 
 
+class CurrentStdoutHandler(logging.StreamHandler):
+    """Resolve sys.stdout at emit time so pytest capsys can capture JSON lines."""
+
+    def __init__(self) -> None:
+        super().__init__(stream=sys.stdout)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.stream = sys.stdout
+        super().emit(record)
+
+
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         msg = record.getMessage()
@@ -114,8 +126,7 @@ def configure_logging() -> None:
             },
             "handlers": {
                 "stdout": {
-                    "class": "logging.StreamHandler",
-                    "stream": "ext://sys.stdout",
+                    "()": CurrentStdoutHandler,
                     "formatter": "json",
                     "filters": ["redact", "drop_uvicorn_banner"],
                 }
