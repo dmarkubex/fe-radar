@@ -25,6 +25,8 @@ import { handleClusterJob } from "./handlers/cluster";
 import { handleCuratorJob } from "./handlers/curator";
 import { handleDailyJob } from "./handlers/daily";
 import { handleWebsearchJob } from "./jobs/websearch";
+import { handleDetailFetchJob } from "./jobs/detail-fetch";
+import { startInternalHttpServer } from "./internal/http-server";
 import { startHeartbeat } from "./heartbeat";
 
 export interface WorkerRuntime {
@@ -335,6 +337,26 @@ export async function startWorker(): Promise<WorkerRuntime> {
   );
   allWorkers.push(websearchWorker);
 
+  // T-CA-05：detail-fetch 必须进 allWorkers / allQueues，并注入 curator。
+  const detailFetchQueue = new Queue<{ itemId: number }>(QUEUES.detailFetch, {
+    connection,
+    defaultJobOptions: DEFAULT_JOB_OPTIONS,
+  });
+  allQueues.push(detailFetchQueue);
+  const detailFetchWorker = new Worker<{ itemId: number }>(
+    QUEUES.detailFetch,
+    async (job) => {
+      await handleDetailFetchJob(job.data.itemId);
+    },
+    { connection, concurrency: 2 },
+  );
+  allWorkers.push(detailFetchWorker);
+  handlerContext.detailFetchQueue = detailFetchQueue;
+
+  // T-CA-05：内网 HTTP。listen 失败不 exit（http-server 已吞 error）。
+  // SERVICE_TOKEN_WORKER_FILE 缺/空由 startInternalHttpServer 自己 warn。
+  const internalHttp = await startInternalHttpServer();
+
   logger.info("all workers and schedulers started");
 
   return createWorkerRuntime({
@@ -344,6 +366,7 @@ export async function startWorker(): Promise<WorkerRuntime> {
     closePlaywrightPool,
     logger,
     onShutdown: async () => {
+      await internalHttp.shutdown("runtime");
       await heartbeat.stop();
     },
   });

@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockCurateItem, mockGetDb, mockLoadScoringConfig, mockPassesIndustryGate } = vi.hoisted(() => ({
+const { mockCurateItem, mockGetDb, mockLoadScoringConfig, mockPassesIndustryGate, mockLogger, mockHandlerContext } = vi.hoisted(() => ({
   mockCurateItem: vi.fn(),
   mockGetDb: vi.fn(),
   mockLoadScoringConfig: vi.fn(),
   mockPassesIndustryGate: vi.fn().mockResolvedValue(true),
+  mockLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  mockHandlerContext: { detailFetchQueue: undefined as { add: ReturnType<typeof vi.fn> } | undefined }
 }));
 
 vi.mock("@fe-radar/core", () => ({
@@ -51,7 +53,8 @@ vi.mock("drizzle-orm", () => ({
 vi.mock("../pipeline-gate", () => ({ passesIndustryGate: mockPassesIndustryGate }));
 
 vi.mock("../context", () => ({
-  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  logger: mockLogger,
+  handlerContext: mockHandlerContext,
   loadScoringConfig: mockLoadScoringConfig,
   loadOwnCompanyProfile: vi.fn().mockResolvedValue({
     names: new Set(["远东控股", "远东控股集团", "远东电缆", "远东智慧能源", "远东智慧能源股份", "远东股份", "远东智慧"]),
@@ -84,6 +87,7 @@ import { handleCuratorJob } from "../curator";
 describe("handleCuratorJob", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHandlerContext.detailFetchQueue = undefined;
     mockLoadScoringConfig.mockResolvedValue({ thresholds: { quality: 60 } });
     mockPassesIndustryGate.mockResolvedValue(true);
     mockCurateItem.mockReturnValue({
@@ -143,5 +147,53 @@ describe("handleCuratorJob", () => {
       alertType: null,
       alertLevel: null,
     });
+  });
+
+  it("succeeds when detailFetchQueue is not injected (debug skip, no throw)", async () => {
+    makeDb([
+      [{ sourceId: 7, title: "t", content: "c" }],
+      [{ tier: "T2", category: "行业", config: {} }],
+      [{ d1Policy: 10, d3Market: 20, d4Tech: 30, d5Business: 40, category: "公司与资本" }],
+      [],
+    ]);
+
+    await expect(
+      handleCuratorJob({ data: { itemId: 42, correlationId: "c-42" } as never })
+    ).resolves.toBeUndefined();
+    expect(mockLogger.debug).toHaveBeenCalledWith(
+      { itemId: 42 },
+      "detail-fetch skipped: queue not injected"
+    );
+  });
+
+  it("still succeeds when queue.add rejects (warn, no throw)", async () => {
+    const add = vi.fn().mockRejectedValue(new Error("redis down"));
+    mockHandlerContext.detailFetchQueue = { add };
+    makeDb([
+      [{ sourceId: 7, title: "t", content: "c" }],
+      [{ tier: "T2", category: "行业", config: {} }],
+      [{ d1Policy: 10, d3Market: 20, d4Tech: 30, d5Business: 40, category: "公司与资本" }],
+      [],
+    ]);
+
+    await expect(
+      handleCuratorJob({ data: { itemId: 42, correlationId: "c-42" } as never })
+    ).resolves.toBeUndefined();
+    expect(add).toHaveBeenCalledWith("detail-fetch", { itemId: 42 });
+    expect(mockLogger.warn).toHaveBeenCalled();
+  });
+
+  it("enqueues detail-fetch after a successful update", async () => {
+    const add = vi.fn().mockResolvedValue({ id: "job-1" });
+    mockHandlerContext.detailFetchQueue = { add };
+    makeDb([
+      [{ sourceId: 7, title: "t", content: "c" }],
+      [{ tier: "T2", category: "行业", config: {} }],
+      [{ d1Policy: 10, d3Market: 20, d4Tech: 30, d5Business: 40, category: "公司与资本" }],
+      [],
+    ]);
+
+    await handleCuratorJob({ data: { itemId: 42, correlationId: "c-42" } as never });
+    expect(add).toHaveBeenCalledWith("detail-fetch", { itemId: 42 });
   });
 });

@@ -1,4 +1,5 @@
 import pino from "pino";
+import type { Queue } from "bullmq";
 
 import { getDb, entities, projectCodes, scoringConfig } from "@fe-radar/db";
 import { and, eq, isNull } from "drizzle-orm";
@@ -22,6 +23,8 @@ export interface HandlerContext {
   playwrightPool?: BrowserContextPool;
   /** T-SEC-09: 项目代号字典，注入 withScrubber 防内部代号泄露给公网 LLM。 */
   projectCodes: string[];
+  /** T-CA-05：curator 成功后入队；bootstrap 注入。缺省则 debug skip，禁止 throw。 */
+  detailFetchQueue?: Queue<{ itemId: number }>;
 }
 
 export const handlerContext: HandlerContext = {

@@ -5,7 +5,7 @@ import type { EntityHit } from "@fe-radar/core";
 
 import type { PipelineJob } from "../queues";
 
-import { logger, loadScoringConfig, loadOwnCompanyProfile } from "./context";
+import { handlerContext, logger, loadScoringConfig, loadOwnCompanyProfile } from "./context";
 import { passesIndustryGate } from "./pipeline-gate";
 
 export async function handleCuratorJob(job: { data: PipelineJob }): Promise<void> {
@@ -91,6 +91,17 @@ export async function handleCuratorJob(job: { data: PipelineJob }): Promise<void
     alertLevel: result.alertLevel ?? null,
     scoredAt: new Date(),
   }).where(eq(itemAnalysis.itemId, itemId));
+
+  const q = handlerContext.detailFetchQueue;
+  if (!q) {
+    logger.debug({ itemId }, "detail-fetch skipped: queue not injected");
+  } else {
+    try {
+      await q.add("detail-fetch", { itemId });
+    } catch (err) {
+      logger.warn({ err, itemId }, "detail-fetch enqueue failed");
+    }
+  }
 }
 
 function toStringArray(value: unknown): string[] | undefined {
