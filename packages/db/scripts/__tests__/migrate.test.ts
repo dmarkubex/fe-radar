@@ -8,12 +8,13 @@ import {
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   checksum,
   isBeginOrCommit,
   runMigrations,
   splitStatements,
+  toRunnableSql,
   type LedgerPort
 } from "../migrate";
 
@@ -403,6 +404,40 @@ describe("isBeginOrCommit", () => {
     expect(isBeginOrCommit("/*\nBEGIN;\nDROP TABLE foo;\nCOMMIT;\n*/")).toBe(
       false
     );
+  });
+});
+
+describe("toRunnableSql e2e", () => {
+  const previousProfile = process.env.MIGRATION_PROFILE;
+
+  beforeEach(() => {
+    process.env.MIGRATION_PROFILE = "e2e";
+  });
+
+  afterEach(() => {
+    if (previousProfile === undefined) {
+      delete process.env.MIGRATION_PROFILE;
+    } else {
+      process.env.MIGRATION_PROFILE = previousProfile;
+    }
+  });
+
+  it("keeps sources_url_key UNIQUE from 0003", () => {
+    const source = readFileSync(
+      new URL("../../migrations/0003_sources_idx.sql", import.meta.url),
+      "utf8"
+    );
+    const runnable = toRunnableSql(source);
+    expect(runnable).toMatch(/sources_url_key|UNIQUE \(url\)/);
+  });
+
+  it("strips zhparser text search config from 0001", () => {
+    const source = readFileSync(
+      new URL("../../migrations/0001_init.sql", import.meta.url),
+      "utf8"
+    );
+    const runnable = toRunnableSql(source);
+    expect(runnable).not.toContain("CREATE TEXT SEARCH CONFIGURATION zhparser");
   });
 });
 

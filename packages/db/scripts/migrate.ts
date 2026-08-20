@@ -83,7 +83,10 @@ export function toRunnableSql(sql: string): string {
 
   return sql
     .replace(/^CREATE EXTENSION IF NOT EXISTS (vector|zhparser);\n/gm, "")
-    .replace(/DO \$\$ BEGIN[\s\S]*?END\s*\$\$;\n/g, "")
+    // Keep UNIQUE/CHECK DO $$; only drop zhparser text-search setup on bare PG16.
+    .replace(/DO \$\$ BEGIN[\s\S]*?END\s*\$\$;\n/g, (block) =>
+      /zhparser|TEXT SEARCH CONFIGURATION/i.test(block) ? "" : block
+    )
     .replace(/embedding\s+vector\(1024\)/g, "embedding real[]")
     .replace(/centroid\s+vector\(1024\)/g, "centroid real[]")
     .replace(/CREATE INDEX (IF NOT EXISTS )?items_fts_idx[\s\S]*?\);\n/g, "")
