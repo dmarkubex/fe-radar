@@ -16,6 +16,13 @@ import { sgccTenderAdapter } from "./sgcc-tender";
 import { sseAdapter } from "./sse";
 import type { AnnouncementAdapter } from "./types";
 import { szseAdapter } from "./szse";
+import {
+  applyAnnouncementEntityFilter,
+  buildCompanyNameSet,
+  loadCompanyNameRows,
+  resolveEntityFilterSeparators,
+  type CompanyNameRow
+} from "./entity-filter";
 
 const adapterRegistry: Record<string, AnnouncementAdapter> = {};
 
@@ -25,9 +32,15 @@ export function registerAnnouncementAdapter(
   adapterRegistry[adapter.name] = adapter;
 }
 
+export interface FetchAnnouncementsDeps {
+  /** 测试注入；生产默认按源查一次 type=company 词典。 */
+  loadCompanyNames?: () => Promise<CompanyNameRow[]>;
+}
+
 export async function fetchAnnouncements(
   config: AnnouncementSourceConfig,
-  ctx: FetchContext
+  ctx: FetchContext,
+  deps: FetchAnnouncementsDeps = {}
 ): Promise<StandardItem[]> {
   const adapterName = config.adapter;
 
@@ -41,10 +54,26 @@ export async function fetchAnnouncements(
     );
   }
 
-  return adapter.fetch({
+  const items = await adapter.fetch({
     ...ctx,
     sourceConfig: config
   });
+
+  const entityFilter = config.entityFilter;
+  if (!entityFilter?.enabled) {
+    return items;
+  }
+
+  const rows = deps.loadCompanyNames
+    ? await deps.loadCompanyNames()
+    : await loadCompanyNameRows();
+  const nameSet = buildCompanyNameSet(rows);
+  return applyAnnouncementEntityFilter(
+    items,
+    nameSet,
+    ctx.sourceName,
+    resolveEntityFilterSeparators(entityFilter)
+  );
 }
 
 registerAnnouncementAdapter(sseAdapter);

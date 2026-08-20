@@ -47,9 +47,16 @@ export interface PlaywrightSourceConfig {
   limit?: number;
 }
 
+export interface AnnouncementEntityFilterConfig {
+  enabled: boolean;
+  separators?: string[];
+}
+
 export interface AnnouncementSourceConfig {
   type: "announcement";
   adapter: string;
+  /** 缺省 / 未配置 = 不过滤，上线不改 source config 则行为不变。 */
+  entityFilter?: AnnouncementEntityFilterConfig;
   [key: string]: unknown;
 }
 
