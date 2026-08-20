@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { ChatDrawer } from "./chat-drawer";
+import { CitationDialog } from "./citation-dialog";
 import { CopilotContext } from "./copilot-context";
 
 import type { CopilotContextValue } from "./copilot-context";
@@ -69,5 +71,12 @@ export function CopilotProvider({
     ]
   );
 
-  return <CopilotContext.Provider value={value}>{children}</CopilotContext.Provider>;
+  return (
+    <CopilotContext.Provider value={value}>
+      {children}
+      {/* 聊天抽屉（z-[60]）与引用弹层（z-[70]）全局挂载，同窗叠加 */}
+      <ChatDrawer />
+      <CitationDialog />
+    </CopilotContext.Provider>
+  );
 }
