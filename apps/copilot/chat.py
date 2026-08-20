@@ -25,7 +25,7 @@ from agents.copilot_agent import (
 )
 from audit import rows_from_tool_runs
 from auth import HmacUser
-from citations import citations_from_tool_runs
+from citations import citations_from_tool_runs, item_ids_from_tool_runs
 from config import Settings
 from ground_numbers import REPLACE, ground_numbers, is_success_evidence, shanghai_calendar_day
 from llm.gateway_client import WorkerGatewayError, WorkerGatewayModel
@@ -114,16 +114,6 @@ def cutoff_date_from_runs(runs: list) -> str | None:
     candidates = list(scored_or_date)
     candidates.extend(observed if observed else fetched)
     return max(candidates) if candidates else None
-
-
-def cited_item_ids(cards: list) -> list[int]:
-    ids: list[int] = []
-    for card in cards:
-        if isinstance(card, dict) and card.get("kind") == "item":
-            value = card.get("itemId")
-            if isinstance(value, int):
-                ids.append(value)
-    return ids
 
 
 async def resolve_session(
@@ -274,7 +264,7 @@ async def post_chat(request: Request, user: HmacUser, body: ChatBody) -> Streami
             runs = list(toolRunsVar.get() or [])
             cards = citations_from_tool_runs(runs)
             if any(is_success_evidence(run) for run in runs):
-                ids = cited_item_ids(cards)
+                ids = item_ids_from_tool_runs(runs)
                 if ids:
                     async with pool.connection() as conn:
                         visible = await visible_ids_of(conn, ids)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
-from citations import citations_from_tool_runs
+from citations import citations_from_tool_runs, item_ids_from_tool_runs
 from memory.store import CopilotError, list_messages, list_sessions, upsert_feedback
 from tests.fakes import FakeConn, FakePool, hmac_headers
 from tools.registry import tracked, toolRunsVar
@@ -164,3 +164,31 @@ def test_citations_fulltext_only_item_card() -> None:
             "sourceName": "SMM",
         }
     ]
+
+
+def test_item_ids_from_tool_runs_keeps_ninth_beyond_card_cap() -> None:
+    runs = []
+    for i in range(1, 10):
+        runs.append(
+            {
+                "name": "search_items",
+                "args": {"q": "铜"},
+                "ok": True,
+                "result": {
+                    "ok": True,
+                    "rows": [
+                        {
+                            "id": i,
+                            "title": f"条目{i}",
+                            "summary_zh": "摘要",
+                            "source_name": "SMM",
+                        }
+                    ],
+                },
+            }
+        )
+    cards = citations_from_tool_runs(runs)
+    ids = item_ids_from_tool_runs(runs)
+    assert [card["itemId"] for card in cards] == [1, 2, 3, 4, 5, 6, 7, 8]
+    assert ids == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert 9 in ids

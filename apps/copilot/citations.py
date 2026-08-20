@@ -89,6 +89,29 @@ def _quotes_card(row: dict, args: dict) -> dict | None:
     return {"kind": "quotes", "symbol": symbol, "metricKey": metric}
 
 
+def item_ids_from_tool_runs(runs: list) -> list[int]:
+    """成功 toolRuns 里的全部 item id，不截断（NFR-304 终局复核用）。"""
+    ids: list[int] = []
+    seen: set[int] = set()
+    for run in runs:
+        if not run.get("ok"):
+            continue
+        result = run.get("result")
+        if not isinstance(result, dict) or result.get("ok") is not True:
+            continue
+        if run.get("name") not in _ITEM_TOOLS:
+            continue
+        for row in _rows_of(result):
+            if not isinstance(row, dict):
+                continue
+            item_id = _item_id(row)
+            if item_id is None or item_id in seen:
+                continue
+            seen.add(item_id)
+            ids.append(item_id)
+    return ids
+
+
 def citations_from_tool_runs(runs: list) -> list:
     items: list[dict] = []
     seen_items: set[int] = set()
