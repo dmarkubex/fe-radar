@@ -81,10 +81,12 @@ function makeRes(): FakeRes {
   return emitter;
 }
 
+function asRes(res: FakeRes): http.ServerResponse {
+  return res as unknown as http.ServerResponse;
+}
+
 function makeReq(): http.IncomingMessage {
-  const req = new EventEmitter() as http.IncomingMessage;
-  req.on = EventEmitter.prototype.on.bind(req);
-  return req;
+  return new EventEmitter() as unknown as http.IncomingMessage;
 }
 
 async function* streamOf(...deltas: ChatStreamDelta[]): AsyncIterable<ChatStreamDelta> {
@@ -109,7 +111,7 @@ beforeEach(() => {
 describe("runLlmRequest", () => {
   it("returns 400 when body carries url/href", async () => {
     const res = makeRes();
-    await runLlmRequest(makeReq(), res, { ...okMessages, url: "https://x" }, "c-1");
+    await runLlmRequest(makeReq(), asRes(res), { ...okMessages, url: "https://x" }, "c-1");
     expect(res.statusCode).toBe(400);
     expect(res.body).toContain("LLM_URL_FORBIDDEN");
     expect(mocks.chatStream).not.toHaveBeenCalled();
@@ -118,7 +120,7 @@ describe("runLlmRequest", () => {
   it("returns 422 SCRUBBER_FAILED when loadProjectCodes never succeeded (no bytes written)", async () => {
     mocks.loadProjectCodes.mockRejectedValue(new Error("db down"));
     const res = makeRes();
-    await runLlmRequest(makeReq(), res, okMessages, "c-fail");
+    await runLlmRequest(makeReq(), asRes(res), okMessages, "c-fail");
     expect(res.statusCode).toBe(422);
     expect(res.body).toContain("SCRUBBER_FAILED");
     expect(res.headers["content-type"]).toContain("application/json");
@@ -131,7 +133,7 @@ describe("runLlmRequest", () => {
       throw new LlmError("SCRUBBER_BLOCKED", "scrubber blocked");
     });
     const res = makeRes();
-    await runLlmRequest(makeReq(), res, okMessages, "c-block");
+    await runLlmRequest(makeReq(), asRes(res), okMessages, "c-block");
     expect(res.statusCode).toBe(422);
     expect(res.body).toContain("SCRUBBER_BLOCKED");
     expect(res.headers["content-type"]).toContain("application/json");
@@ -144,7 +146,7 @@ describe("runLlmRequest", () => {
       throw timeout;
     });
     const res = makeRes();
-    await runLlmRequest(makeReq(), res, okMessages, "c-to");
+    await runLlmRequest(makeReq(), asRes(res), okMessages, "c-to");
     expect(res.statusCode).toBe(502);
     expect(res.body).toContain("COPILOT_UPSTREAM_TIMEOUT");
   });
@@ -153,7 +155,7 @@ describe("runLlmRequest", () => {
     const res = makeRes();
     const req = makeReq();
     const reqOn = vi.spyOn(req, "on");
-    await runLlmRequest(req, res, okMessages, "c-ok");
+    await runLlmRequest(req, asRes(res), okMessages, "c-ok");
     expect(res.statusCode).toBe(200);
     expect(res.headers["content-type"]).toBe("text/event-stream");
     expect(res.headers["cache-control"]).toBe("no-cache");
@@ -176,7 +178,7 @@ describe("runLlmRequest", () => {
       throw timeout;
     });
     const res = makeRes();
-    await runLlmRequest(makeReq(), res, okMessages, "c-mid");
+    await runLlmRequest(makeReq(), asRes(res), okMessages, "c-mid");
     expect(res.statusCode).toBe(200);
     expect(res.headers["content-type"]).toBe("text/event-stream");
     expect(res.body).toContain(`data: ${JSON.stringify({ type: "token", data: "partial" })}`);
@@ -198,7 +200,7 @@ describe("runLlmRequest", () => {
     });
 
     const res = makeRes();
-    const pending = runLlmRequest(makeReq(), res, okMessages, "c-abort");
+    const pending = runLlmRequest(makeReq(), asRes(res), okMessages, "c-abort");
     await vi.waitFor(() => {
       expect(res.body).toContain("token");
     });

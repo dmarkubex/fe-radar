@@ -136,13 +136,20 @@ function makeDb(opts: {
   return { execute, select, insert, update };
 }
 
-interface FakeRes extends PassThrough {
+interface FakeRes {
   statusCode: number;
+  headersSent: boolean;
   setHeader: (k: string, v: string) => FakeRes;
   getHeader: (k: string) => string | undefined;
+  write: (chunk: string) => boolean;
+  emit: (event: string) => boolean;
   end: (chunk?: unknown) => FakeRes;
   body: string;
   headers: Record<string, string>;
+}
+
+function asRes(res: FakeRes): http.ServerResponse {
+  return res as unknown as http.ServerResponse;
 }
 
 function makeRes(): FakeRes {
@@ -212,7 +219,7 @@ describe("firstExecuteRow (postgres-js / drizzle execute)", () => {
 describe("runFulltextRequest", () => {
   it("returns 400 FULLTEXT_URL_FORBIDDEN when body carries url/href", async () => {
     const res = makeRes();
-    await runFulltextRequest({} as http.IncomingMessage, res, { itemId: 1, url: "https://x" }, "c-1");
+    await runFulltextRequest({} as http.IncomingMessage, asRes(res), { itemId: 1, url: "https://x" }, "c-1");
     expect(res.statusCode).toBe(400);
     expect(res.body).toContain("FULLTEXT_URL_FORBIDDEN");
   });
@@ -221,7 +228,7 @@ describe("runFulltextRequest", () => {
     const db = makeDb({ visible: [] });
     mocks.getDb.mockReturnValue(db);
     const res = makeRes();
-    await runFulltextRequest({} as http.IncomingMessage, res, { itemId: 99 }, "c-99");
+    await runFulltextRequest({} as http.IncomingMessage, asRes(res), { itemId: 99 }, "c-99");
     expect(res.statusCode).toBe(404);
     expect(res.body).toContain("NOT_VISIBLE");
   });
@@ -231,7 +238,7 @@ describe("runFulltextRequest", () => {
     mocks.getDb.mockReturnValue(db);
     mocks.assertPublicFetchUrl.mockResolvedValue({ allowed: false, reason: "PRIVATE_IP" });
     const res = makeRes();
-    await runFulltextRequest({} as http.IncomingMessage, res, { itemId: 42 }, "c-ssrf");
+    await runFulltextRequest({} as http.IncomingMessage, asRes(res), { itemId: 42 }, "c-ssrf");
     expect(res.statusCode).toBe(200);
     expect(res.statusCode).not.toBe(403);
     expect(JSON.parse(res.body)).toMatchObject({ ok: false, reason: "SSRF" });
@@ -244,7 +251,7 @@ describe("runFulltextRequest", () => {
       new SourceFetchError("ROBOTS_DISALLOWED", "robots disallow")
     );
     const res = makeRes();
-    await runFulltextRequest({} as http.IncomingMessage, res, { itemId: 42 }, "c-robots");
+    await runFulltextRequest({} as http.IncomingMessage, asRes(res), { itemId: 42 }, "c-robots");
     expect(res.statusCode).toBe(200);
     expect(res.statusCode).not.toBe(403);
     expect(JSON.parse(res.body)).toMatchObject({ ok: false, reason: "ROBOTS_DISALLOWED" });
