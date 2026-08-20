@@ -27,6 +27,7 @@ const {
   const mockRedis = {
     get: vi.fn().mockResolvedValue(null),
     set: vi.fn().mockResolvedValue("OK"),
+    decr: vi.fn().mockResolvedValue(1),
     quit: vi.fn().mockResolvedValue(undefined),
   };
   const mockLogger = { warn: vi.fn(), info: vi.fn(), error: vi.fn() };
@@ -420,6 +421,7 @@ describe("handleNerJob — websearch trigger (T-ARK-17)", () => {
     mockCreateWebsearchQueue.mockImplementation(() => ({ add: mockQueueAdd, close: mockQueueClose }));
     mockRedis.get.mockResolvedValue(null);
     mockRedis.set.mockResolvedValue("OK");
+    mockRedis.decr.mockResolvedValue(1);
     mockQueueAdd.mockResolvedValue(undefined);
     mockQueueClose.mockResolvedValue(undefined);
     mockPassesIndustryGate.mockResolvedValue(true);
