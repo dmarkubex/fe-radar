@@ -43,8 +43,13 @@ async def test_two_round_messages_include_tool_calls_and_tool_role() -> None:
     user_msgs = [m for m in first if m["role"] == "user" and m["content"] == "这条是什么"]
     assert len(user_msgs) == 1
     second = model.calls[1]["messages"]
-    assert any(m.get("role") == "assistant" and m.get("tool_calls") for m in second)
-    assert any(m.get("role") == "tool" for m in second)
+    i = next(
+        idx
+        for idx, m in enumerate(second)
+        if m.get("role") == "assistant" and m.get("tool_calls")
+    )
+    j = next(idx for idx, m in enumerate(second) if m.get("role") == "tool")
+    assert i < j
     names = [t["function"]["name"] for t in model.calls[0]["tools"]]
     assert "reset_tools" not in names
     assert "Skill" not in names

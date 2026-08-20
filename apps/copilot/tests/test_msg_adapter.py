@@ -37,6 +37,26 @@ def test_hint_block_becomes_user() -> None:
     converted = msgs_to_chat_messages(msgs)
     assert converted[0]["role"] == "system"
     assert converted[1] == {"role": "user", "content": "当前时间 2026-08-20"}
+    assert len(converted) == 2
+    assert not any(m.get("role") == "assistant" and m.get("content") == "" for m in converted)
+
+
+def test_merged_msg_emits_assistant_tool_calls_before_tool() -> None:
+    merged = Msg(
+        id="reply-1",
+        name="copilot",
+        role="assistant",
+        content=[
+            ToolCallBlock(id="c1", name="get_item", input='{"itemId":1}'),
+            ToolResultBlock(id="c1", name="get_item", output='{"ok":true}'),
+        ],
+    )
+    converted = msgs_to_chat_messages([merged])
+    roles = [m["role"] for m in converted]
+    assert roles == ["assistant", "tool"]
+    assert converted[0]["tool_calls"][0]["id"] == "c1"
+    assert converted[1]["tool_call_id"] == "c1"
+    assert not any(m.get("role") == "assistant" and not m.get("tool_calls") for m in converted)
 
 
 def test_tool_call_input_not_redumped() -> None:

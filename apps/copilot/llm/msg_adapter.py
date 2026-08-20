@@ -59,6 +59,15 @@ def msgs_to_chat_messages(msgs: list[Any]) -> list[dict]:
         for hint in hints:
             out.append({"role": "user", "content": _hint_text(hint)})
 
+        if tool_calls:
+            calls = []
+            for call in tool_calls:
+                arguments = call.input
+                if not isinstance(arguments, str):
+                    arguments = str(arguments)
+                calls.append({"id": call.id, "name": call.name, "arguments": arguments})
+            out.append({"role": "assistant", "content": joined, "tool_calls": calls})
+
         for result in tool_results:
             out.append(
                 {
@@ -68,14 +77,8 @@ def msgs_to_chat_messages(msgs: list[Any]) -> list[dict]:
                 }
             )
 
-        if tool_calls:
-            calls = []
-            for call in tool_calls:
-                arguments = call.input
-                if not isinstance(arguments, str):
-                    arguments = str(arguments)
-                calls.append({"id": call.id, "name": call.name, "arguments": arguments})
-            out.append({"role": "assistant", "content": joined, "tool_calls": calls})
+        # 已发 tool / tool_calls，或 HintBlock 已转 user：不要再补空 assistant
+        if tool_calls or tool_results or (hints and joined == ""):
             continue
 
         if role in ("user", "assistant"):
