@@ -86,8 +86,8 @@ export function toRunnableSql(sql: string): string {
     .replace(/DO \$\$ BEGIN[\s\S]*?END\s*\$\$;\n/g, "")
     .replace(/embedding\s+vector\(1024\)/g, "embedding real[]")
     .replace(/centroid\s+vector\(1024\)/g, "centroid real[]")
-    .replace(/CREATE INDEX items_fts_idx[\s\S]*?\);\n/g, "")
-    .replace(/CREATE INDEX analysis_emb_idx[\s\S]*?\);\n/g, "");
+    .replace(/CREATE INDEX (IF NOT EXISTS )?items_fts_idx[\s\S]*?\);\n/g, "")
+    .replace(/CREATE INDEX (IF NOT EXISTS )?analysis_emb_idx[\s\S]*?\);\n/g, "");
 }
 
 /**

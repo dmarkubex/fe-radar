@@ -25,3 +25,62 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm madge --circular packages/ apps/
+
+  # golden-agent：阻塞合并，不得 skip。E2E_COPILOT_STUB 故意未设（不是 UI stub）。
+  copilot-golden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fe_radar
+          POSTGRES_PASSWORD: fe_radar
+          POSTGRES_DB: fe_radar
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fe_radar -d fe_radar"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://fe_radar:fe_radar@localhost:5432/fe_radar
+      MIGRATION_PROFILE: e2e
+      COPILOT_APP_PASSWORD: copilot-ci
+      COPILOT_DB_URL: postgres://copilot_app:copilot-ci@localhost/fe_radar
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.5.11"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @fe-radar/db migrate
+      - name: Assert copilot_app current_user
+        working-directory: packages/db
+        run: |
+          node --input-type=module <<'EOF'
+          import postgres from "postgres";
+          const sql = postgres(process.env.COPILOT_DB_URL, { max: 1 });
+          const rows = await sql`SELECT current_user`;
+          const name = rows[0].current_user;
+          await sql.end();
+          if (name !== "copilot_app") {
+            console.error(`expected copilot_app, got ${name}`);
+            process.exit(1);
+          }
+          console.log(`current_user=${name}`);
+          EOF
+      - name: Copilot pytest
+        working-directory: apps/copilot
+        run: uv run pytest

@@ -45,6 +45,10 @@ jobs:
       E2E_ADMIN_PASSWORD: admin-password
       E2E_VIEWER_USERNAME: viewer
       E2E_VIEWER_PASSWORD: viewer-password
+      # E2E_COPILOT_STUB=1 只验 Copilot UI（免责 / 数据截止 / 无 a[href]），
+      # 不得当作 S1/S2 主链验收。本 job 仍名 web-e2e，不要改名为 S1/S2 通过。
+      # 尚无 copilot Playwright 规格，不硬编用例。
+      E2E_COPILOT_STUB: "1"
 
     steps:
       - uses: actions/checkout@v4
