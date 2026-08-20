@@ -222,6 +222,15 @@ def test_allowed_5_still_replaces_wan_and_zhao() -> None:
     assert REPLACE in out
 
 
+def test_model_cutoff_date_not_exempt_without_tool_evidence() -> None:
+    """工具只给 80000 时，模型正文「数据截止：2099-01-01」必须被替换。"""
+    runs = [_rows("get_quotes_series", [{"value": "80000"}])]
+    out = ground_numbers("铜价 80000 元。\n数据截止：2099-01-01", runs)
+    assert "80000" in out
+    assert "2099-01-01" not in out
+    assert REPLACE in out
+
+
 def test_canon_keeps_plus_sign() -> None:
     assert canon("+5") == "+5"
     assert canon("5") == "5"

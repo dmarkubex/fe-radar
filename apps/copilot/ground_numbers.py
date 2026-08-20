@@ -50,7 +50,6 @@ UNIT = re.compile(
 )
 CN_RUN = re.compile(rf"[{_CN_CHARS}]{{2,}}")
 RELATIVE = re.compile(r"去年|昨日|本月")
-_CUTOFF_MARK = "数据截止"
 
 
 def canon(raw: str) -> str:
@@ -193,17 +192,8 @@ def allowed_from_tool_runs(runs: list) -> set[str]:
     return allowed
 
 
-def _cutoff_line_start(folded: str) -> int | None:
-    idx = folded.rfind("\n")
-    last = folded if idx < 0 else folded[idx + 1 :]
-    if _CUTOFF_MARK in last:
-        return 0 if idx < 0 else idx + 1
-    return None
-
-
 def ground_answer(text: str, allowed: set[str]) -> str:
     folded = fold_num(text)
-    cutoff = _cutoff_line_start(folded)
     candidates: list[tuple[int, int, str, re.Match[str]]] = []
     for kind, pattern in (
         ("keep", PROPER),
@@ -235,8 +225,6 @@ def ground_answer(text: str, allowed: set[str]) -> str:
             out = out[:start] + REPLACE + out[end:]
             continue
         if kind == "date":
-            if cutoff is not None and start >= cutoff:
-                continue
             raw = match.group(0)
             if raw in allowed or (len(raw) >= 10 and raw[:10] in allowed):
                 continue
