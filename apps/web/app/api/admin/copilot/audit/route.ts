@@ -51,7 +51,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     ))
   `);
 
-  const rows = await db.execute<{
+  type AuditSqlRow = {
     id: number;
     user_id: number;
     session_id: number | null;
@@ -65,7 +65,8 @@ export async function GET(request: NextRequest): Promise<Response> {
     numbers_ungrounded: number;
     created_at: Date;
     rating: number | null;
-  }>(sql`
+  };
+  const rows = await db.execute<AuditSqlRow>(sql`
     SELECT
       a.id,
       a.user_id,
@@ -98,7 +99,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   `);
 
   const countRow = firstExecuteRow<{ total: number }>(countResult);
-  const items = executeRows(rows).map((row) => ({
+  const items = executeRows<AuditSqlRow>(rows).map((row) => ({
     id: Number(row.id),
     userId: Number(row.user_id),
     sessionId: row.session_id === null ? null : Number(row.session_id),

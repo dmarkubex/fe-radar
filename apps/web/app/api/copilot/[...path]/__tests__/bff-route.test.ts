@@ -57,23 +57,17 @@ function params(path: string[]) {
 }
 
 describe("copilot catch-all BFF", () => {
-  const originalStub = process.env.E2E_COPILOT_STUB;
-  const originalNodeEnv = process.env.NODE_ENV;
-
   beforeEach(() => {
     vi.clearAllMocks();
     mockRequireFreshRole.mockResolvedValue(null);
     mockGetRequestUser.mockResolvedValue({ id: 1, role: "viewer" });
     mockEvaluate.mockResolvedValue(true);
     mockProxy.mockResolvedValue(Response.json({ sessions: [] }));
-    delete process.env.E2E_COPILOT_STUB;
+    vi.unstubAllEnvs();
   });
 
   afterEach(() => {
-    if (originalStub === undefined) delete process.env.E2E_COPILOT_STUB;
-    else process.env.E2E_COPILOT_STUB = originalStub;
-    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
-    else process.env.NODE_ENV = originalNodeEnv;
+    vi.unstubAllEnvs();
   });
 
   it("returns 404 for paths outside the whitelist (including /access)", async () => {
@@ -107,8 +101,8 @@ describe("copilot catch-all BFF", () => {
   });
 
   it("stubs only non-production POST /chat", async () => {
-    process.env.E2E_COPILOT_STUB = "1";
-    process.env.NODE_ENV = "test";
+    vi.stubEnv("E2E_COPILOT_STUB", "1");
+    vi.stubEnv("NODE_ENV", "test");
     const res = await POST(
       makeRequest("http://localhost/api/copilot/chat", {
         method: "POST",
@@ -126,16 +120,16 @@ describe("copilot catch-all BFF", () => {
   });
 
   it("never stubs sessions", async () => {
-    process.env.E2E_COPILOT_STUB = "1";
-    process.env.NODE_ENV = "test";
+    vi.stubEnv("E2E_COPILOT_STUB", "1");
+    vi.stubEnv("NODE_ENV", "test");
     const res = await GET(makeRequest("http://localhost/api/copilot/sessions"), params(["sessions"]));
     expect(res.status).toBe(200);
     expect(mockProxy).toHaveBeenCalled();
   });
 
   it("fail-closes stub in production", async () => {
-    process.env.E2E_COPILOT_STUB = "1";
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("E2E_COPILOT_STUB", "1");
+    vi.stubEnv("NODE_ENV", "production");
     const res = await POST(
       makeRequest("http://localhost/api/copilot/chat", {
         method: "POST",
