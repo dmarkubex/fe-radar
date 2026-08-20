@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 export function Dialog({
   ariaLabel,
   children,
+  enabled = true,
   onClose,
   open,
   overlayClassName,
@@ -14,13 +15,15 @@ export function Dialog({
 }: {
   ariaLabel: string;
   children: React.ReactNode;
+  // enabled=false 时该层不响应 Escape/Tab、不锁滚动、不抢焦点（多层叠加时只留顶层交互）
+  enabled?: boolean;
   onClose: () => void;
   open: boolean;
   overlayClassName?: string;
   panelClassName?: string;
 }): React.JSX.Element | null {
   const panelRef = useRef<HTMLDivElement>(null);
-  useModalBehavior({ onClose, open, panelRef });
+  useModalBehavior({ enabled, onClose, open, panelRef });
 
   if (!open) return null;
 

@@ -12,17 +12,20 @@ const FOCUSABLE_SELECTOR =
  * 自行管理（保持 hook 单一职责）。
  */
 export function useModalBehavior({
+  enabled = true,
   onClose,
   open,
   panelRef
 }: {
+  // enabled=false 时不监听 Escape/Tab、不改 body.overflow、不抢焦点（多层弹窗协调用）
+  enabled?: boolean;
   onClose: () => void;
   open: boolean;
   panelRef: React.RefObject<HTMLElement | null>;
 }): void {
   // Escape 关闭 + 焦点陷阱
   useEffect(() => {
-    if (!open) return;
+    if (!open || !enabled) return;
     const panel = panelRef.current;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Tab" && event.key !== "Escape") return;
@@ -58,11 +61,11 @@ export function useModalBehavior({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose, panelRef]);
+  }, [open, enabled, onClose, panelRef]);
 
   // 打开时聚焦面板，并锁定 body 滚动
   useEffect(() => {
-    if (!open) return;
+    if (!open || !enabled) return;
     const panel = panelRef.current;
     const previouslyFocused = document.activeElement as HTMLElement | null;
 
@@ -85,5 +88,5 @@ export function useModalBehavior({
       document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus?.();
     };
-  }, [open, panelRef]);
+  }, [open, enabled, panelRef]);
 }
