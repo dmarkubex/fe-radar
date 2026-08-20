@@ -174,8 +174,10 @@ export function createBriefingPushQueue(connection = createRedisConnection()): Q
   });
 }
 
-// v1.2 — websearch (NER 事件驱动，非定时)
+// v1.2 — websearch (NER 事件驱动；T-UP-01 另加 06:30 兜底 sweep)
 export const QUEUE_WEBSEARCH = QUEUES.websearch;
+export const WEBSEARCH_SWEEP_SCHEDULE_CRON = "0 30 6 * * *";
+export const WEBSEARCH_SWEEP_SCHEDULE_TZ = "Asia/Shanghai";
 
 export interface WebsearchJob {
   entityId: number;

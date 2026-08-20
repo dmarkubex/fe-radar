@@ -7,7 +7,7 @@ import { createQwenClient, createDeepSeekClient, createKimiClient } from "@fe-ra
 import { closePlaywrightPool, getOrCreatePlaywrightPool } from "./lib/playwright-pool";
 
 import type { BriefingGenJob, BriefingPushJob, FetchSourceJob, PipelineJob, QuotesFetchJob, WebsearchJob } from "./queues";
-import { createRedisConnection, createWebsearchQueue, FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, DAILY_REPORT_SCHEDULE_CRON, DAILY_REPORT_SCHEDULE_TZ, DEFAULT_JOB_OPTIONS, QUEUE_QUOTES_FETCH, QUEUE_BRIEFING_GEN, BRIEFING_GEN_SCHEDULE_CRON, BRIEFING_GEN_SCHEDULE_TZ, QUEUE_BRIEFING_PUSH, getBriefingRepushId, isDailyRepushJob, isMinuteTickJob } from "./queues";
+import { createRedisConnection, createWebsearchQueue, FETCH_SCHEDULE_CRON, FETCH_SCHEDULE_TZ, DAILY_REPORT_SCHEDULE_CRON, DAILY_REPORT_SCHEDULE_TZ, DEFAULT_JOB_OPTIONS, QUEUE_QUOTES_FETCH, QUEUE_BRIEFING_GEN, BRIEFING_GEN_SCHEDULE_CRON, BRIEFING_GEN_SCHEDULE_TZ, QUEUE_BRIEFING_PUSH, WEBSEARCH_SWEEP_SCHEDULE_CRON, WEBSEARCH_SWEEP_SCHEDULE_TZ, getBriefingRepushId, isDailyRepushJob, isMinuteTickJob } from "./queues";
 import { enqueueEnabledQuotesSources, scheduleQuotesFetchCron, scheduleBriefingPushCron, FETCH_CONCURRENCY } from "./scheduler";
 import { runCleanup, CLEANUP_SCHEDULE_CRON, CLEANUP_SCHEDULE_TZ } from "./jobs/cleanup";
 import { runQuotesFetch } from "./jobs/quotes-fetch";
@@ -25,6 +25,7 @@ import { handleClusterJob } from "./handlers/cluster";
 import { handleCuratorJob } from "./handlers/curator";
 import { handleDailyJob } from "./handlers/daily";
 import { handleWebsearchJob } from "./jobs/websearch";
+import { runWebsearchSweep } from "./jobs/websearch-sweep";
 import { handleDetailFetchJob } from "./jobs/detail-fetch";
 import { startInternalHttpServer } from "./internal/http-server";
 import { startHeartbeat } from "./heartbeat";
@@ -323,13 +324,29 @@ export async function startWorker(): Promise<WorkerRuntime> {
   );
   allWorkers.push(briefingPushWorker);
 
-  // v1.2 — websearch (NER 事件驱动，非定时，无 cron schedule)
+  // v1.2 — websearch（NER 事件驱动）；T-UP-01 另加 06:30 兜底 sweep
   const websearchQueue = createWebsearchQueue(connection);
   allQueues.push(websearchQueue);
+  await websearchQueue.add("schedule-websearch-sweep", {
+    entityId: 0,
+    entityName: "websearch-sweep",
+    itemId: 0,
+  }, {
+    repeat: { pattern: WEBSEARCH_SWEEP_SCHEDULE_CRON, tz: WEBSEARCH_SWEEP_SCHEDULE_TZ },
+    jobId: "schedule-websearch-sweep",
+  });
 
   const websearchWorker = new Worker<WebsearchJob>(
     QUEUES.websearch,
     async (job) => {
+      if (job.name === "schedule-websearch-sweep") {
+        try {
+          await runWebsearchSweep();
+        } catch (err) {
+          logger.error({ err }, "websearch sweep failed");
+        }
+        return;
+      }
       logger.info({ jobId: job.id, entityId: job.data.entityId, entityName: job.data.entityName }, "processing websearch job");
       await handleWebsearchJob(job);
     },
