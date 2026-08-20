@@ -13,8 +13,13 @@
 #   NO_PROXY=localhost,127.0.0.1,harborssl.fegroup.cn,mirrors.aliyun.com,registry.npmmirror.com,docker.m.daocloud.io,npmmirror.com \
 #   deploy/scripts/build-images.sh --prepare --push
 #
-# 可选镜像名（位置参数，子串匹配）：worker / migrate / web / backup
+# 可选镜像名（位置参数，子串匹配）：postgres / worker / migrate / web / backup / copilot
 set -euo pipefail
+
+if [ -z "${IMAGE_TAG:-}" ] || [ "$IMAGE_TAG" = "latest" ]; then
+  echo "IMAGE_TAG must be an immutable tag (git sha or version), not empty or latest" >&2
+  exit 2
+fi
 
 REGISTRY="${REGISTRY:-harborssl.fegroup.cn/custom-project}"
 # NODE_SLIM_IMAGE / NODE_WEB_IMAGE 默认必须与三个 Dockerfile 逐字对齐：
@@ -42,6 +47,10 @@ ALPINE_MIRROR="${ALPINE_MIRROR:-https://mirrors.aliyun.com/alpine}"
 # 勿把默认值改回 https://npmmirror.com/mirrors/playwright。
 PLAYWRIGHT_DOWNLOAD_HOST="${PLAYWRIGHT_DOWNLOAD_HOST:-https://cdn.playwright.dev}"
 MINIO_MC_URL="${MINIO_MC_URL:-https://dl.min.io/client/mc/release/linux-amd64/mc}"
+# PYTHON_IMAGE / UV_IMAGE / PIP_INDEX_URL 默认必须与 deploy/Dockerfile.copilot ARG 逐字对齐。
+PYTHON_IMAGE="${PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.11-slim}"
+UV_IMAGE="${UV_IMAGE:-ghcr.io/astral-sh/uv:0.5.11}"
+PIP_INDEX_URL="${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple}"
 PUSH=0; MIRROR=0; WITH_BACKUP=0; PREPARE=0; ONLY=""
 for arg in "$@"; do
   case "$arg" in
@@ -74,6 +83,8 @@ if [ "$PREPARE" = "1" ]; then
   docker pull "$NODE_SLIM_BASE_IMAGE"
   docker pull "$ALPINE_IMAGE"
   docker pull "$PGVECTOR_IMAGE"
+  docker pull "$PYTHON_IMAGE"
+  docker pull "$UV_IMAGE"
 fi
 
 BUILD_ARGS=(
@@ -87,6 +98,9 @@ BUILD_ARGS=(
   --build-arg "ALPINE_MIRROR=$ALPINE_MIRROR"
   --build-arg "PLAYWRIGHT_DOWNLOAD_HOST=$PLAYWRIGHT_DOWNLOAD_HOST"
   --build-arg "MINIO_MC_URL=$MINIO_MC_URL"
+  --build-arg "PYTHON_IMAGE=$PYTHON_IMAGE"
+  --build-arg "UV_IMAGE=$UV_IMAGE"
+  --build-arg "PIP_INDEX_URL=$PIP_INDEX_URL"
 )
 
 # 条件透传宿主代理：仅当环境变量已设置时才加 --build-arg，禁止传空值覆盖 Dockerfile 行为。
@@ -102,6 +116,7 @@ IMAGES=(
   "deploy/Dockerfile.worker            fe-radar-worker:latest"
   "deploy/Dockerfile.migrate           fe-radar-migrate:latest"
   "deploy/Dockerfile.web               fe-radar-web:latest"
+  "deploy/Dockerfile.copilot            fe-radar-copilot:latest"
 )
 [ "$WITH_BACKUP" = "1" ] && IMAGES+=("deploy/Dockerfile.backup fe-radar-backup:latest")
 
@@ -119,13 +134,17 @@ for entry in "${IMAGES[@]}"; do
   tag="$REGISTRY/$repo"
   echo "==> build $tag  (-f $dockerfile)"
   docker build "${BUILD_ARGS[@]}" -f "$dockerfile" -t "$tag" .
+  tagged="$REGISTRY/${repo%%:*}:${IMAGE_TAG}"
+  docker tag "$REGISTRY/$repo" "$tagged"
   if [ "$PUSH" = "1" ]; then
     echo "==> push  $tag"
     docker push "$tag"
+    echo "==> push  $tagged"
+    docker push "$tagged"
   fi
   built=$((built + 1))
 done
-[ -n "$ONLY" ] && [ "$built" = "0" ] && { echo "没有镜像匹配:${ONLY} (可选 postgres/worker/migrate/web/backup)" >&2; exit 2; }
+[ -n "$ONLY" ] && [ "$built" = "0" ] && { echo "没有镜像匹配:${ONLY} (可选 postgres/worker/migrate/web/backup/copilot)" >&2; exit 2; }
 
 # 公共镜像同步（内网拉不到 Docker Hub 时需要）。leaf 名/标签按你 Harbor 实际约定，自行调整。
 if [ "$MIRROR" = "1" ]; then
