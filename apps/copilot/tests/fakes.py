@@ -6,7 +6,11 @@ import os
 import time
 from typing import Any
 
+from agentscope.message import TextBlock, ToolCallBlock
+from agentscope.model import ChatResponse, FinishedReason
 from auth import build_canonical, compute_signature
+from llm.gateway_client import WorkerGatewayModel, filter_tools_for_worker
+from llm.msg_adapter import msgs_to_chat_messages
 
 INTERNAL_SECRET = "test-internal-secret"
 WORKER_TOKEN = "test-worker-token"
@@ -42,6 +46,9 @@ class FakeConn:
     ) -> None:
         self._queue.append((rows, exc, colnames or []))
 
+    def transaction(self) -> "_TxnCM":
+        return _TxnCM()
+
     async def execute(self, sql: str, params: dict | None = None) -> FakeCursor:
         self.calls.append((sql, params))
         stripped = sql.strip().upper()
@@ -75,6 +82,77 @@ class _ConnCM:
 
     async def __aexit__(self, *_exc: object) -> None:
         return None
+
+
+class _TxnCM:
+    async def __aenter__(self) -> "_TxnCM":
+        return self
+
+    async def __aexit__(self, *_exc: object) -> None:
+        return None
+
+
+class ScriptedGateway(WorkerGatewayModel):
+    """Fake worker: scripted ChatResponse chunks, records _call_api messages."""
+
+    def __init__(self, scripts: list[list[ChatResponse]]) -> None:
+        super().__init__(worker_base_url="http://worker:8071", service_token=WORKER_TOKEN)
+        self.scripts = [list(script) for script in scripts]
+        self.calls: list[dict] = []
+
+    async def _call_api(self, model_name, messages, tools=None, tool_choice=None, **kwargs):
+        self.calls.append(
+            {
+                "messages": msgs_to_chat_messages(messages),
+                "tools": filter_tools_for_worker(tools),
+            }
+        )
+        chunks = self.scripts.pop(0) if self.scripts else []
+
+        async def _stream():
+            acc: list = []
+            for chunk in chunks:
+                if not chunk.is_last:
+                    acc.extend(list(chunk.content))
+                    yield chunk
+            last_content = chunks[-1].content if chunks and chunks[-1].is_last else acc
+            yield ChatResponse(
+                content=list(last_content),
+                is_last=True,
+                finished_reason=FinishedReason.COMPLETED,
+            )
+
+        return _stream()
+
+
+def tool_call_then_text(
+    name: str,
+    arguments: str,
+    text: str,
+    call_id: str = "c1",
+) -> list[list[ChatResponse]]:
+    call = ToolCallBlock(id=call_id, name=name, input=arguments)
+    token = TextBlock(text=text)
+    return [
+        [
+            ChatResponse(content=[call], is_last=False),
+            ChatResponse(content=[call], is_last=True, finished_reason=FinishedReason.COMPLETED),
+        ],
+        [
+            ChatResponse(content=[token], is_last=False),
+            ChatResponse(content=[token], is_last=True, finished_reason=FinishedReason.COMPLETED),
+        ],
+    ]
+
+
+def text_only(text: str) -> list[list[ChatResponse]]:
+    token = TextBlock(text=text)
+    return [
+        [
+            ChatResponse(content=[token], is_last=False),
+            ChatResponse(content=[token], is_last=True, finished_reason=FinishedReason.COMPLETED),
+        ]
+    ]
 
 
 def hmac_headers(
