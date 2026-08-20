@@ -405,7 +405,6 @@ describe("runDetailFetch", () => {
     mocks.getOrCreatePlaywrightPool.mockResolvedValue({
       acquire: vi.fn().mockResolvedValue({ context, userAgent: "UA", proxy })
     });
-    mocks.proxyAcquire.mockReturnValue(proxy);
 
     const db = makeDb({
       visible: [{ ...visibleRow, fetcher_type: "playwright" }]
