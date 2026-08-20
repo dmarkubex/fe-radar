@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { AppShell } from "@/components/layout/app-shell";
+import { evaluateCopilotAccess } from "@/lib/api/copilot-access";
+import { webLogger } from "@/lib/logger";
 import { auth } from "@/auth";
 import "./globals.css";
 
@@ -20,6 +22,17 @@ export default async function RootLayout({
   const hdrs = await headers();
   const activePath = hdrs.get("x-pathname") ?? "/";
   const isLoginPage = activePath === "/auth/login";
+
+  let copilotEnabled = false;
+  if (session?.user?.id) {
+    try {
+      copilotEnabled = await evaluateCopilotAccess(Number(session.user.id));
+    } catch (err) {
+      webLogger.error({ err }, "evaluateCopilotAccess failed");
+      copilotEnabled = false;
+    }
+  }
+  void copilotEnabled;
 
   if (isLoginPage) {
     return (
