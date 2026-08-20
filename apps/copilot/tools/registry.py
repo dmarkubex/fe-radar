@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from contextvars import ContextVar
+from datetime import date, datetime
 from functools import wraps
 from typing import Any, Awaitable, Callable
 
-# 无 default。禁止 ContextVar(default=[]) —— 共享可变默认会串请求。
+# 无 default。禁止把可变空 list 当作 ContextVar 默认值（会串请求）。
 toolRunsVar: ContextVar[list | None] = ContextVar("toolRunsVar")
 dbConnVar: ContextVar[Any] = ContextVar("dbConnVar")
 
@@ -48,6 +49,24 @@ def fail(reason: str, **extra: Any) -> dict:
 
 def get_conn() -> Any:
     return dbConnVar.get()
+
+
+def row_dict(cursor: Any, row: Any) -> dict:
+    if isinstance(row, dict):
+        return row
+    mapping = getattr(row, "_mapping", None)
+    if mapping is not None:
+        return dict(mapping)
+    names = [col.name for col in (cursor.description or [])]
+    return dict(zip(names, row, strict=False))
+
+
+def iso(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    return str(value)
 
 
 def record_run(name: str, args: dict, result: dict) -> None:
