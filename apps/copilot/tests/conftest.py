@@ -8,6 +8,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.fakes import INTERNAL_SECRET
+
 _TMP = Path(tempfile.mkdtemp(prefix="copilot-06a-"))
 (_TMP / "db_url").write_text(
     "postgresql://copilot_app:test@127.0.0.1:1/fe_radar\n",
@@ -20,8 +22,6 @@ os.environ["COPILOT_DB_URL_FILE"] = str(_TMP / "db_url")
 os.environ["COPILOT_INTERNAL_SECRET_FILE"] = str(_TMP / "internal")
 os.environ["SERVICE_TOKEN_WORKER_FILE"] = str(_TMP / "worker")
 os.environ["QWEN_BASE_URL"] = "http://127.0.0.1:9/v1"
-
-INTERNAL_SECRET = "test-internal-secret"
 
 
 @pytest.fixture

@@ -18,6 +18,8 @@ from psycopg_pool import AsyncConnectionPool
 
 from auth import HmacUser, require_hmac
 from config import Settings, get_settings, make_pool
+from memory import store
+from memory.store import CopilotError, FeedbackBody
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +60,11 @@ async def request_validation_error_handler(
     return JSONResponse(status_code=400, content={"error": {"code": "COPILOT_BAD_REQUEST"}})
 
 
+@app.exception_handler(CopilotError)
+async def copilot_error_handler(_request: Request, exc: CopilotError) -> JSONResponse:
+    return JSONResponse(status_code=exc.status_code, content={"error": {"code": exc.code}})
+
+
 @app.get("/healthz")
 async def healthz(request: Request) -> dict[str, bool]:
     logger.info("healthz")
@@ -72,8 +79,46 @@ async def healthz(request: Request) -> dict[str, bool]:
 
 
 @app.get("/sessions")
-async def list_sessions(_user: Annotated[HmacUser, Depends(require_hmac)]) -> dict[str, list]:
-    return {"sessions": []}
+async def list_sessions(
+    request: Request,
+    user: Annotated[HmacUser, Depends(require_hmac)],
+) -> dict[str, list]:
+    pool = getattr(request.app.state, "pool", None)
+    if pool is None:
+        return {"sessions": []}
+    async with pool.connection() as conn:
+        sessions = await store.list_sessions(conn, user.user_id)
+    return {"sessions": sessions}
+
+
+@app.get("/sessions/{session_id}/messages")
+async def get_session_messages(
+    session_id: int,
+    request: Request,
+    user: Annotated[HmacUser, Depends(require_hmac)],
+) -> dict[str, list]:
+    pool = getattr(request.app.state, "pool", None)
+    if pool is None:
+        raise CopilotError(503, "COPILOT_UNAVAILABLE")
+    async with pool.connection() as conn:
+        messages = await store.list_messages(conn, session_id, user.user_id)
+    return {"messages": messages}
+
+
+@app.post("/messages/{message_id}/feedback")
+async def post_message_feedback(
+    message_id: int,
+    body: FeedbackBody,
+    request: Request,
+    user: Annotated[HmacUser, Depends(require_hmac)],
+) -> dict:
+    pool = getattr(request.app.state, "pool", None)
+    if pool is None:
+        raise CopilotError(503, "COPILOT_UNAVAILABLE")
+    async with pool.connection() as conn:
+        return await store.upsert_feedback(
+            conn, message_id, user.user_id, body.rating, body.reason
+        )
 
 
 if __name__ == "__main__":
