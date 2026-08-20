@@ -13,10 +13,11 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from psycopg_pool import AsyncConnectionPool
 
 from auth import HmacUser, require_hmac
+from chat import ChatBody, post_chat
 from config import Settings, get_settings, make_pool
 from memory import store
 from memory.store import CopilotError, FeedbackBody
@@ -103,6 +104,15 @@ async def get_session_messages(
     async with pool.connection() as conn:
         messages = await store.list_messages(conn, session_id, user.user_id)
     return {"messages": messages}
+
+
+@app.post("/chat")
+async def chat(
+    body: ChatBody,
+    request: Request,
+    user: Annotated[HmacUser, Depends(require_hmac)],
+) -> StreamingResponse:
+    return await post_chat(request, user, body)
 
 
 @app.post("/messages/{message_id}/feedback")

@@ -145,6 +145,123 @@ def tool_call_then_text(
     ]
 
 
+class ChatFakeConn(FakeConn):
+    """Route /chat SQL by statement text so lock / insert / history stay consistent."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.session_id = 1
+        self.user_id = 7
+        self.source = "ask"
+        self.item_id: int | None = None
+        self.title: str | None = None
+        self.turn_locked_at: Any = None
+        self.lock_fail = False
+        self.raise_on_user_insert = False
+        self.user_message_id = 10
+        self.assistant_message_id = 11
+        self.next_msg_id = 10
+        self.visible_ids: set[int] = {1}
+        self.item_row = (1, "铜价", "摘要", "2026-08-19T00:00:00+08:00", "SMM")
+        self.history_rows: list[tuple[int, str, str]] = []
+        self.user_inserts: list[dict] = []
+        self.assistant_inserts: list[dict] = []
+        self.audit_inserts: list[dict] = []
+
+    async def execute(self, sql: str, params: dict | None = None) -> FakeCursor:
+        self.calls.append((sql, params))
+        compact = " ".join(sql.split()).lower()
+        params = params or {}
+
+        if "set turn_locked_at=%(ts)s" in compact and "returning" in compact:
+            if self.lock_fail or self.turn_locked_at is not None:
+                return FakeCursor([], ["id", "turn_locked_at"])
+            self.turn_locked_at = params.get("ts")
+            return FakeCursor([(self.session_id, self.turn_locked_at)], ["id", "turn_locked_at"])
+
+        if "set turn_locked_at=null" in compact:
+            if params.get("ts") == self.turn_locked_at:
+                self.turn_locked_at = None
+            return FakeCursor([], [])
+
+        if compact.startswith("insert into copilot.sessions"):
+            self.source = params.get("source") or "ask"
+            self.item_id = params.get("item_id")
+            self.title = params.get("title")
+            return FakeCursor(
+                [(self.session_id, self.source, self.item_id)],
+                ["id", "source", "item_id"],
+            )
+
+        if "from copilot.sessions" in compact:
+            if params.get("uid") != self.user_id or params.get("id") not in (None, self.session_id):
+                if params.get("id") is not None and (
+                    params.get("uid") != self.user_id or params.get("id") != self.session_id
+                ):
+                    return FakeCursor(
+                        [],
+                        ["id", "title", "source", "item_id", "last_active", "created_at"],
+                    )
+            return FakeCursor(
+                [(self.session_id, self.title, self.source, self.item_id, None, None)],
+                ["id", "title", "source", "item_id", "last_active", "created_at"],
+            )
+
+        if compact.startswith("insert into copilot.messages"):
+            if params.get("role") == "user" and self.raise_on_user_insert:
+                raise RuntimeError("insert user failed")
+            mid = self.next_msg_id
+            self.next_msg_id += 1
+            if params.get("role") == "user":
+                self.user_inserts.append(params)
+                self.user_message_id = mid
+            else:
+                self.assistant_inserts.append(params)
+                self.assistant_message_id = mid
+            return FakeCursor([(mid,)], ["id"])
+
+        if "from copilot.messages" in compact and "id <" in compact:
+            current = params.get("current_id", 0)
+            rows = [row for row in self.history_rows if row[0] < current]
+            rows = sorted(rows, key=lambda row: row[0], reverse=True)[:12]
+            return FakeCursor([(row[1], row[2]) for row in rows], ["role", "content"])
+
+        if compact.startswith("insert into copilot.audit_log"):
+            self.audit_inserts.append(params)
+            return FakeCursor([], [])
+
+        if "from copilot.visible_items" in compact:
+            if "any(%(ids)s)" in compact:
+                ids = params.get("ids") or []
+                return FakeCursor(
+                    [(item,) for item in ids if item in self.visible_ids],
+                    ["id"],
+                )
+            iid = params.get("iid", params.get("item_id"))
+            if iid in self.visible_ids:
+                return FakeCursor(
+                    [self.item_row],
+                    ["id", "title", "summary_zh", "scored_at", "source_name"],
+                )
+            return FakeCursor([], ["id", "title", "summary_zh", "scored_at", "source_name"])
+
+        if "from item_entities" in compact:
+            return FakeCursor([], ["id", "canonical_name", "type"])
+
+        if "set last_active" in compact:
+            return FakeCursor([], [])
+
+        stripped = sql.strip().upper()
+        if stripped.startswith(("SAVEPOINT", "ROLLBACK", "RELEASE")):
+            return FakeCursor([], [])
+        if self._queue:
+            rows, exc, colnames = self._queue.pop(0)
+            if exc is not None:
+                raise exc
+            return FakeCursor(rows or [], colnames)
+        return FakeCursor([], [])
+
+
 def text_only(text: str) -> list[list[ChatResponse]]:
     token = TextBlock(text=text)
     return [
