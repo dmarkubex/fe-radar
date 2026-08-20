@@ -44,6 +44,9 @@ if (isProd) {
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@fe-radar/core", "@fe-radar/db", "@fe-radar/shared"],
+  experimental: {
+    authInterrupts: true
+  },
   async headers() {
     return [
       {

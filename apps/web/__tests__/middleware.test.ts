@@ -169,6 +169,36 @@ describe("middleware auth gate (Antigravity #5)", () => {
     expect(res.status).not.toBe(401);
     expect(res.status).not.toBe(403);
   });
+
+  it("redirects an unauthenticated /ask page to /auth/login", async () => {
+    process.env.DINGTALK_ENABLED = "false";
+    mockGetToken.mockResolvedValue(null);
+    const res = await mw("/ask");
+    expect([302, 307]).toContain(res.status);
+    expect(res.headers.get("location")).toContain("/auth/login");
+    expect(new URL(res.headers.get("location") ?? "", "http://localhost").searchParams.get("callbackUrl")).toBe("/ask");
+  });
+
+  it("routes DingTalk clients on /ask to in-app login", async () => {
+    process.env.DINGTALK_ENABLED = "true";
+    mockGetToken.mockResolvedValue(null);
+    const res = await mw("/ask", new Headers({ "user-agent": "Mozilla/5.0 DingTalk/7.0.0" }));
+    const location = new URL(res.headers.get("location") ?? "", "http://localhost");
+    expect(location.pathname).toBe("/auth/dingtalk/auto");
+    expect(location.searchParams.get("callbackUrl")).toBe("/ask");
+  });
+
+  it("returns 401 for an unauthenticated /api/copilot request", async () => {
+    mockGetToken.mockResolvedValue(null);
+    expect((await mw("/api/copilot/chat")).status).toBe(401);
+  });
+
+  it("allows a viewer through /api/copilot after login", async () => {
+    mockGetToken.mockResolvedValue({ role: "viewer", sub: "1" });
+    const res = await mw("/api/copilot/access");
+    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
+  });
 });
 
 describe("middleware protected API origin gate", () => {
@@ -267,6 +297,15 @@ describe("middleware protected API origin gate", () => {
 
   it("allows a GET without Origin", async () => {
     expect((await mw("/api/timeline")).status).not.toBe(403);
+  });
+
+  it("rejects a cross-site POST to /api/copilot", async () => {
+    const res = await mw(
+      "/api/copilot/chat",
+      new Headers({ origin: "https://evil.example" }),
+      "POST"
+    );
+    expect(res.status).toBe(403);
   });
 });
 

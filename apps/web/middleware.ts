@@ -64,7 +64,9 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     pathname.startsWith("/alerts") ||
     pathname.startsWith("/daily") ||
     pathname.startsWith("/items") ||
-    pathname.startsWith("/briefing");
+    pathname.startsWith("/briefing") ||
+    pathname === "/ask" ||
+    pathname.startsWith("/ask/");
   const isTimelineApi =
     pathname.startsWith("/api/timeline") ||
     pathname.startsWith("/api/search") ||
@@ -73,7 +75,8 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     pathname.startsWith("/api/daily") ||
     pathname.startsWith("/api/alerts/count") ||
     pathname.startsWith("/api/briefing") ||
-    pathname.startsWith("/api/quotes");
+    pathname.startsWith("/api/quotes") ||
+    pathname.startsWith("/api/copilot");
   const isProtectedApi =
     pathname.startsWith("/api/") && (isAdminPath || isEditorPath || isTimelineApi);
 
@@ -178,6 +181,9 @@ export const config = {
     "/api/briefing/:path*",
     "/api/quotes/:path*",
     "/briefing",
-    "/briefing/:path*"
+    "/briefing/:path*",
+    "/ask",
+    "/api/copilot",
+    "/api/copilot/:path*"
   ]
 };
