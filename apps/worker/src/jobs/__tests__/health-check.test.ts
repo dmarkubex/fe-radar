@@ -24,7 +24,8 @@ function curatedItems(n: number): DailyInputItem[] {
     sourceName: "source",
     category: "公司与资本",
     summaryZh: "摘要",
-    scoredAt: new Date("2026-08-18T08:00:00+08:00")
+    scoredAt: new Date("2026-08-18T08:00:00+08:00"),
+    publishedAt: new Date("2026-08-18T08:00:00+08:00")
   }));
 }
 

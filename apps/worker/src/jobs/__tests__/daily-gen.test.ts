@@ -1,6 +1,9 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LlmError } from "@fe-radar/shared";
-import { buildDailyReportInput, DAILY_REPORT_BLOCKED_SUMMARY, runDailyGen, type DailyInputItem } from "../daily-gen";
+import { APP_TIMEZONE, dayjs, LlmError } from "@fe-radar/shared";
+import { buildDailyReportInput, DAILY_REPORT_BLOCKED_SUMMARY, dailyPublishedSince, runDailyGen, type DailyInputItem } from "../daily-gen";
 
 import type { LlmClient, DailyReportResult } from "@fe-radar/llm";
 
@@ -47,7 +50,8 @@ function cleanItems(count: number): DailyInputItem[] {
     sourceName: "北极星",
     category: "项目与招投标",
     summaryZh: "摘要",
-    scoredAt: new Date("2026-08-20T00:00:00Z")
+    scoredAt: new Date("2026-08-20T00:00:00Z"),
+    publishedAt: new Date("2026-08-20T00:00:00Z")
   }));
 }
 
@@ -65,9 +69,33 @@ describe("daily-gen", () => {
   });
 
   it("builds five-section prompt input from curated items", () => {
-    const input = buildDailyReportInput([{ title: "储能项目", sourceName: "北极星", category: "项目与招投标", summaryZh: "中标摘要", scoredAt: new Date("2026-05-11T00:00:00Z") }]);
+    const input = buildDailyReportInput([{ title: "储能项目", sourceName: "北极星", category: "项目与招投标", summaryZh: "中标摘要", scoredAt: new Date("2026-05-11T00:00:00Z"), publishedAt: new Date("2026-05-10T16:00:00Z") }]);
     expect(input).toContain("标题：储能项目");
     expect(input).toContain("摘要：中标摘要");
+    expect(input).toContain("发布时间：2026-05-11 00:00");
+  });
+
+  it("dailyPublishedSince is start of previous calendar day in Asia/Shanghai", () => {
+    const since = dailyPublishedSince(new Date("2026-08-21T08:00:00+08:00"));
+    expect(dayjs(since).tz(APP_TIMEZONE).format("YYYY-MM-DD HH:mm")).toBe("2026-08-20 00:00");
+  });
+
+  it("回代 2026-08-21 08:00：阿曼/光纤棒/8月19日股价均早于昨天 0 点", () => {
+    const since = dailyPublishedSince(new Date("2026-08-21T08:00:00+08:00")).getTime();
+    expect(new Date("2026-08-14T09:58:00+08:00").getTime()).toBeLessThan(since);
+    expect(new Date("2026-08-18T12:44:00+08:00").getTime()).toBeLessThan(since);
+    expect(new Date("2026-08-18T13:56:00+08:00").getTime()).toBeLessThan(since);
+    expect(new Date("2026-08-19T00:00:00+08:00").getTime()).toBeLessThan(since);
+    expect(new Date("2026-08-20T00:00:00+08:00").getTime()).toBeGreaterThanOrEqual(since);
+  });
+
+  it("loadDailyInput filters scoredAt 24h and publishedAt yesterday 00:00", () => {
+    const source = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "../daily-gen.ts"),
+      "utf8"
+    );
+    expect(source).toContain("gte(itemAnalysis.scoredAt, scoredSince)");
+    expect(source).toContain("gte(items.publishedAt, publishedSince)");
   });
 
   it("pauses when too many items need manual scrub", async () => {
@@ -76,7 +104,8 @@ describe("daily-gen", () => {
       sourceName: "source",
       category: "公司与资本",
       summaryZh: DAILY_REPORT_BLOCKED_SUMMARY,
-      scoredAt: new Date()
+      scoredAt: new Date(),
+      publishedAt: new Date()
     }));
     const select = mockSelectChain(blockedItems);
     const insertChain = mockInsertChain();

@@ -20,6 +20,7 @@ export interface DailyInputItem {
   category: string | null;
   summaryZh: string | null;
   scoredAt: Date | null;
+  publishedAt: Date | null;
 }
 
 export function buildDailyReportInput(itemsForReport: DailyInputItem[]): string {
@@ -29,31 +30,45 @@ export function buildDailyReportInput(itemsForReport: DailyInputItem[]): string 
       `标题：${item.title}`,
       `信源：${item.sourceName}`,
       `分类：${item.category ?? "未分类"}`,
+      `发布时间：${item.publishedAt ? dayjs(item.publishedAt).tz(APP_TIMEZONE).format("YYYY-MM-DD HH:mm") : "-"}`,
       `评分时间：${item.scoredAt ? dayjs(item.scoredAt).tz(APP_TIMEZONE).format("YYYY-MM-DD HH:mm") : "-"}`,
       `摘要：${item.summaryZh ?? ""}`
     ].join("\n"))
     .join("\n\n");
 }
 
-/** Rolling 24h window used by daily-gen and health-check. Do not fork a second clock. */
+/** Rolling 24h scoredAt window used by daily-gen and health-check fetch/score counts. Do not fork a second scoredAt clock. */
 export function dailyInputSince(now = dayjs().tz(APP_TIMEZONE).toDate()): Date {
   return dayjs(now).tz(APP_TIMEZONE).subtract(24, "hour").toDate();
 }
 
+/** Calendar time-chain: start of previous day in Asia/Shanghai. Independent of scoredAt. */
+export function dailyPublishedSince(now = dayjs().tz(APP_TIMEZONE).toDate()): Date {
+  return dayjs(now).tz(APP_TIMEZONE).startOf("day").subtract(1, "day").toDate();
+}
+
 export async function loadDailyInput(db: DbClient = getDb(), now = dayjs().tz(APP_TIMEZONE).toDate()): Promise<DailyInputItem[]> {
-  const since = dailyInputSince(now);
+  const scoredSince = dailyInputSince(now);
+  const publishedSince = dailyPublishedSince(now);
   return db
     .select({
       title: items.title,
       sourceName: sources.name,
       category: itemAnalysis.category,
       summaryZh: itemAnalysis.summaryZh,
-      scoredAt: itemAnalysis.scoredAt
+      scoredAt: itemAnalysis.scoredAt,
+      publishedAt: items.publishedAt
     })
     .from(items)
     .innerJoin(sources, eq(items.sourceId, sources.id))
     .innerJoin(itemAnalysis, eq(itemAnalysis.itemId, items.id))
-    .where(and(eq(itemAnalysis.isCurated, true), gte(itemAnalysis.scoredAt, since), isNotNull(itemAnalysis.summaryZh), ne(itemAnalysis.summaryZh, "")))
+    .where(and(
+      eq(itemAnalysis.isCurated, true),
+      gte(itemAnalysis.scoredAt, scoredSince),
+      gte(items.publishedAt, publishedSince),
+      isNotNull(itemAnalysis.summaryZh),
+      ne(itemAnalysis.summaryZh, "")
+    ))
     .orderBy(sql`${itemAnalysis.qualityScore} desc nulls last`)
     .limit(200);
 }
