@@ -8,7 +8,7 @@ import { runBriefingGen, KEY_METRIC_FIELDS } from "../briefing-gen";
 // Module-level nullable fn refs — same pattern as daily-gen.test.ts.
 // Use single-unknown-param signatures so optional-call + spread compiles.
 let llmRunBriefingGenFn: ((input: unknown) => Promise<unknown>) | null = null;
-let llmBuildBriefingInputFn: ((a: unknown, b?: unknown, c?: unknown) => unknown) | null = null;
+let llmBuildBriefingInputFn: ((a: unknown, b?: unknown, c?: unknown, d?: unknown) => unknown) | null = null;
 let coreComputeSRFn: ((a: unknown) => unknown) | null = null;
 let coreIsBusinessDayFn: ((a: unknown, b?: unknown) => unknown) | null = null;
 let coreDegradeFieldsFn: ((a: unknown, b?: unknown) => unknown) | null = null;
@@ -19,7 +19,8 @@ vi.mock("@fe-radar/llm", async (importOriginal) => {
   return {
     ...mod,
     runBriefingGen: (input: unknown) => llmRunBriefingGenFn?.(input),
-    buildBriefingInput: (a: unknown, b?: unknown, c?: unknown) => llmBuildBriefingInputFn?.(a, b, c),
+    buildBriefingInput: (a: unknown, b?: unknown, c?: unknown, d?: unknown) =>
+      llmBuildBriefingInputFn?.(a, b, c, d),
   };
 });
 
@@ -86,6 +87,22 @@ function mockSelect(rows: unknown[] = []) {
   // Make the chain itself awaitable — resolves to `rows`
   chain.then = (resolve: (v: unknown) => void) => resolve(rows);
   return { select: vi.fn().mockReturnValue(chain) };
+}
+
+function mockSequentialSelect(results: unknown[][]) {
+  let call = 0;
+  return vi.fn(() => {
+    const rows = results[call++] ?? [];
+    const chain: Record<string, unknown> = {};
+    const makeMethod = () => vi.fn().mockReturnValue(chain);
+    chain.from = makeMethod();
+    chain.where = makeMethod();
+    chain.innerJoin = makeMethod();
+    chain.orderBy = makeMethod();
+    chain.limit = vi.fn().mockResolvedValue(rows);
+    chain.then = (resolve: (value: unknown) => void) => resolve(rows);
+    return chain;
+  });
 }
 
 function mockInsertChain(returnRows: unknown[] = [{ id: 42 }]) {
@@ -359,28 +376,18 @@ describe("briefing-gen", () => {
       { metricKey: "fx_usdcny", value: "7.2", changePct: null, observedAt: new Date("2026-05-20T07:30:00Z") },
     ];
     // Select call order in runBriefingGen (happy path, coverage ok on first try):
-    // 1 holidays, 2 duplicate check, 3 todayQuotes, 4 contextNews, 5 cu recent, 6 lc recent
+    // 1 holidays, 2 duplicate check, 3 todayQuotes, 4 contextNews,
+    // 5 previous briefing, 6 cu recent, 7 lc recent
     const selectResults: unknown[][] = [
       [], // holidays
       [], // no existing briefing
       quoteRows, // today quotes — drives quotesByKey → buildTemplateFields
       [], // context news
+      [], // previous briefing
       [], // cu recent for s/r
       [], // lc recent for s/r
     ];
-    let selectCall = 0;
-    const select = vi.fn(() => {
-      const rows = selectResults[selectCall++] ?? [];
-      const chain: Record<string, unknown> = {};
-      const makeMethod = () => vi.fn().mockReturnValue(chain);
-      chain.from = makeMethod();
-      chain.where = makeMethod();
-      chain.innerJoin = makeMethod();
-      chain.orderBy = makeMethod();
-      chain.limit = vi.fn().mockResolvedValue(rows);
-      chain.then = (resolve: (v: unknown) => void) => resolve(rows);
-      return chain;
-    });
+    const select = mockSequentialSelect(selectResults);
     const insertChain = mockInsertChain([{ id: 101 }]);
     const db = { select, insert: vi.fn().mockReturnValue(insertChain) };
     const mockQueue = {
@@ -405,6 +412,52 @@ describe("briefing-gen", () => {
         }),
       }),
       expect.anything(),
+    );
+  });
+
+  it("treats a zero close and its legacy -100% change as missing coverage", async () => {
+    const quoteRows = [
+      { metricKey: "cu_main_close", value: "0", changePct: null, observedAt: new Date("2026-05-20T07:30:00Z") },
+      { metricKey: "cu_change_pct", value: "-1", changePct: null, observedAt: new Date("2026-05-20T07:30:00Z") },
+      { metricKey: "lc_main_close", value: "98000", changePct: null, observedAt: new Date("2026-05-20T07:30:00Z") },
+      { metricKey: "lc_change_pct", value: "-0.02", changePct: null, observedAt: new Date("2026-05-20T07:30:00Z") },
+      { metricKey: "fx_usdcny", value: "7.2", changePct: null, observedAt: new Date("2026-05-20T07:30:00Z") },
+    ];
+    const select = mockSequentialSelect([
+      [],
+      [],
+      quoteRows,
+      quoteRows,
+      quoteRows,
+      [],
+      [],
+      [],
+      [],
+    ]);
+    const db = { select, insert: vi.fn().mockReturnValue(mockInsertChain([{ id: 102 }])) };
+    const mockQueue = {
+      getJobCounts: vi.fn().mockResolvedValue({ waiting: 0, active: 0, delayed: 0 }),
+    };
+
+    await runBriefingGen({
+      db: db as never,
+      now: new Date("2026-05-20T08:00:00Z"),
+      quotesFetchQueueOverride: mockQueue,
+      retryDelayMs: 0,
+    });
+
+    expect(coreDegradeFieldsFn).toHaveBeenCalledWith(
+      expect.objectContaining({ cu_main_close: null, cu_change_pct: null }),
+      expect.anything(),
+    );
+    expect(llmBuildBriefingInputFn).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ metricKey: "cu_main_close", value: null }),
+        expect.objectContaining({ metricKey: "cu_change_pct", value: null }),
+      ]),
+      expect.anything(),
+      undefined,
+      null,
     );
   });
 

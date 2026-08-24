@@ -80,7 +80,7 @@ describe("smmHqAdapter", () => {
     expect(samples.find((sample) => sample.metricKey === "lc_spot_smm")?.value).toBe(167250);
   });
 
-  it("falls back to the latest positive product detail when the visible value is hidden as zero", async () => {
+  it("ignores hidden top values and selects the latest valid detail across matching containers", async () => {
     const nextData = {
       props: {
         pageProps: {
@@ -89,17 +89,34 @@ describe("smmHqAdapter", () => {
               {
                 product_id: "201102250059",
                 product_name: "电池级碳酸锂价格",
-                average: 0,
+                average: 999999,
                 renew_date: "2026-08-24",
                 hide_data: true,
+                price_detail: [
+                  { product_id: "201102250059", average: 152250, renew_date: "2026-08-21" },
+                  { product_id: "other", average: 888888, renew_date: "2026-08-24" },
+                ],
               },
               {
                 product_id: "201102250059",
                 product_name: "电池级碳酸锂",
                 price_detail: [
-                  { average: 152250, renew_date: "2026-08-21" },
-                  { average: 161623.5, renew_date: "2026-08-24" },
+                  { product_id: "201102250059", average: 777777, renew_date: "not-a-date" },
+                  { product_id: "201102250059", average: 666666, renew_date: "2026-08-25" },
+                  { product_id: "201102250059", average: 161623.5, renew_date: "2026-08-24" },
                 ],
+              },
+              {
+                product_id: "201102250059",
+                product_name: "电池级碳酸锂",
+                average: 160000,
+                renew_date: "2026-08-23",
+              },
+              {
+                product_id: "other",
+                product_name: "其他产品",
+                average: 555555,
+                renew_date: "2026-08-24",
               },
             ],
           },

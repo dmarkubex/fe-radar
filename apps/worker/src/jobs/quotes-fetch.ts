@@ -78,10 +78,10 @@ async function maybeUpsertDerivedChangePct(
   sample: QuoteSample,
 ): Promise<number> {
   const changeKey = CLOSE_TO_CHANGE_PCT[sample.metricKey];
-  if (!changeKey || sample.value == null || sample.value <= 0) return 0;
+  if (!changeKey || sample.value == null || !Number.isFinite(sample.value) || sample.value <= 0) return 0;
 
   const prevValue = await findPreviousCloseValue(sample.metricKey, sample.observedAt);
-  if (prevValue == null || prevValue <= 0) return 0;
+  if (prevValue == null || !Number.isFinite(prevValue) || prevValue <= 0) return 0;
 
   const pct = computePctChange(prevValue, sample.value);
   const derived: QuoteSample = {

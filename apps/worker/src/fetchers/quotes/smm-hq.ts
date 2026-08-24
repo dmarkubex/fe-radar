@@ -61,6 +61,22 @@ function parseShanghaiDate(date: unknown, time: unknown, fallback: Date): Date {
   return new Date(`${date}T${timePart}+08:00`);
 }
 
+function parseProductObservedAt(record: UnknownRecord): Date | null {
+  const date = record["renew_date"];
+  if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+
+  const [year, month, day] = date.split("-").map(Number);
+  const calendarCheck = new Date(Date.UTC(year!, month! - 1, day!));
+  if (
+    calendarCheck.getUTCFullYear() !== year
+    || calendarCheck.getUTCMonth() !== month! - 1
+    || calendarCheck.getUTCDate() !== day
+  ) return null;
+
+  const observedAt = parseShanghaiDate(date, record["renew_time"], new Date(Number.NaN));
+  return Number.isFinite(observedAt.getTime()) ? observedAt : null;
+}
+
 function extractNextData(html: string): unknown | null {
   const match = /<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/.exec(html);
   if (!match?.[1]) return null;
@@ -106,7 +122,11 @@ function positiveValue(record: UnknownRecord, field: string): number | null {
   return value !== null && value > 0 ? value : null;
 }
 
-function findProductRecord(datas: unknown, rule: SmmHqMetricRule): UnknownRecord | undefined {
+function findProductRecord(
+  datas: unknown,
+  rule: SmmHqMetricRule,
+  now: Date
+): UnknownRecord | undefined {
   const productNames = [rule.product_name, ...(rule.product_names ?? [])]
     .map(normalizeName)
     .filter(Boolean);
@@ -117,9 +137,27 @@ function findProductRecord(datas: unknown, rule: SmmHqMetricRule): UnknownRecord
       return productNames.some((name) => productName === name);
     });
   const valueField = rule.value_field ?? "average";
-  return matches.find((record) => positiveValue(record, valueField) !== null)
-    ?? matches.find((record) => Array.isArray(record["price_detail"]))
-    ?? matches[0];
+  const latest = (records: UnknownRecord[]): UnknownRecord | undefined => records
+    .map((record) => ({ record, observedAt: parseProductObservedAt(record) }))
+    .filter((candidate): candidate is { record: UnknownRecord; observedAt: Date } =>
+      candidate.observedAt !== null
+      && candidate.observedAt <= now
+      && positiveValue(candidate.record, valueField) !== null
+    )
+    .sort((a, b) => b.observedAt.getTime() - a.observedAt.getTime())[0]?.record;
+
+  const candidates = matches.filter((record) => record["hide_data"] !== true);
+  for (const parent of matches) {
+    if (!Array.isArray(parent["price_detail"])) continue;
+    for (const detail of parent["price_detail"]) {
+      if (!detail || typeof detail !== "object") continue;
+      const candidate = detail as UnknownRecord;
+      if (rule.product_id && candidate["product_id"] != null
+        && candidate["product_id"] !== rule.product_id) continue;
+      candidates.push({ ...parent, ...candidate });
+    }
+  }
+  return latest(candidates);
 }
 
 function findInstrumentRecord(datas: unknown, rule: SmmHqMetricRule): UnknownRecord | undefined {
@@ -144,32 +182,14 @@ function nullSamples(metricKeys: string[], observedAt: Date, rawText: string): Q
   return metricKeys.map((metricKey) => ({ metricKey, value: null, observedAt, rawText }));
 }
 
-function latestPositiveDetail(record: UnknownRecord, valueField: string, now: Date): UnknownRecord | null {
-  const details = record["price_detail"];
-  if (!Array.isArray(details)) return null;
-
-  let latest: { record: UnknownRecord; observedAt: Date } | null = null;
-  for (const detail of details) {
-    if (!detail || typeof detail !== "object") continue;
-    const candidate = detail as UnknownRecord;
-    if (positiveValue(candidate, valueField) === null) continue;
-    const observedAt = parseShanghaiDate(candidate["renew_date"], candidate["renew_time"], now);
-    if (observedAt > now || (latest && observedAt <= latest.observedAt)) continue;
-    latest = { record: candidate, observedAt };
-  }
-  return latest?.record ?? null;
-}
-
 function samplesFromRecord(rule: SmmHqMetricRule, record: UnknownRecord, now: Date): QuoteSample[] {
   const isInstrument = rule.kind === "instrument";
   const valueField = rule.value_field ?? (isInstrument ? "LastPrice" : "average");
-  const detail = isInstrument ? null : latestPositiveDetail(record, valueField, now);
-  const valueRecord = positiveValue(record, valueField) !== null ? record : detail ?? record;
-  const value = positiveValue(valueRecord, valueField);
+  const value = positiveValue(record, valueField);
   const observedAt = isInstrument
     ? parseShanghaiDate(record["TradingDay"] ?? record["ActionDay"], record["UpdateTime"], now)
-    : parseShanghaiDate(valueRecord["renew_date"], valueRecord["renew_time"], now);
-  const rawText = recordRawText(valueRecord);
+    : parseShanghaiDate(record["renew_date"], record["renew_time"], now);
+  const rawText = recordRawText(record);
   return metricKeysFor(rule).map((metricKey) => ({
     metricKey,
     value,
@@ -235,7 +255,7 @@ async function fetchSmmHq(
   for (const rule of rules) {
     const record = rule.kind === "instrument"
       ? findInstrumentRecord(datas, rule)
-      : findProductRecord(datas, rule);
+      : findProductRecord(datas, rule, now);
     if (!record) {
       samples.push(...nullSamples(metricKeysFor(rule), now, missRawText));
       continue;

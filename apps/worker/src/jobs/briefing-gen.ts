@@ -88,6 +88,11 @@ const POSITIVE_VALUE_METRICS = new Set([
   "fx_usdcny",
 ]);
 
+const CHANGE_TO_CLOSE_METRIC: Record<string, string> = {
+  cu_change_pct: "cu_main_close",
+  lc_change_pct: "lc_main_close",
+};
+
 // ─────────────────────────────────────────────────────────────
 // Result type
 // ─────────────────────────────────────────────────────────────
@@ -139,7 +144,7 @@ async function queryTodayQuotes(db: DbClient, todayStr: string): Promise<Quote[]
     .from(commodityQuotes)
     .where(sql`DATE(${commodityQuotes.observedAt} AT TIME ZONE 'Asia/Shanghai') = ${todayStr}::date`);
 
-  return rows.map((r) => {
+  const quotes = rows.map((r) => {
     const parsed = r.value !== null ? Number(r.value) : null;
     const value = parsed !== null && Number.isFinite(parsed)
       && (!POSITIVE_VALUE_METRICS.has(r.metricKey) || parsed > 0)
@@ -151,6 +156,17 @@ async function queryTodayQuotes(db: DbClient, todayStr: string): Promise<Quote[]
       changePct: r.changePct !== null ? Number(r.changePct) : null,
       observedAt: r.observedAt,
     };
+  });
+
+  const validCloseKeys = new Set(
+    quotes.filter((quote) => quote.value !== null).map((quote) => quote.metricKey)
+  );
+  return quotes.map((quote) => {
+    const closeKey = CHANGE_TO_CLOSE_METRIC[quote.metricKey];
+    if (closeKey && ((quote.value !== null && quote.value <= -1) || !validCloseKeys.has(closeKey))) {
+      return { ...quote, value: null };
+    }
+    return quote;
   });
 }
 

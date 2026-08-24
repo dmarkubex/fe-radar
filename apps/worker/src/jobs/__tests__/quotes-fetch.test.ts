@@ -410,12 +410,12 @@ describe("runQuotesFetch", () => {
     expect(sqlArg).not.toContain("cu_change_pct");
   });
 
-  it("T-REV-02: zero prices never produce a derived change_pct row", async () => {
-    makeDbWithHolidays([], [[{ value: "0" }]]);
+  it("T-REV-02: a positive prior close and zero current close never produce change_pct", async () => {
+    makeDbWithHolidays([], [[{ value: "78000" }]]);
     mockIsBusinessDay.mockReturnValue(true);
     mockListSources.mockResolvedValue([makeSource()]);
     mockFetchQuotes.mockResolvedValue([
-      makeSample({ metricKey: "cu_main_close", value: 500 }),
+      makeSample({ metricKey: "cu_main_close", value: 0 }),
     ]);
 
     const result = await runQuotesFetch(1);
