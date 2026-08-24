@@ -141,6 +141,7 @@ services:
       - COPILOT_INTERNAL_SECRET_FILE=/run/secrets/copilot_internal_secret
       - SERVICE_TOKEN_WORKER_FILE=/run/secrets/service_token_worker
       - WORKER_INTERNAL_URL=http://worker:8071
+      - COPILOT_LLM_CONTEXT_SIZE=${COPILOT_LLM_CONTEXT_SIZE:-} # T-CH-01: 空/未设→默认 32768（仅 copilot 消费）
       - QWEN_BASE_URL=${QWEN_BASE_URL:?set QWEN_BASE_URL in Portainer stack environment}
       - QWEN_EMBEDDING_BASE_URL=${QWEN_EMBEDDING_BASE_URL:-}
       - QWEN_EMBEDDING_MODEL=${QWEN_EMBEDDING_MODEL:-qwen-embedding-1024}
