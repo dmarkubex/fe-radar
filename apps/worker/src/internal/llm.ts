@@ -19,7 +19,7 @@
  */
 import type http from "node:http";
 import { createLogger, LlmError } from "@fe-radar/shared";
-import { withScrubber } from "@fe-radar/llm";
+import { withScrubber, LLM_HARD_TIMEOUT_CODE } from "@fe-radar/llm";
 import type {
   ChatMessage,
   ChatToolDef,
@@ -31,15 +31,13 @@ const logger = createLogger({ service: "copilot-llm" });
 
 /** T-CH-01: 单次生成总时长硬上限默认 90s（与 copilot `TURN_TIMEOUT_SEC=120` 是两道独立防线）。 */
 const DEFAULT_LLM_STREAM_MAX_DURATION_MS = 90_000;
-/** T-CH-01: 跨进程统一的错误码字符串，禁止 Python / worker / 客户端各处自行命名。 */
-const HARD_TIMEOUT_CODE = "COPILOT_LLM_HARD_TIMEOUT";
+// T-CH-01: 硬上限错误码 `LLM_HARD_TIMEOUT_CODE` 从 @fe-radar/llm 导入（单一来源，
+// 与 SCRUBBER_BLOCKED 等通道错误码同源），Python 侧用同一字面量解析。
 
 /** 仅供测试注入：worker 单测可设置更小的硬上限以缩短跑测时间。生产路径仍读 env / 默认值。 */
 let llmStreamMaxDurationMsOverride: number | null = null;
 export function setLlmStreamMaxDurationMs(ms: number): void {
-  if (ms > 0 && Number.isFinite(ms)) {
-    llmStreamMaxDurationMsOverride = ms;
-  }
+  llmStreamMaxDurationMsOverride = ms;
 }
 function readHardDeadlineMs(): number {
   if (llmStreamMaxDurationMsOverride !== null)
@@ -107,7 +105,7 @@ export async function runLlmRequest(
   // 任意终点（正常 / fail / 客户端断连）必须 clearTimeout，防止悬挂 timer handle。
   const hardTimer = setTimeout(() => {
     ac.abort();
-    fail(500, HARD_TIMEOUT_CODE);
+    fail(500, LLM_HARD_TIMEOUT_CODE);
   }, readHardDeadlineMs());
 
   try {

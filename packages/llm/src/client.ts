@@ -18,6 +18,14 @@ import type {
 
 const logger = pino({ name: "fe-radar-llm" });
 
+/**
+ * T-CH-01: worker `/internal/llm` 单次生成总时长硬上限错误码 —— 单一来源。
+ * worker `internal/llm.ts` 引用此常量写错误包络（首字节前 JSON / 已流出后 SSE 两种形态）；
+ * copilot Python 侧用同一字面量解析并透传给客户端 SSE error 帧。
+ * 跨语言契约由 worker / copilot 两侧测试锁定，禁止任一侧自行改名。
+ */
+export const LLM_HARD_TIMEOUT_CODE = "COPILOT_LLM_HARD_TIMEOUT";
+
 /** Strip optional markdown code fences (e.g. ```json … ```) before JSON.parse. */
 export function stripMarkdownJsonFence(content: string): string {
   const trimmed = content.trim();

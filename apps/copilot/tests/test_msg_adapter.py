@@ -161,3 +161,57 @@ async def test_gateway_error_frame_raises() -> None:
             pass
     await client.aclose()
     assert exc.value.code == "SCRUBBER_BLOCKED"
+
+
+# ---------------------------------------------------------------------------
+# T-CH-01 验收标准 5：COPILOT_LLM_HARD_TIMEOUT 两种传输形态的解析
+# （错误码字符串与 worker `internal/llm.ts` / `packages/llm` 的
+#  LLM_HARD_TIMEOUT_CODE 三处同一字面量，禁止任一侧自行命名）
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_gateway_parses_hard_timeout_json_envelope() -> None:
+    """首字节前超限：worker 返回非 200 JSON 错误包络 → 解析出独立错误码。"""
+    transport = httpx.MockTransport(
+        lambda _req: httpx.Response(
+            500,
+            json={"error": {"code": "COPILOT_LLM_HARD_TIMEOUT", "message": "hard timeout"}},
+        )
+    )
+    client = httpx.AsyncClient(transport=transport)
+    model = WorkerGatewayModel(
+        worker_base_url="http://worker:8071",
+        service_token="tok",
+        client=client,
+    )
+    stream = await model._call_api("m", [SystemMsg(name="system", content="s")])
+    with pytest.raises(WorkerGatewayError) as exc:
+        async for _ in stream:
+            pass
+    await client.aclose()
+    assert exc.value.code == "COPILOT_LLM_HARD_TIMEOUT"
+    assert exc.value.code not in ("COPILOT_UPSTREAM", "COPILOT_INTERNAL")
+
+
+@pytest.mark.asyncio
+async def test_gateway_parses_hard_timeout_sse_error_frame() -> None:
+    """已流出部分内容后超限：worker 写 SSE error 帧 → 同样解析出独立错误码。"""
+    body = _sse_bytes(
+        {"type": "token", "data": "部分"},
+        {"type": "error", "data": {"code": "COPILOT_LLM_HARD_TIMEOUT"}},
+    )
+    transport = httpx.MockTransport(lambda _req: httpx.Response(200, content=body))
+    client = httpx.AsyncClient(transport=transport)
+    model = WorkerGatewayModel(
+        worker_base_url="http://worker:8071",
+        service_token="tok",
+        client=client,
+    )
+    stream = await model._call_api("m", [SystemMsg(name="system", content="s")])
+    with pytest.raises(WorkerGatewayError) as exc:
+        async for _ in stream:
+            pass
+    await client.aclose()
+    assert exc.value.code == "COPILOT_LLM_HARD_TIMEOUT"
+    assert exc.value.code not in ("COPILOT_UPSTREAM", "COPILOT_INTERNAL")

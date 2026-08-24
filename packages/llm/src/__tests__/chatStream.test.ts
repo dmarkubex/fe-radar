@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import { describe, expect, it, vi, type Mock } from "vitest";
 import { LlmError } from "@fe-radar/shared";
-import { OpenAiCompatibleClient } from "../client";
+import { LLM_HARD_TIMEOUT_CODE, OpenAiCompatibleClient } from "../client";
 import { withScrubber } from "../middleware/scrubber";
 import type { ChatStreamDelta, ChatStreamRequest, LlmClient } from "../types";
 
@@ -361,6 +361,13 @@ describe("OpenAiCompatibleClient chatStream", () => {
     expect(fixture.tools).toHaveLength(1);
     const tool = (fixture.tools as Array<{ function: { name: string } }>)[0];
     expect(tool?.function.name).toBe("generate_structured_output");
+  });
+
+  it("LLM_HARD_TIMEOUT_CODE is pinned to the cross-layer literal (T-CH-01)", () => {
+    // 单一来源漂移锁：worker internal/llm.ts 引用此常量写错误包络，
+    // copilot Python 侧（gateway_client.py / chat.py / 测试）使用同一字面量解析与透传。
+    // 任一侧改名 → worker 行为测试或 copilot 解析测试随之失败。
+    expect(LLM_HARD_TIMEOUT_CODE).toBe("COPILOT_LLM_HARD_TIMEOUT");
   });
 });
 

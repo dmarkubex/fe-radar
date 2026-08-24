@@ -171,4 +171,33 @@ def test_cancel_during_call_api_aborts_no_assistant(
     assert not any(ev["type"] == "done" for ev in events)
     assert conn.assistant_inserts == []
     assert any(row.get("aborted") is True and row.get("tool_name") is None for row in conn.audit_inserts)
+
+
+def test_hard_timeout_error_code_maps_verbatim_to_sse_frame(
+    client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """T-CH-01 验收标准 5：WorkerGatewayError.code 原样写进最终 SSE error 帧
+    （COPILOT_LLM_HARD_TIMEOUT，与 worker / packages/llm 同一字面量）。"""
+    conn = ChatFakeConn()
+
+    class HardTimeoutGateway(WorkerGatewayModel):
+        def __init__(self) -> None:
+            super().__init__(worker_base_url="http://worker:8071", service_token="t")
+
+        async def _call_api(self, model_name, messages, tools=None, tool_choice=None, **kwargs):
+            from llm.gateway_client import WorkerGatewayError as _E
+
+            async def _stream():
+                yield ChatResponse(content=[TextBlock(text="x")], is_last=False)
+                raise _E("COPILOT_LLM_HARD_TIMEOUT")
+
+            return _stream()
+
+    monkeypatch.setattr("chat.build_model", lambda *_a, **_k: HardTimeoutGateway())
+    response = _chat(client, conn, {"message": "铜价"})
+    assert response.status_code == 200
+    events = _parse_sse(response.text)
+    errors = [ev for ev in events if ev["type"] == "error"]
+    assert errors and errors[0]["data"]["code"] == "COPILOT_LLM_HARD_TIMEOUT"
+    assert not any(ev["type"] == "done" for ev in events)
     assert conn.turn_locked_at is None

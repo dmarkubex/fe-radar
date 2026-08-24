@@ -25,9 +25,10 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("@fe-radar/llm", () => ({
-  withScrubber: mocks.withScrubber
+  withScrubber: mocks.withScrubber,
+  // 漂移锁：此处字面量与断言里的一致——packages/llm 改名会打红本测试
+  LLM_HARD_TIMEOUT_CODE: "COPILOT_LLM_HARD_TIMEOUT"
 }));
-
 vi.mock("../../handlers/context", () => ({
   handlerContext: { deepSeek: mocks.deepSeek },
   loadProjectCodes: mocks.loadProjectCodes,
