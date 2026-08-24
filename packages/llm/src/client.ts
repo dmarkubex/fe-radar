@@ -21,7 +21,9 @@ const logger = pino({ name: "fe-radar-llm" });
 /** Strip optional markdown code fences (e.g. ```json … ```) before JSON.parse. */
 export function stripMarkdownJsonFence(content: string): string {
   const trimmed = content.trim();
-  const closedFence = trimmed.match(/^```(?:json)?\s*\r?\n?([\s\S]*?)\r?\n?```$/i);
+  const closedFence = trimmed.match(
+    /^```(?:json)?\s*\r?\n?([\s\S]*?)\r?\n?```$/i
+  );
   if (closedFence?.[1]) {
     return closedFence[1].trim();
   }
@@ -62,10 +64,14 @@ export class OpenAiCompatibleClient implements LlmClient {
   private readonly client: OpenAI;
   private readonly embeddingClient: OpenAI;
   /** auto 模式下探测到 json_schema 不可用后，后续请求跳过探测 */
-  private jsonSchemaCapability: "unknown" | "supported" | "unsupported" = "unknown";
+  private jsonSchemaCapability: "unknown" | "supported" | "unsupported" =
+    "unknown";
 
   public constructor(private readonly options: OpenAiCompatibleOptions) {
-    this.client = new OpenAI({ apiKey: options.apiKey, baseURL: options.baseURL });
+    this.client = new OpenAI({
+      apiKey: options.apiKey,
+      baseURL: options.baseURL
+    });
     this.embeddingClient = new OpenAI({
       apiKey: options.embeddingApiKey ?? options.apiKey,
       baseURL: options.embeddingBaseURL ?? options.baseURL
@@ -84,43 +90,74 @@ export class OpenAiCompatibleClient implements LlmClient {
           throw new LlmError("LLM_EMPTY", "LLM returned empty content");
         }
         const value = JSON.parse(stripMarkdownJsonFence(content)) as T;
-        const usage = this.usage(response.usage?.prompt_tokens ?? 0, response.usage?.completion_tokens ?? 0);
-        logger.info({ provider: this.options.provider, tokens: usage, latencyMs: Date.now() - startedAt }, "llm chat_json complete");
+        const usage = this.usage(
+          response.usage?.prompt_tokens ?? 0,
+          response.usage?.completion_tokens ?? 0
+        );
+        logger.info(
+          {
+            provider: this.options.provider,
+            tokens: usage,
+            latencyMs: Date.now() - startedAt
+          },
+          "llm chat_json complete"
+        );
         return { value, usage, provider: this.options.provider };
       } catch (error) {
         lastError = error;
         if (attempt < 2) {
-          logger.warn({ provider: this.options.provider, attempt: attempt + 1, error }, "llm chat_json attempt failed, retrying");
+          logger.warn(
+            { provider: this.options.provider, attempt: attempt + 1, error },
+            "llm chat_json attempt failed, retrying"
+          );
         }
       }
     }
 
-    throw new LlmError("LLM_JSON_INVALID", "LLM JSON schema request failed after retries", { cause: lastError });
+    throw new LlmError(
+      "LLM_JSON_INVALID",
+      "LLM JSON schema request failed after retries",
+      { cause: lastError }
+    );
   }
 
   /**
    * 流式对话（tools + stream）。每次调用独立 timeout 60s、0 重试、透传 AbortSignal；
    * 不改构造器默认（chatJson 的应用层 3 次重试保持不变）。
    */
-  public async *chatStream(request: ChatStreamRequest): AsyncIterable<ChatStreamDelta> {
+  public async *chatStream(
+    request: ChatStreamRequest
+  ): AsyncIterable<ChatStreamDelta> {
     const stream = await this.client.chat.completions.create(
       {
         model: this.options.model,
-        temperature: request.temperature ?? this.options.defaultTemperature ?? 0.2,
+        temperature:
+          request.temperature ?? this.options.defaultTemperature ?? 0.2,
         messages: toOpenAiChatMessages(request.messages),
         tools: request.tools,
+        // agentscope 压缩触发的合成工具选择（`ToolChoice(mode="<tool_name>")`）；
+        // 仅在 `tool_choice` 已显式传入时透传，缺省沿用 OpenAI 默认（auto），不破坏既有调用
+        ...(request.tool_choice !== undefined
+          ? { tool_choice: request.tool_choice }
+          : {}),
         stream: true,
         stream_options: { include_usage: true }
       },
       { timeout: 60_000, maxRetries: 0, signal: request.signal }
     );
 
-    const pendingToolCalls = new Map<number, { id: string; name: string; arguments: string }>();
+    const pendingToolCalls = new Map<
+      number,
+      { id: string; name: string; arguments: string }
+    >();
     let usage: LlmUsage | undefined;
 
     for await (const chunk of stream) {
       if (chunk.usage) {
-        usage = this.usage(chunk.usage.prompt_tokens ?? 0, chunk.usage.completion_tokens ?? 0);
+        usage = this.usage(
+          chunk.usage.prompt_tokens ?? 0,
+          chunk.usage.completion_tokens ?? 0
+        );
       }
       const choice = chunk.choices[0];
       if (!choice) {
@@ -130,7 +167,11 @@ export class OpenAiCompatibleClient implements LlmClient {
         yield { type: "token", data: choice.delta.content };
       }
       for (const toolCall of choice.delta?.tool_calls ?? []) {
-        const pending = pendingToolCalls.get(toolCall.index) ?? { id: "", name: "", arguments: "" };
+        const pending = pendingToolCalls.get(toolCall.index) ?? {
+          id: "",
+          name: "",
+          arguments: ""
+        };
         if (toolCall.id) {
           pending.id = toolCall.id;
         }
@@ -158,11 +199,15 @@ export class OpenAiCompatibleClient implements LlmClient {
   private async createChatJsonCompletion(request: JsonSchemaRequest) {
     const format = this.resolveJsonResponseFormat();
     if (format === "json_object") {
-      return this.client.chat.completions.create(this.chatJsonParams(request, "json_object"));
+      return this.client.chat.completions.create(
+        this.chatJsonParams(request, "json_object")
+      );
     }
 
     try {
-      const response = await this.client.chat.completions.create(this.chatJsonParams(request, "json_schema"));
+      const response = await this.client.chat.completions.create(
+        this.chatJsonParams(request, "json_schema")
+      );
       this.jsonSchemaCapability = "supported";
       return response;
     } catch (error) {
@@ -175,8 +220,13 @@ export class OpenAiCompatibleClient implements LlmClient {
       }
 
       this.jsonSchemaCapability = "unsupported";
-      logger.info({ provider: this.options.provider }, "llm json_schema unavailable, using json_object");
-      return this.client.chat.completions.create(this.chatJsonParams(request, "json_object"));
+      logger.info(
+        { provider: this.options.provider },
+        "llm json_schema unavailable, using json_object"
+      );
+      return this.client.chat.completions.create(
+        this.chatJsonParams(request, "json_object")
+      );
     }
   }
 
@@ -193,7 +243,10 @@ export class OpenAiCompatibleClient implements LlmClient {
     return "json_schema";
   }
 
-  private chatJsonParams(request: JsonSchemaRequest, responseFormat: "json_schema" | "json_object"): ChatCompletionCreateParamsNonStreaming {
+  private chatJsonParams(
+    request: JsonSchemaRequest,
+    responseFormat: "json_schema" | "json_object"
+  ): ChatCompletionCreateParamsNonStreaming {
     const system =
       responseFormat === "json_schema"
         ? request.system
@@ -201,7 +254,8 @@ export class OpenAiCompatibleClient implements LlmClient {
 
     return {
       model: this.options.model,
-      temperature: request.temperature ?? this.options.defaultTemperature ?? 0.2,
+      temperature:
+        request.temperature ?? this.options.defaultTemperature ?? 0.2,
       messages: [
         { role: "system", content: system },
         { role: "user", content: request.user }
@@ -230,10 +284,15 @@ export class OpenAiCompatibleClient implements LlmClient {
       messages.push(nested);
     }
     const text = messages.join(" ");
-    return text.includes("response_format") && (text.includes("unavailable") || text.includes("unsupported"));
+    return (
+      text.includes("response_format") &&
+      (text.includes("unavailable") || text.includes("unsupported"))
+    );
   }
 
-  public async embedding(request: EmbeddingRequest): Promise<LlmResult<number[]>> {
+  public async embedding(
+    request: EmbeddingRequest
+  ): Promise<LlmResult<number[]>> {
     const startedAt = Date.now();
     const response = await this.embeddingClient.embeddings.create({
       model: this.options.embeddingModel ?? this.options.model,
@@ -245,7 +304,14 @@ export class OpenAiCompatibleClient implements LlmClient {
       throw new LlmError("LLM_EMBEDDING_EMPTY", "LLM returned empty embedding");
     }
     const usage = this.usage(response.usage?.prompt_tokens ?? 0, 0);
-    logger.info({ provider: this.options.provider, tokens: usage, latencyMs: Date.now() - startedAt }, "llm embedding complete");
+    logger.info(
+      {
+        provider: this.options.provider,
+        tokens: usage,
+        latencyMs: Date.now() - startedAt
+      },
+      "llm embedding complete"
+    );
     return { value: embedding, usage, provider: this.options.provider };
   }
 
@@ -262,10 +328,16 @@ export class OpenAiCompatibleClient implements LlmClient {
   }
 }
 
-function toOpenAiChatMessages(messages: ChatMessage[]): ChatCompletionMessageParam[] {
+function toOpenAiChatMessages(
+  messages: ChatMessage[]
+): ChatCompletionMessageParam[] {
   return messages.map((message) => {
     if (message.role === "tool") {
-      return { role: "tool", content: message.content, tool_call_id: message.tool_call_id ?? "" };
+      return {
+        role: "tool",
+        content: message.content,
+        tool_call_id: message.tool_call_id ?? ""
+      };
     }
     if (message.role === "assistant" && message.tool_calls) {
       return {
@@ -282,7 +354,9 @@ function toOpenAiChatMessages(messages: ChatMessage[]): ChatCompletionMessagePar
   });
 }
 
-function* flushToolCalls(pending: Map<number, { id: string; name: string; arguments: string }>): Generator<ChatStreamDelta> {
+function* flushToolCalls(
+  pending: Map<number, { id: string; name: string; arguments: string }>
+): Generator<ChatStreamDelta> {
   for (const index of [...pending.keys()].sort((a, b) => a - b)) {
     const call = pending.get(index);
     if (call) {

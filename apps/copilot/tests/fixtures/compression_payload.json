@@ -1,0 +1,39 @@
+{
+  "_comment": [
+    "跨语言契约 fixture（Python copilot 与 TypeScript worker 共用）。",
+    "表达一次 agentscope 上下文压缩触发的 LLM 请求最终出站 payload：",
+    "恰好 1 个工具 (name='generate_structured_output') + tool_choice=NamedFunction。",
+    "Python 侧（test_compression_request_emits_tool_choice_and_synthetic_tool）读取本 fixture，",
+    "断言 WorkerGatewayModel._call_api 经 MockTransport 发出的 POST body 与本 fixture 形状一致；",
+    "TS 侧（llm.test.ts 契约断言）读取本 fixture，断言 validateLlmBody 接受并转发。"
+  ],
+  "messages": [
+    { "role": "system", "content": "你是一个产业情报雷达 copilot。" },
+    {
+      "role": "user",
+      "content": "<system-reminder>Now you **MUST** call the tool named 'generate_structured_output' to generate the structured output required by the user. DON'T do anything else.</system-reminder>\n<对话历史>\n...此处略...26k token 历史...\n</对话历史>"
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "generate_structured_output",
+        "description": "Call this function to generate structured output required by the user.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "summary": { "type": "string" },
+            "key_points": { "type": "array", "items": { "type": "string" } }
+          },
+          "required": ["summary", "key_points"]
+        }
+      }
+    }
+  ],
+  "tool_choice": {
+    "type": "function",
+    "function": { "name": "generate_structured_output" }
+  },
+  "temperature": 0.2
+}

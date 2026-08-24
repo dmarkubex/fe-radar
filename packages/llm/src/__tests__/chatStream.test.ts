@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, it, vi, type Mock } from "vitest";
 import { LlmError } from "@fe-radar/shared";
 import { OpenAiCompatibleClient } from "../client";
@@ -45,7 +48,9 @@ function injectFakeCreate(create: Mock): OpenAiCompatibleClient {
   return client;
 }
 
-async function collect(deltas: AsyncIterable<ChatStreamDelta>): Promise<ChatStreamDelta[]> {
+async function collect(
+  deltas: AsyncIterable<ChatStreamDelta>
+): Promise<ChatStreamDelta[]> {
   const out: ChatStreamDelta[] = [];
   for await (const delta of deltas) {
     out.push(delta);
@@ -65,28 +70,34 @@ describe("OpenAiCompatibleClient chatStream", () => {
     );
     const client = injectFakeCreate(create);
 
-    const deltas = await collect(client.chatStream({ messages: [{ role: "user", content: "hi" }] }));
+    const deltas = await collect(
+      client.chatStream({ messages: [{ role: "user", content: "hi" }] })
+    );
 
     expect(deltas).toEqual([
       { type: "token", data: "你" },
       { type: "token", data: "好" },
-      { type: "usage", data: { inputTokens: 3, outputTokens: 2, totalTokens: 5, costCny: 0 } },
+      {
+        type: "usage",
+        data: { inputTokens: 3, outputTokens: 2, totalTokens: 5, costCny: 0 }
+      },
       { type: "done" }
     ]);
   });
 
   it("emits done even when the stream carries no usage", async () => {
     const create: Mock = vi.fn(() =>
-      streamOf([{ choices: [{ delta: { content: "ok" }, finish_reason: "stop" }] }])
+      streamOf([
+        { choices: [{ delta: { content: "ok" }, finish_reason: "stop" }] }
+      ])
     );
     const client = injectFakeCreate(create);
 
-    const deltas = await collect(client.chatStream({ messages: [{ role: "user", content: "hi" }] }));
+    const deltas = await collect(
+      client.chatStream({ messages: [{ role: "user", content: "hi" }] })
+    );
 
-    expect(deltas).toEqual([
-      { type: "token", data: "ok" },
-      { type: "done" }
-    ]);
+    expect(deltas).toEqual([{ type: "token", data: "ok" }, { type: "done" }]);
   });
 
   it("assembles tool_call fragments by index into complete frames on finish_reason=tool_calls", async () => {
@@ -97,8 +108,16 @@ describe("OpenAiCompatibleClient chatStream", () => {
             {
               delta: {
                 tool_calls: [
-                  { index: 0, id: "call_1", function: { name: "get_quotes", arguments: '{"co' } },
-                  { index: 1, id: "call_2", function: { name: "get_item", arguments: "{" } }
+                  {
+                    index: 0,
+                    id: "call_1",
+                    function: { name: "get_quotes", arguments: '{"co' }
+                  },
+                  {
+                    index: 1,
+                    id: "call_2",
+                    function: { name: "get_item", arguments: "{" }
+                  }
                 ]
               }
             }
@@ -122,7 +141,9 @@ describe("OpenAiCompatibleClient chatStream", () => {
     );
     const client = injectFakeCreate(create);
 
-    const deltas = await collect(client.chatStream({ messages: [{ role: "user", content: "查" }] }));
+    const deltas = await collect(
+      client.chatStream({ messages: [{ role: "user", content: "查" }] })
+    );
 
     expect(deltas).toEqual([
       {
@@ -133,7 +154,10 @@ describe("OpenAiCompatibleClient chatStream", () => {
         type: "tool_call",
         data: { id: "call_2", name: "get_item", arguments: '{"id":7}' }
       },
-      { type: "usage", data: { inputTokens: 10, outputTokens: 5, totalTokens: 15, costCny: 0 } },
+      {
+        type: "usage",
+        data: { inputTokens: 10, outputTokens: 5, totalTokens: 15, costCny: 0 }
+      },
       { type: "done" }
     ]);
   });
@@ -143,31 +167,52 @@ describe("OpenAiCompatibleClient chatStream", () => {
       streamOf([
         {
           choices: [
-            { delta: { tool_calls: [{ index: 0, id: "call_1", function: { name: "get_quotes", arguments: "{}" } }] } }
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_1",
+                    function: { name: "get_quotes", arguments: "{}" }
+                  }
+                ]
+              }
+            }
           ]
         }
       ])
     );
     const client = injectFakeCreate(create);
 
-    const deltas = await collect(client.chatStream({ messages: [{ role: "user", content: "查" }] }));
+    const deltas = await collect(
+      client.chatStream({ messages: [{ role: "user", content: "查" }] })
+    );
 
     expect(deltas).toEqual([
-      { type: "tool_call", data: { id: "call_1", name: "get_quotes", arguments: "{}" } },
+      {
+        type: "tool_call",
+        data: { id: "call_1", name: "get_quotes", arguments: "{}" }
+      },
       { type: "done" }
     ]);
   });
 
   it("creates with stream:true, tools, 60s timeout, 0 retries and forwarded signal; maps tool roles", async () => {
     const create: Mock = vi.fn(() =>
-      streamOf([{ choices: [{ delta: { content: "ok" }, finish_reason: "stop" }] }])
+      streamOf([
+        { choices: [{ delta: { content: "ok" }, finish_reason: "stop" }] }
+      ])
     );
     const client = injectFakeCreate(create);
     const controller = new AbortController();
     const tools = [
       {
         type: "function" as const,
-        function: { name: "get_quotes", description: "查行情", parameters: { type: "object" } }
+        function: {
+          name: "get_quotes",
+          description: "查行情",
+          parameters: { type: "object" }
+        }
       }
     ];
 
@@ -175,7 +220,11 @@ describe("OpenAiCompatibleClient chatStream", () => {
       client.chatStream({
         messages: [
           { role: "user", content: "查铜价" },
-          { role: "assistant", content: "", tool_calls: [{ id: "call_1", name: "get_quotes", arguments: "{}" }] },
+          {
+            role: "assistant",
+            content: "",
+            tool_calls: [{ id: "call_1", name: "get_quotes", arguments: "{}" }]
+          },
           { role: "tool", content: "CU 70000", tool_call_id: "call_1" }
         ],
         tools,
@@ -185,7 +234,10 @@ describe("OpenAiCompatibleClient chatStream", () => {
     );
 
     expect(create).toHaveBeenCalledTimes(1);
-    const createCall = create.mock.calls[0] as unknown as [Record<string, unknown>, FakeCreateOptions];
+    const createCall = create.mock.calls[0] as unknown as [
+      Record<string, unknown>,
+      FakeCreateOptions
+    ];
     const [params, options] = createCall;
     expect(params).toMatchObject({
       model: "test-model",
@@ -194,27 +246,136 @@ describe("OpenAiCompatibleClient chatStream", () => {
       stream_options: { include_usage: true },
       tools
     });
-    expect(options).toEqual({ timeout: 60_000, maxRetries: 0, signal: controller.signal });
+    expect(options).toEqual({
+      timeout: 60_000,
+      maxRetries: 0,
+      signal: controller.signal
+    });
     expect(params.messages).toEqual([
       { role: "user", content: "查铜价" },
       {
         role: "assistant",
         content: "",
         tool_calls: [
-          { id: "call_1", type: "function", function: { name: "get_quotes", arguments: "{}" } }
+          {
+            id: "call_1",
+            type: "function",
+            function: { name: "get_quotes", arguments: "{}" }
+          }
         ]
       },
       { role: "tool", content: "CU 70000", tool_call_id: "call_1" }
     ]);
   });
+
+  it("forwards request.tool_choice to create() when provided (copilot compression)", async () => {
+    const create: Mock = vi.fn(() =>
+      streamOf([
+        { choices: [{ delta: { content: "ok" }, finish_reason: "stop" }] }
+      ])
+    );
+    const client = injectFakeCreate(create);
+    await collect(
+      client.chatStream({
+        messages: [{ role: "user", content: "compress this" }],
+        tools: [
+          {
+            type: "function" as const,
+            function: {
+              name: "generate_structured_output",
+              description: "comp",
+              parameters: { type: "object" }
+            }
+          }
+        ],
+        tool_choice: {
+          type: "function",
+          function: { name: "generate_structured_output" }
+        },
+        temperature: 0.2
+      })
+    );
+    const params = (
+      create.mock.calls[0] as unknown as [Record<string, unknown>]
+    )[0];
+    expect(params.tool_choice).toEqual({
+      type: "function",
+      function: { name: "generate_structured_output" }
+    });
+    expect(params.tools).toEqual([
+      {
+        type: "function",
+        function: {
+          name: "generate_structured_output",
+          description: "comp",
+          parameters: { type: "object" }
+        }
+      }
+    ]);
+  });
+
+  it("omits tool_choice when caller does not set it (default behavior preserved)", async () => {
+    const create: Mock = vi.fn(() =>
+      streamOf([
+        { choices: [{ delta: { content: "ok" }, finish_reason: "stop" }] }
+      ])
+    );
+    const client = injectFakeCreate(create);
+    await collect(
+      client.chatStream({
+        messages: [{ role: "user", content: "no tool_choice" }],
+        tools: [
+          {
+            type: "function" as const,
+            function: {
+              name: "get_quotes",
+              description: "q",
+              parameters: { type: "object" }
+            }
+          }
+        ],
+        temperature: 0.2
+      })
+    );
+    const params = (
+      create.mock.calls[0] as unknown as [Record<string, unknown>]
+    )[0];
+    expect("tool_choice" in params).toBe(false);
+  });
+
+  it("contract fixture compression_payload.json's tool_choice is wire-compatible with create() payload shape", () => {
+    // shared with apps/copilot/tests/fixtures/compression_payload.json — Python side asserts the same fixture's tool_choice/ tools shape.
+    const fixturePath = resolve(
+      __dirname,
+      "../../../../apps/copilot/tests/fixtures/compression_payload.json"
+    );
+    const fixture = JSON.parse(readFileSync(fixturePath, "utf-8")) as {
+      tool_choice: unknown;
+      tools: unknown;
+    };
+    expect(fixture.tool_choice).toEqual({
+      type: "function",
+      function: { name: "generate_structured_output" }
+    });
+    expect(Array.isArray(fixture.tools)).toBe(true);
+    expect(fixture.tools).toHaveLength(1);
+    const tool = (fixture.tools as Array<{ function: { name: string } }>)[0];
+    expect(tool.function.name).toBe("generate_structured_output");
+  });
 });
 
 describe("ScrubbedLlmClient chatStream", () => {
   it("scrubs every message content (incl. tool role) and forwards signal untouched", async () => {
-    const chatStream = vi.fn(async function* (_request: ChatStreamRequest): AsyncIterable<ChatStreamDelta> {
+    const chatStream = vi.fn(async function* (
+      _request: ChatStreamRequest
+    ): AsyncIterable<ChatStreamDelta> {
       yield { type: "done" };
     });
-    const inner = { chatJson: vi.fn(), embedding: vi.fn(), chatStream } as unknown as LlmClient;
+    const inner = {
+      chatJson: vi.fn(),
+      embedding: vi.fn(),
+      chatStream
+    } as unknown as LlmClient;
     const client = withScrubber(inner);
     const signal = new AbortController().signal;
 
@@ -236,15 +397,27 @@ describe("ScrubbedLlmClient chatStream", () => {
     expect(JSON.stringify(forwarded)).not.toContain("13912345678");
     expect(JSON.stringify(forwarded)).toContain("[REDACTED:PHONE:");
     expect(forwarded?.messages[0]).toEqual({ role: "system", content: "sys" });
-    expect(forwarded?.messages[2]).toEqual({ role: "assistant", content: "查一下" });
-    expect(forwarded?.messages[3]).toMatchObject({ role: "tool", tool_call_id: "t1" });
-    expect(JSON.stringify(forwarded?.messages[3])).toContain("[REDACTED:PHONE:");
+    expect(forwarded?.messages[2]).toEqual({
+      role: "assistant",
+      content: "查一下"
+    });
+    expect(forwarded?.messages[3]).toMatchObject({
+      role: "tool",
+      tool_call_id: "t1"
+    });
+    expect(JSON.stringify(forwarded?.messages[3])).toContain(
+      "[REDACTED:PHONE:"
+    );
     expect(forwarded?.signal).toBe(signal);
   });
 
   it("throws two-arg LlmError and never calls inner when any message (tool role) blocks", async () => {
     const chatStream = vi.fn();
-    const inner = { chatJson: vi.fn(), embedding: vi.fn(), chatStream } as unknown as LlmClient;
+    const inner = {
+      chatJson: vi.fn(),
+      embedding: vi.fn(),
+      chatStream
+    } as unknown as LlmClient;
     const client = withScrubber(inner);
 
     await expect(
@@ -252,17 +425,28 @@ describe("ScrubbedLlmClient chatStream", () => {
         client.chatStream({
           messages: [
             { role: "user", content: "q" },
-            { role: "tool", content: "内网 192.168.1.8 上的数据", tool_call_id: "t1" }
+            {
+              role: "tool",
+              content: "内网 192.168.1.8 上的数据",
+              tool_call_id: "t1"
+            }
           ]
         })
       )
-    ).rejects.toMatchObject({ code: "SCRUBBER_BLOCKED", message: "scrubber blocked" });
+    ).rejects.toMatchObject({
+      code: "SCRUBBER_BLOCKED",
+      message: "scrubber blocked"
+    });
 
     expect(chatStream).not.toHaveBeenCalled();
   });
 
   it("rejects with LlmError instance (class check)", async () => {
-    const inner = { chatJson: vi.fn(), embedding: vi.fn(), chatStream: vi.fn() } as unknown as LlmClient;
+    const inner = {
+      chatJson: vi.fn(),
+      embedding: vi.fn(),
+      chatStream: vi.fn()
+    } as unknown as LlmClient;
     const client = withScrubber(inner);
 
     await expect(
