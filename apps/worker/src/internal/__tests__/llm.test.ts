@@ -318,7 +318,7 @@ describe("runLlmRequest", () => {
 
     it("scenario C: client closes response during hard-timeout window → no write-after-end", async () => {
       setLlmStreamMaxDurationMs(20);
-      hangUntilAbort({} as ChatStreamRequest);
+      hangUntilAbort();
       const res = makeRes();
       const pending = runLlmRequest(makeReq(), asRes(res), okMessages, "c-C");
       // Wait until abort handler is registered then emit close

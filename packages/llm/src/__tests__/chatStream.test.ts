@@ -360,7 +360,7 @@ describe("OpenAiCompatibleClient chatStream", () => {
     expect(Array.isArray(fixture.tools)).toBe(true);
     expect(fixture.tools).toHaveLength(1);
     const tool = (fixture.tools as Array<{ function: { name: string } }>)[0];
-    expect(tool.function.name).toBe("generate_structured_output");
+    expect(tool?.function.name).toBe("generate_structured_output");
   });
 });
 
