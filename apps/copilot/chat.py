@@ -346,26 +346,41 @@ async def post_chat(request: Request, user: HmacUser, body: ChatBody) -> Streami
                 # 客户端断连（GeneratorExit / CancelledError）或其他异常：
                 # 显式取消内层任务（保留 wait_for 原有的断连即链式取消语义）；
                 # 若协程无视取消，结果与看门狗路径相同（成为孤儿，done callback 兜异常）。
+                # 孤儿回调无条件挂接：task 已完成后 add_done_callback 会立刻执行，
+                # 避免「wait 抛出与 done() 竞态」漏挂导致异常砸 loop default handler。
                 if not inner_task.done():
                     inner_task.cancel()
-                    inner_task.add_done_callback(_swallow_orphan_exception)
+                inner_task.add_done_callback(_swallow_orphan_exception)
                 raise
             if pending:
                 # 看门狗到点。orphan task 不取消（不保证能杀死挂死协程）；
                 # 必须挂 done_callback 吞异常，不留 "Task exception was never retrieved" 噪声。
+                # 动作顺序（Fable-5 仲裁 Fix 1）：① 挂 callback ② 先 yield 错误帧
+                # ③ 备份放锁（已有 5s 界）④ audit 后置且包 wait_for。
+                # 过关：yield 错误帧之前无任何 await（request.is_disconnected() 除外）。
                 inner_task.add_done_callback(_swallow_orphan_exception)
                 error_code = "COPILOT_TURN_TIMEOUT"
-                await _write_aborted_audit(
-                    pool,
-                    user.user_id,
-                    session_id,
-                    list(toolRunsVar.get() or []),
-                )
                 if not await request.is_disconnected():
                     yield sse({"type": "error", "data": {"code": error_code}})
                 # 备份路径：用独立连接释放锁，与主路径（finally）使用的 ts 闭包相同。
                 # 主路径可能因孤儿占用 / 死锁阻塞；备份路径用较短超时保护，失败放弃不阻塞 gen() 收尾。
                 await _release_lock_backup(ts)
+                try:
+                    await asyncio.wait_for(
+                        _write_aborted_audit(
+                            pool,
+                            user.user_id,
+                            session_id,
+                            list(toolRunsVar.get() or []),
+                        ),
+                        timeout=_LOCK_BACKUP_RELEASE_SEC,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "watchdog aborted-audit failed: %s",
+                        exc,
+                        extra={"correlationId": correlation_id},
+                    )
                 return
             assert inner_task in done
             # 正常完成：从 task 取结果（异常也由 except 分支处理）

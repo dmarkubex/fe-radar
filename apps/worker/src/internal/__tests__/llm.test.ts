@@ -318,15 +318,39 @@ describe("runLlmRequest", () => {
     });
 
     it("scenario C: client closes response during hard-timeout window → no write-after-end", async () => {
-      setLlmStreamMaxDurationMs(20);
-      hangUntilAbort();
+      setLlmStreamMaxDurationMs(30);
+      // 无视 abort 持续挂起：close 触发 ac.abort() 后流仍不 resolve，
+      // 让硬上限计时器在断连后真实触发（hangUntilAbort 会立刻解挂，测不到这条竞态）。
+      let releaseHang!: () => void;
+      const hang = new Promise<void>((resolve) => {
+        releaseHang = resolve;
+      });
+      // eslint-disable-next-line require-yield -- 场景 C 要求上游不 yield，且 abort 后仍挂起
+      mocks.chatStream.mockImplementation(async function* (
+        _req: ChatStreamRequest
+      ) {
+        await hang;
+      });
       const res = makeRes();
+      const writeSpy = vi.spyOn(res, "write");
+      const endSpy = vi.spyOn(res, "end");
       const pending = runLlmRequest(makeReq(), asRes(res), okMessages, "c-C");
-      // Wait until abort handler is registered then emit close
-      await new Promise((r) => setImmediate(r));
-      res.emit("close");
-      await pending;
-      expect(res.writableEnded).toBe(true);
+      try {
+        await vi.waitFor(() => {
+          expect(mocks.chatStream).toHaveBeenCalled();
+        });
+        res.emit("close");
+        const writesAfterClose = writeSpy.mock.calls.length;
+        const endsAfterClose = endSpy.mock.calls.length;
+        // 推进超过硬上限，让计时器在 close 之后真实触发
+        await new Promise((r) => setTimeout(r, 80));
+        expect(writeSpy.mock.calls.length).toBe(writesAfterClose);
+        expect(endSpy.mock.calls.length).toBe(endsAfterClose);
+      } finally {
+        // 手动解挂，避免测试进程泄漏
+        releaseHang();
+        await pending;
+      }
     });
 
     it("scenario D: stream completes WELL before hard timeout → no spurious fail()", async () => {

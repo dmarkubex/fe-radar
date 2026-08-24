@@ -60,8 +60,15 @@ export async function runLlmRequest(
   }
 
   const ac = new AbortController();
+  // T-CH-01: `finished` 闸门须在 close handler 注册之前声明（避免闭包 TDZ）。
+  // 任意路径完成或失败后置 true，fail()/end() 内部再次短路。
+  // 计时器 / 上游 abort / 客户端断连三者中较晚到达者只能触发一次 terminal 写入。
+  let finished = false;
   res.on("close", () => {
-    if (!res.writableEnded) ac.abort();
+    if (!res.writableEnded) {
+      finished = true;
+      ac.abort();
+    }
   });
 
   let wroteBytes = false;
@@ -75,10 +82,6 @@ export async function runLlmRequest(
     wroteBytes = true;
     res.write(`data: ${JSON.stringify(payload)}\n\n`);
   };
-
-  // T-CH-01: `finished` 闸门变量。任意路径完成或失败后置 true，fail()/end() 内部再次短路。
-  // 保证计时器 / 上游 abort / 客户端断连三者中较晚到达者只能触发一次 terminal 写入。
-  let finished = false;
   const fail = (status: number, code: string): void => {
     if (finished || res.writableEnded) return;
     finished = true;
