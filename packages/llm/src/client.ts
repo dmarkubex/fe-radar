@@ -148,6 +148,8 @@ export class OpenAiCompatibleClient implements LlmClient {
         ...(request.tool_choice !== undefined
           ? { tool_choice: request.tool_choice }
           : {}),
+        // DeepSeek vendor extension; current OpenAI SDK types do not declare it.
+        ...{ thinking: { type: "disabled" } },
         stream: true,
         stream_options: { include_usage: true }
       },

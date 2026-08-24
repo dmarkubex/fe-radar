@@ -242,6 +242,7 @@ describe("OpenAiCompatibleClient chatStream", () => {
     expect(params).toMatchObject({
       model: "test-model",
       temperature: 0.7,
+      thinking: { type: "disabled" },
       stream: true,
       stream_options: { include_usage: true },
       tools
@@ -266,6 +267,26 @@ describe("OpenAiCompatibleClient chatStream", () => {
       },
       { role: "tool", content: "CU 70000", tool_call_id: "call_1" }
     ]);
+  });
+
+  it("does not add thinking to chatJson requests", async () => {
+    const create: Mock = vi.fn().mockResolvedValue({
+      choices: [{ message: { content: '{"ok":true}' } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1 }
+    });
+    const client = injectFakeCreate(create);
+
+    await client.chatJson<{ ok: boolean }>({
+      system: "system",
+      user: "user",
+      schemaName: "result",
+      schema: { type: "object" }
+    });
+
+    const params = (
+      create.mock.calls[0] as unknown as [Record<string, unknown>]
+    )[0];
+    expect("thinking" in params).toBe(false);
   });
 
   it("forwards request.tool_choice to create() when provided (copilot compression)", async () => {
