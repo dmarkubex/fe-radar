@@ -22,7 +22,9 @@ class Settings:
     service_token_worker: str
     qwen_base_url: str
     worker_internal_url: str
-
+    # T-CH-01: agentscope `ChatModelBase.context_size` 可配置化（默认 32768 沿用框架值）；
+    # 仅由 apps/copilot 消费，worker 不读；非正整数回退默认 + warning。
+    copilot_llm_context_size: int
 
 def _fail(env_name: str) -> None:
     logger.error("missing env %s", env_name)
@@ -42,7 +44,6 @@ def _read_secret_file(file_env: str, value_env: str) -> str:
         _fail(value_env)
     return value
 
-
 def load_settings() -> Settings:
     db_url = _read_secret_file("COPILOT_DB_URL_FILE", "COPILOT_DB_URL")
     internal = _read_secret_file("COPILOT_INTERNAL_SECRET_FILE", "COPILOT_INTERNAL_SECRET")
@@ -59,7 +60,35 @@ def load_settings() -> Settings:
         service_token_worker=worker,
         qwen_base_url=qwen,
         worker_internal_url=worker_url,
+        copilot_llm_context_size=_parse_context_size(os.environ.get("COPILOT_LLM_CONTEXT_SIZE")),
     )
+
+
+# T-CH-01: `COPILOT_LLM_CONTEXT_SIZE` 读取。非正整数或解析失败 → warning + 回退默认 32768；
+# 仅在 deploy/stack.yml copilot 服务块声明。
+_DEFAULT_CONTEXT_SIZE = 32_768
+
+
+def _parse_context_size(raw: str | None) -> int:
+    if raw is None or raw.strip() == "":
+        return _DEFAULT_CONTEXT_SIZE
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning(
+            "COPILOT_LLM_CONTEXT_SIZE not a valid integer (%r); falling back to default %d",
+            raw,
+            _DEFAULT_CONTEXT_SIZE,
+        )
+        return _DEFAULT_CONTEXT_SIZE
+    if value <= 0:
+        logger.warning(
+            "COPILOT_LLM_CONTEXT_SIZE must be positive (got %d); falling back to default %d",
+            value,
+            _DEFAULT_CONTEXT_SIZE,
+        )
+        return _DEFAULT_CONTEXT_SIZE
+    return value
 
 
 def get_settings() -> Settings:

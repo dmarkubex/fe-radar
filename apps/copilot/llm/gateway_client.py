@@ -1,7 +1,15 @@
-"""WorkerGatewayModel — AgentScope ChatModelBase over worker /internal/llm."""
+"""WorkerGatewayModel — AgentScope ChatModelBase over worker /internal/llm.
+
+T-CH-01:
+- `context_size` 由构造器注入（copilot 侧 `Settings.copilot_llm_context_size`），
+  默认 32768 沿用 agentscope `ChatModelBase` 框架默认。
+- 压缩场景识别：`tool_choice.mode == "generate_structured_output"` 且 `tools` 恰好
+  一个、其 `function.name` 严格匹配 → 放行这一个合成工具连同 `tool_choice` 一起发给
+  worker；否则走原 TOOL_NAMES 白名单过滤。两条判断分支必须独立可辨。
+"""
+
 
 from __future__ import annotations
-
 import json
 import logging
 import time
@@ -57,6 +65,32 @@ def filter_tools_for_worker(tools: list[dict] | None) -> list[dict]:
     return [item for item in tools if _schema_name(item) in allowed]
 
 
+# T-CH-01: 压缩场景识别。严格三条件：tool_choice.mode 字符串 == "generate_structured_output"
+# 且 tools 恰好一个、其 function.name 严格匹配。任何一项不满足 → False（走业务白名单）。
+_COMPRESSION_TOOL_NAME = "generate_structured_output"
+
+
+def _is_compression_request(tools: list[dict] | None, tool_choice: Any) -> bool:
+    if not isinstance(tool_choice, str) and not hasattr(tool_choice, "mode"):
+        return False
+    mode = tool_choice.mode if hasattr(tool_choice, "mode") else tool_choice
+    if mode != _COMPRESSION_TOOL_NAME:
+        return False
+    if not tools or len(tools) != 1:
+        return False
+    return _schema_name(tools[0]) == _COMPRESSION_TOOL_NAME
+
+
+# T-CH-01: 将 AgentScope `ToolChoice(mode=<name>)` 转为 OpenAI 兼容 named-function 形状，
+# 由 worker `validateLlmBody` 与 `packages/llm` SDK `create()` 共同接受。字面量串也原样透传。
+def _wire_tool_choice(tool_choice: Any) -> Any:
+    mode = tool_choice.mode if hasattr(tool_choice, "mode") else tool_choice
+    if not isinstance(mode, str):
+        return tool_choice
+    if mode in ("none", "auto", "required"):
+        return mode
+    return {"type": "function", "function": {"name": mode}}
+
 def _usage_from_data(data: object, elapsed: float) -> ChatUsage | None:
     if not isinstance(data, dict):
         return None
@@ -99,13 +133,17 @@ class WorkerGatewayModel(ChatModelBase):
         service_token: str | None = None,
         correlation_id: str | None = None,
         client: httpx.AsyncClient | None = None,
+        context_size: int | None = None,
     ) -> None:
+        # T-CH-01: context_size 透传给 agentscope ChatModelBase；缺省保持框架默认 32768
+        # （不变更既有行为，仅显式表达意图）。
         super().__init__(
             credential=EmptyCredential(),
             model="deepseek-via-worker",
             parameters=GatewayParams(),
             stream=True,
             max_retries=0,
+            context_size=context_size if context_size is not None else 32768,
         )
         self.formatter = OpenAIChatFormatter()
         self.worker_base_url = (worker_base_url or "http://worker:8071").rstrip("/")
@@ -124,11 +162,22 @@ class WorkerGatewayModel(ChatModelBase):
         tool_choice: Any = None,
         **kwargs: Any,
     ) -> AsyncGenerator[ChatResponse, None]:
-        payload = {
-            "messages": msgs_to_chat_messages(messages),
-            "tools": filter_tools_for_worker(tools),
-            "temperature": getattr(self.parameters, "temperature", 0.2),
-        }
+        # T-CH-01: 两条独立可辨的判断分支。
+        # 压缩场景：放行合成工具 + 透传 tool_choice（OpenAI 兼容 named-function 形状）。
+        # 否则：走原 TOOL_NAMES 白名单过滤，不传 tool_choice。
+        if _is_compression_request(tools, tool_choice):
+            payload = {
+                "messages": msgs_to_chat_messages(messages),
+                "tools": tools,
+                "tool_choice": _wire_tool_choice(tool_choice),
+                "temperature": getattr(self.parameters, "temperature", 0.2),
+            }
+        else:
+            payload = {
+                "messages": msgs_to_chat_messages(messages),
+                "tools": filter_tools_for_worker(tools),
+                "temperature": getattr(self.parameters, "temperature", 0.2),
+            }
         headers = {
             "Authorization": f"Bearer {self.service_token}",
             "x-fer-correlation-id": self.correlation_id,
@@ -146,8 +195,7 @@ class WorkerGatewayModel(ChatModelBase):
             assert client is not None
             try:
                 async with client.stream(
-                    "POST",
-                    self._url(),
+                    "POST", self._url(),
                     json=payload,
                     headers=headers,
                 ) as response:

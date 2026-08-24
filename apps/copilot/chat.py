@@ -79,6 +79,7 @@ def build_model(settings: Settings, correlation_id: str) -> WorkerGatewayModel:
         worker_base_url=settings.worker_internal_url,
         service_token=settings.service_token_worker,
         correlation_id=correlation_id,
+        context_size=settings.copilot_llm_context_size,
     )
 
 
