@@ -60,8 +60,13 @@ _LOCK_BACKUP_RELEASE_SEC = 5.0
 
 def _swallow_orphan_exception(task: asyncio.Task) -> None:
     """T-CH-01: 孤儿 task 兜异常回调。task.exception() 非 None 时记日志后吞掉，
-    防止事件循环 default handler 打 "Task exception was never retrieved" 噪声。"""
-    exc = task.exception()
+    防止事件循环 default handler 打 "Task exception was never retrieved" 噪声。
+    断连路径的 task 被 cancel()：exception() 对已取消 task 抛 CancelledError，
+    取消本身不是错误，直接返回——否则异常会砸进 loop 的 callback handler。"""
+    try:
+        exc = task.exception()
+    except asyncio.CancelledError:
+        return
     if exc is not None:
         logger.warning("orphan turn task raised: %s", exc)
 

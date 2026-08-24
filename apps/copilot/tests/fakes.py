@@ -61,17 +61,17 @@ class FakeConn:
             raise exc
         return FakeCursor(rows or [], colnames)
 
-
 class FakePool:
     def __init__(self, conn: FakeConn) -> None:
         self.conn = conn
+        self.conns_acquired: list[FakeConn] = []
 
     def connection(self) -> "_ConnCM":
+        self.conns_acquired.append(self.conn)
         return _ConnCM(self.conn)
 
     async def close(self) -> None:
         return None
-
 
 class _ConnCM:
     def __init__(self, conn: FakeConn) -> None:
@@ -296,3 +296,92 @@ def hmac_headers(
         "x-fer-user": user,
         "x-fer-internal-auth": signature,
     }
+
+
+# ---------------------------------------------------------------------------
+# T-CH-01 fakes: MockTransport 工厂（生产 _call_api 完整执行）+ 独立连接身份记录
+# ---------------------------------------------------------------------------
+
+
+def sse_frames_bytes(*frames: dict) -> bytes:
+    """构造 worker /internal/llm SSE 响应字节流（data: 行 + 空行分隔）。"""
+    return "".join(f"data: {json.dumps(f, ensure_ascii=False)}\n\n" for f in frames).encode("utf-8")
+
+
+class MockTransportRecorder:
+    """T-CH-01 验收标准 1 的 fake 边界：不覆写 `_call_api`（被测生产逻辑必须真正运行）。
+
+    通过 `WorkerGatewayModel.__init__(client=...)` 注入带 `httpx.MockTransport` 的 client，
+    mock transport handler 记录生产 `_call_api` 实际发出的 POST body（最终 payload）；
+    测试侧在调用入口另行记录未过滤的原始 tools/tool_choice（两份都要有）。
+    """
+
+    def __init__(self, scripts: list[bytes] | None = None) -> None:
+        # 最终出站 payload（由生产 _call_api 产出，MockTransport 捕获）
+        self.requests: list[dict] = []
+        # 未过滤的原始调用参数（测试侧在 _call_api 入口包装记录）
+        self.raw_calls: list[dict] = []
+        self._scripts = list(scripts or [])
+
+    def _handler(self, request: Any) -> Any:
+        import httpx
+
+        self.requests.append(json.loads(request.content.decode("utf-8")))
+        content = self._scripts.pop(0) if self._scripts else sse_frames_bytes({"type": "done"})
+        return httpx.Response(200, content=content, headers={"content-type": "text/event-stream"})
+
+    def build_model(self, **kwargs: Any) -> "WorkerGatewayModel":
+        import httpx
+
+        from llm.gateway_client import WorkerGatewayModel
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(self._handler))
+        model = WorkerGatewayModel(
+            worker_base_url="http://worker.test",
+            service_token=WORKER_TOKEN,
+            client=client,
+            **kwargs,
+        )
+        # 在生产 _call_api 外层记录未过滤的原始调用参数（仅观测，不改行为）
+        original_call_api = model._call_api
+
+        async def _recording_call_api(model_name, messages, tools=None, tool_choice=None, **kw):
+            self.raw_calls.append(
+                {"tools": tools, "tool_choice": tool_choice}
+            )
+            return await original_call_api(
+                model_name, messages, tools=tools, tool_choice=tool_choice, **kw
+            )
+
+        model._call_api = _recording_call_api  # type: ignore[method-assign]
+        return model
+
+
+class _ConnDelegate:
+    """委托到底层 ChatFakeConn 的独立连接对象：SQL 行为相同、对象身份不同。
+    自身记录执行过的 SQL，供"哪次锁释放走了哪个连接"的对象身份级断言使用。"""
+
+    def __init__(self, target: "ChatFakeConn") -> None:
+        self._target = target
+        self.executed: list[str] = []
+
+    async def execute(self, sql: str, params: dict | None = None) -> FakeCursor:
+        self.executed.append(sql)
+        return await self._target.execute(sql, params)
+
+    def transaction(self) -> "_TxnCM":
+        return _TxnCM()
+
+
+class DistinctConnPool(FakePool):
+    """T-CH-01 验收标准 6 第三条：每次 `connection()` 返回一个新的 `_ConnDelegate` 对象，
+    使"看门狗备份路径连接 ≠ gen() 主路径连接"成为对象身份级可断言的事实。"""
+
+    def __init__(self, conn: ChatFakeConn) -> None:
+        super().__init__(conn)
+        self.acquired_delegates: list[_ConnDelegate] = []
+
+    def connection(self) -> "_ConnCM":
+        delegate = _ConnDelegate(self.conn)
+        self.acquired_delegates.append(delegate)
+        return _ConnCM(delegate)
