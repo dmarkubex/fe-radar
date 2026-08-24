@@ -6,6 +6,7 @@ from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+from psycopg.types.json import Jsonb
 
 
 class CopilotError(Exception):
@@ -231,7 +232,12 @@ async def insert_assistant_message(
     )
     cursor = await conn.execute(
         sql,
-        {"sid": session_id, "role": "assistant", "content": content, "citations": citations},
+        {
+            "sid": session_id,
+            "role": "assistant",
+            "content": content,
+            "citations": Jsonb(citations),
+        },
     )
     row = await cursor.fetchone()
     if row is None:

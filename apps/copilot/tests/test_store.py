@@ -4,7 +4,14 @@ from datetime import datetime, timezone
 
 import pytest
 from citations import citations_from_tool_runs, item_ids_from_tool_runs
-from memory.store import CopilotError, list_messages, list_sessions, upsert_feedback
+from memory.store import (
+    CopilotError,
+    insert_assistant_message,
+    list_messages,
+    list_sessions,
+    upsert_feedback,
+)
+from psycopg.types.json import Jsonb
 from tests.fakes import FakeConn, FakePool, hmac_headers
 from tools.registry import tracked, toolRunsVar
 
@@ -71,6 +78,19 @@ async def test_list_messages_recent_500_shape() -> None:
     assert "WHERE session_id=%(sid)s" in conn.calls[1][0]
     assert conn.calls[1][1] == {"sid": 7}
     assert messages[0]["citations"][0]["kind"] == "item"
+
+
+async def test_insert_assistant_message_wraps_nonempty_citations_in_jsonb() -> None:
+    conn = FakeConn()
+    conn.enqueue(rows=[(9,)], colnames=["id"])
+    citations = [{"kind": "item", "itemId": 1}]
+
+    message_id = await insert_assistant_message(conn, 7, "回答", citations)
+
+    assert message_id == 9
+    params = conn.calls[0][1]
+    assert isinstance(params["citations"], Jsonb)
+    assert params["citations"].obj is citations
 
 
 async def test_feedback_upsert_200_not_409(client) -> None:

@@ -25,3 +25,29 @@ task: T-RC-01
     - "packages/llm 测试、worker 相关测试/typecheck、copilot pytest 全绿。"
     - "生产真实问答不再出现 reasoning_content must be passed back，返回 done，且无残留 turn_locked_at。"
 ```
+
+# T-RC-02 Copilot 引用卡片 JSONB 写入修复
+
+```yaml
+task: T-RC-02
+  goal: "修复有检索结果时 citations 字典列表无法写入 PostgreSQL jsonb、导致页面无模型回复的问题。"
+  constraints:
+    - "只在数据库写入边界使用 psycopg 原生 Jsonb；不改表、API、SSE、工具和前端。"
+    - "保留 T-RC-01 non-thinking 修复及工作树其他未提交改动。"
+    - "未知 turn 异常必须记录 correlationId 和 traceback，但不得记录用户问题或模型正文。"
+  ask_agent_first:
+    - "复述空 citations 成功、非空 dict list 失败的生产证据。"
+    - "确认最小修改文件与回滚方式。"
+    - "列出 Jsonb 参数形状和异常日志测试。"
+  owner: "Codex executor（agent-copilot 范围）"
+  scope:
+    - "apps/copilot/memory/store.py"
+    - "apps/copilot/chat.py"
+    - "apps/copilot/tests/test_store.py"
+  rollback: "revert 本任务单一 commit；生产 copilot 镜像回滚到 2982a06，worker 保持 2982a06。"
+  acceptance:
+    - "非空 citations 以 psycopg Jsonb 参数写入，内容不变。"
+    - "未知异常日志包含 correlationId 与 traceback，不包含用户/模型正文。"
+    - "Copilot 全量测试通过。"
+    - "生产条目会话返回 token/citation/done，assistant 消息落库、audit aborted=false、turn_locked_at 清零。"
+```

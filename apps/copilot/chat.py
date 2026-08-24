@@ -408,6 +408,11 @@ async def post_chat(request: Request, user: HmacUser, body: ChatBody) -> Streami
             elif isinstance(exc, asyncio.CancelledError):
                 error_code = "COPILOT_CANCELLED"
             else:
+                logger.error(
+                    "turn task failed",
+                    exc_info=exc,
+                    extra={"correlationId": correlation_id},
+                )
                 error_code = "COPILOT_INTERNAL"
             await _write_aborted_audit(
                 pool,
