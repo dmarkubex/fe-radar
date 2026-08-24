@@ -130,7 +130,8 @@ function findProductRecord(
   const productNames = [rule.product_name, ...(rule.product_names ?? [])]
     .map(normalizeName)
     .filter(Boolean);
-  const matches = flattenRecords(candidateRoot(datas, rule), (record) => "product_name" in record)
+  const searchRoot = rule.product_id ? datas : candidateRoot(datas, rule);
+  const matches = flattenRecords(searchRoot, (record) => "product_name" in record)
     .filter((record) => {
       if (rule.product_id) return record["product_id"] === rule.product_id;
       const productName = normalizeName(record["product_name"]);

@@ -370,6 +370,7 @@ describe("briefing-gen", () => {
   it("passes percent-formatted cu_change_pct to renderBriefing (production path, not mapTemplateFields)", async () => {
     const quoteRows = [
       { metricKey: "cu_main_close", value: "78520", changePct: null, observedAt: new Date("2026-05-20T07:30:00Z") },
+      { metricKey: "cu_main_close", value: null, changePct: null, observedAt: new Date("2026-05-20T09:18:00Z") },
       { metricKey: "cu_change_pct", value: "0.0067", changePct: null, observedAt: new Date("2026-05-20T07:30:00Z") },
       { metricKey: "lc_main_close", value: "98000", changePct: null, observedAt: new Date("2026-05-20T07:30:00Z") },
       { metricKey: "lc_change_pct", value: "-0.02", changePct: null, observedAt: new Date("2026-05-20T07:30:00Z") },
@@ -413,6 +414,12 @@ describe("briefing-gen", () => {
       }),
       expect.anything(),
     );
+    const inputQuotes = (llmBuildBriefingInputFn as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as Array<{
+      metricKey: string;
+      value: number | null;
+    }>;
+    expect(inputQuotes.filter((quote) => quote.metricKey === "cu_main_close"))
+      .toEqual([expect.objectContaining({ value: 78520 })]);
   });
 
   it("treats a zero close and its legacy -100% change as missing coverage", async () => {

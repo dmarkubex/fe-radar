@@ -161,13 +161,24 @@ async function queryTodayQuotes(db: DbClient, todayStr: string): Promise<Quote[]
   const validCloseKeys = new Set(
     quotes.filter((quote) => quote.value !== null).map((quote) => quote.metricKey)
   );
-  return quotes.map((quote) => {
+  const cleaned = quotes.map((quote) => {
     const closeKey = CHANGE_TO_CLOSE_METRIC[quote.metricKey];
     if (closeKey && ((quote.value !== null && quote.value <= -1) || !validCloseKeys.has(closeKey))) {
       return { ...quote, value: null };
     }
     return quote;
   });
+
+  const byMetric = new Map<string, Quote>();
+  for (const quote of cleaned) {
+    const current = byMetric.get(quote.metricKey);
+    const quoteIsPreferred = !current
+      || (current.value === null && quote.value !== null)
+      || ((current.value === null) === (quote.value === null)
+        && quote.observedAt.getTime() > current.observedAt.getTime());
+    if (quoteIsPreferred) byMetric.set(quote.metricKey, quote);
+  }
+  return [...byMetric.values()];
 }
 
 async function queryRecentQuotes(

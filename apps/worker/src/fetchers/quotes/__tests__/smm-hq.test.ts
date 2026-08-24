@@ -98,6 +98,14 @@ describe("smmHqAdapter", () => {
                 ],
               },
               {
+                product_id: "other",
+                product_name: "其他产品",
+                average: 555555,
+                renew_date: "2026-08-24",
+              },
+            ],
+            LCP03: [
+              {
                 product_id: "201102250059",
                 product_name: "电池级碳酸锂",
                 price_detail: [
@@ -111,12 +119,6 @@ describe("smmHqAdapter", () => {
                 product_name: "电池级碳酸锂",
                 average: 160000,
                 renew_date: "2026-08-23",
-              },
-              {
-                product_id: "other",
-                product_name: "其他产品",
-                average: 555555,
-                renew_date: "2026-08-24",
               },
             ],
           },
