@@ -410,7 +410,7 @@ describe("runQuotesFetch", () => {
     expect(sqlArg).not.toContain("cu_change_pct");
   });
 
-  it("T-REV-02: prior value=0 → ZERO_BASE_FALLBACK (0) written as cu_change_pct", async () => {
+  it("T-REV-02: zero prices never produce a derived change_pct row", async () => {
     makeDbWithHolidays([], [[{ value: "0" }]]);
     mockIsBusinessDay.mockReturnValue(true);
     mockListSources.mockResolvedValue([makeSource()]);
@@ -420,11 +420,9 @@ describe("runQuotesFetch", () => {
 
     const result = await runQuotesFetch(1);
 
-    expect(result.upserted).toBe(2);
-    const changeSql = mockExecute.mock.calls[1]?.[0] as string;
-    expect(changeSql).toContain("cu_change_pct");
-    // ZERO_BASE_FALLBACK === 0 appears as value in INSERT
-    expect(changeSql).toMatch(/cu_change_pct[\s\S]*?\n\s*0,/);
+    expect(result.upserted).toBe(1);
+    expect(mockExecute).toHaveBeenCalledTimes(1);
+    expect(mockExecute.mock.calls[0]?.[0] as string).not.toContain("cu_change_pct");
   });
 
   it("T-REV-02: lc_main_close with prior → writes lc_change_pct", async () => {

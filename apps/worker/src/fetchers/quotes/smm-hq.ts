@@ -101,16 +101,25 @@ function candidateRoot(datas: unknown, rule: SmmHqMetricRule): unknown {
   return (datas as UnknownRecord)[rule.column_no];
 }
 
+function positiveValue(record: UnknownRecord, field: string): number | null {
+  const value = parseNumber(record[field]);
+  return value !== null && value > 0 ? value : null;
+}
+
 function findProductRecord(datas: unknown, rule: SmmHqMetricRule): UnknownRecord | undefined {
   const productNames = [rule.product_name, ...(rule.product_names ?? [])]
     .map(normalizeName)
     .filter(Boolean);
-  return flattenRecords(candidateRoot(datas, rule), (record) => "product_name" in record)
-    .find((record) => {
-      if (rule.product_id && record["product_id"] === rule.product_id) return true;
+  const matches = flattenRecords(candidateRoot(datas, rule), (record) => "product_name" in record)
+    .filter((record) => {
+      if (rule.product_id) return record["product_id"] === rule.product_id;
       const productName = normalizeName(record["product_name"]);
       return productNames.some((name) => productName === name);
     });
+  const valueField = rule.value_field ?? "average";
+  return matches.find((record) => positiveValue(record, valueField) !== null)
+    ?? matches.find((record) => Array.isArray(record["price_detail"]))
+    ?? matches[0];
 }
 
 function findInstrumentRecord(datas: unknown, rule: SmmHqMetricRule): UnknownRecord | undefined {
@@ -135,14 +144,32 @@ function nullSamples(metricKeys: string[], observedAt: Date, rawText: string): Q
   return metricKeys.map((metricKey) => ({ metricKey, value: null, observedAt, rawText }));
 }
 
+function latestPositiveDetail(record: UnknownRecord, valueField: string, now: Date): UnknownRecord | null {
+  const details = record["price_detail"];
+  if (!Array.isArray(details)) return null;
+
+  let latest: { record: UnknownRecord; observedAt: Date } | null = null;
+  for (const detail of details) {
+    if (!detail || typeof detail !== "object") continue;
+    const candidate = detail as UnknownRecord;
+    if (positiveValue(candidate, valueField) === null) continue;
+    const observedAt = parseShanghaiDate(candidate["renew_date"], candidate["renew_time"], now);
+    if (observedAt > now || (latest && observedAt <= latest.observedAt)) continue;
+    latest = { record: candidate, observedAt };
+  }
+  return latest?.record ?? null;
+}
+
 function samplesFromRecord(rule: SmmHqMetricRule, record: UnknownRecord, now: Date): QuoteSample[] {
   const isInstrument = rule.kind === "instrument";
   const valueField = rule.value_field ?? (isInstrument ? "LastPrice" : "average");
-  const value = parseNumber(record[valueField]);
+  const detail = isInstrument ? null : latestPositiveDetail(record, valueField, now);
+  const valueRecord = positiveValue(record, valueField) !== null ? record : detail ?? record;
+  const value = positiveValue(valueRecord, valueField);
   const observedAt = isInstrument
     ? parseShanghaiDate(record["TradingDay"] ?? record["ActionDay"], record["UpdateTime"], now)
-    : parseShanghaiDate(record["renew_date"], record["renew_time"], now);
-  const rawText = recordRawText(record);
+    : parseShanghaiDate(valueRecord["renew_date"], valueRecord["renew_time"], now);
+  const rawText = recordRawText(valueRecord);
   return metricKeysFor(rule).map((metricKey) => ({
     metricKey,
     value,

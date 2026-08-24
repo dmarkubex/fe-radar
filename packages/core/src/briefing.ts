@@ -132,11 +132,14 @@ export function isBusinessDay(date: Date | string, holidaySet: Set<string>): boo
 export function computeSupportResistance(
   samples: SupportResistanceSample[]
 ): SupportResistanceResult {
-  if (samples.length < 10) {
+  const validSamples = samples.filter((sample) =>
+    [sample.high, sample.low, sample.close].every((value) => Number.isFinite(value) && value > 0)
+  );
+  if (validSamples.length < 10) {
     return { support: null, resistance: null };
   }
 
-  const window = samples.slice(0, 20);
+  const window = validSamples.slice(0, 20);
   const high20 = Math.max(...window.map((s) => s.high));
   const low20 = Math.min(...window.map((s) => s.low));
   const close0 = window[0]!.close;
@@ -154,7 +157,7 @@ export function computeSupportResistance(
   const support = Math.round(Math.max(minClose, rawSupport));
   const resistance = Math.round(Math.min(maxClose, rawResistance));
 
-  return { support, resistance };
+  return support <= resistance ? { support, resistance } : { support: null, resistance: null };
 }
 
 export function degradeFields<T extends object>(

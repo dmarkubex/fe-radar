@@ -177,6 +177,15 @@ describe("computeSupportResistance", () => {
     expect(result.support!).toBeLessThan(result.resistance!);
   });
 
+  it("ignores zero-price samples and never returns an inverted range", () => {
+    const result = computeSupportResistance([
+      { high: 0, low: 0, close: 0 },
+      ...makeSamples(20, 150000),
+    ]);
+    expect(result.support).not.toBeNull();
+    expect(result.support!).toBeLessThanOrEqual(result.resistance!);
+  });
+
   it("uses only first 20 samples when more are provided", () => {
     const r20 = computeSupportResistance(makeSamples(20));
     const r30 = computeSupportResistance(makeSamples(30));

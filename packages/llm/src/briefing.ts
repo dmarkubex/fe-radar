@@ -89,7 +89,7 @@ export interface BriefingOutput {
 }
 
 // ──────────────────────────────────────────────
-// BRIEFING_SYSTEM_PROMPT — 5 条硬约束 (design §6.2)
+// BRIEFING_SYSTEM_PROMPT — 硬约束 (design §6.2)
 // 生产调用 DeepSeek（Kimi 网关无公网出口）；常量名历史曾为 KIMI_*。
 // ──────────────────────────────────────────────
 export const BRIEFING_SYSTEM_PROMPT = [
@@ -99,7 +99,9 @@ export const BRIEFING_SYSTEM_PROMPT = [
   "2. 不输出任何「建议交易」或「投资意见」字样",
   "3. 不输出任何价格数值字段（支撑位/压力位由后端代码计算，不在你的 schema 内；如需在文本中提及价格区间，使用「数据见行情数值字段」之类的转写，禁止编造具体数字）",
   "4. logic_summary 中可引用输入的具体数值，但不得给出未来价位预测",
-  "5. 输出严格符合 schema（schemaName='briefing'）；JSON 解析失败将被丢弃；risk_notes 必须列具体宏观/商品因子，不许空话"
+  "5. 输出严格符合 schema（schemaName='briefing'）；JSON 解析失败将被丢弃；risk_notes 必须列具体宏观/商品因子，不许空话",
+  "6. 提供上一份简报时，各摘要只写相对上一份新增、反转、强化或弱化的信号，禁止复述未变化的旧新闻，也禁止引用上一份中的历史数字；确无变化必须明确写「较上一份无新增有效信号」",
+  "7. procurement_advice 只有在当日价格变化或新增事件足以改变采购动作时才调整，并在 logic_summary 中写明触发证据"
 ].join("\n");
 
 /** @deprecated 使用 BRIEFING_SYSTEM_PROMPT；保留别名避免外部引用断裂 */
@@ -113,6 +115,16 @@ export interface NewsItem {
   summaryZh: string;
   publishedAt: Date;
   category?: string;
+}
+
+export interface PreviousBriefingContext {
+  date: string;
+  cuLogic: string;
+  cuTrend: BriefingTrend;
+  lcLogic: string;
+  lcTrend: BriefingTrend;
+  macroSummary: string;
+  procurementAdvice: BriefingProcurementAdvice;
 }
 
 // ──────────────────────────────────────────────
@@ -129,7 +141,8 @@ export interface NewsItem {
 export function buildBriefingInput(
   quotes: Quote[],
   contextNews: NewsItem[],
-  holidayDate?: Date
+  holidayDate?: Date,
+  previous?: PreviousBriefingContext | null
 ): string {
   const sections: string[] = [];
 
@@ -173,8 +186,18 @@ export function buildBriefingInput(
     sections.push(newsLines.join("\n\n"));
   }
 
+  if (previous) {
+    sections.push([
+      `\n## 上一份已发布简报（${previous.date}，仅用于差异对比，禁止照抄）`,
+      `- 铜：${previous.cuTrend}；${previous.cuLogic}`,
+      `- 锂：${previous.lcTrend}；${previous.lcLogic}`,
+      `- 宏观：${previous.macroSummary}`,
+      `- 采购建议：${previous.procurementAdvice}`,
+    ].join("\n"));
+  }
+
   sections.push(
-    "\n请根据上述数据，输出严格符合 schema 的 JSON 简报（schemaName='briefing'）。"
+    "\n请根据上述数据，输出严格符合 schema 的 JSON 简报（schemaName='briefing'）。有上一份简报时，只写相对上一份新增、反转、强化或弱化的信号；没有变化就明确写「较上一份无新增有效信号」，不要复述旧新闻。"
   );
 
   return sections.join("\n\n");

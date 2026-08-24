@@ -11,7 +11,7 @@
  *   Step 5  persist: INSERT INTO commodity_briefings
  */
 
-import { and, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { Queue } from "bullmq";
 
 import {
@@ -35,7 +35,7 @@ import {
   buildBriefingInput,
   runBriefingGen as llmRunBriefingGen,
 } from "@fe-radar/llm";
-import type { BriefingOutput, NewsItem } from "@fe-radar/llm";
+import type { BriefingOutput, NewsItem, PreviousBriefingContext } from "@fe-radar/llm";
 import { APP_TIMEZONE, createLogger, dayjs } from "@fe-radar/shared";
 
 import { renderBriefing } from "../lib/briefing-render";
@@ -79,6 +79,14 @@ export const KEY_METRIC_FIELDS = [
   "lc_change_pct", // GFEX 碳酸锂涨跌幅
   "fx_usdcny", // USD/CNY 日度参考汇率
 ];
+
+const POSITIVE_VALUE_METRICS = new Set([
+  "cu_main_close",
+  "cu_spot_smm",
+  "lc_main_close",
+  "lc_spot_smm",
+  "fx_usdcny",
+]);
 
 // ─────────────────────────────────────────────────────────────
 // Result type
@@ -131,12 +139,19 @@ async function queryTodayQuotes(db: DbClient, todayStr: string): Promise<Quote[]
     .from(commodityQuotes)
     .where(sql`DATE(${commodityQuotes.observedAt} AT TIME ZONE 'Asia/Shanghai') = ${todayStr}::date`);
 
-  return rows.map((r) => ({
-    metricKey: r.metricKey,
-    value: r.value !== null ? Number(r.value) : null,
-    changePct: r.changePct !== null ? Number(r.changePct) : null,
-    observedAt: r.observedAt,
-  }));
+  return rows.map((r) => {
+    const parsed = r.value !== null ? Number(r.value) : null;
+    const value = parsed !== null && Number.isFinite(parsed)
+      && (!POSITIVE_VALUE_METRICS.has(r.metricKey) || parsed > 0)
+      ? parsed
+      : null;
+    return {
+      metricKey: r.metricKey,
+      value,
+      changePct: r.changePct !== null ? Number(r.changePct) : null,
+      observedAt: r.observedAt,
+    };
+  });
 }
 
 async function queryRecentQuotes(
@@ -176,12 +191,39 @@ async function queryRecentQuotes(
  */
 function quotesToSRSamples(quotes: Quote[]): SupportResistanceSample[] {
   return quotes
-    .filter((q) => q.value !== null)
+    .filter((q) => q.value !== null && Number.isFinite(q.value) && q.value > 0)
     .map((q) => ({
       high: q.value as number,
       low: q.value as number,
       close: q.value as number,
     }));
+}
+
+async function queryPreviousBriefing(
+  db: DbClient,
+  todayStr: string
+): Promise<PreviousBriefingContext | null> {
+  const [row] = await db
+    .select({
+      date: commodityBriefings.briefingDate,
+      cuLogic: sql<string>`${commodityBriefings.payloadJson} #>> '{cu,logic_summary}'`,
+      cuTrend: sql<string>`${commodityBriefings.payloadJson} #>> '{cu,outlook,trend}'`,
+      lcLogic: sql<string>`${commodityBriefings.payloadJson} #>> '{lc,logic_summary}'`,
+      lcTrend: sql<string>`${commodityBriefings.payloadJson} #>> '{lc,outlook,trend}'`,
+      macroSummary: sql<string>`${commodityBriefings.payloadJson} ->> 'macro_summary'`,
+      procurementAdvice: sql<string>`${commodityBriefings.payloadJson} ->> 'procurement_advice'`,
+    })
+    .from(commodityBriefings)
+    .where(and(
+      lt(commodityBriefings.briefingDate, todayStr),
+      sql`${commodityBriefings.genStatus} IN ('succeeded', 'degraded')`
+    ))
+    .orderBy(desc(commodityBriefings.briefingDate))
+    .limit(1);
+
+  if (!row?.cuLogic || !row.cuTrend || !row.lcLogic || !row.lcTrend
+    || !row.macroSummary || !row.procurementAdvice) return null;
+  return row as PreviousBriefingContext;
 }
 
 async function queryContextNews(db: DbClient, since: Date): Promise<NewsItem[]> {
@@ -329,7 +371,7 @@ export async function runBriefingGen(
 
   while (true) {
     todayQuotes = await queryTodayQuotes(db, todayStr);
-    const presentKeys = new Set(todayQuotes.map((q) => q.metricKey));
+    const presentKeys = new Set(todayQuotes.filter((q) => q.value !== null).map((q) => q.metricKey));
     const rawCoverage = KEY_METRIC_FIELDS.filter((k) => presentKeys.has(k));
 
     if (rawCoverage.length >= MIN_KEY_FIELDS) break;
@@ -365,8 +407,9 @@ export async function runBriefingGen(
   // ── Step 2: context assembly ───────────────────────────────
   const since24h = nowDayjs.subtract(24, "hour").toDate();
   const contextNews = await queryContextNews(db, since24h);
+  const previousBriefing = await queryPreviousBriefing(db, todayStr);
 
-  const briefingInput = buildBriefingInput(todayQuotes, contextNews);
+  const briefingInput = buildBriefingInput(todayQuotes, contextNews, undefined, previousBriefing);
 
   // ── Step 3: LLM 7-segment generation ──────────────────────
   let llmOutput: BriefingOutput;

@@ -126,6 +126,11 @@ describe("BRIEFING_SYSTEM_PROMPT", () => {
     expect(BRIEFING_SYSTEM_PROMPT).toContain("risk_notes 必须列具体宏观/商品因子");
   });
 
+  it("requires delta-first output instead of repeating the previous briefing", () => {
+    expect(BRIEFING_SYSTEM_PROMPT).toContain("新增、反转、强化或弱化");
+    expect(BRIEFING_SYSTEM_PROMPT).toContain("较上一份无新增有效信号");
+  });
+
   it("keeps KIMI_BRIEFING_SYSTEM_PROMPT as deprecated alias", () => {
     expect(KIMI_BRIEFING_SYSTEM_PROMPT).toBe(BRIEFING_SYSTEM_PROMPT);
   });
@@ -172,6 +177,21 @@ describe("buildBriefingInput", () => {
   it("shows degraded message when no quotes provided", () => {
     const result = buildBriefingInput([], []);
     expect(result).toContain("当日数值缺失");
+  });
+
+  it("includes the previous briefing only as a de-duplication reference", () => {
+    const result = buildBriefingInput(makeQuotes(2), makeNews(1), undefined, {
+      date: "2026-05-18",
+      cuLogic: "昨日铜逻辑",
+      cuTrend: "偏多",
+      lcLogic: "昨日锂逻辑",
+      lcTrend: "区间震荡",
+      macroSummary: "昨日宏观",
+      procurementAdvice: "刚需少量补库，大批量采购暂缓",
+    });
+    expect(result).toContain("上一份已发布简报（2026-05-18");
+    expect(result).toContain("仅用于差异对比，禁止照抄");
+    expect(result).toContain("没有变化就明确写");
   });
 
   it("merges derived cu_change_pct into close line and does not list it standalone", () => {

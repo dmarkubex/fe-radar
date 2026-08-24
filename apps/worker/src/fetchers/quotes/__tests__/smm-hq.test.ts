@@ -80,6 +80,58 @@ describe("smmHqAdapter", () => {
     expect(samples.find((sample) => sample.metricKey === "lc_spot_smm")?.value).toBe(167250);
   });
 
+  it("falls back to the latest positive product detail when the visible value is hidden as zero", async () => {
+    const nextData = {
+      props: {
+        pageProps: {
+          datas: {
+            LCP02: [
+              {
+                product_id: "201102250059",
+                product_name: "电池级碳酸锂价格",
+                average: 0,
+                renew_date: "2026-08-24",
+                hide_data: true,
+              },
+              {
+                product_id: "201102250059",
+                product_name: "电池级碳酸锂",
+                price_detail: [
+                  { average: 152250, renew_date: "2026-08-21" },
+                  { average: 161623.5, renew_date: "2026-08-24" },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    };
+    const html = `<script id="__NEXT_DATA__" type="application/json">${JSON.stringify(nextData)}</script>`;
+    const fetchImpl = async (url: URL | RequestInfo): Promise<Response> =>
+      new Response(String(url).endsWith("/robots.txt") ? "" : html, { status: 200 });
+
+    const samples = await fetchSmmHq(
+      {
+        sourceName: "SMM 碳酸锂行情",
+        sourceConfig: {
+          endpoint: "https://hq.smm.cn/h5/Li2CO3",
+          items: [{
+            kind: "product",
+            metric_key: "lc_main_close",
+            column_no: "LCP02",
+            product_id: "201102250059",
+            value_field: "average",
+          }],
+        },
+      },
+      new Date("2026-08-24T08:00:00.000Z"),
+      fetchImpl as typeof fetch
+    );
+
+    expect(samples[0]?.value).toBe(161623.5);
+    expect(samples[0]?.observedAt.toISOString()).toBe("2026-08-24T07:30:00.000Z");
+  });
+
   it("emits null samples when configured product is not found", async () => {
     const samples = await fetchSmmHq(
       {
