@@ -40,10 +40,12 @@ def _chat(client, conn: ChatFakeConn, payload: dict, *, user_id: int = 7):
     return client.post("/chat", content=body, headers=_post_headers(body, user_id))
 
 
-def test_wait_for_covers_persist_not_sse() -> None:
+def test_watchdog_covers_persist_not_sse() -> None:
+    """T-CH-01: 源码级断言 — `asyncio.wait` 看门狗包住 reply/ground/persist 全部落库路径，
+    且 gen() 内 `_reply_ground_and_persist` 主体不含任何 SSE yield（发帧在 wait 之后）。"""
     text = Path(__file__).resolve().parents[1].joinpath("chat.py").read_text()
     start = text.index("async def _reply_ground_and_persist")
-    wait_call = text.index("await asyncio.wait_for(\n                    _reply_ground_and_persist()")
+    wait_call = text.index("_reply_ground_and_persist(),")
     body = text[start:wait_call]
     assert "agent.reply" in body
     assert "visible_ids_of" in body
@@ -51,7 +53,9 @@ def test_wait_for_covers_persist_not_sse() -> None:
     assert "insert_assistant_message" in body
     assert "insert_audit" in body
     assert "yield sse" not in body
-
+    # T-CH-01: 看门狗用 asyncio.wait（不是 wait_for），断言两者都存在
+    assert "asyncio.wait({" in text
+    assert "asyncio.wait_for(\n                    _reply_ground_and_persist()" not in text
 
 def test_chat_hmac_wrong_still_401(client) -> None:
     body = b'{"message":"hi"}'

@@ -53,6 +53,17 @@ EXPIRED_PREFIX = "原条目已过期"
 TURN_TIMEOUT_SEC = 120
 MAX_MESSAGE_LEN = 4000
 
+# T-CH-01: 备份路径释放锁的较短超时，避免孤儿 / 卡死的 conn 让 gen() 收尾被阻塞。
+# 兜底是既有 15 分钟 `turn_locked_at` 陈旧回收，不是新机制。
+_LOCK_BACKUP_RELEASE_SEC = 5.0
+
+
+def _swallow_orphan_exception(task: asyncio.Task) -> None:
+    """T-CH-01: 孤儿 task 兜异常回调。task.exception() 非 None 时记日志后吞掉，
+    防止事件循环 default handler 打 "Task exception was never retrieved" 噪声。"""
+    exc = task.exception()
+    if exc is not None:
+        logger.warning("orphan turn task raised: %s", exc)
 
 class _TurnAbort(Exception):
     def __init__(self, code: str) -> None:
@@ -216,6 +227,29 @@ async def post_chat(request: Request, user: HmacUser, body: ChatBody) -> Streami
         db_token = dbConnVar.set(PooledConnProxy(pool))
         error_code: str | None = None
         coverage = "none"
+
+        async def _release_lock_backup(lock_ts):
+            """T-CH-01: 备份路径释放锁。与主路径使用同一个 `ts`（CAS 保证双重释放安全）。
+            用较短超时（5s）防止孤儿任务占用的 conn 让 gen() 收尾被阻塞；
+            失败则记结构化日志后放弃（兜底是既有 15 分钟陈旧回收）。"""
+            try:
+                async with pool.connection() as conn2:
+                    try:
+                        await asyncio.wait_for(
+                            release_turn_lock(conn2, session_id, lock_ts),
+                            timeout=_LOCK_BACKUP_RELEASE_SEC,
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning(
+                            "backup lock release timeout; relying on stale recovery",
+                            extra={"correlationId": correlation_id},
+                        )
+            except Exception as exc:  # pragma: no cover — 池关闭等极端情况
+                logger.warning(
+                    "backup lock release failed: %s", exc,
+                    extra={"correlationId": correlation_id},
+                )
+
         try:
             yield sse({"type": "tool", "data": {"name": "_ack", "sessionId": session_id}})
             logger.info("first_event", extra={"correlationId": correlation_id})
@@ -294,54 +328,83 @@ async def post_chat(request: Request, user: HmacUser, body: ChatBody) -> Streami
                         )
                         await touch_session(conn, session_id)
                 return local_answer, local_cards, local_coverage, local_assistant_id
-
-            try:
-                answer, cards, coverage, assistant_id = await asyncio.wait_for(
-                    _reply_ground_and_persist(), timeout=TURN_TIMEOUT_SEC
-                )
-            except asyncio.TimeoutError:
-                error_code = "COPILOT_TURN_TIMEOUT"
-                await _write_aborted_audit(pool, user.user_id, session_id, list(toolRunsVar.get() or []))
-                if not await request.is_disconnected():
-                    yield sse({"type": "error", "data": {"code": error_code}})
-                return
-            except _TurnAbort as exc:
-                error_code = exc.code
-                await _write_aborted_audit(pool, user.user_id, session_id, list(toolRunsVar.get() or []))
-                if not await request.is_disconnected():
-                    yield sse({"type": "error", "data": {"code": error_code}})
-                return
-            except asyncio.CancelledError:
-                error_code = "COPILOT_CANCELLED"
-                await _write_aborted_audit(pool, user.user_id, session_id, list(toolRunsVar.get() or []))
-                return
-            except WorkerGatewayError as exc:
-                error_code = exc.code
-                await _write_aborted_audit(pool, user.user_id, session_id, list(toolRunsVar.get() or []))
-                if not await request.is_disconnected():
-                    yield sse({"type": "error", "data": {"code": error_code}})
-                return
-            except Exception:
-                error_code = "COPILOT_INTERNAL"
-                await _write_aborted_audit(pool, user.user_id, session_id, list(toolRunsVar.get() or []))
-                if not await request.is_disconnected():
-                    yield sse({"type": "error", "data": {"code": error_code}})
-                return
-
-            yield sse({"type": "token", "data": answer})
-            logger.info("first_answer_token", extra={"correlationId": correlation_id})
-            yield sse({"type": "citation", "data": cards})
-            yield sse(
-                {
-                    "type": "done",
-                    "data": {"sessionId": session_id, "assistantMessageId": assistant_id},
-                }
+            # T-CH-01: 用 `asyncio.wait` 替换 `asyncio.wait_for` 实现会话级看门狗。
+            # `wait_for` 在目标协程吞掉取消信号时跟着卡死（两次生产事故根因）；
+            # `wait` 到点一定返回，由调用方决定后续动作。
+            inner_task = asyncio.create_task(
+                _reply_ground_and_persist(),
+                name=f"copilot-turn-{session_id}-{correlation_id[:8]}",
             )
+            try:
+                done, pending = await asyncio.wait({inner_task}, timeout=TURN_TIMEOUT_SEC)
+            except BaseException:
+                # 客户端断连（GeneratorExit / CancelledError）或其他异常：
+                # 显式取消内层任务（保留 wait_for 原有的断连即链式取消语义）；
+                # 若协程无视取消，结果与看门狗路径相同（成为孤儿，done callback 兜异常）。
+                if not inner_task.done():
+                    inner_task.cancel()
+                    inner_task.add_done_callback(_swallow_orphan_exception)
+                raise
+            if pending:
+                # 看门狗到点。orphan task 不取消（不保证能杀死挂死协程）；
+                # 必须挂 done_callback 吞异常，不留 "Task exception was never retrieved" 噪声。
+                inner_task.add_done_callback(_swallow_orphan_exception)
+                error_code = "COPILOT_TURN_TIMEOUT"
+                await _write_aborted_audit(
+                    pool,
+                    user.user_id,
+                    session_id,
+                    list(toolRunsVar.get() or []),
+                )
+                if not await request.is_disconnected():
+                    yield sse({"type": "error", "data": {"code": error_code}})
+                # 备份路径：用独立连接释放锁，与主路径（finally）使用的 ts 闭包相同。
+                # 主路径可能因孤儿占用 / 死锁阻塞；备份路径用较短超时保护，失败放弃不阻塞 gen() 收尾。
+                await _release_lock_backup(ts)
+                return
+            assert inner_task in done
+            # 正常完成：从 task 取结果（异常也由 except 分支处理）
+            exc = inner_task.exception()
+            if exc is None:
+                answer, cards, coverage, assistant_id = inner_task.result()
+                yield sse({"type": "token", "data": answer})
+                logger.info("first_answer_token", extra={"correlationId": correlation_id})
+                yield sse({"type": "citation", "data": cards})
+                yield sse(
+                    {
+                        "type": "done",
+                        "data": {
+                            "sessionId": session_id,
+                            "assistantMessageId": assistant_id,
+                        },
+                    }
+                )
+                return
+            # 任务内抛异常：按既有 except 分支处理
+            if isinstance(exc, _TurnAbort):
+                error_code = exc.code
+            elif isinstance(exc, WorkerGatewayError):
+                error_code = exc.code
+            elif isinstance(exc, asyncio.CancelledError):
+                error_code = "COPILOT_CANCELLED"
+            else:
+                error_code = "COPILOT_INTERNAL"
+            await _write_aborted_audit(
+                pool,
+                user.user_id,
+                session_id,
+                list(toolRunsVar.get() or []),
+            )
+            if not await request.is_disconnected() and error_code != "COPILOT_CANCELLED":
+                yield sse({"type": "error", "data": {"code": error_code}})
+            return
         finally:
             try:
                 toolRunsVar.reset(runs_token)
             finally:
                 dbConnVar.reset(db_token)
+            # 主路径：用原 conn 释放锁（与 acquire_turn_lock 同一个 ts）。
+            # 与备份路径是 CAS 双保险（详见 `_release_lock_backup`）。
             async with pool.connection() as conn:
                 await release_turn_lock(conn, session_id, ts)
             logger.info(
