@@ -15,6 +15,7 @@ export function AskChat(): React.JSX.Element {
   const [sessions, setSessions] = useState<CopilotSessionDto[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const [chatBusy, setChatBusy] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
 
   const refreshSessions = useCallback(() => {
     fetch("/api/copilot/sessions")
@@ -34,17 +35,32 @@ export function AskChat(): React.JSX.Element {
   }, [refreshSessions]);
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[240px_minmax(0,1fr)]">
-      <aside className="flex flex-col gap-2 lg:min-h-0">
+    <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-3 lg:grid-cols-[240px_minmax(0,1fr)] lg:grid-rows-1 lg:gap-5">
+      <aside className="flex min-h-0 flex-col gap-2">
+        {/* 小屏把会话列表折叠：展开时它会把聊天挤到屏幕外，新用户看不到输入框 */}
         <button
-          className="rounded-md border border-border bg-surface px-3 py-2 text-left text-sm font-medium text-fg hover:bg-bg-deep disabled:opacity-50"
+          aria-expanded={listOpen}
+          className="flex min-h-10 items-center justify-between rounded-md border border-border bg-surface px-3 text-sm text-fg-muted lg:hidden"
+          onClick={() => setListOpen((prev) => !prev)}
+          type="button"
+        >
+          <span>历史会话 · {sessions.length}</span>
+          <span aria-hidden>{listOpen ? "收起 ▲" : "展开 ▼"}</span>
+        </button>
+        <button
+          className={`${listOpen ? "block" : "hidden"} rounded-md border border-border bg-surface px-3 py-2 text-left text-sm font-medium text-fg hover:bg-bg-deep disabled:opacity-50 lg:block`}
           disabled={chatBusy}
-          onClick={() => setActiveSessionId(null)}
+          onClick={() => {
+            setActiveSessionId(null);
+            setListOpen(false);
+          }}
           type="button"
         >
           ＋ 新会话
         </button>
-        <ul className="flex flex-col gap-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+        <ul
+          className={`${listOpen ? "flex" : "hidden"} max-h-[40dvh] min-h-0 flex-col gap-1 overflow-y-auto lg:flex lg:max-h-none lg:flex-1`}
+        >
           {sessions.map((session) => (
             <li key={session.id}>
               <button
@@ -54,7 +70,10 @@ export function AskChat(): React.JSX.Element {
                     : "border-hairline text-fg-muted hover:bg-bg"
                 }`}
                 disabled={chatBusy}
-                onClick={() => setActiveSessionId(session.id)}
+                onClick={() => {
+                  setActiveSessionId(session.id);
+                  setListOpen(false);
+                }}
                 type="button"
               >
                 <span className="block truncate font-medium">

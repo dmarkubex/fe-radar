@@ -22,23 +22,33 @@ describe("/ask Server Component 灰度门", () => {
     expect(askPage).toContain("enabled = false");
   });
 
-  it("全幅桌面工作区 + 无页头 + ChatPanel page 变体", () => {
+  it("全幅工作区 + 无页头 + ChatPanel page 变体", () => {
     expect(askPage).not.toContain("PageFrame");
     expect(askPage).not.toContain("PageHeader");
     expect(askPage).toContain("w-full");
-    expect(askPage).toContain("lg:h-[calc(100dvh-var(--shell-header-h))]");
+    // 桌面与移动端都锁一屏高，输入框不靠滚动才能看见
+    expect(askPage).toContain("h-[calc(100dvh-var(--shell-header-h))]");
     expect(askChat).toContain('variant="page"');
   });
 
   it("page 变体面板填满栅格高度，输入框不被挤出视口", () => {
     const chatPanel = read("../../../components/copilot/chat-panel.tsx");
-    expect(chatPanel).toContain("lg:h-full lg:min-h-0");
+    expect(chatPanel).toContain("flex h-full min-h-0 flex-col rounded-md");
+    expect(chatPanel).not.toContain("min-h-[60dvh]");
   });
 
-  it("桌面会话区填满剩余高度且列表内部滚动", () => {
-    expect(askChat).toContain("lg:min-h-0 lg:flex-1");
+  it("会话区填满剩余高度且列表内部滚动", () => {
+    expect(askChat).toContain("min-h-0 flex-1");
     expect(askChat).toContain("lg:grid-cols-[240px_minmax(0,1fr)]");
-    expect(askChat).toContain("lg:overflow-y-auto");
+    expect(askChat).toContain("overflow-y-auto");
+  });
+
+  it("移动端历史会话默认折叠，选中会话后自动收起", () => {
+    expect(askChat).toContain("useState(false)");
+    expect(askChat).toContain("aria-expanded={listOpen}");
+    expect(askChat).toContain("lg:hidden");
+    expect(askChat).toContain('${listOpen ? "flex" : "hidden"}');
+    expect(askChat).toContain("setListOpen(false)");
   });
 
   it("会话列表 GET /api/copilot/sessions", () => {
