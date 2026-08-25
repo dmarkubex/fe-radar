@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CIRCLE_FILTERS, SOURCE_TIER_LABELS } from "@/components/timeline/meta";
+
+const FILTER_KEYS = ["circle", "tier", "alertType"] as const;
 
 const TIER_ITEMS = (["T1", "T2", "T3"] as const).map((tier) => ({
   value: tier,
@@ -27,20 +30,39 @@ function updateParam(params: URLSearchParams, key: string, value: string | null)
   return next;
 }
 
+/**
+ * 筛选条。`shell`(760px) 以下默认折叠成一行开关——三组 chip 展开要占掉小屏近半屏，
+ * 结果列表一条都看不到。760px 以上照旧常驻展开，开关本身隐藏。
+ */
 export function FilterBar(): React.JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const [open, setOpen] = useState(false);
+  const activeCount = FILTER_KEYS.filter((key) => params.get(key)).length;
 
   const setParam = (key: string, value: string | null) => {
     router.replace(`${pathname}?${updateParam(params, key, value).toString()}`);
   };
 
   return (
-    <div className="flex flex-col gap-3 border border-border bg-surface p-3 shell:flex-row shell:flex-wrap shell:items-center sm:gap-2">
-      <FilterGroup label="关注圈" values={CIRCLE_FILTERS} active={params.get("circle")} onPick={(value) => setParam("circle", value)} />
-      <FilterGroup label="信源" values={TIER_ITEMS} active={params.get("tier")} onPick={(value) => setParam("tier", value)} />
-      <FilterGroup label="告警" values={ALERTS} active={params.get("alertType")} onPick={(value) => setParam("alertType", value)} />
+    <div className="border border-border bg-surface">
+      <button
+        aria-expanded={open}
+        className="flex min-h-10 w-full items-center justify-between px-3 font-mono text-[11px] uppercase tracking-[1.2px] text-fg-muted shell:hidden"
+        onClick={() => setOpen((prev) => !prev)}
+        type="button"
+      >
+        <span>筛选{activeCount > 0 ? ` · 已选 ${activeCount}` : ""}</span>
+        <span aria-hidden>{open ? "收起 ▲" : "展开 ▼"}</span>
+      </button>
+      <div
+        className={`${open ? "flex" : "hidden"} flex-col gap-3 px-3 pb-3 shell:flex shell:flex-row shell:flex-wrap shell:items-center shell:pt-3 sm:gap-2`}
+      >
+        <FilterGroup label="关注圈" values={CIRCLE_FILTERS} active={params.get("circle")} onPick={(value) => setParam("circle", value)} />
+        <FilterGroup label="信源" values={TIER_ITEMS} active={params.get("tier")} onPick={(value) => setParam("tier", value)} />
+        <FilterGroup label="告警" values={ALERTS} active={params.get("alertType")} onPick={(value) => setParam("alertType", value)} />
+      </div>
     </div>
   );
 }

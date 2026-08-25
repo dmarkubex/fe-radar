@@ -141,7 +141,7 @@ export function AppShell({
 
           {isLoggedIn && (
             <div className="sticky top-0 z-10 flex min-h-10 items-center justify-between gap-3 border-b border-border bg-bg px-5 py-2 max-shell:static max-shell:px-4">
-              <div className="shrink-0 text-[10px] uppercase tracking-[0.4px] text-fg-muted max-shell:hidden">
+              <div className="shrink-0 text-[10px] uppercase tracking-[0.4px] text-fg-muted">
                 {getBreadcrumb(currentPath)}
               </div>
               <div className="flex items-center">

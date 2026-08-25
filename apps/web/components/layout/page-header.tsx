@@ -21,7 +21,8 @@ export function PageHeader({
         {title}
       </h1>
       {description ? (
-        <p className="mt-1 text-sm leading-relaxed text-fg-muted">
+        // 移动端藏说明文案：小屏首屏要留给搜索框与结果，说明性文字不值这 3 行
+        <p className="mt-1 hidden text-sm leading-relaxed text-fg-muted shell:block">
           {description}
         </p>
       ) : null}
