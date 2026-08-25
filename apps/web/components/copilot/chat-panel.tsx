@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { applySseEvent, createChatTurn, finishChatTurn } from "./chat-turn";
 import { CitationList } from "./citation-list";
 import { CHAT_DISCLAIMER, NO_CONCLUSION_NOTICE } from "./copy";
+import { Markdown } from "./markdown";
 import { parseSseBuffer } from "./sse";
 
 import type { ChatTurn } from "./chat-turn";
@@ -313,6 +314,8 @@ export function ChatPanel({
             >
               {message.notice ? (
                 <p className="text-fg-muted">{message.notice}</p>
+              ) : message.role === "assistant" ? (
+                <Markdown text={message.content} />
               ) : (
                 <p className="whitespace-pre-wrap leading-6">{message.content}</p>
               )}
@@ -379,7 +382,7 @@ export function ChatPanel({
           <div className="flex justify-start">
             <div className="max-w-[85%] rounded-md border border-hairline bg-bg px-3 py-2 text-sm text-fg">
               {streamingText ? (
-                <p className="whitespace-pre-wrap leading-6">{streamingText}</p>
+                <Markdown text={streamingText} />
               ) : (
                 <p className="text-fg-soft">
                   {toolName ? `正在查询（${toolName}）…` : "正在思考…"}
