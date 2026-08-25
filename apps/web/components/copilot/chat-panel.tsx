@@ -272,7 +272,7 @@ export function ChatPanel({
       className={
         variant === "drawer"
           ? "flex h-full min-h-0 flex-col bg-surface"
-          : "flex min-h-[60dvh] flex-col rounded-md border border-border bg-surface"
+          : "flex min-h-[60dvh] flex-col rounded-md border border-border bg-surface lg:h-full lg:min-h-0"
       }
     >
       {variant === "drawer" ? (

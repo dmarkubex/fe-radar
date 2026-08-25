@@ -34,8 +34,8 @@ export function AskChat(): React.JSX.Element {
   }, [refreshSessions]);
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
-      <aside className="flex flex-col gap-2">
+    <div className="grid grid-cols-1 gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <aside className="flex flex-col gap-2 lg:min-h-0">
         <button
           className="rounded-md border border-border bg-surface px-3 py-2 text-left text-sm font-medium text-fg hover:bg-bg-deep disabled:opacity-50"
           disabled={chatBusy}
@@ -44,7 +44,7 @@ export function AskChat(): React.JSX.Element {
         >
           ＋ 新会话
         </button>
-        <ul className="flex flex-col gap-1">
+        <ul className="flex flex-col gap-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
           {sessions.map((session) => (
             <li key={session.id}>
               <button

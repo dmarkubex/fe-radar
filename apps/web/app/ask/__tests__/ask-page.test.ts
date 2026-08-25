@@ -22,12 +22,23 @@ describe("/ask Server Component 灰度门", () => {
     expect(askPage).toContain("enabled = false");
   });
 
-  it("PageFrame + PageHeader compact + ChatPanel page 变体", () => {
-    expect(askPage).toContain("<PageFrame>");
-    expect(askPage).toContain('eyebrow="问时间线"');
-    expect(askPage).toContain('title="问答"');
-    expect(askPage).toContain('variant="compact"');
+  it("全幅桌面工作区 + 无页头 + ChatPanel page 变体", () => {
+    expect(askPage).not.toContain("PageFrame");
+    expect(askPage).not.toContain("PageHeader");
+    expect(askPage).toContain("w-full");
+    expect(askPage).toContain("lg:h-[calc(100dvh-var(--shell-header-h))]");
     expect(askChat).toContain('variant="page"');
+  });
+
+  it("page 变体面板填满栅格高度，输入框不被挤出视口", () => {
+    const chatPanel = read("../../../components/copilot/chat-panel.tsx");
+    expect(chatPanel).toContain("lg:h-full lg:min-h-0");
+  });
+
+  it("桌面会话区填满剩余高度且列表内部滚动", () => {
+    expect(askChat).toContain("lg:min-h-0 lg:flex-1");
+    expect(askChat).toContain("lg:grid-cols-[240px_minmax(0,1fr)]");
+    expect(askChat).toContain("lg:overflow-y-auto");
   });
 
   it("会话列表 GET /api/copilot/sessions", () => {

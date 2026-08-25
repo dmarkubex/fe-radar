@@ -1,7 +1,5 @@
 import { forbidden } from "next/navigation";
 import { auth } from "@/auth";
-import { PageFrame } from "@/components/layout/page-frame";
-import { PageHeader } from "@/components/layout/page-header";
 import { evaluateCopilotAccess } from "@/lib/api/copilot-access";
 import { webLogger } from "@/lib/logger";
 import { AskChat } from "./ask-chat";
@@ -32,9 +30,9 @@ export default async function AskPage(): Promise<React.JSX.Element> {
   }
 
   return (
-    <PageFrame>
-      <PageHeader eyebrow="问时间线" title="问答" variant="compact" />
+    // 无页头：问答是工作区页，整屏高度全给聊天，输入框必须一屏内可见
+    <div className="flex w-full flex-col py-4 pad-fluid font-body text-fg lg:h-[calc(100dvh-var(--shell-header-h))]">
       <AskChat />
-    </PageFrame>
+    </div>
   );
 }
