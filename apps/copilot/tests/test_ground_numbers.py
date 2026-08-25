@@ -222,6 +222,24 @@ def test_allowed_5_still_replaces_wan_and_zhao() -> None:
     assert REPLACE in out
 
 
+def test_unit_amount_verbatim_in_tool_output_is_kept() -> None:
+    """出参逐字含「18.5亿元」时不得抹成（工具未给出）。"""
+    runs = [_rows("search_items", [{"title": "拟非公开发行不超过3.28亿股，募资不超过18.5亿元"}])]
+    out = ground_numbers("募资不超过18.5亿元，发行不超过3.28亿股。", runs)
+    assert "18.5亿元" in out
+    assert "3.28亿股" in out
+    assert REPLACE not in out
+
+
+def test_unit_amount_rescaled_by_model_is_replaced() -> None:
+    """模型自己换算出的 1.85亿 / 1850万 不在出参里，护栏仍须替换。"""
+    runs = [_rows("search_items", [{"title": "募资不超过18.5亿元"}])]
+    out = ground_numbers("募资不超过1.85亿元，约合1850万美元。", runs)
+    assert "1.85亿" not in out
+    assert "1850万" not in out
+    assert REPLACE in out
+
+
 def test_model_cutoff_date_not_exempt_without_tool_evidence() -> None:
     """工具只给 80000 时，模型正文「数据截止：2099-01-01」必须被替换。"""
     runs = [_rows("get_quotes_series", [{"value": "80000"}])]

@@ -119,6 +119,11 @@ def add_date(raw: str, allowed: set[str]) -> None:
 
 def collect_from_string(s: str, allowed: set[str]) -> None:
     folded = fold_num(s)
+    # 带单位/中文数词的整段字面量也入集：出参里逐字出现过的「18.5亿元」不该被规则 3 抹掉，
+    # 模型自己换算出的「1.85亿」仍不在集里，照样替换。
+    for pattern in (PCT_CN, UNIT, CN_RUN):
+        for m in pattern.finditer(folded):
+            allowed.add(m.group(0))
     last = 0
     frags: list[str] = []
     for m in DATE.finditer(folded):
@@ -229,6 +234,8 @@ def ground_answer(text: str, allowed: set[str]) -> str:
             if raw in allowed or (len(raw) >= 10 and raw[:10] in allowed):
                 continue
             out = out[:start] + REPLACE + out[end:]
+            continue
+        if match.re is not RELATIVE and match.group(0) in allowed:
             continue
         out = out[:start] + REPLACE + out[end:]
     return out
