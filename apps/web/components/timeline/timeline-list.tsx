@@ -1,9 +1,8 @@
 "use client";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ItemDetailDialog } from "@/components/timeline/item-detail-dialog";
 import { TimelineCard } from "@/components/timeline/timeline-card";
@@ -21,15 +20,12 @@ export function TimelineList({
   initialData: TimelineResult;
   variant?: "list" | "timeline";
 }): React.JSX.Element {
-  const queryClient = useMemo(() => new QueryClient(), []);
   return (
-    <QueryClientProvider client={queryClient}>
-      <TimelineListInner
-        endpoint={endpoint}
-        initialData={initialData}
-        variant={variant}
-      />
-    </QueryClientProvider>
+    <TimelineListInner
+      endpoint={endpoint}
+      initialData={initialData}
+      variant={variant}
+    />
   );
 }
 

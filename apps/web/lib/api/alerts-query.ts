@@ -9,8 +9,7 @@ import {
   lt,
   ne,
   not,
-  or,
-  sql
+  or
 } from "drizzle-orm";
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
 import {
@@ -26,6 +25,9 @@ import type { DbClient } from "@fe-radar/db";
 import type { AlertQuery } from "@/lib/api/alerts-schema";
 import {
   buildTimelineSourceDisplay,
+  clusterRelatedCountExpr,
+  clusterRelatedJoinOn,
+  clusterRelatedJoinTarget,
   type TimelineItemDto
 } from "@/lib/api/timeline-query";
 import {
@@ -120,13 +122,14 @@ export async function fetchAlerts(
       alertLevel: itemAnalysis.alertLevel,
       clusterId: clusters.id,
       eventType: clusters.eventType,
-      relatedCount: sql<number>`greatest((select count(*)::int - 1 from ${clusterItems} ci where ci.cluster_id = ${clusterItems.clusterId}), 0)`
+      relatedCount: clusterRelatedCountExpr
     })
     .from(items)
     .innerJoin(sources, eq(items.sourceId, sources.id))
     .innerJoin(itemAnalysis, eq(itemAnalysis.itemId, items.id))
     .leftJoin(clusterItems, eq(clusterItems.itemId, items.id))
     .leftJoin(clusters, eq(clusters.id, clusterItems.clusterId))
+    .leftJoin(clusterRelatedJoinTarget, clusterRelatedJoinOn)
     .where(baseAlertConditions(query, query.range))
     .orderBy(desc(itemAnalysis.scoredAt), desc(items.id))
     .limit(query.limit + 1);

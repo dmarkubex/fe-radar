@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
 
@@ -8,6 +10,11 @@ import {
   resolveTimelinePaginationPlan,
   type TimelineItemDto
 } from "../timeline-query";
+
+const timelineQuerySource = readFileSync(
+  resolve(__dirname, "../timeline-query.ts"),
+  "utf8"
+);
 
 function byPublishedDesc(
   a: { id: number; publishedAt: string },
@@ -38,6 +45,49 @@ function timeBucket(iso: string): string {
   if (hour < 18) return "afternoon";
   return "evening";
 }
+
+describe("T-PERF-01 search predicate source", () => {
+  it("does not ILIKE items.content", () => {
+    expect(timelineQuerySource).not.toContain("ilike(items.content");
+  });
+
+  it("FTS sql matches items_fts_idx and does not mention summaryZh", () => {
+    const ftsLines = timelineQuerySource
+      .split("\n")
+      .filter((line) => line.includes("to_tsvector"));
+    expect(ftsLines.length).toBeGreaterThan(0);
+    const fts = ftsLines.join("\n");
+    expect(fts).toContain(
+      "to_tsvector('zhparser', coalesce(${items.title}, '') || ' ' || coalesce(${items.content}, ''))"
+    );
+    expect(fts).toContain("plainto_tsquery('zhparser', ${search})");
+    expect(fts).not.toContain("summaryZh");
+  });
+});
+
+describe("T-PERF-03 relatedCount aggregate join", () => {
+  const alertsQuerySource = readFileSync(
+    resolve(__dirname, "../alerts-query.ts"),
+    "utf8"
+  );
+
+  it("does not correlate a per-row count(*) subquery", () => {
+    expect(timelineQuerySource).not.toMatch(
+      /select count\(\*\)::int - 1 from \$\{clusterItems\} ci where/
+    );
+    expect(alertsQuerySource).not.toMatch(
+      /select count\(\*\)::int - 1 from \$\{clusterItems\} ci where/
+    );
+  });
+
+  it("joins the cluster_related GROUP BY derived table", () => {
+    expect(timelineQuerySource).toContain("AS cluster_related");
+    expect(timelineQuerySource).toContain("GROUP BY cluster_id");
+    expect(timelineQuerySource).toContain("clusterRelatedJoinTarget");
+    expect(alertsQuerySource).toContain("clusterRelatedJoinTarget");
+    expect(alertsQuerySource).toContain("clusterRelatedCountExpr");
+  });
+});
 
 describe("timeline query pagination plan", () => {
   it("uses publishedAt for the default order and keyset cursor", () => {

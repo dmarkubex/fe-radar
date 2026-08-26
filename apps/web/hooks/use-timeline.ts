@@ -9,6 +9,9 @@ export function useTimeline(endpoint: string, initialData: TimelineResult): Retu
     queryKey: ["timeline", endpoint],
     initialPageParam: null,
     initialData: { pages: [initialData], pageParams: [null] },
+    staleTime: 30_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     queryFn: async ({ pageParam }) => {
       const url = new URL(endpoint, window.location.origin);

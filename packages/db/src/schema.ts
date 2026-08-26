@@ -115,7 +115,8 @@ export const itemAnalysis = pgTable("item_analysis", {
 }, (table) => ({
   quotaStateCheck: check("item_analysis_quota_state_check", sql`${table.quotaState} IN ('admitted', 'pending_over_quota', 'dropped_quota_expired', 'dropped_filter')`),
   qualityIdx: index("analysis_quality_idx").on(table.qualityScore).where(sql`${table.isCurated}`),
-  embeddingIdx: index("analysis_emb_idx").using("ivfflat", sql`${table.embedding} vector_cosine_ops`)
+  embeddingIdx: index("analysis_emb_idx").using("ivfflat", sql`${table.embedding} vector_cosine_ops`),
+  scoredAtIdx: index("analysis_scored_at_idx").on(table.scoredAt).where(sql`${table.scoredAt} IS NOT NULL`)
 }));
 
 export const itemEntities = pgTable("item_entities", {
@@ -139,7 +140,8 @@ export const clusterItems = pgTable("cluster_items", {
   itemId: bigint("item_id", { mode: "number" }).notNull().references(() => items.id, { onDelete: "cascade" }),
   similarity: real("similarity")
 }, (table) => ({
-  pk: primaryKey({ columns: [table.clusterId, table.itemId] })
+  pk: primaryKey({ columns: [table.clusterId, table.itemId] }),
+  itemIdIdx: index("cluster_items_item_id_idx").on(table.itemId)
 }));
 
 export const dailyReports = pgTable("daily_reports", {

@@ -40,6 +40,18 @@ import { mockFetchItemDetail, mockFetchTimeline } from "@/lib/mock-data";
 
 const DEFAULT_LIMIT = 50;
 
+/** Per-cluster member count minus one. Join once; do not correlate per row. */
+export const clusterRelatedJoinTarget = sql`(
+  SELECT cluster_id,
+         GREATEST(count(*)::int - 1, 0)::int AS related_count
+  FROM ${clusterItems}
+  GROUP BY cluster_id
+) AS cluster_related`;
+
+export const clusterRelatedJoinOn = sql`cluster_related.cluster_id = ${clusterItems.clusterId}`;
+
+export const clusterRelatedCountExpr = sql<number>`coalesce(cluster_related.related_count, 0)`;
+
 export type TimelineKeysetAxis = "publishedAt" | "scoredAt";
 
 export interface TimelinePaginationPlan {
@@ -211,21 +223,17 @@ export function visibleItemConditions(
   }
 
   if (search) {
-    const keyword = `%${search}%`;
-    conditions.push(
-      useFts
-        ? or(
-            ilike(items.title, keyword),
-            ilike(items.content, keyword),
-            ilike(itemAnalysis.summaryZh, keyword),
-            sql<boolean>`to_tsvector('zhparser', coalesce(${items.title}, '') || ' ' || coalesce(${items.content}, '') || ' ' || coalesce(${itemAnalysis.summaryZh}, '')) @@ plainto_tsquery('zhparser', ${search})`
-          )
-        : or(
-            ilike(items.title, keyword),
-            ilike(items.content, keyword),
-            ilike(itemAnalysis.summaryZh, keyword)
-          )
-    );
+    if (useFts) {
+      // Must match items_fts_idx (title + content only). FTS OR ILIKE drops the GIN.
+      conditions.push(
+        sql<boolean>`to_tsvector('zhparser', coalesce(${items.title}, '') || ' ' || coalesce(${items.content}, '')) @@ plainto_tsquery('zhparser', ${search})`
+      );
+    } else {
+      const keyword = `%${search}%`;
+      conditions.push(
+        or(ilike(items.title, keyword), ilike(itemAnalysis.summaryZh, keyword))
+      );
+    }
   }
 
   return and(...conditions);
@@ -293,13 +301,14 @@ async function fetchRows(
       alertLevel: itemAnalysis.alertLevel,
       clusterId: clusters.id,
       eventType: clusters.eventType,
-      relatedCount: sql<number>`greatest((select count(*)::int - 1 from ${clusterItems} ci where ci.cluster_id = ${clusterItems.clusterId}), 0)`
+      relatedCount: clusterRelatedCountExpr
     })
     .from(items)
     .innerJoin(sources, eq(items.sourceId, sources.id))
     .innerJoin(itemAnalysis, eq(itemAnalysis.itemId, items.id))
     .leftJoin(clusterItems, eq(clusterItems.itemId, items.id))
     .leftJoin(clusters, eq(clusters.id, clusterItems.clusterId))
+    .leftJoin(clusterRelatedJoinTarget, clusterRelatedJoinOn)
     .where(
       visibleItemConditions(
         options.filters,
@@ -473,7 +482,7 @@ export async function fetchItemDetail(
       alertLevel: itemAnalysis.alertLevel,
       clusterId: clusters.id,
       eventType: clusters.eventType,
-      relatedCount: sql<number>`greatest((select count(*)::int - 1 from ${clusterItems} ci where ci.cluster_id = ${clusterItems.clusterId}), 0)`,
+      relatedCount: clusterRelatedCountExpr,
       content: items.content,
       translationZh: itemAnalysis.translationZh,
       d1Policy: itemAnalysis.d1Policy,
@@ -487,6 +496,7 @@ export async function fetchItemDetail(
     .innerJoin(itemAnalysis, eq(itemAnalysis.itemId, items.id))
     .leftJoin(clusterItems, eq(clusterItems.itemId, items.id))
     .leftJoin(clusters, eq(clusters.id, clusterItems.clusterId))
+    .leftJoin(clusterRelatedJoinTarget, clusterRelatedJoinOn)
     .where(
       and(
         eq(items.id, id),

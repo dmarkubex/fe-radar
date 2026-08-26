@@ -241,6 +241,55 @@ describe("行业闸门 visibleItemConditions（通过 fetchTimeline 注入 db）
   });
 });
 
+describe("T-PERF-01 search uses items_fts_idx", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function getWhereArg(db: ReturnType<typeof makeQueryBuilder>, call = 0) {
+    return db._where.mock.calls[call]?.[0];
+  }
+
+  it("fetchTimeline({ search }) FTS path matches GIN and does not OR ILIKE", async () => {
+    const db = makeQueryBuilder([]);
+    await fetchTimeline({ db: db as never, search: "电缆" });
+    const whereArg = getWhereArg(db);
+    const s = JSON.stringify(whereArg);
+
+    expect(s).toContain("to_tsvector('zhparser'");
+    expect(s).toContain("plainto_tsquery('zhparser'");
+
+    const ftsSql = s.match(/to_tsvector\('zhparser'[^"]*/)?.[0] ?? "";
+    expect(ftsSql).toContain(
+      "coalesce(?, '') || ' ' || coalesce(?, '')"
+    );
+    expect(ftsSql).not.toMatch(/summary_zh|summaryZh/);
+
+    expect(s).not.toContain("$ilike");
+    expect(s).not.toMatch(/"\$ilike":\["items\.content"/);
+  });
+
+  it("FTS throw retries with title+summary ILIKE and never content ILIKE", async () => {
+    const db = makeQueryBuilder([]);
+    const limit = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("zhparser unavailable"))
+      .mockResolvedValueOnce([]);
+    db._where.mockReturnValue({
+      orderBy: vi.fn().mockReturnValue({ limit })
+    });
+
+    await fetchTimeline({ db: db as never, search: "电缆" });
+
+    expect(db._where).toHaveBeenCalledTimes(2);
+    const fallback = JSON.stringify(getWhereArg(db, 1));
+    expect(fallback).not.toContain("to_tsvector");
+    expect(fallback).toContain('"$ilike":["items.title"');
+    expect(fallback).toContain('"$ilike":["ia.summary_zh"');
+    expect(fallback).not.toMatch(/"\$ilike":\["items\.content"/);
+  });
+});
+
 describe("精选分类聚合", () => {
   beforeEach(() => {
     vi.clearAllMocks();

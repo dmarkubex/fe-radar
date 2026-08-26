@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { AppShell } from "@/components/layout/app-shell";
+import { QueryProvider } from "@/components/providers/query-provider";
 import { evaluateCopilotAccess } from "@/lib/api/copilot-access";
 import { webLogger } from "@/lib/logger";
 import { auth } from "@/auth";
@@ -44,13 +45,15 @@ export default async function RootLayout({
   return (
     <html lang="zh-CN">
       <body>
-        <AppShell
-          activePath={activePath}
-          copilotEnabled={copilotEnabled}
-          user={{ name: session?.user?.name, role: session?.user?.role }}
-        >
-          {children}
-        </AppShell>
+        <QueryProvider>
+          <AppShell
+            activePath={activePath}
+            copilotEnabled={copilotEnabled}
+            user={{ name: session?.user?.name, role: session?.user?.role }}
+          >
+            {children}
+          </AppShell>
+        </QueryProvider>
       </body>
     </html>
   );
