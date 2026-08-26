@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { dayjs } from "@fe-radar/shared";
 
@@ -10,6 +12,15 @@ import { alertQuerySchema } from "../alerts-schema";
 import { decodeCursor } from "../cursor";
 import { encodeAlertCursor } from "../alerts-query";
 import type { TimelineItemDto } from "../timeline-query";
+
+const alertsQuerySource = readFileSync(
+  resolve(__dirname, "../alerts-query.ts"),
+  "utf8"
+);
+
+const fetchAlertCountBody = alertsQuerySource.slice(
+  alertsQuerySource.indexOf("export async function fetchAlertCount")
+);
 
 function byScoredAtDesc(a: TimelineItemDto, b: TimelineItemDto): number {
   return (
@@ -97,6 +108,20 @@ describe("alerts list-count range window consistency (mock)", () => {
       count.own + count.safety + count.policy + count.legal + count.risk;
     expect(list.items.length).toBeLessThanOrEqual(countTotal);
     expect(list.items.length).toBe(countTotal);
+  });
+});
+
+describe("T-PERF-08 fetchAlertCount GROUP BY source", () => {
+  it("aggregates with groupBy(itemAnalysis.alertType)", () => {
+    expect(fetchAlertCountBody).toContain("groupBy(itemAnalysis.alertType)");
+  });
+
+  it("counts in SQL as count(*)::int", () => {
+    expect(fetchAlertCountBody).toContain("count(*)::int");
+  });
+
+  it("does not increment a Node-side map", () => {
+    expect(fetchAlertCountBody).not.toContain("count[row.alertType] += 1");
   });
 });
 

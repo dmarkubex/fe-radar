@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { eq } from "drizzle-orm";
 import { dailyReports, getDb } from "@fe-radar/db";
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
@@ -92,7 +93,13 @@ export default async function DailyPage({ searchParams }: { searchParams: PageSe
       <div className="mx-auto max-w-[1120px] pad-fluid-x">
         <header className="flex flex-col items-start gap-3 border-b-4 border-double border-fg py-5 shell:flex-row shell:items-end shell:justify-between sm:gap-8">
           <div className="flex items-center gap-4">
-            <img src="/fareast-logo.png" alt="远东控股集团" className="h-auto w-[110px] border border-border bg-white px-2 py-1 sm:w-[142px]" />
+            <Image
+              alt="远东控股集团"
+              className="h-auto w-[110px] border border-border bg-white px-2 py-1 sm:w-[142px]"
+              height={29}
+              src="/fareast-logo.png"
+              width={142}
+            />
             <div className="font-display text-[22px] font-normal text-fg sm:text-[28px]">
               产业日报
               <small className="block font-mono text-[10px] uppercase tracking-[1.6px] text-fg-soft">FE-Radar / Daily Intelligence Brief</small>

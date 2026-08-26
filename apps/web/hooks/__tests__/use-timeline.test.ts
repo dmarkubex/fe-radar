@@ -18,6 +18,9 @@ describe("T-PERF-02 QueryClient staleTime", () => {
     expect(hookSource).toContain("staleTime: 30_000");
     expect(hookSource).toContain("refetchOnMount: false");
     expect(hookSource).toContain("refetchOnWindowFocus: false");
+    expect(hookSource).toContain("placeholderData");
+    expect(hookSource).toContain("ssrEndpointRef");
+    expect(hookSource).toContain("enabled: canFetchTimeline(endpoint)");
   });
 
   it("TimelineList does not create its own QueryClient", () => {
@@ -43,5 +46,22 @@ describe("T-PERF-02 QueryClient staleTime", () => {
     expect(queryProviderSource).toContain("staleTime: 30_000");
     expect(queryProviderSource).toContain("useState");
     expect(queryProviderSource).not.toMatch(/useMemo\s*\(\s*\(\)\s*=>\s*new QueryClient/);
+  });
+});
+
+const timelineCardSource = readFileSync(
+  resolve(__dirname, "../../components/timeline/timeline-card.tsx"),
+  "utf8"
+);
+const timelineListSourceForMemo = readFileSync(
+  resolve(__dirname, "../../components/timeline/timeline-list.tsx"),
+  "utf8"
+);
+
+describe("T-PERF-05 list render", () => {
+  it("memoizes TimelineCard and groups items with useMemo", () => {
+    expect(timelineCardSource).toContain("export const TimelineCard = memo(");
+    expect(timelineCardSource).toContain("timeline-card");
+    expect(timelineListSourceForMemo).toContain("useMemo(() => groupTimeline(items), [items])");
   });
 });

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { isDingtalkEnabled, isLocalLoginAllowed } from "@/lib/auth/dingtalk-provider";
 import { LoginPanel } from "./login-panel";
 
@@ -13,10 +14,13 @@ export default function LoginPage(): React.JSX.Element {
       {/* Left hero panel - more compact for 14" screens */}
       <aside className="bg-surface-deep text-white p-6 lg:p-8 xl:p-10 flex flex-col justify-between relative overflow-hidden max-[900px]:min-h-[320px] max-[900px]:p-6">
         <div className="z-[2] flex items-center gap-3">
-          <img
-            src="/fareast-logo.png"
+          <Image
             alt="远东控股集团"
             className="h-auto w-[148px] lg:w-[164px] border border-white/[0.18] bg-white px-2 py-1"
+            height={33}
+            priority
+            src="/fareast-logo.png"
+            width={164}
           />
         </div>
 

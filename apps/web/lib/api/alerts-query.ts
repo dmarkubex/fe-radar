@@ -9,7 +9,8 @@ import {
   lt,
   ne,
   not,
-  or
+  or,
+  sql
 } from "drizzle-orm";
 import { APP_TIMEZONE, dayjs } from "@fe-radar/shared";
 import {
@@ -182,24 +183,29 @@ export async function fetchAlertCount(
   }
   db ??= getDb();
   const rows = await db
-    .select({ alertType: itemAnalysis.alertType })
+    .select({
+      alertType: itemAnalysis.alertType,
+      n: sql<number>`count(*)::int`
+    })
     .from(items)
     .innerJoin(sources, eq(items.sourceId, sources.id))
     .innerJoin(itemAnalysis, eq(itemAnalysis.itemId, items.id))
     .leftJoin(clusterItems, eq(clusterItems.itemId, items.id))
     .leftJoin(clusters, eq(clusters.id, clusterItems.clusterId))
-    .where(baseAlertConditions({}, range));
+    .where(baseAlertConditions({}, range))
+    .groupBy(itemAnalysis.alertType);
 
   const count = { own: 0, safety: 0, policy: 0, legal: 0, risk: 0 };
   for (const row of rows) {
+    const type = row.alertType;
     if (
-      row.alertType === "own" ||
-      row.alertType === "safety" ||
-      row.alertType === "policy" ||
-      row.alertType === "legal" ||
-      row.alertType === "risk"
+      type === "own" ||
+      type === "safety" ||
+      type === "policy" ||
+      type === "legal" ||
+      type === "risk"
     ) {
-      count[row.alertType] += 1;
+      count[type] = Number(row.n ?? 0);
     }
   }
   return count;

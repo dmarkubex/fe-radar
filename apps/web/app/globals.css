@@ -96,6 +96,11 @@
   background: var(--color-surface);
 }
 
+@utility timeline-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 160px;
+}
+
 @utility eyebrow {
   font-family: var(--font-mono);
   font-size: 0.625rem;

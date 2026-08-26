@@ -1,6 +1,7 @@
 import { SearchBox } from "@/components/search/search-box";
 import { FilterBar } from "@/components/timeline/filter-bar";
 import { TimelineList } from "@/components/timeline/timeline-list";
+import { buildTimelineEndpoint } from "@/lib/api/timeline-endpoint";
 import { fetchTimeline } from "@/lib/api/timeline-query";
 import { PageFrame } from "@/components/layout/page-frame";
 import { PageHeader } from "@/components/layout/page-header";
@@ -25,28 +26,24 @@ export default async function SearchPage({ searchParams }: { searchParams: PageS
   };
   const initialData = q ? await fetchTimeline({ search: q, filters }) : { items: [], nextCursor: null };
   const query = new URLSearchParams();
-  query.set("q", q);
+  if (q) query.set("q", q);
   for (const key of ["category", "circle", "tier", "alertType", "eventType"] as const) {
     const value = filters[key];
     if (value) {
       query.set(key, value);
     }
   }
-  const endpoint = `/api/search?${query.toString()}`;
+  const endpoint = buildTimelineEndpoint("/search", query);
 
   return (
     <PageFrame>
       <PageHeader eyebrow="全文检索" title="搜索" variant="compact" />
       <SearchBox initialQuery={q} />
       <FilterBar />
-      {q ? (
-        <TimelineList
-          endpoint={endpoint}
-          initialData={initialData}
-        />
-      ) : (
-        <div className="panel-surface p-8 text-sm text-fg-muted">输入关键词后开始检索</div>
-      )}
+      <TimelineList
+        endpoint={endpoint}
+        initialData={initialData}
+      />
     </PageFrame>
   );
 }

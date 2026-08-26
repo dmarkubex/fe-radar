@@ -1,14 +1,26 @@
 "use client";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
+import { useRef } from "react";
 
+import { canFetchTimeline } from "@/lib/api/timeline-endpoint";
 import type { TimelineResult } from "@/lib/api/timeline-query";
 
-export function useTimeline(endpoint: string, initialData: TimelineResult): ReturnType<typeof useInfiniteQuery<TimelineResult>> {
+export function useTimeline(
+  endpoint: string,
+  initialData: TimelineResult,
+  ssrEndpoint: string = endpoint
+): ReturnType<typeof useInfiniteQuery<TimelineResult>> {
+  const ssrEndpointRef = useRef(ssrEndpoint);
   return useInfiniteQuery<TimelineResult>({
     queryKey: ["timeline", endpoint],
     initialPageParam: null,
-    initialData: { pages: [initialData], pageParams: [null] },
+    initialData:
+      endpoint === ssrEndpointRef.current
+        ? { pages: [initialData], pageParams: [null] }
+        : undefined,
+    placeholderData: (previousData) => previousData,
+    enabled: canFetchTimeline(endpoint),
     staleTime: 30_000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,

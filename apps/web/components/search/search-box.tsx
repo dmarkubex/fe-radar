@@ -1,15 +1,18 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  replaceShallowSearch,
+  useShallowSearchParams
+} from "@/hooks/use-shallow-search-params";
 
 export function SearchBox({ initialQuery }: { initialQuery: string }): React.JSX.Element {
   const [query, setQuery] = useState(initialQuery);
-  const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const searchParams = useShallowSearchParams();
 
   return (
     <form
@@ -21,8 +24,7 @@ export function SearchBox({ initialQuery }: { initialQuery: string }): React.JSX
         if (value) next.set("q", value);
         else next.delete("q");
         next.delete("cursor");
-        const suffix = next.toString();
-        router.replace(`${pathname}${suffix ? `?${suffix}` : ""}`);
+        replaceShallowSearch(pathname, next);
       }}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2 border border-border-strong px-3">

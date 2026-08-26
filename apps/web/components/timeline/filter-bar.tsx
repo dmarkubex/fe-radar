@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { CIRCLE_FILTERS, SOURCE_TIER_LABELS } from "@/components/timeline/meta";
+import {
+  replaceShallowSearch,
+  useShallowSearchParams
+} from "@/hooks/use-shallow-search-params";
 
 const FILTER_KEYS = ["circle", "tier", "alertType"] as const;
 
@@ -35,14 +39,13 @@ function updateParam(params: URLSearchParams, key: string, value: string | null)
  * 结果列表一条都看不到。760px 以上照旧常驻展开，开关本身隐藏。
  */
 export function FilterBar(): React.JSX.Element {
-  const router = useRouter();
   const pathname = usePathname();
-  const params = useSearchParams();
+  const params = useShallowSearchParams();
   const [open, setOpen] = useState(false);
   const activeCount = FILTER_KEYS.filter((key) => params.get(key)).length;
 
   const setParam = (key: string, value: string | null) => {
-    router.replace(`${pathname}?${updateParam(params, key, value).toString()}`);
+    replaceShallowSearch(pathname, updateParam(params, key, value));
   };
 
   return (

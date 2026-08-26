@@ -24,7 +24,7 @@ vi.mock("@fe-radar/db", () => ({
   }
 }));
 
-import { evaluateCopilotAccess } from "../copilot-access";
+import { clearCopilotAccessCache, evaluateCopilotAccess } from "../copilot-access";
 
 function mockFlagThenUser(
   flagRows: Array<{ enabled: boolean; userIds: number[]; depts: string[] }>,
@@ -48,6 +48,7 @@ function mockFlagThenUser(
 describe("evaluateCopilotAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearCopilotAccessCache();
   });
 
   it("returns false when the flag row is missing", async () => {
@@ -90,5 +91,51 @@ describe("evaluateCopilotAccess", () => {
       })
     });
     await expect(evaluateCopilotAccess(1)).rejects.toThrow("flags down");
+  });
+
+  it("reuses a true result on a second call without hitting the db", async () => {
+    mockFlagThenUser([{ enabled: true, userIds: [7], depts: [] }], [{ dept: null }]);
+    expect(await evaluateCopilotAccess(7)).toBe(true);
+    mockGetDb.mockClear();
+    selectLimit.mockClear();
+    usersLimit.mockClear();
+    expect(await evaluateCopilotAccess(7)).toBe(true);
+    expect(selectLimit).not.toHaveBeenCalled();
+    expect(usersLimit).not.toHaveBeenCalled();
+    expect(mockGetDb).not.toHaveBeenCalled();
+  });
+
+  it("does not read or write the default cache when options.db is injected", async () => {
+    const injectedLimit = vi.fn().mockResolvedValue([]);
+    const injectedDb = {
+      select: () => ({
+        from: () => ({
+          where: () => ({ limit: injectedLimit })
+        })
+      })
+    };
+    expect(await evaluateCopilotAccess(1, { db: injectedDb as never })).toBe(false);
+    expect(injectedLimit).toHaveBeenCalledTimes(1);
+
+    mockFlagThenUser([{ enabled: true, userIds: [1], depts: [] }], [{ dept: null }]);
+    expect(await evaluateCopilotAccess(1)).toBe(true);
+    expect(selectLimit).toHaveBeenCalledTimes(1);
+    expect(usersLimit).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not cache rejected database errors", async () => {
+    selectLimit.mockRejectedValueOnce(new Error("flags down"));
+    mockGetDb.mockReturnValue({
+      select: () => ({
+        from: () => ({
+          where: () => ({ limit: selectLimit })
+        })
+      })
+    });
+    await expect(evaluateCopilotAccess(1)).rejects.toThrow("flags down");
+
+    mockFlagThenUser([{ enabled: true, userIds: [1], depts: [] }], [{ dept: null }]);
+    expect(await evaluateCopilotAccess(1)).toBe(true);
+    expect(selectLimit).toHaveBeenCalledTimes(1);
   });
 });

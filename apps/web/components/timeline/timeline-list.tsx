@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ItemDetailDialog } from "@/components/timeline/item-detail-dialog";
 import { TimelineCard } from "@/components/timeline/timeline-card";
 import { useTimeline } from "@/hooks/use-timeline";
 import { groupTimeline } from "@/components/timeline/timeline-grouping";
+import { buildTimelineEndpoint } from "@/lib/api/timeline-endpoint";
+import { useShallowSearchParams } from "@/hooks/use-shallow-search-params";
 
 import type { TimelineResult } from "@/lib/api/timeline-query";
 
@@ -40,11 +42,15 @@ function TimelineListInner({
 }): React.JSX.Element {
   const [activeItemId, setActiveItemId] = useState<number | null>(null);
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const timeline = useTimeline(endpoint, initialData);
+  const searchParams = useShallowSearchParams();
+  const liveEndpoint = buildTimelineEndpoint(pathname ?? "/", searchParams);
+  const timeline = useTimeline(liveEndpoint, initialData, endpoint);
   // 在全量 flatMap 后的 items 上分组，跨页同日合并
-  const items = timeline.data?.pages.flatMap((page) => page.items) ?? [];
-  const dayGroups = groupTimeline(items);
+  const items = useMemo(
+    () => timeline.data?.pages.flatMap((page) => page.items) ?? [],
+    [timeline.data]
+  );
+  const dayGroups = useMemo(() => groupTimeline(items), [items]);
 
   // 触底自动加载（移动端阅读流）；保留"加载更多"按钮作兜底
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -120,7 +126,11 @@ function TimelineListInner({
         )
       ) : (
         <div className="border border-border bg-surface p-8 text-center text-sm text-fg-soft">
-          <p>暂无条目</p>
+          <p>
+            {(pathname ?? "").startsWith("/search") && !searchParams.get("q")?.trim()
+              ? "输入关键词后开始检索"
+              : "暂无条目"}
+          </p>
           {searchParams.size > 0 ? (
             <Link className="mt-3 inline-flex min-h-10 items-center text-accent hover:underline" href={pathname}>
               清除筛选

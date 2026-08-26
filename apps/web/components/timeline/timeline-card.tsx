@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ExternalLink } from "lucide-react";
 import { AlertStrip, alertTypeLabel } from "@/components/shared/alert-strip";
 import { formatAppTime, scoreLabel, SOURCE_TIER_LABELS } from "@/components/timeline/meta";
@@ -5,7 +6,7 @@ import { safeExternalUrl } from "@/lib/safe-external-url";
 
 import type { TimelineItemDto } from "@/lib/api/timeline-query";
 
-export function TimelineCard({
+export const TimelineCard = memo(function TimelineCard({
   item,
   onOpen
 }: {
@@ -18,7 +19,7 @@ export function TimelineCard({
 
   return (
     <article
-      className={`relative grid grid-cols-1 items-start gap-4 border bg-surface px-4 py-4 shell:grid-cols-[minmax(0,1fr)_auto] sm:gap-6 sm:px-5 sm:py-[18px] ${
+      className={`timeline-card relative grid grid-cols-1 items-start gap-4 border bg-surface px-4 py-4 shell:grid-cols-[minmax(0,1fr)_auto] sm:gap-6 sm:px-5 sm:py-[18px] ${
         item.alertType ? "border-accent/50" : "border-hairline"
       }`}
     >
@@ -119,4 +120,4 @@ export function TimelineCard({
       </div>
     </article>
   );
-}
+});
